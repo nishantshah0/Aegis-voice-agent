@@ -88,7 +88,7 @@ Overall · Best Health Hack by Sun Life · Best Use of Auth0 · Best Use of Vult
 
 *Last updated Sat 6:31 PM EST from `main` and the channel. Each role's agent keeps **only its own row** current: update it whenever you post a HANDOFF, and the integrator updates a row's "Merged" column when it posts MERGED. Counts come from the channel, `main` and `results/`, never from guesses.*
 
-**Core demo: done.** Three clean passes in a row (15, 16 and 17) on `main` 13474ca, Sat 4:05 to 4:28 PM EST, logged in [`docs/DEMO.md`](docs/DEMO.md) with the final walkthrough in `results/demo/2026-11-21T1625-final/`. The gate on `main`: 816 tests pass (1 expected fail, 7 skipped), and the last hammer run reports 0 rules broken across 77,648 hostile press sequences.
+**Core demo: done.** Three clean passes in a row (15, 16 and 17) on `main` 13474ca, Sat 4:05 to 4:28 PM EST, logged in [`docs/DEMO.md`](docs/DEMO.md) with the final walkthrough in `results/demo/2026-11-21T1625-final/`. The gate on `main`: 823 tests pass (1 expected fail, 7 skipped), and the last hammer run reports 0 rules broken across 77,648 hostile press sequences.
 
 | Role | Core done | Merged to `main` | Built, in review | Working on now | Next |
 |---|---|---|---|---|---|
