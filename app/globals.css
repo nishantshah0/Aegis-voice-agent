@@ -6,7 +6,8 @@
  * for badges and small marks only, never for large fills.
  */
 
-:root {
+:root,
+.theme-light {
   /* Surfaces */
   --rg-canvas: #f7f7f4;
   --rg-surface: #ffffff;
@@ -40,7 +41,8 @@
   --rg-shadow: 0 1px 2px rgb(12 15 14 / 0.04), 0 8px 24px -12px rgb(12 15 14 / 0.12);
 }
 
-/* Dark surfaces: the stage (projector) and the phone call screen. Opt in with .theme-dark. */
+/* Dark surfaces: the landing page, the stage (projector) and the phone call screen. Opt in with
+ * .theme-dark; nest .theme-light inside it for a light card (and the reverse). */
 .theme-dark {
   --rg-canvas: #0a0b0a;
   --rg-surface: #131513;
@@ -70,6 +72,14 @@
   --rg-focus: #3ddc97;
   --rg-shadow: 0 1px 0 rgb(255 255 255 / 0.03) inset, 0 12px 32px -16px rgb(0 0 0 / 0.6);
   color-scheme: dark;
+}
+
+.theme-light {
+  color-scheme: light;
+}
+.theme-light,
+.theme-dark {
+  color: var(--rg-ink);
 }
 
 @theme inline {
