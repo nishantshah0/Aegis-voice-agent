@@ -9,7 +9,9 @@
     "lint": "eslint",
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "hammer": "vitest run scripts/hammer",
+    "hammer:deep": "vitest run scripts/hammer"
   },
   "dependencies": {
     "@auth0/nextjs-auth0": "4.33.0",
