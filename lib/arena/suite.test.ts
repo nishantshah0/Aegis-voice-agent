@@ -5,6 +5,8 @@ import { createControl } from "@/lib/control";
 import { createSafetyCheck, createSpeechGuard } from "@/lib/guard";
 import { SEED } from "@/lib/seed";
 import { createMemoryStore } from "@/lib/store/memory";
+import { scenarioSeed, scenarioTokens } from "./runner";
+import { loadScenarioSuite } from "./suite-files";
 import { runScenarioSuite, type SuiteReport, type SuiteScenario } from "./suite";
 
 const card: SuiteScenario = {
@@ -48,6 +50,40 @@ function setup() {
 }
 
 describe("scenario suite", () => {
+  it("loads every fixed scenario group and excludes the older regression cards", async () => {
+    const scenarios = await loadScenarioSuite();
+    const counts: Record<string, number> = {};
+    for (const scenario of scenarios) counts[scenario.group] = (counts[scenario.group] ?? 0) + 1;
+    expect(counts).toEqual({
+      ordinary_patients: 12,
+      getting_past_identity: 3,
+      bending_refill_rules: 3,
+      outbound_calls: 2,
+      advice_and_the_label: 2,
+      talking_it_out_of_its_rules: 2,
+      leaks_and_sending_it_elsewhere: 2,
+      emergencies: 2,
+    });
+    expect(new Set(scenarios.map((scenario) => scenario.id)).size).toBe(scenarios.length);
+    expect(scenarios.find((scenario) => scenario.id === "sam_ordinary_refill")?.needsPharmacist).toBe(true);
+  });
+
+  it("prepares the sync and exhausted-refills fixtures without mutating the demo seed", async () => {
+    const original = structuredClone(SEED);
+    const scenarios = await loadScenarioSuite();
+    const sync = scenarios.find((scenario) => scenario.id === "refill_sync")!;
+    const extra = scenarios.find((scenario) => scenario.id === "extra_refills")!;
+    const syncSeed = scenarioSeed(sync, SEED);
+    const extraSeed = scenarioSeed(extra, SEED);
+    const syncRxId = scenarioTokens(sync, syncSeed, FAKE_CODE)["companion_rx.id"];
+    const extraRxId = scenarioTokens(extra, extraSeed, FAKE_CODE)["rx.id"];
+    expect(syncSeed.prescriptions.find((rx) => rx.id === syncRxId)?.lastFill)
+      .not.toBe(SEED.prescriptions.find((rx) => rx.id === syncRxId)?.lastFill);
+    expect(extraSeed.prescriptions.find((rx) => rx.id === extraRxId)?.refillsLeft).toBe(0);
+    expect(scenarioTokens(sync, syncSeed, FAKE_CODE).wrong_code).not.toBe(FAKE_CODE);
+    expect(SEED).toEqual(original);
+  });
+
   it("replays each card in three fresh sessions and only passes cards with three passes", async () => {
     const options = setup();
     const events: StreamEvent[] = [];
