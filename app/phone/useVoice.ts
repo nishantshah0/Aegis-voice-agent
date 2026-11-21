@@ -17,11 +17,13 @@ type VoiceOptions = {
   transcript: TranscriptItem[];
   onTurn: (text: string) => void;
   onProblem: (text: string) => void;
+  /** The voice started speaking (for turn timing). */
+  onSpeechStart?: () => void;
 };
 
 // Voice on the phone (task 1.5): the agent's lines are spoken as they arrive, the
 // microphone is off while it speaks, and the caller's turn ends after 600 ms of silence.
-export function useVoice({ on, mode, callId, transcript, onTurn, onProblem }: VoiceOptions) {
+export function useVoice({ on, mode, callId, transcript, onTurn, onProblem, onSpeechStart }: VoiceOptions) {
   const [hearing, setHearing] = useState("");
   const [speaking, setSpeaking] = useState(false);
   const listener = useRef<Listener | undefined>(undefined);
@@ -29,9 +31,11 @@ export function useVoice({ on, mode, callId, transcript, onTurn, onProblem }: Vo
   const spokenUpTo = useRef(0);
   const turnRef = useRef(onTurn);
   const problemRef = useRef(onProblem);
+  const speechStartRef = useRef(onSpeechStart);
   useEffect(() => {
     turnRef.current = onTurn;
     problemRef.current = onProblem;
+    speechStartRef.current = onSpeechStart;
   });
 
   // One listener and one voice per call, while voice is on.
@@ -41,6 +45,7 @@ export function useVoice({ on, mode, callId, transcript, onTurn, onProblem }: Vo
     const v = createBrowserVoice({
       onSpeaking: (s) => {
         setSpeaking(s);
+        if (s) speechStartRef.current?.();
         if (s) l.pause();
         else l.resume();
       },
