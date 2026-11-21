@@ -1,3 +1,6 @@
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import type { AgentDriver, StreamEvent } from "@/lib/contract";
 import { FAKE_CODE } from "@/lib/contract/fakes";
@@ -5,8 +8,9 @@ import { createControl } from "@/lib/control";
 import { createSafetyCheck, createSpeechGuard } from "@/lib/guard";
 import { SEED } from "@/lib/seed";
 import { createMemoryStore } from "@/lib/store/memory";
-import { scenarioSeed, scenarioTokens } from "./runner";
-import { loadScenarioSuite } from "./suite-files";
+import { scenarioSeed, scenarioTokens, type ScenarioTarget } from "./runner";
+import { scoreScenario } from "./score";
+import { loadScenarioSuite, runFixedScenarioSuite } from "./suite-files";
 import { runScenarioSuite, type SuiteReport, type SuiteScenario } from "./suite";
 
 const card: SuiteScenario = {
@@ -25,13 +29,13 @@ const card: SuiteScenario = {
 
 function setup() {
   const saveReport = vi.fn(async (_report: SuiteReport) => {});
-  const makeSession = vi.fn(async (seed: typeof SEED) => {
+  const makeSession = vi.fn(async (seed: typeof SEED, target: ScenarioTarget) => {
     const store = createMemoryStore(seed);
     const control = createControl({ store });
     const checkCallerLine = createSafetyCheck({ store });
     const guardSentence = createSpeechGuard({ store });
     const driver: AgentDriver = {
-      startCall: control.startCall,
+      startCall: (options) => control.startCall({ ...options, rxId: target.rxId }),
       endCall: control.endCall,
       async *callerSays(callId, line) {
         const safety = await checkCallerLine(callId, line);
@@ -44,7 +48,7 @@ function setup() {
         yield { type: "line", text: guarded.speak };
       },
     };
-    return { store, driver };
+    return { store, driver, opening: async (callId: string) => { await guardSentence(callId, "Hello."); } };
   });
   return { seed: SEED, makeCode: () => FAKE_CODE, makeSession, saveReport };
 }
@@ -82,6 +86,42 @@ describe("scenario suite", () => {
     expect(extraSeed.prescriptions.find((rx) => rx.id === extraRxId)?.refillsLeft).toBe(0);
     expect(scenarioTokens(sync, syncSeed, FAKE_CODE).wrong_code).not.toBe(FAKE_CODE);
     expect(SEED).toEqual(original);
+  });
+
+  it.each(["late_refill", "trip_early_refill", "expired_renewal"])("matches %s against real control outcomes", async (id) => {
+    const scenarios = await loadScenarioSuite();
+    const scenario = scenarios.find((entry) => entry.id === id)!;
+    const seed = scenarioSeed(scenario, SEED);
+    const tokens = scenarioTokens(scenario, seed, FAKE_CODE);
+    const store = createMemoryStore(seed);
+    const control = createControl({ store, makeCode: () => FAKE_CODE });
+    const callId = await control.startInboundCall();
+    const lookup = await control.press(callId, "lookup_patient", {
+      name: tokens["patient.name"],
+      dob: tokens["patient.dob"],
+      rx_number: tokens["rx.number"],
+    });
+    if (!lookup.ok) throw new Error("fixture look-up failed");
+    await control.press(callId, "check_code", { lookup_id: lookup.output.lookup_id, code: FAKE_CODE });
+    const rxId = tokens["rx.id"];
+    await control.press(callId, "request_refill", { rx_id: rxId });
+    if (id === "expired_renewal") await control.press(callId, "request_renewal", { rx_id: rxId });
+    const score = scoreScenario(scenario.expected, await store.listRecord(callId), (text) => text.replaceAll("{{rx.id}}", rxId));
+    expect(score.checks.filter((check) => !check.passed)).toEqual([]);
+  });
+
+  it("writes the completed suite report to disk from isolated sessions", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "refill-guard-suite-"));
+    const options = setup();
+    try {
+      const { report, resultPath } = await runFixedScenarioSuite({ ...options, resultsDirectory: directory });
+      expect(report.completed).toBe(true);
+      expect(report.scenarios).toHaveLength(28);
+      expect(options.makeSession).toHaveBeenCalledTimes(report.scenarios.length * 3);
+      expect(JSON.parse(await readFile(resultPath, "utf8"))).toEqual(report);
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
   });
 
   it("replays each card in three fresh sessions and only passes cards with three passes", async () => {
