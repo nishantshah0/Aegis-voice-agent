@@ -48,27 +48,45 @@ Full plan: [`docs/SPEC.md`](docs/SPEC.md). How the parts fit: [`docs/DESIGN.md`]
 
 **The contract (`lib/contract/`) is shared.** Don't change it directly. Propose changes in `docs/STATUS.md`.
 
-## How we build: four people and their AI agents
+## How our agent system works
 
-**Our agents build autonomously and talk to each other.** Each role's agent runs in a loop: it claims the next task, builds it, tests it, hands it off, asks other agents for what it needs, and Role 4's agent merges once the release gate passes. They talk on the pinned **[agent channel](../../issues/1)**, and we steer with HUMAN messages. How it works: [`docs/AUTONOMY.md`](docs/AUTONOMY.md).
-
-Each of us works with an AI coding agent. They coordinate in the open, through **[Entire](https://entire.com)** and GitHub. Full guide: [`docs/ENTIRE.md`](docs/ENTIRE.md).
+Four people each run an AI coding agent, one per role. **The agents build autonomously and coordinate with each other.** Four helper agents check their work, and we steer. Every rule is in [`docs/RULES.md`](docs/RULES.md).
 
 ```
-claim issue  ──▶  task branch  ──▶  pull request (handoff checklist)  ──▶  release gate  ──▶  main
- (who, what,        (one owner        (files, checks, "the lock          (typecheck, lint,
-  which files)       per folder)       still holds")                      tests, hammers)
+   Role 1 · Role 2 · Role 3 · Role 4 agents        (each in a ~15 min loop)
+        │ CLAIM → build → test → HANDOFF
+        ▼
+   Agent channel (GitHub issue #1) + URGENT channel (#11)
+        │
+        ▼
+   Code reviewer ──findings on the Entire Trail──▶ owning role fixes ◀── Review fixer (suggested patches)
+        │ "approved"
+        ▼
+   Repo steward merges (Role 4 + a human ok for the lock) ──▶ release gate ──▶ main
+        ▲
+   Rules police checks every agent against docs/RULES.md and reports violations
 ```
 
-- **[Issues](../../issues):** every task is claimed first (the "Claim a task" template) with its role, branch and files, so agents never edit the same thing.
-- **Contract changes** go through their own issue template. Nobody edits `lib/contract/` directly.
-- **Pull requests** are handoffs. The template makes each one say what changed, what was checked, and that the AI still acts only through the 12 buttons.
-- **The release gate** ([badge above](../../actions)) runs on every push and pull request: typecheck, lint, tests, the hammers and the build. Nothing that breaks a rule reaches `main`.
-- **Entire Sessions:** every agent session is captured and linked to its commit (look for the `Entire-Checkpoint` trailer), with transcripts kept in a separate private repo.
-- **Entire Trails:** each task's intent, branch, agent review and approval in one place. The GitHub issues and pull requests above are the fallback for anyone without an Entire account.
-- **Entire Graph:** agents query a map of the codebase instead of searching blindly. We measure the tokens it saves ourselves, and only publish real numbers.
-- **Entire Brain:** the team's rules and decisions, recalled by every agent before it edits. Ask it `entire brain recall "can I bypass the control layer for the demo?"`
-- **[`AGENTS.md`](AGENTS.md)** is read by every agent at the start of every session. **[`docs/STATUS.md`](docs/STATUS.md)** and **[`docs/DECISIONS.md`](docs/DECISIONS.md)** are their shared memory.
+**One task, start to finish**
+1. **Claim:** an agent picks its next task from [`docs/TASKS.md`](docs/TASKS.md), opens an **Entire Trail** for it, and posts a CLAIM on the agent channel.
+2. **Context:** before editing, it asks **Entire Brain** for the team's decisions and rules, and **Entire Graph** for where the code is and what depends on it.
+3. **Build:** it works only in its own folders, on a `role-<n>/<task>` branch. Every commit is linked to the AI session that wrote it (**Entire Sessions**, an `Entire-Checkpoint` trailer), and tests and code go in separate commits.
+4. **Hand off:** typecheck, lint, tests (plus the hammers for the lock), then a HANDOFF naming the Trail.
+5. **Review:** the **code reviewer** agent posts every problem as a finding on the Trail and sends it back. The owning role fixes it before any new work. The **review fixer** attaches ready-made patches.
+6. **Merge:** once the reviewer approves, the **repo steward** merges it after the release gate. Lock changes (the control layer, speech guard and contract) also need a human ok.
+
+**How the agents talk**
+- The **agent channel** (issue #1) carries CLAIM, STATUS, DECISION, OBJECT, REQUEST, REPLY, HANDOFF, REVIEW and MERGED, each with a fixed header. Agents read new messages automatically at every prompt.
+- The **URGENT channel** (issue #11) is only for what can't wait: `main` broken, the demo broken, a leak.
+- **Design decisions** are posted as DECISIONs, logged in [`docs/DECISIONS.md`](docs/DECISIONS.md) and remembered in Brain, so every agent's next brief includes them.
+- **Only people send HUMAN messages.** The tooling refuses them from agents. STOP halts every agent.
+
+**Keeping it honest**
+- The **rules police** agent checks every pass for lock changes pushed straight to `main`, unlinked commits, missing Trails, edits outside a role's folders, self-resolved findings and leaked keys. It reports each one to the agent responsible.
+- **[`agents/lectures/`](agents/lectures/)** records where each role broke the rules, with numbers, and what it agreed to change.
+- The **build board** (`node scripts/board.mjs`) shows it all live: every task from claim to merge, which AI session wrote each commit and what it changed, Brain, Graph, and who's waiting on whom.
+
+Deeper detail: [`docs/AUTONOMY.md`](docs/AUTONOMY.md) (the loop and messages) and [`docs/ENTIRE.md`](docs/ENTIRE.md) (how we use Entire).
 
 ---
 
