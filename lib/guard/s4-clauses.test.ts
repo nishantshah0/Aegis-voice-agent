@@ -151,11 +151,19 @@ const FALSE_OTHER_PROMISES = [
   "When you get a chance, your renewal was sent.",
   "If that matches, we'll deliver it Friday.",
   "If those details match, your renewal was sent.",
+  // Filler is not a negation, and an approval condition never backs a day or a booking (re-review).
+  "Don't worry it's booked.",
+  "No worries I've sent the renewal request.",
+  "No problem it's booked for delivery.",
+  "Once it's approved we'll deliver it Friday.",
+  // No button backs a ready day yet (Role 1's ready_label request), so these wait for it.
+  "It'll be ready Thursday once it's approved.",
+  "Once it's approved, we can deliver it Thursday.",
 ];
 
 const HONEST_OTHER = [
-  "It'll be ready Thursday once it's approved.",
-  "Once it's approved, we can deliver it Thursday.",
+  "There's no delivery booked yet.",
+  "It's not sent yet.",
   "Once it's booked for Friday, I'll text you.",
   "We haven't booked a delivery yet.",
   "Your renewal hasn't been sent yet.",
