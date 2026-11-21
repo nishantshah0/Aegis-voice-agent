@@ -48,14 +48,19 @@ async function samsCall() {
   expect(await say(callId, "Your Concerta refill is approved.")).toMatchObject({ blocked: true, rule: "S4" });
   expect((await say(callId, "Once a pharmacist approves it, I'll let you know.")).blocked).toBe(false);
 
-  // The side-effect question: a mild answer becomes a pharmacist note in Review.
+  // The side-effect question: a mild answer moves the open refill to Review with the note on it
+  // (SPEC inbound step 8), so Quick check is empty and Review holds the one refill.
   expect((await safety(callId, "I've had some mild headaches in the afternoon.")).action).toBe("continue");
   await control.press(callId, "note_for_pharmacist", { rx_id: IDS.samConcerta, text: "Mild afternoon headaches", kind: "side_effect" });
+  expect(await store.queue("quick_check")).toEqual([]);
   const review = await store.queue("review");
-  expect(review.map((q) => q.signals)).toContainEqual(["side_effect"]);
+  expect(review).toHaveLength(1);
+  const [item] = review;
+  expect(item).toMatchObject({ kind: "refill", rxId: IDS.samConcerta, ruleIds: ["4"] });
+  expect(item.signals).toContain("side_effect");
+  expect(item.notes.map((n) => n.text)).toContain("Mild afternoon headaches");
 
-  // The pharmacist approves the Quick check item; now "approved" is true and may be said.
-  const [item] = await store.queue("quick_check");
+  // The pharmacist approves the refill from Review; now "approved" is true and may be said.
   await store.decide(item.id, "approve", pharmacist);
   expect((await say(callId, "Your Concerta refill is approved.")).blocked).toBe(false);
   await control.endCall(callId);
