@@ -37,19 +37,19 @@ beforeEach(async () => {
 });
 
 describe("laneTotals", () => {
-  it("counts items in each lane", async () => {
+  it("counts items in each lane: Sam's side effect moves his refill to Review (SPEC inbound step 8)", async () => {
     await samsCall();
     const totals = await laneTotals(getStore());
-    expect(totals.quick_check).toBe(1);
-    expect(totals.review).toBeGreaterThanOrEqual(1);
-    expect(totals.automatic).toBe(0);
+    expect(totals).toEqual({ automatic: 0, quick_check: 0, review: 1 });
   });
 });
 
 describe("itemDetail", () => {
   it("shows the rule that sent it, the side effect in Sam's words, what he was told, the transcript, signals and the AI's view", async () => {
     const callId = await samsCall();
-    const [refill] = await getStore().queue("quick_check");
+    const refill = (await getStore().queue("review")).find((q) => q.kind === "refill")!;
+    expect(refill.signals).toContain("side_effect");
+    expect(refill.notes.map((n) => n.text)).toContain("Mild afternoon headaches");
     const d = await itemDetail(getStore(), refill);
 
     expect(d.patient).toBe("S.R.");
@@ -67,7 +67,7 @@ describe("itemDetail", () => {
 
   it("names the core rules by their SPEC wording", async () => {
     await samsCall();
-    const [refill] = await getStore().queue("quick_check");
+    const refill = (await getStore().queue("review")).find((q) => q.kind === "refill")!;
     const d = await itemDetail(getStore(), { ...refill, ruleIds: ["1", "5"] });
     expect(d.rules.map((r) => r.id)).toEqual(["1", "5"]);
     expect(d.rules.every((r) => r.wording.length > 0)).toBe(true);
