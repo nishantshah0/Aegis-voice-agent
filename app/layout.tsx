@@ -14,21 +14,29 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+/** The server's public address, if APP_BASE_URL holds a valid URL; never throws. */
+function baseUrl(): URL | undefined {
+  const raw = process.env.APP_BASE_URL?.trim();
+  return raw && URL.canParse(raw) ? new URL(raw) : undefined;
+}
+
 export const metadata: Metadata = {
-  // Pages set their own full title ("Stage · Refill Guard"), so there is no template.
-  title: "Refill Guard · The AI can be fooled. The pharmacy can't.",
+  // Absolute link-preview URLs on the hosted server (APP_BASE_URL is already set for Auth0).
+  metadataBase: baseUrl(),
+  // Pages set their own full title ("Stage · Aegis"), so there is no template.
+  title: "Aegis · The AI can be fooled. The pharmacy can't.",
   description:
     "An AI phone line for pharmacies. It calls patients before their medication runs out, handles refills, and sends only the tricky calls to a pharmacist. Every action goes through rules in code.",
-  applicationName: "Refill Guard",
+  applicationName: "Aegis",
   openGraph: {
-    title: "Refill Guard",
+    title: "Aegis",
     description: "The AI can be fooled. The pharmacy can't.",
-    images: [{ url: "/brand/social-preview.png", width: 1280, height: 640, alt: "Refill Guard" }],
+    images: [{ url: "/brand/social-preview.png", width: 1280, height: 640, alt: "Aegis" }],
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#f7f7f4",
+  themeColor: "#0a0b0a",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
