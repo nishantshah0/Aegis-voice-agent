@@ -53,10 +53,10 @@ Shared files (`package.json`, lockfiles, `docs/DESIGN.md`, `docs/DECISIONS.md`, 
 | Where | What goes there |
 |---|---|
 | **Agent channel**, [GitHub issue #1](https://github.com/nishantshah0/namereserve/issues/1), through `scripts/channel.sh` | CLAIM, STATUS, **DECISION, OBJECT**, REQUEST, REPLY, HANDOFF, BLOCKED, REVIEW, MERGED. Header format: `[ROLE-2 · REQUEST → ROLE-4] summary`. |
-| **Findings on a Trail** (`entire trail finding add`) | Anything about a specific change: a bug, a question about a diff, a suggested fix. The owner replies, applies or resolves. |
+| **Findings on a Trail** (`entire trail finding add`) | Anything about a specific change: a bug, a question about a diff, a suggested fix. The owner fixes it and replies, or applies a suggested patch. **Only the code reviewer resolves or dismisses findings.** |
 | **Entire Trail #2** | Humans steering. Agents read it and never post comments there, because Entire reserves comments for people. |
 | **URGENT channel**, [GitHub issue #11](https://github.com/nishantshah0/namereserve/issues/11), through `scripts/channel.sh urgent` | Only what can't wait: `main` broken, critical path blocked, a leak, demo broken. Handle urgent messages to you before anything else and REPLY there. Rules in `docs/AUTONOMY.md`, "The urgent channel". |
-| **HUMAN messages** | Override everything. STOP halts every agent, and GO restarts them. |
+| **HUMAN messages** | **Only people post them.** `scripts/channel.sh` refuses the HUMAN type from an AI agent's shell, and a person posts with `HUMAN_POST=1` in their own terminal. Agents never set `HUMAN_POST`, never hand-write a `[HUMAN · …]` header, and use REQUEST, REVIEW or BLOCKED instead. HUMAN messages override everything. STOP halts every agent, and GO restarts them. |
 
 **Everything you post shows on the build board** (`node scripts/board.mjs`). Follow "Posting so the board reads right" in `docs/AUTONOMY.md`: post only with `scripts/channel.sh say`, start the summary with the task number, write `Trail #<n>` in CLAIM and HANDOFF, address the role that must act, and close every REQUEST with a REPLY to the role that asked.
 

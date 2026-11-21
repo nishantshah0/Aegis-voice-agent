@@ -65,6 +65,16 @@ all_messages() {
 post() {
   issue="$1"; role="$2"; type="$(echo "$3" | tr '[:lower:]' '[:upper:]')"; to="$4"; summary="$5"; details="${6:-}"
   case " $TYPES " in *" $type "*) ;; *) echo "unknown type: $type (use: $TYPES)" >&2; exit 2;; esac
+  # HUMAN messages override everything, so only people may post them. Refuse from an AI agent's shell
+  # (Claude Code sets CLAUDECODE; .agent-role marks an agent's checkout). A person in their own terminal
+  # sets HUMAN_POST=1 on purpose. Agents must never set it: use REQUEST, REVIEW or BLOCKED instead.
+  if [ "$type" = "HUMAN" ] && [ "${HUMAN_POST:-}" != "1" ]; then
+    if [ -n "${CLAUDECODE:-}${CURSOR_AGENT:-}${CODEX_SANDBOX:-}${AGENT_ROLE:-}" ] || [ -s "$(git rev-parse --show-toplevel 2>/dev/null)/.agent-role" ]; then
+      echo "refused: HUMAN messages are for people only, and this looks like an AI agent's shell." >&2
+      echo "Agents: post REQUEST, REVIEW or BLOCKED instead. People: run it in your own terminal with HUMAN_POST=1." >&2
+      exit 3
+    fi
+  fi
   to="$(echo "$to" | tr '[:lower:]' '[:upper:]' | sed 's/^\([0-9]\)$/ROLE-\1/')"
   if [ "$type" = "HUMAN" ]; then header="[HUMAN · $to] $summary"; else header="[ROLE-$role · $type → $to] $summary"; fi
   body="$header"; [ -n "$details" ] && body="$header
@@ -169,10 +179,23 @@ for line in sys.stdin:
         continue
     for n in re.findall(r"(?:[Tt]rail\s*#\s*|/trails/)(\d+)", m["b"]):
         owner.setdefault(int(n), "ROLE-" + h.group(1))  # first role to mention a Trail owns it
-mine = sorted([n for n, r in owner.items() if r == role], reverse=True)[:12]
+if role == "ROLE-4":
+    # Trails no role has named on the channel go to the integrator, so their findings are not lost.
+    try:
+        listed = subprocess.run(["entire", "trail", "list", "--project", project, "--json", "--limit", "100"], capture_output=True, text=True, timeout=4)
+        for t in json.loads(listed.stdout or "{}").get("items") or []:
+            owner.setdefault(int(t["number"]), "ROLE-4")
+    except Exception:
+        pass
+mine = sorted([n for n, r in owner.items() if r == role and n != 2], reverse=True)[:12]
 
+import time
+DEADLINE = time.monotonic() + 8          # the hook has 15 s in all, and the channel inbox runs first
 def entire(*args):
-    r = subprocess.run(["entire", *args, "--project", project, "--json"], capture_output=True, text=True, timeout=20)
+    left = DEADLINE - time.monotonic()
+    if left < 0.5:
+        raise RuntimeError("skipped: out of time (run scripts/channel.sh trail-inbox by hand)")
+    r = subprocess.run(["entire", *args, "--project", project, "--json"], capture_output=True, text=True, timeout=min(4, left))
     if r.returncode != 0:
         raise RuntimeError((r.stderr or r.stdout).strip().splitlines()[-1] if (r.stderr or r.stdout).strip() else "failed")
     return json.loads(r.stdout or "{}")
@@ -180,6 +203,8 @@ def entire(*args):
 def findings(n):
     try:
         return n, entire("trail", "finding", "list", "--trail", str(n), "--status", "open", "--freshness", "any"), None
+    except subprocess.TimeoutExpired:
+        return n, None, "timed out (Entire is slow right now; run scripts/channel.sh trail-inbox by hand)"
     except Exception as e:
         return n, None, str(e)
 
@@ -199,9 +224,12 @@ with cf.ThreadPoolExecutor(6) as ex:
         lines.append("Trail #%d: %d open" % (n, len(fs)))
         for f in fs:
             body = " ".join((f.get("body") or f.get("title") or "").split())
-            lines.append("  [%s] %s  %s" % (f.get("severity") or "?", f.get("id", "?"), body[:400]))
+            cut = len(body) > 400
+            lines.append("  [%s] %s  %s%s" % (f.get("severity") or "?", f.get("id", "?"), body[:400], " ..." if cut else ""))
+            if cut:
+                lines.append("      full text: entire trail finding show %s --trail %d --project %s" % (f.get("id", "?"), n, project))
 if lines:
-    print("=== Open review findings on %s Trails. Fix them before new work, then reply on each finding (entire trail finding reply/apply). The code reviewer resolves them. ===" % role.replace("ROLE-", "Role "))
+    print("=== Open review findings on %s Trails. Fix them before new work, then reply on each finding (entire trail finding reply, or apply a suggested patch). Never resolve or dismiss a finding yourself: the code reviewer does. ===" % role.replace("ROLE-", "Role "))
     print("\n".join(lines))
 if errors:
     print("=== Could not read some Trails from this login (check entire auth status; if it persists, post BLOCKED to ROLE-2, the project owner) ===")
@@ -225,10 +253,12 @@ except Exception as e:
     print("=== Could not read Trail #2 comments: %s ===" % str(e)[:160])
 ' "$role" "gh/${REPO%%/*}" "$STATE_DIR")"
     if [ "$only_changed" = "--if-changed" ]; then
-      sum="$(printf '%s' "$out" | cksum | cut -d' ' -f1)"; last="$(cat "$STATE_DIR/trail-inbox-sum-$role" 2>/dev/null || true)"
-      age=$(( $(date +%s) - $(stat -f %m "$STATE_DIR/trail-inbox-sum-$role" 2>/dev/null || stat -c %Y "$STATE_DIR/trail-inbox-sum-$role" 2>/dev/null || echo 0) ))
-      [ "$sum" = "$last" ] && [ "$age" -lt 900 ] && exit 0   # unchanged, and shown in the last 15 minutes
-      echo "$sum" > "$STATE_DIR/trail-inbox-sum-$role"
+      # The state file holds "<checksum> <unix time last shown>" (no stat: its flags differ on macOS and Linux).
+      sum="$(printf '%s' "$out" | cksum | cut -d' ' -f1)"; now="$(date +%s)"
+      { read -r last when < "$STATE_DIR/trail-inbox-sum-$role"; } 2>/dev/null || { last=""; when=0; }
+      case "$when" in ''|*[!0-9]*) when=0;; esac
+      [ "$sum" = "$last" ] && [ $(( now - when )) -lt 900 ] && exit 0   # unchanged, and shown in the last 15 minutes
+      echo "$sum $now" > "$STATE_DIR/trail-inbox-sum-$role"
     fi
     [ -n "$out" ] && echo "$out"
     ;;
