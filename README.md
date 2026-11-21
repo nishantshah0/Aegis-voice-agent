@@ -29,7 +29,7 @@ Full plan: [`docs/SPEC.md`](docs/SPEC.md). How the parts fit: [`docs/DESIGN.md`]
 
 ## How we build: four people and their AI agents
 
-Each of us works with an AI coding agent. They coordinate in the open, on GitHub:
+Each of us works with an AI coding agent. They coordinate in the open, through **[Entire](https://entire.com)** and GitHub. Full guide: [`docs/ENTIRE.md`](docs/ENTIRE.md).
 
 ```
 claim issue  ──▶  task branch  ──▶  pull request (handoff checklist)  ──▶  release gate  ──▶  main
@@ -41,6 +41,10 @@ claim issue  ──▶  task branch  ──▶  pull request (handoff checklist)
 - **Contract changes** go through their own issue template. Nobody edits `lib/contract/` directly.
 - **Pull requests** are handoffs. The template makes each one say what changed, what was checked, and that the AI still acts only through the 12 buttons.
 - **The release gate** ([badge above](../../actions)) runs on every push and pull request: typecheck, lint, tests, the hammers and the build. Nothing that breaks a rule reaches `main`.
+- **Entire Sessions:** every agent session is captured and linked to its commit (look for the `Entire-Checkpoint` trailer), with transcripts kept in a separate private repo.
+- **Entire Trails:** each task's intent, branch, agent review and approval in one place. The GitHub issues and pull requests above are the fallback for anyone without an Entire account.
+- **Entire Graph:** agents query a map of the codebase instead of searching blindly. We measure the tokens it saves ourselves, and only publish real numbers.
+- **Entire Brain:** the team's rules and decisions, recalled by every agent before it edits. Ask it `entire brain recall "can I bypass the control layer for the demo?"`
 - **[`AGENTS.md`](AGENTS.md)** is read by every agent at the start of every session. **[`docs/STATUS.md`](docs/STATUS.md)** and **[`docs/DECISIONS.md`](docs/DECISIONS.md)** are their shared memory.
 
 ---

@@ -13,7 +13,8 @@ Read this first, every session. It applies to every AI tool the team uses: Claud
 3. Read `docs/DESIGN.md`, sections 2 and 3. Know which folder you own and which interfaces you touch.
 4. Read the types in `lib/contract/`. Build against them, never against another person's code.
 5. Read `docs/DECISIONS.md`, so you don't undo something the team already decided.
-6. Claim your work (next section).
+6. Ask Brain: `entire brain brief "<your task>"`. Find code with `entire graph query "<what you need>"` instead of searching blindly. Before changing anything shared, run `entire graph impact <symbol>`.
+7. Claim your work (next section): `entire trail create --title "..."` on your task branch, or the GitHub "Claim a task" issue if you don't have an Entire account.
 
 ## Agent collaboration
 
@@ -49,7 +50,8 @@ Read this first, every session. It applies to every AI tool the team uses: Claud
 2. If you touched the control layer or the guard, run `npm run hammer` too. It must report 0 rules broken.
 3. Update your section in `docs/STATUS.md`: Doing, Done, Blocked, Needs from others.
 4. Commit small, with a clear message, on your task branch, push the branch, and open a pull request using the template. Never push a broken build to `main`.
-5. If you made a decision others should know about, add one line to `docs/DECISIONS.md`.
+5. If you made a decision others should know about, add one line to `docs/DECISIONS.md` and teach Brain: `entire brain remember "<rule>" --kind decision --path project.<area>.<topic>`.
+6. Never paste keys or real people's details into an agent chat. Session transcripts are captured by Entire.
 
 ## Owners
 

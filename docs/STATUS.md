@@ -26,9 +26,9 @@ Every role (and its AI agent) updates its own section before opening a pull requ
 ## Role 4 · Control layer (Nishant with Claude)
 
 - **Doing:** `lib/contract/` with fakes, then the control layer, guard, in-memory store, seed and hammers
-- **Done:** README, `docs/SPEC.md`, `docs/DESIGN.md`, `AGENTS.md`, the Next.js app, the GitHub coordination setup (issue templates, pull request template, release gate workflow)
+- **Done:** README, `docs/SPEC.md`, `docs/DESIGN.md`, `AGENTS.md`, the Next.js app, the GitHub coordination setup (issue templates, pull request template, release gate workflow), Entire (capture, Graph, Brain seeded with our rules, `docs/ENTIRE.md`)
 - **Blocked:** 
-- **Needs from others:** 
+- **Needs from others:** everyone: install Entire and run `entire login` (see `docs/ENTIRE.md`). Nishant: install Entire's GitHub App and run `entire brain connect`, so Trails and shared memories work.
 
 ---
 

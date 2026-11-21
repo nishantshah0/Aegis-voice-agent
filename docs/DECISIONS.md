@@ -4,6 +4,8 @@ One line each, newest first. If you're an AI agent, don't undo anything here wit
 
 | When | Decision | Why |
 |---|---|---|
+| Sat early | Entire is the agent workflow: Sessions captured on every commit, Trails for claims and handoffs, Graph for finding code, Brain for rules. GitHub issues and pull requests are the fallback. Discord is dropped. | It covers the coordination Discord would have, plus memory and review, and it's a prize track |
+| Sat early | Entire transcripts go to the private repo `nishantshah0/namereserve-sessions`. Brain's background daemon and token-spending backfill are off. | The main repo may go public. No surprise token spend. |
 | Sat early | Four build roles, no separate design and pitch role. Screens go to whoever produces their data. The pitch is everyone's. | The team doesn't need a dedicated design role, and every role then owns a visible piece |
 | Sat early | Agents coordinate on GitHub: claim issues, contract-change issues, pull-request handoffs, and a release-gate workflow. Discord or Slack can mirror it later. | It's where the code is, every agent can use `gh`, no bot needed, and it shows on the repo |
 | Sat early | Each agent works on a task branch and hands off; Claude on Nishant's laptop is the coordinating agent and integrates into `main` | From the team's AGENTS.md: disjoint scopes, no broken `main` |
