@@ -33,6 +33,9 @@ export const CODE_SENT = "If those details match, I've sent a code to the phone 
 /** Said while a button is in flight, so the caller is not left in silence. */
 export const HOLDING = "One moment.";
 
+/** Task 1.8: said once after a long silence from the caller. Names nothing, so it is safe at any point in a call. */
+export const STILL_THERE = "Are you still there? Take your time.";
+
 /**
  * SPEC Part 2, outbound step 2, and the **one exception to S1**: before
  * verification this line may carry the patient's name and the pharmacy's name,

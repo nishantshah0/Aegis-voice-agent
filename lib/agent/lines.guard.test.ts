@@ -12,6 +12,7 @@ import {
   MISSED_DOSES_CHECK_IN,
   REFILL_SYNC_OFFER,
   SIDE_EFFECT_PASSED_ON,
+  STILL_THERE,
   inboundGreeting,
   outboundOpener,
   outboundWrongPerson,
@@ -41,7 +42,7 @@ describe("fixed lines pass the real speech guard where they are said", () => {
     const control = createControl({ store });
     const guard = createSpeechGuard({ store });
     const callId = await control.startInboundCall();
-    for (const line of [inboundGreeting(PHARMACY), ASK_TO_VERIFY, CODE_SENT, HOLDING]) {
+    for (const line of [inboundGreeting(PHARMACY), ASK_TO_VERIFY, CODE_SENT, HOLDING, STILL_THERE]) {
       expect(await guard(callId, line), line).toMatchObject({ blocked: false, speak: line });
     }
   });
@@ -58,7 +59,7 @@ describe("fixed lines pass the real speech guard where they are said", () => {
     const { guard, callId, verify } = await outboundCall();
     await verify();
     const label = SEED.prescriptions.find((rx) => rx.id === IDS.samConcerta)!.labelText;
-    for (const line of [REFILL_SYNC_OFFER, sideEffectQuestion(label), MISSED_DOSES_CHECK_IN]) {
+    for (const line of [REFILL_SYNC_OFFER, sideEffectQuestion(label), MISSED_DOSES_CHECK_IN, STILL_THERE]) {
       expect(await guard(callId, line), line).toMatchObject({ blocked: false, speak: line });
     }
   });
