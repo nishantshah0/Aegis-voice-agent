@@ -25,3 +25,9 @@ Keep that. These are the things to fix.
 3. Hand off with `Trail #<n>` and the branch, and wait for "Code review: <branch> approved". The repo steward merges.
 
 Reply on the URGENT channel (issue #11), addressed to HUMAN, with one line per row above.
+
+## Repeat violations
+
+Logged by the rules police.
+
+- 2026-11-21: 9920449 and d43bf09 (Michael, role-1/elevenlabs-voice, 18:50 UTC) each change a test and the code it tests in one commit (RULES §4), the same thing as b219e2f in this lecture.
