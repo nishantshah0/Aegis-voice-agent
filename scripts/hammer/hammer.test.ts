@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 import { STARTING_CARDS, type RuleCard } from "@/lib/contract";
 import { IDS, SEED } from "@/lib/seed";
 import { createMemoryStore } from "@/lib/store/memory";
-import { ALL_ACTIONS, CORE_ACTIONS } from "./actions";
+import { ALL_ACTIONS, CORE_ACTIONS, HAMMER_CODE } from "./actions";
 import { makeChecker } from "./invariants";
 import { exhaustive, random, summary, type HammerReport } from "./run";
 
@@ -43,7 +43,7 @@ describe(`hammers (${mode})`, () => {
 });
 
 describe("the checker catches real breakage", () => {
-  const checker = makeChecker(SEED);
+  const checker = makeChecker(SEED, HAMMER_CODE);
 
   it("a delivery to an address not on file", async () => {
     const store = createMemoryStore(SEED);
@@ -97,5 +97,57 @@ describe("the checker catches real breakage", () => {
       output: { result: { ok: true, output: { state: "waiting_for_pharmacist", order_id: "o_z" }, ruleIds: [] }, internal: {} },
     });
     expect((await checker.check(store, entry)).map((b) => b.rule)).toContain("refill queued that a rule forbids");
+  });
+
+  it("verified with the wrong code", async () => {
+    const store = createMemoryStore(SEED);
+    await store.appendRecord({ callId: "c_v", actor: "system", kind: "safety", input: { check: "call_start", direction: "inbound" }, decision: "allowed" });
+    await store.appendRecord({ callId: "c_v", actor: "agent", kind: "button", button: "lookup_patient", input: { name: "Sam Rivera", dob: "1990-03-14", rx_number: "RX-100201" }, output: { result: { ok: true, output: {}, ruleIds: [] }, internal: { lookupId: "lk_1", matched: true, patientId: IDS.sam } } });
+    const entry = await store.appendRecord({ callId: "c_v", actor: "agent", kind: "button", button: "check_code", input: { lookup_id: "lk_1", code: "999999" }, output: { result: { ok: true, output: { verified: true }, ruleIds: [] }, internal: { patientId: IDS.sam } } });
+    expect((await checker.check(store, entry)).map((b) => b.rule)).toContain("verified without the right code for that patient");
+  });
+
+  it("verified as a patient the lookup didn't name", async () => {
+    const store = createMemoryStore(SEED);
+    await store.appendRecord({ callId: "c_w", actor: "system", kind: "safety", input: { check: "call_start", direction: "inbound" }, decision: "allowed" });
+    await store.appendRecord({ callId: "c_w", actor: "agent", kind: "button", button: "lookup_patient", input: { name: "Dev Halvorsen", dob: "2001-05-19", rx_number: "RX-100501" }, output: { result: { ok: true, output: {}, ruleIds: [] }, internal: { lookupId: "lk_1", matched: true, patientId: IDS.p4 } } });
+    const entry = await store.appendRecord({ callId: "c_w", actor: "agent", kind: "button", button: "check_code", input: { lookup_id: "lk_1", code: HAMMER_CODE }, output: { result: { ok: true, output: { verified: true }, ruleIds: [] }, internal: { patientId: IDS.sam } } });
+    expect((await checker.check(store, entry)).map((b) => b.rule)).toContain("verified without the right code for that patient");
+  });
+
+  it("a fourth code in an hour", async () => {
+    const store = createMemoryStore(SEED);
+    let last;
+    for (let i = 0; i < 4; i++) {
+      last = await store.appendRecord({ callId: "c_r", actor: "agent", kind: "button", button: "send_code", output: { result: { ok: true, output: {}, ruleIds: [] }, internal: { codeSent: true, patientId: IDS.sam } } });
+    }
+    expect((await checker.check(store, last)).map((b) => b.rule)).toContain("more than 3 codes for a patient in an hour");
+  });
+
+  it("a spoken line with another patient's data, and an approval promise that didn't happen", async () => {
+    const store = createMemoryStore(SEED);
+    await store.appendRecord({ callId: "c_s", actor: "system", kind: "safety", input: { check: "call_start", direction: "inbound" }, decision: "allowed" });
+    const leak = await store.appendRecord({ callId: "c_s", actor: "agent", kind: "line_spoken", input: { text: "Your Concerta is due." }, decision: "allowed" });
+    expect((await checker.check(store, leak)).map((b) => b.rule)).toContain("spoken line leaks patient data");
+    const promise = await store.appendRecord({ callId: "c_s", actor: "agent", kind: "line_spoken", input: { text: "Your refill is approved." }, decision: "allowed" });
+    expect((await checker.check(store, promise)).map((b) => b.rule)).toContain("spoken line promises an approval that didn't happen");
+  });
+
+  it("a recorded rule context that doesn't match the prescription", async () => {
+    const store = createMemoryStore(SEED);
+    await store.saveCall({ id: "c_c", direction: "inbound", state: "verified", lockedPatientId: IDS.p4, startedAt: SEED.now, failedCodeTries: 0, callerSaid: [] });
+    const entry = await store.appendRecord({
+      callId: "c_c",
+      actor: "agent",
+      kind: "button",
+      button: "request_refill",
+      input: { rx_id: IDS.p4Adderall },
+      // Lies: Dev's Adderall was filled 20 days ago, so 4b must refuse.
+      context: { "drug.controlled": true, "rx.days_since_last_fill": 29, "rx.prescribed_interval_days": 30, "policy.controlled_early_window_days": 3 },
+      output: { result: { ok: true, output: { state: "waiting_for_pharmacist", order_id: "o_c" }, ruleIds: [] }, internal: {} },
+    });
+    const rules = (await checker.check(store, entry)).map((b) => b.rule);
+    expect(rules).toContain("rule context doesn't match the prescription");
+    expect(rules).toContain("refill queued that a rule forbids");
   });
 });
