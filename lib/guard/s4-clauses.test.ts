@@ -32,6 +32,9 @@ const FALSE_APPROVALS = [
   "Your refill is approved and on its way, no need to wait.",
   "Good news, it's ready when you are.",
   "It's been filled, just come by when you can.",
+  "If you like, it's approved.",
+  "When you call back, your refill is ready.",
+  "Once a pharmacist approves it, it'll be ready, and it's already on its way.",
 ];
 
 const HONEST = [
@@ -40,6 +43,8 @@ const HONEST = [
   S4_REPLACEMENT,
   "It's not approved yet.",
   "I'm ready when you are.",
+  "Once a pharmacist approves it, it'll be ready.",
+  "After the pharmacist approves it, it'll be on its way.",
 ];
 
 describe("S4: a conditional only excuses its own clause", () => {
