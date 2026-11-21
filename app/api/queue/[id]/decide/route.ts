@@ -37,10 +37,12 @@ export async function POST(request: Request, ctx: RouteContext<"/api/queue/[id]/
   let item;
   try {
     item = await store.decide(id, decision, approver, note);
-  } catch {
-    // Another approval of the same item won the race after the check above.
+  } catch (error) {
+    // 409 only if another approval of the same item really won the race after the check
+    // above; any other store failure is a real error.
     const now = (await store.queue()).find((q) => q.id === id);
-    return fail(409, `Already ${now?.status ?? "decided"}`);
+    if (now && now.status !== "open") return fail(409, `Already ${now.status}`);
+    throw error;
   }
   emit({ type: "queue", item });
   // The patient's phone hears the outcome of anything with an order behind it.
