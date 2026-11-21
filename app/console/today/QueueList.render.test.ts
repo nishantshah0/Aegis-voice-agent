@@ -30,7 +30,7 @@ describe("Today page markup", () => {
     if (!started.ok) throw new Error("rule 7 refused Sam");
     const { callId, lookupId } = started;
     await control.press(callId, "send_code", { lookup_id: lookupId });
-    const code = events.flatMap((e) => (e.type === "phone" && e.kind === "code" ? [e.text.match(/\d{6}/)![0]] : [])).pop()!;
+    const code = (await control.codeFor(callId))!;
     await control.press(callId, "check_code", { lookup_id: lookupId, code });
     await control.press(callId, "request_refill", { rx_id: IDS.samConcerta, reason: "Routine refill" });
     await guard(callId, "Your Concerta refill is approved.");
