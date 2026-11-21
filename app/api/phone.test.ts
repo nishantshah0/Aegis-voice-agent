@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { AgentDriver, AgentEvent, Approver, RunDailyCheckResponse } from "@/lib/contract";
+import type { AgentEvent, Approver, RunDailyCheckResponse } from "@/lib/contract";
 import { resetBusForTests } from "@/lib/events/bus";
 import { IDS } from "@/lib/seed";
 import { getControl, getStore, resetRuntimeForTests } from "./_lib/runtime";
-import { answerCall } from "./_lib/phone";
+import { answerCall, type JoinableDriver } from "./_lib/phone";
 import { POST as startCall } from "./call/start/route";
 import { POST as say } from "./call/[id]/say/route";
 import { POST as answer } from "./call/[id]/answer/route";
@@ -80,7 +80,7 @@ describe("POST /api/call/:id/answer", () => {
       opening: async function* (): AsyncIterable<AgentEvent> {
         yield { type: "line", text: "Hi, this is Maple Street Pharmacy calling for Sam Rivera." };
       },
-    } as AgentDriver & { joinCall: unknown; opening: unknown };
+    } satisfies JoinableDriver;
     const events = await answerCall(driver, getStore(), callId);
     expect(joined).toEqual([
       { id: callId, opts: { direction: "outbound", patientId: IDS.sam, rxId: IDS.samConcerta, patientName: "Sam Rivera" } },
