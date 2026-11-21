@@ -1,0 +1,39 @@
+{
+  "source": "results/agent-usage.jsonl",
+  "generatedAt": "2026-11-21T23:28:49.420Z",
+  "firstTurnAt": "2026-11-21T16:47:02.334Z",
+  "lastTurnAt": "2026-11-21T21:17:54.017Z",
+  "skippedLines": 0,
+  "notes": [
+    "calls counts distinct call ids. A demo reset starts call ids again at c_0001, so calls across resets share an id; turns is the better count.",
+    "costUsd is the Agent SDK's own reported cost per turn, summed. It is null if any turn has none."
+  ],
+  "models": {
+    "claude-haiku-5-5": {
+      "calls": 1,
+      "turns": 41,
+      "modelCalls": 72,
+      "errors": 1,
+      "inputTokens": 997770,
+      "uncachedInputTokens": 136,
+      "cacheWriteTokens": 249906,
+      "cacheReadTokens": 747728,
+      "outputTokens": 10442,
+      "thinkingTokens": 4021,
+      "costUsd": 0.53106188
+    }
+  },
+  "total": {
+    "calls": 1,
+    "turns": 41,
+    "modelCalls": 72,
+    "errors": 1,
+    "inputTokens": 997770,
+    "uncachedInputTokens": 136,
+    "cacheWriteTokens": 249906,
+    "cacheReadTokens": 747728,
+    "outputTokens": 10442,
+    "thinkingTokens": 4021,
+    "costUsd": 0.53106188
+  }
+}
