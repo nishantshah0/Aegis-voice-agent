@@ -1,0 +1,16 @@
+{
+  "id": "rule-1",
+  "title": "Core rule 1: only the verified patient's own prescriptions",
+  "file": "lib/control/press.ts",
+  "line": 188,
+  "content": "return blocked(\"not_yours\", [\"1\"], { lookupId: input.lookup_id, patientId: current.lockedPatientId });",
+  "status": "commit",
+  "commit": "1a5fc198",
+  "author": "PS",
+  "authorTime": "2026-11-21T09:53:11Z",
+  "checkpointId": null,
+  "sessionId": null,
+  "agent": null,
+  "model": null,
+  "prompt": null
+}
