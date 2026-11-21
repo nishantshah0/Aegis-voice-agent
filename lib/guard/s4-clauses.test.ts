@@ -73,6 +73,10 @@ const FALSE_APPROVALS = [
   "I don't know why you'd worry, it's ready.",
   "It'll be ready before it's approved.",
   "Before it's approved, it's ready.",
+  // The identity clause can't excuse a bare "that's confirmed" when the order is named too.
+  "Your refill and your date of birth, that's confirmed.",
+  "Your prescription, your date of birth: that's confirmed.",
+  "Your Concerta and your date of birth, that's confirmed.",
 ];
 
 const HONEST = [
