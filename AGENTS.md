@@ -1,68 +1,106 @@
-# Rules for AI coding agents on Refill Guard
+# Refill Guard: guide for AI agents
 
-Read this first, every session. It applies to every AI tool the team uses: Claude Code, Cursor, Codex, Copilot and others. Product requirements are in `docs/SPEC.md`. Who owns what and how the parts connect is in `docs/DESIGN.md` and the ownership table at the bottom of this file.
+Read this at the start of every session. It applies to every AI tool on the team (Claude Code, Cursor, Codex, Copilot and others). Four humans each run an agent. The agents build autonomously, talk to each other, and hand work to one integrator, while the humans steer.
 
-**Coordinating agent:** Role 4's agent, which integrates branches into `main`. If the team picks someone else, record it in `docs/DECISIONS.md`.
+## What we're building
 
-**Autonomous build:** each role's agent runs in a loop and talks to the others on the agent channel, [GitHub issue #1](https://github.com/nishantshah0/namereserve/issues/1), using `scripts/channel.sh`. Protocol: `docs/AUTONOMY.md`. Your role's loop prompt: `agents/role-<n>.md`. HUMAN messages come first, and STOP halts every agent.
+An AI phone line for pharmacies. It calls patients before their medication runs out, handles refills, asks about side effects, and sends only the tricky calls to a pharmacist. Everything the AI tries goes through rules in code, so even a fooled AI can't break them.
 
-**Where agents coordinate:** on GitHub. Claim work with the "Claim a task" issue template, propose contract changes with the "Contract change request" template, and hand off with a pull request using the template. Use the `gh` command if you're an AI agent. The "Release gate" workflow runs on every push and pull request.
+**Three things never change, whatever the task:**
+1. The AI acts **only** through the 12 buttons, and every press goes through the control layer.
+2. The AI speaks **only** through `guardSentence` (speech rules S1 to S4).
+3. **Everything is a call.** Patient calls, test scenarios and attacks use the same `AgentDriver`, rules and record.
 
-## Before you write code
+## Where things are
 
-1. `git pull`, then check `git status --short`.
-2. Read `docs/STATUS.md`. Find your person's section, and check whether anyone needs something from you.
-3. Read `docs/DESIGN.md`, sections 2 and 3. Know which folder you own and which interfaces you touch.
-4. Read the types in `lib/contract/`. Build against them, never against another person's code.
-5. Read `docs/DECISIONS.md`, so you don't undo something the team already decided.
-6. Ask Brain: `entire brain brief "<your task>"`. Find code with `entire graph query "<what you need>"` instead of searching blindly. Before changing anything shared, run `entire graph impact <symbol>`.
-7. Claim your work (next section): `entire trail create --title "..."` on your task branch, or the GitHub "Claim a task" issue if you don't have an Entire account.
+| You need | Read |
+|---|---|
+| Your role's tasks, in order | `docs/TASKS.md` |
+| Your role's loop prompt | `agents/role-<n>.md` |
+| How the parts fit, and the interfaces | `docs/DESIGN.md` (sections 2 and 3) |
+| How agents run and talk | `docs/AUTONOMY.md` |
+| Product behaviour | `docs/SPEC.md` |
+| What's already decided | `docs/DECISIONS.md` |
+| Who's doing what right now | `docs/STATUS.md` |
+| Entire commands | `docs/ENTIRE.md` |
+| Shared types and fakes | `lib/contract/` |
 
-## Agent collaboration
+## Roles and folders
 
-### Claim work before editing
-
-- In a GitHub issue opened with the "Claim a task" template (and a line in your section of `docs/STATUS.md`), record the task, owner, branch, files or directories you expect to change, and any dependencies. The coordinating agent assigns disjoint scopes and keeps claims current. Check active claims before editing and update yours before expanding scope.
-- Give each parallel agent a task branch and a separate Git worktree when available. In a shared checkout, confirm file ownership with the coordinating agent and avoid branch switches while others are working. Assign one editor at a time to each shared file.
-- Check `git status --short` before editing. If a file is claimed or contains unexpected edits, coordinate with its owner before touching it. Continue with independent work while that is resolved.
-
-### Protect shared work
-
-- Coordinate changes to `lib/contract/`, database schemas and migrations, dependency manifests and lockfiles, and CI or deployment configuration. Agree on an editor and notify affected agents of any interface changes before editing. Propose contract changes with the "Contract change request" issue template.
-- Preserve existing user and agent changes. Avoid destructive Git commands, force pushes, and history rewrites without explicit authorization. Keep commits scoped to your task and stage files by name in shared checkouts.
-
-### Hand off and integrate
-
-- Report the branch and commit when available, changed files, checks run and their results, and any conflicts or follow-up work. Mark the claim ready for integration or release it when work stops.
-- The coordinating agent integrates changes in dependency order, checks the combined diff, and runs the relevant checks after integration. Resolve overlapping changes with the affected owners before merging.
-
-## While you work
-
-- **Only edit folders your person owns** (table below, and `docs/DESIGN.md` section 2). If you need a change somewhere else, don't make it. Add a request under that person's "Needs from others" in `docs/STATUS.md`, or open a GitHub issue, and use the fake from `lib/contract/` meanwhile.
-- **Never change a test and the code it tests in the same step.**
-- **The lock is sacred.** Nothing may let the AI act except through the 12 buttons and the control layer, or speak except through `guardSentence`. Don't add shortcuts, even "just for the demo".
-- **Keys only in `.env`,** which is git-ignored. Never paste a key into code, a test, a doc or a commit.
-- **Made-up patients only.** Phone numbers use 555-01xx. No real people's details anywhere.
-- **No invented numbers.** Anything shown as a result must come from a real run in `results/`.
-- Keep functions small and code plain. No new frameworks without a decision in `docs/DECISIONS.md`.
-
-## Before you hand off
-
-1. Run `npm run typecheck`, `npm test` and `npm run lint`. Don't say something works until they pass.
-2. If you touched the control layer or the guard, run `npm run hammer` too. It must report 0 rules broken.
-3. Update your section in `docs/STATUS.md`: Doing, Done, Blocked, Needs from others.
-4. Commit small, with a clear message, on your task branch, push the branch, and open a pull request using the template. Never push a broken build to `main`.
-5. If you made a decision others should know about, add one line to `docs/DECISIONS.md` and teach Brain: `entire brain remember "<rule>" --kind decision --path project.<area>.<topic>`.
-6. Never paste keys or real people's details into an agent chat. Session transcripts are captured by Entire.
-
-## Owners
+**Edit only your role's folders.** Each folder has exactly one owner.
 
 | Role | Owns |
 |---|---|
 | 1 · Voice and agent | `lib/agent/` (except `hijack.ts`), `lib/voice/`, `app/phone/` |
-| 2 · Platform and pharmacist | `app/api/`, `lib/events/`, `lib/auth/`, `lib/store/postgres.ts`, `app/console/today/`, hosting |
+| 2 · Platform and pharmacist | `app/api/`, `lib/events/`, `lib/auth/`, `lib/store/postgres.ts`, `app/console/today/`, hosting files |
 | 3 · Red team and evals | `lib/agent/hijack.ts`, `lib/arena/`, `scenarios/`, `app/console/review/`, `app/console/rules/`, `app/console/overnight/` |
-| 4 · The lock (coordinating agent) | `lib/contract/`, `lib/control/`, `lib/guard/`, `lib/store/memory.ts`, `lib/seed/`, `scripts/`, `app/stage/`, `.github/` |
+| 4 · The lock, and integrator | `lib/contract/`, `lib/control/`, `lib/guard/`, `lib/store/memory.ts`, `lib/seed/`, `scripts/`, `app/stage/`, `.github/` |
+
+Shared files (`package.json`, lockfiles, `docs/DESIGN.md`, `docs/DECISIONS.md`, CI) have one editor at a time. Ask on the channel before touching them.
+
+## Start of every session
+
+1. `git pull`, then `git status --short`. If a file has edits you didn't make, leave it and ask its owner.
+2. `scripts/channel.sh stopped`. If a human has said STOP, do nothing else.
+3. `scripts/channel.sh for <your role>`, `entire trail comment list --trail 2` (human steering) and `entire trail finding list` on your Trails. Answer anything addressed to you. **HUMAN messages come first.**
+4. `entire brain brief "<your task>"` for the team's rules and past decisions.
+5. Find code with `entire graph query "<what you need>"`, not blind searching. Before changing anything shared, run `entire graph impact <symbol>`. Before asking another agent, run `entire search "<question>" --compact`.
+6. **Claim before editing:** post CLAIM on the channel, then `entire trail create --title "<task>"` on a branch named `role-<n>/<task>`. Use a separate git worktree if another agent shares your checkout.
+
+## How we talk
+
+| Where | What goes there |
+|---|---|
+| **Agent channel**, [GitHub issue #1](https://github.com/nishantshah0/namereserve/issues/1), through `scripts/channel.sh` | CLAIM, STATUS, REQUEST, REPLY, HANDOFF, BLOCKED, REVIEW, MERGED. Header format: `[ROLE-2 · REQUEST → ROLE-4] summary`. |
+| **Findings on a Trail** (`entire trail finding add`) | Anything about a specific change: a bug, a question about a diff, a suggested fix. The owner replies, applies or resolves. |
+| **Entire Trail #2** | Humans steering. Agents read it and never post comments there, because Entire reserves comments for people. |
+| **HUMAN messages** | Override everything. STOP halts every agent, and GO restarts them. |
+
+Need something from another role? Post REQUEST to that role, then keep going with the fakes in `lib/contract/`. Never edit their folder.
+
+## While you work
+
+- **Build against `lib/contract/`, never against another role's code.** Contract changes go through a "Contract change request" issue and need a HUMAN "ok".
+- **Never change a test and the code it tests in the same step.**
+- **Never add a way around the 12 buttons or the speech guard,** even "just for the demo".
+- Small commits, scoped to your task, files staged by name. No destructive git: no force push, no history rewrite, no `reset --hard` on shared branches.
+- Keep functions small and code plain. No new frameworks without a line in `docs/DECISIONS.md`.
+- Unsure about something in `docs/DECISIONS.md`? Post BLOCKED instead of guessing.
+
+## Hand off
+
+1. `npm run typecheck`, `npm run lint` and `npm test` all pass. If you touched the lock, `npm run hammer` (once task 4.5 lands) must report 0 rules broken. Don't say something works until the checks pass.
+2. Push your branch, then run `entire trail ready`.
+3. Post HANDOFF on the channel: the Trail link, branch, files changed, checks run and their results, and any follow-ups.
+4. Update your role's section in `docs/STATUS.md` (on your branch).
+5. Made a decision others need? Add a line to `docs/DECISIONS.md` and teach Brain: `entire brain remember "<rule>" --kind decision --path project.<area>.<topic>`.
+
+## Integration (Role 4's agent)
+
+- Merge Trails in dependency order. Run the release gate, then `entire review`, before merging.
+- **Merge automatically** only if the gate passes, the diff stays inside the claiming role's folders, and it doesn't touch `lib/contract/`, `lib/control/` or `lib/guard/`. Anything touching those needs a HUMAN "ok".
+- Post problems as findings on the Trail, and post MERGED on the channel after merging.
+- After the overnight run, post `entire dispatch` output to the channel.
+
+## Never
+
+- Push to `main` directly (only Role 4 merges, after the gate).
+- Paste keys, real people's details or invented numbers into code, docs, commits, the channel or any AI chat. Entire records every session.
+- Use real patients. Phone numbers are 555-01xx.
+- Show a result that didn't come from a real run saved in `results/`.
+- Run setup or destructive commands (`entire enable`, `disable`, `clean`, `auth`, `git push --force`, `rm -rf`) without a human asking for it.
+
+## Commands
+
+| Command | Does |
+|---|---|
+| `npm run dev` | Run the app locally |
+| `npm run typecheck` · `npm run lint` · `npm test` | The checks every handoff needs |
+| `npm run build` | Production build (the release gate runs it too) |
+| `scripts/channel.sh say <role> <TYPE> <to> "<summary>" ["<details>"]` | Post on the agent channel |
+| `scripts/channel.sh for <role>` · `read 20` · `stopped` | Read the channel, check for STOP |
+| `scripts/entire-check.sh` | Check this machine's Entire setup |
+| `scripts/agent-loop.sh <role>` | Run a role's agent headlessly until STOP |
 
 <!-- BEGIN:nextjs-agent-rules -->
 

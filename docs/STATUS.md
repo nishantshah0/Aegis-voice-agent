@@ -1,6 +1,18 @@
 # Status board
 
-Every role (and its AI agent) updates its own section before opening a pull request. Claims themselves are GitHub issues. Keep it short. Newest first.
+Every role (and its AI agent) updates its own section when it hands off. Claims are a CLAIM message on the agent channel plus an Entire Trail. Keep it short, newest first.
+
+## Who's taking which role
+
+Write your name and your AI tool next to one role, then tell your agent the role number.
+
+| Role | Taken by | AI tool | First task |
+|---|---|---|---|
+| 1 · Voice and agent | | | 1.1 prompt and fixed lines |
+| 2 · Platform and pharmacist | | | 2.1 API skeleton and event stream |
+| 3 · Red team and evals | | | 3.1 scenario format and first 10 scenarios |
+| 4 · The lock, and integrator | | | 4.2 store and seed, right after task 0 |
+
 
 ## Role 1 · Voice and agent
 
