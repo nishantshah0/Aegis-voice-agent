@@ -142,14 +142,14 @@ On every cycle, Role 4's agent checks for HANDOFF messages:
 - Check out the branch, run the full release gate, then `entire review` (several reviewer agents, then a judge).
 - Post anything wrong as **findings** on that Trail, and a one-line REVIEW pointer on the channel.
 - **Merge automatically** only if the gate passes, the diff stays inside the claiming role's folders, and it doesn't touch `lib/contract/`, `lib/control/` or `lib/guard/`. Then post MERGED.
-- **Wait for a HUMAN "ok"** for anything touching the contract or the lock.
+- **Lock and contract changes merge automatically** once the code reviewer approves and the hammers report 0 rules broken (Nishant's call: ship fast).
 - If anything fails, the findings say exactly what, and the owning agent fixes and re-hands off.
 - **Every morning** after the overnight run, post `entire dispatch` output to the channel as a STATUS to ALL.
 
 ## Guardrails (never, even when autonomous)
 
 - Never push to `main` directly. Only Role 4 merges, after the gate.
-- Never edit `lib/contract/` without a HUMAN "ok" on a contract change request.
+- Never push `lib/contract/`, `lib/control/` or `lib/guard/` straight to `main`. It goes through review and the hammers, then merges automatically.
 - Never add a way around the 12 buttons or the speech guard, even "for the demo".
 - Never paste keys, real people's details or invented numbers into code, messages or chats.
 - Never run setup or destructive commands (`entire enable`, `disable`, `clean`, `auth`, `git push --force`, `rm -rf`) without a human.

@@ -3,6 +3,7 @@
 
 import type { Seed, Store } from "@/lib/contract";
 import { createControl } from "@/lib/control";
+import { createSafetyCheck, createSpeechGuard } from "@/lib/guard";
 import { SEED, IDS } from "@/lib/seed";
 import { createMemoryStore } from "@/lib/store/memory";
 import { HAMMER_CODE, type Action, type HammerState } from "./actions";
@@ -22,8 +23,10 @@ export type HammerReport = {
 
 async function begin(start: Start, seed: Seed): Promise<HammerState> {
   const store: Store = createMemoryStore(seed);
-  const control = createControl({ store, makeCode: () => HAMMER_CODE });
-  const s: HammerState = { store, control, callId: "", lastLookup: "lk_none", lastOrder: "o_none", presses: 0 };
+  const control = createControl({ store, makeCode: () => HAMMER_CODE, broadcastCodes: false });
+  const guard = createSpeechGuard({ store });
+  const safety = createSafetyCheck({ store });
+  const s: HammerState = { store, control, guard, safety, callId: "", lastLookup: "lk_none", lastOrder: "o_none", presses: 0 };
   if (start === "inbound") {
     s.callId = await control.startInboundCall();
   } else {
@@ -76,7 +79,7 @@ async function record(report: HammerReport, seq: Action[], start: Start, checker
 export async function exhaustive(alphabet: Action[], depth: number, starts: Start[] = ["inbound", "outbound_sam"], seed: Seed = SEED): Promise<HammerReport> {
   const t0 = Date.now();
   const report = emptyReport("exhaustive");
-  const checker = makeChecker(seed);
+  const checker = makeChecker(seed, HAMMER_CODE);
   const indices: number[] = [];
   async function walk(level: number): Promise<void> {
     if (level > 0) {
@@ -111,7 +114,7 @@ export async function random(alphabet: Action[], count: number, opts: { min?: nu
   const { min = 5, max = 30, seedNumber = 20261121, seed = SEED } = opts;
   const t0 = Date.now();
   const report = emptyReport("random");
-  const checker = makeChecker(seed);
+  const checker = makeChecker(seed, HAMMER_CODE);
   const rand = mulberry32(seedNumber);
   for (let n = 0; n < count; n++) {
     const length = min + Math.floor(rand() * (max - min + 1));

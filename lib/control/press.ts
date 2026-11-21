@@ -28,7 +28,7 @@ import {
 import { internalOf, loadContext, resultOf, type PressRecordOutput } from "./context";
 import { evaluate, type Verdict } from "./engine";
 import { chooseLane, signalsFromCards } from "./lanes";
-import { addMs, isBefore, MINUTE_MS, within } from "./time";
+import { addMs, fresh as isFresh, isBefore, MINUTE_MS, within } from "./time";
 import { checkInput, normalise, normaliseDob, normaliseRxNumber } from "./validate";
 
 export const MAX_CODE_TRIES = 3;
@@ -173,8 +173,15 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
     const sent = (await store.listRecord(current.id))
       .filter((e) => internalOf(e)?.lookupId === input.lookup_id && internalOf(e)?.codeHash)
       .at(-1);
-    const fresh = sent && within(sent.at, now, CODE_VALID_MS);
-    const right = lookup?.patientId && fresh && internalOf(sent)?.codeHash === hashCode(input.lookup_id, input.code.trim());
+    const codeFresh = sent && isFresh(sent.at, now, CODE_VALID_MS);
+    const codeRight = lookup?.patientId && codeFresh && internalOf(sent)?.codeHash === hashCode(input.lookup_id, input.code.trim());
+    // A date of birth, when given (outbound calls confirm it with the code), must match too.
+    let dobRight = true;
+    if (codeRight && input.dob !== undefined) {
+      const p = await store.getPatient(lookup!.patientId!);
+      dobRight = normaliseDob(input.dob) === p?.dob;
+    }
+    const right = codeRight && dobRight;
 
     if (right && lookup?.patientId) {
       if (current.lockedPatientId && current.lockedPatientId !== lookup.patientId) {
@@ -182,8 +189,9 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
       }
       await store.saveCall({ ...current, state: "verified", lockedPatientId: lookup.patientId });
       const p = await store.getPatient(lookup.patientId);
+      const prescriptions = (await store.getPrescriptions(lookup.patientId)).map((r) => ({ rx_id: r.id, drug: r.drug }));
       return {
-        result: ok<"check_code">({ verified: true, patient_first_name: p?.firstName ?? "" }),
+        result: ok<"check_code">({ verified: true, patient_first_name: p?.firstName ?? "", prescriptions }),
         decision: "allowed",
         internal: { lookupId: input.lookup_id, patientId: lookup.patientId },
       };
@@ -305,7 +313,12 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
     const state = lane === "automatic" ? "queued" : "waiting_for_pharmacist";
     const ruleIds = verdict.matched.map((m) => m.id);
     const now = await store.now();
-    const order = await store.saveOrder({ id: `o_${call.id}_${rx.id}`, rxId: rx.id, patientId: patient.id, state, createdAt: now });
+    // A new id if this call already has an order for this prescription (e.g. one the
+    // pharmacist denied), so the old order and its decision are never overwritten.
+    const taken = new Set((await store.listOrders()).map((o) => o.id));
+    let orderId = `o_${call.id}_${rx.id}`;
+    for (let n = 2; taken.has(orderId); n++) orderId = `o_${call.id}_${rx.id}_${n}`;
+    const order = await store.saveOrder({ id: orderId, rxId: rx.id, patientId: patient.id, state, createdAt: now });
     const item = await addItem({
       callId: call.id,
       patientId: patient.id,
@@ -588,7 +601,7 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
     const sent = sentCodes.get(callId);
     if (!sent) return undefined;
     const entry = (await store.listRecord(callId)).filter((e) => internalOf(e)?.codeHash).at(-1);
-    if (!entry || internalOf(entry)?.codeHash !== sent.hash || !within(entry.at, await store.now(), CODE_VALID_MS)) return undefined;
+    if (!entry || internalOf(entry)?.codeHash !== sent.hash || !isFresh(entry.at, await store.now(), CODE_VALID_MS)) return undefined;
     return sent.code;
   }
 
