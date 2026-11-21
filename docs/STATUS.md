@@ -23,7 +23,7 @@ The planning is finished. These are the first things to do, in order:
 3. **Take a role** in the table above.
 4. **Task 0:** build `lib/contract/` (types and fakes, `docs/DESIGN.md` section 3) on branch `control/contract`, Entire Trail #1. Every role's real code depends on it.
 5. **Start the agent loops** (`docs/AUTONOMY.md`). Roles 1 to 3 can start their first task before task 0 lands.
-6. **Role 2, by Saturday 10 AM:** check whether Auth0's phone approval works on the free plan.
+6. ~~**Role 2, by Saturday 10 AM:** check whether Auth0's phone approval works on the free plan.~~ Done: no phone push; approval is the Approve button on the Today page.
 7. **Someone:** visit the Sun Life table, and ask the organisers about the judging format and how many prize tracks one project can enter.
 8. **Noon checkpoint:** Sam's refill, typed, start to finish, three times in a row. Then record a backup video.
 
@@ -38,10 +38,10 @@ Not doing: Entire's hosted review agents (they need billing). Maybe later: a Git
 
 ## Role 2 · Platform and pharmacist
 
-- **Doing:** contract switch handed off (Trail #5, branch `role-2/contract-switch`). Next: 2.5 Auth0 phone-approval check (by Saturday 10 AM, needs a human for the Auth0 tenant), then 2.2 once 4.2 lands.
-- **Done:** 2.1 API skeleton and event stream (merged). Contract switch: event types, driver, store and `Approver` come from `lib/contract/`; the API runs on `createFakes(emit)` in `app/api/_lib/runtime.ts`; the demo clock is on the Store; decide calls `store.decide` and emits `queue` (still 401 until 2.4).
+- **Doing:** 2.2 handed off (Trail #9, branch `role-2/reset-daily-check`, stacked on 2.4's `role-2/auth0-signin`). Next: 2.3 the full Today view, then 2.6 hosting.
+- **Done:** 2.1 and the contract switch (merged). 2.5 decided: no phone push. 2.4 Auth0 sign-in and Approve/Deny (handed off, Trail #7; real Auth0 sign-in checked in a browser). 2.2 demo reset, daily reminder check on rule 7, demo controls.
 - **Blocked:** 
-- **Needs from others:** Role 4: swap `lib/store/memory.ts` into `app/api/_lib/runtime.ts` when 4.2 lands (or I will). Role 1: the real `AgentDriver` for the same file.
+- **Needs from others:** Role 1: the real AgentDriver for `app/api/_lib/runtime.ts`, so a live call can press buttons and put Sam's refill in the queue (today only tests do).
 
 ## Role 3 · Red team and evals
 
@@ -67,5 +67,4 @@ Use the "Contract change request" issue template on GitHub. Don't edit `lib/cont
 
 - Our teammate's OK to share his story, and in what words
 - How many prize tracks one project can enter
-- Whether Auth0's phone approval works on the free plan (Role 2, by Saturday 10 AM)
 - Judging format: tables or a stage, and how long per team

@@ -6,11 +6,10 @@ import { getStore } from "../../../_lib/runtime";
 
 // POST /api/queue/:id/decide { decision: "approve" | "deny", note? } → { item }
 // Needs a signed-in pharmacist. The approver always comes from the Auth0
-// session, never from the body. Until task 2.4, nobody is signed in, so this
-// always answers 401.
+// session, never from the body.
 export async function POST(request: Request, ctx: RouteContext<"/api/queue/[id]/decide">) {
   const { id } = await ctx.params;
-  const approver = await getApprover(request);
+  const approver = await getApprover();
   if (!approver) return fail(401, "Sign in as a pharmacist to decide");
   if (!hasRole(approver, "pharmacist")) return fail(403, "Only a pharmacist can decide");
 

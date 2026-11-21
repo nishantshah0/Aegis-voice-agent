@@ -49,7 +49,7 @@ The **contract** (`lib/contract/`): shared types for the 12 buttons, the guard, 
 | 2.2 | **Demo clock, reset and daily reminder check:** reset reseeds and sets Tuesday 10 AM. The daily check starts Sam's outbound call. | Reset then "run daily check" rings Sam's phone | 2.1, 4.2 |
 | 2.3 | **Console Today view** (`app/console/today`): lane totals, Review lane first, an item's detail (rule that sent it, side effect, promises checked, signals, transcript, the AI's own view labelled), Approve and Deny | Sam's refill shows in Review with everything, and Approve updates his phone | 2.1, Task 0 |
 | 2.4 | **Auth0 sign-in and roles:** `pharmacist` and `reviewer`. The approve endpoint takes the approver from the token. | Only a signed-in pharmacist can approve, and their name lands in the record | 2.1 |
-| 2.5 | **Check Auth0's phone approval on the free plan** (by Saturday 10 AM). If it works, wire it to the same approve path. | The pharmacist's phone buzzes and approves, or we've confirmed the console button is the path | 2.4 |
+| 2.5 | ~~Check Auth0's phone approval on the free plan~~ **Done, decided:** no phone push; approval is the Approve button on the Today page | Decided Saturday morning (see `docs/DECISIONS.md`) | 2.4 |
 | 2.6 | **Hosting:** Vultr server, automatic https, domain. Both phones can open it and use the microphone. | A phone on the hall's network uses its microphone on our https address | 2.1 |
 | **After core** | | | |
 | 2.7 | Postgres store on Tiger Data, behind the same `Store` interface | Swapping stores changes one line, and every test passes on both | 4.2 |
