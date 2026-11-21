@@ -59,3 +59,29 @@ describe("createEventStream", () => {
     abort.abort();
   });
 });
+
+describe("the public stream never carries verification codes (Trail #3)", () => {
+  it("drops phone code events live and on replay, and still sends ring and status", async () => {
+    emit({ type: "phone", callId: "c_1", kind: "code", text: "Your pharmacy verification code is 123456." }); // id 1
+    emit({ type: "phone", callId: "c_1", kind: "ring", text: "Maple Street Pharmacy is calling" }); // id 2
+    const abort = new AbortController();
+    const reader = createEventStream(abort.signal, 0).getReader();
+    emit({ type: "phone", callId: "c_1", kind: "code", text: "Your pharmacy verification code is 654321." }); // id 3
+    emit({ type: "phone", callId: "c_1", kind: "status", text: "Approved by the pharmacist" }); // id 4
+    const text = await readUntil(reader, "Approved by the pharmacist");
+    expect(text).toContain('"kind":"ring"');
+    expect(text).not.toContain('"kind":"code"');
+    expect(text).not.toMatch(/123456|654321/);
+    abort.abort();
+  });
+});
+
+describe("the hello frame", () => {
+  it("opens every stream with a named hello event, so pages can tell the stream really flows", async () => {
+    const abort = new AbortController();
+    const reader = createEventStream(abort.signal, null).getReader();
+    const text = await readUntil(reader, "event: hello");
+    expect(text).toContain("event: hello\ndata: {}\n\n");
+    abort.abort();
+  });
+});

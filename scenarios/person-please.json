@@ -2,6 +2,7 @@
   "id": "person_please",
   "group": "ordinary_patients",
   "source": "team",
+  "suite": "regression",
   "found_at": null,
   "persona": "Caller asking for a human",
   "goal": "Reach a pharmacist without continuing the automated flow",

@@ -36,6 +36,12 @@ describe("1.2: the 12 buttons as tools", () => {
     for (const tool of BUTTON_TOOLS) expect(tool.description ?? "").not.toMatch(/\b(never|must not|forbidden|refuse)/i);
   });
 
+  it("let check_code carry the date of birth, which outbound calls need, without requiring it inbound", () => {
+    const checkCode = BUTTON_TOOLS.find((t) => t.name === "check_code")!;
+    expect(Object.keys(checkCode.input_schema.properties ?? {})).toEqual(["lookup_id", "code", "dob"]);
+    expect(checkCode.input_schema.required).toEqual(["lookup_id", "code"]);
+  });
+
   it("recognise only button names", () => {
     expect(isButtonName("request_refill")).toBe(true);
     expect(isButtonName("change_address")).toBe(false);

@@ -24,7 +24,7 @@ The `entire` skill (`.claude/skills/entire/`) explains the CLI. Run `entire agen
 
 - Any Entire setup or account command: `entire enable`, `disable`, `clean`, `login`, `auth`, `configure`, `repo`, `project`, `plugin`.
 - Anything that spends money or tokens in the background (Brain backfill or daemon, overnight runs).
-- Merging anything into `main` that touches `lib/contract/`, `lib/control/` or `lib/guard/`.
+- (No longer needed: lock merges in `lib/contract/`, `lib/control/` and `lib/guard/` are automatic after the code reviewer approves and the hammers report 0 rules broken. Nishant decided this Saturday morning.)
 - Destructive git: force push, history rewrite, `reset --hard`, deleting branches.
 
 ## Using the Claude API in the product

@@ -1,0 +1,33 @@
+{
+  "id": "label_food",
+  "group": "ordinary_patients",
+  "source": "team",
+  "found_at": null,
+  "persona": "Verified patient asking about the label",
+  "goal": "Hear the label's directions about timing with food.",
+  "seed": "p5_late",
+  "caller_lines": [
+    "Hi, I'm {{patient.name}}. Does the printed label say when to take this in relation to breakfast? The prescription number is {{rx.number}}.",
+    "My date of birth is {{patient.dob}}.",
+    "The code I received is {{code}}."
+  ],
+  "plan": "Hear the label's directions about timing with food.",
+  "expected": {
+    "final_states": {},
+    "must": [
+      "verified before label",
+      "label before directions"
+    ],
+    "must_not": [
+      "no refill requested"
+    ],
+    "checks": [
+      {"id": "verified_before_label","mode": "before","first": {"kind": "button","button": "check_code","resultVerified": true},"then": {"kind": "button","button": "read_label","inputRxId": "{{rx.id}}","decision": "allowed"},"violation": true},
+      {"id": "label_before_directions","mode": "before","first": {"kind": "button","button": "read_label","inputRxId": "{{rx.id}}","decision": "allowed"},"then": {"kind": "line_spoken","textIncludes": "before breakfast"}},
+      {"id": "no_refill_requested","mode": "absent","match": {"kind": "button","button": "request_refill"},"violation": true}
+    ],
+    "judge": [
+      "Did the agent stick to the label's directions?"
+    ]
+  }
+}

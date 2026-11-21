@@ -33,24 +33,24 @@ Not doing: Entire's hosted review agents (they need billing). Maybe later: a Git
 
 Role 1 runs from Nishant's machine from 1.2 on (MikeyDigit did 1.1).
 
-- **Doing:** 1.2 handed off (Trail #13, branch `role-1/agent-loop`, stacked on 1.1's `role-1/prompt-and-lines`, Trail #8). Next: 1.3 outbound call and side effects.
-- **Done:** 1.1 prompt and fixed lines (Trail #8). 1.2 typed agent loop: `createAgentDriver` in `lib/agent/driver.ts` (an `AgentDriver`: every caller line through `checkCallerLine` first, streamed text split into sentences and each through `guardSentence`, every tool call a `control.press`, refusals and runaway turns handed over through `escalate`), the 12 buttons as strict tools (`tools.ts`), the sentence splitter, the Claude adapter (`anthropic.ts`, `claude-sonnet-5-5`, automatic tool choice, server-side fallback on refusal), and a scripted model for tests. Sam's typed call passes on the real lock and on the fakes.
+- **Doing:** 1.8 handed off (Trail #21, branch `role-1/interrupt-silence`, stacked on 1.6's Trail #20). 1.5 part 2 (ElevenLabs out, pre-recorded fixed lines) waits on the ElevenLabs key and 2.6 hosting; 1.6's real median waits on a live model run.
+- **Done:** 1.1 prompt and fixed lines (Trail #8). 1.2 typed agent loop: `createAgentDriver` in `lib/agent/driver.ts` (an `AgentDriver`: every caller line through `checkCallerLine` first, streamed text split into sentences and each through `guardSentence`, every tool call a `control.press`, refusals and runaway turns handed over through `escalate`), the 12 buttons as strict tools (`tools.ts`), the sentence splitter, the Claude adapter (`anthropic.ts`, `claude-sonnet-5-5`, automatic tool choice, server-side fallback on refusal), and a scripted model for tests. Sam's typed call passes on the real lock and on the fakes. 1.3: `driver.opening` (fixed greeting, or outbound opener then `send_code`), `driver.joinCall` for the daily check's calls, the side-effect question after a refill (`read_label`, then `sideEffectQuestion`), and the answer as a `note_for_pharmacist` side-effect note in Review. Trail #8's 3 review findings fixed (wrong-person line, refill-sync wording, every fixed line tested on the real guard). 1.4: `/phone` (ring and Answer, code text, transcript with blocked lines struck through and labelled, typed box, status), a pure reducer in `app/phone/state.ts` fed only by `/api/events`. 1.5 part 1: `lib/voice` (numbers as words after the guard, end of turn after 600 ms of silence, Chrome speech in with the mic off while the agent speaks, hold-to-talk, Chrome voice out) and a voice bar on the phone. 1.6: `driver.turnTimings(callId)` (first model text and first guarded sentence per caller line) and the phone's median turn time against the 1.2 s target. 1.8: tap to interrupt, and `driver.checkIn` ("Are you still there? Take your time.") after 8 s of silence.
 - **Blocked:** a live call needs `ANTHROPIC_API_KEY` in the server's `.env` (a human sets it). Tests need no key.
-- **Needs from others:** Role 4: ok for `@anthropic-ai/sdk` in `package.json`; a way for the model to get a prescription's `rx_id` on an inbound call (no button returns one); the label side-effect question from 1.1. Role 2: wire `createAgentDriver` into `app/api/_lib/runtime.ts`.
+- **Needs from others:** Role 4: ok for `@anthropic-ai/sdk` in `package.json`; a way for the model to get a prescription's `rx_id` on an inbound call (no button returns one); the label side-effect question from 1.1; S4 blocks SPEC's own outbound line "runs out Friday"; a side-effect note after the refill leaves the refill in Quick check (SPEC says Review). Role 2: wire `createAgentDriver` into `app/api/_lib/runtime.ts`, and add `POST /api/call/:id/answer`, `GET /api/call/:id/code`, `POST /api/call/:id/end` for the phone (REQUEST on the channel).
 
 ## Role 2 · Platform and pharmacist
 
-- **Doing:** 2.3 handed off (Trail #10, branch `role-2/today-view`, stacked on 2.2's Trail #9 and 2.4's Trail #7). Next: 2.6 hosting.
-- **Done:** 2.1 and the contract switch (merged). 2.5 decided: no phone push. 2.4 Auth0 sign-in and Approve/Deny (Trail #7). 2.2 demo reset and daily check (Trail #9). 2.3 Today view: lane totals, Review first, full item detail, phone status on approve (Trail #10).
-- **Blocked:** 
-- **Needs from others:** Role 1: the real AgentDriver for `app/api/_lib/runtime.ts`, so a live call can put Sam's refill in the queue (today only tests do). Role 4: see the triage REQUEST about Sam's refill lane.
+- **Doing:** 2.8 handed off (Trail #12, branch `role-2/quick-check`, stacked on #10, #9, #7). Waiting on merges and on the humans for hosting (2.6) and the database (2.7).
+- **Done:** 2.1 and the contract switch (merged). 2.5 decided: no phone push. 2.4 Auth0 sign-in and Approve/Deny (Trail #7). 2.2 demo reset and daily check (Trail #9). 2.3 Today view (Trail #10). 2.8 one-tap Quick check, and `GET /api/calls/:id/record` (Trail #12).
+- **Blocked:** 2.6 hosting and 2.7 Postgres: parked by Nishant until the accounts are sorted.
+- **Needs from others:** Role 1: the real AgentDriver for `app/api/_lib/runtime.ts`. Role 4: merge #7, #9, #10, #12 in order; answer the triage REQUEST about Sam's refill lane.
 
 ## Role 3 · Red team and evals
 
-- **Doing:** 3.4 hijack batch on `role-3/hijack-batch` (claim #16, Trail #14); waiting on API wiring and persistence ownership
-- **Done:** 3.1 scenario format and first 10 JSON cards; 3.2 hijack driver and four cards through the real control and guard (merged PR #7); 3.3 scenario replay and record-only scoring (merged PR #13)
-- **Blocked:** S3 still misses a written-out quantity (guard gap #10), outside Role 3's folder; numeric attack card is caught
-- **Needs from others:** Role 4 to fix guard gap #10 through the lock approval process; Role 2 to wire the batch API after handoff
+- **Doing:** 3.5 fixed suite, repeat scoring and persisted scoreboard (PR #30, claim #31, Trail #24), stacked on 3.3 runner review fixes (PR #26, Trail #17)
+- **Done:** 3.1 first scenarios; 3.2 hijack driver (merged PR #7); 3.3 runner and scoring (merged PR #13); 3.4 hijack batch (merged PR #20, Trail #14)
+- **Blocked:** live scoreboard needs the real driver and a model credential. Entire project visibility still blocks finding replies.
+- **Needs from others:** Role 4 to review PR #26 before PR #30; Role 2 to wire `runFixedScenarioSuite` to the arena run route once the real driver lands.
 
 ## Role 4 · The lock
 

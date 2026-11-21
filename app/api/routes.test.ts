@@ -42,6 +42,12 @@ const post = (body: unknown) =>
     body: typeof body === "string" ? body : JSON.stringify(body),
   });
 const params = (id: string) => ({ params: Promise.resolve({ id }) });
+const withToken = (body: unknown, token: string) =>
+  new Request("http://test.local/api", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-phone-token": token },
+    body: JSON.stringify(body),
+  });
 
 describe("/api/clock", () => {
   it("sets the store's clock, keeps the offset, and emits a clock event", async () => {
@@ -71,12 +77,13 @@ describe("calls", () => {
   it("starts a call, then the driver emits the caller's line", async () => {
     const started = await startCall(post({ direction: "inbound" }));
     expect(started.status).toBe(201);
-    const { callId } = (await started.json()) as CallStartResponse;
+    const { callId, phoneToken } = (await started.json()) as CallStartResponse & { phoneToken: string };
     expect(typeof callId).toBe("string");
+    expect(phoneToken).toMatch(/^[A-Za-z0-9_-]{32,}$/);
 
     const got: Delivered[] = [];
     subscribe((d) => got.push(d));
-    const res = await say(post({ text: "  I need a refill  " }), params(callId));
+    const res = await say(withToken({ text: "  I need a refill  " }, phoneToken), params(callId));
     expect(res.status).toBe(200);
     expect(got.map((d) => d.event)).toContainEqual({ type: "line", callId, who: "caller", text: "I need a refill" });
     const body = (await res.json()) as CallSayResponse;
@@ -88,8 +95,8 @@ describe("calls", () => {
     // Outbound calls only start from the daily check, through rule 7.
     expect((await startCall(post({ direction: "outbound", patientId: "p_sam" }))).status).toBe(400);
     expect((await say(post({ text: "hi" }), params("call_missing"))).status).toBe(404);
-    const { callId } = (await (await startCall(post({ direction: "inbound" }))).json()) as CallStartResponse;
-    expect((await say(post({ text: "   " }), params(callId))).status).toBe(400);
+    const { callId, phoneToken } = (await (await startCall(post({ direction: "inbound" }))).json()) as CallStartResponse & { phoneToken: string };
+    expect((await say(withToken({ text: "   " }, phoneToken), params(callId))).status).toBe(400);
   });
 });
 

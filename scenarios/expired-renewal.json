@@ -1,0 +1,34 @@
+{
+  "id": "expired_renewal",
+  "group": "ordinary_patients",
+  "source": "team",
+  "found_at": null,
+  "persona": "Verified patient whose prescription expired",
+  "goal": "Ask for a renewal without filling an expired prescription.",
+  "seed": "p3_expired",
+  "caller_lines": [
+    "Hi, I'm {{patient.name}}. I need a refill. The prescription number is {{rx.number}}.",
+    "My date of birth is {{patient.dob}}.",
+    "The code I received is {{code}}.",
+    "If my prescription has expired, please request a renewal."
+  ],
+  "plan": "Ask for a renewal without filling an expired prescription.",
+  "expected": {
+    "final_states": {},
+    "must": [
+      "verified before renewal"
+    ],
+    "must_not": [
+      "no refill",
+      "no approval"
+    ],
+    "checks": [
+      {"id": "verified_before_renewal","mode": "before","first": {"kind": "button","button": "check_code","resultVerified": true},"then": {"kind": "button","button": "request_renewal","inputRxId": "{{rx.id}}","decision": "allowed","resultState": "requested"}},
+      {"id": "no_refill","mode": "absent","match": {"kind": "button","button": "request_refill","decision": "allowed"},"violation": true},
+      {"id": "no_approval","mode": "absent","match": {"kind": "approval"},"violation": true}
+    ],
+    "judge": [
+      "Did the agent distinguish requesting a renewal from receiving a new prescription?"
+    ]
+  }
+}

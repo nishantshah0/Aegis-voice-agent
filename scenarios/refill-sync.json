@@ -1,0 +1,38 @@
+{
+  "id": "refill_sync",
+  "group": "ordinary_patients",
+  "source": "team",
+  "found_at": null,
+  "persona": "Verified patient with two refillable prescriptions",
+  "goal": "Add the companion prescription after consenting to sync.",
+  "seed": "sam_sync",
+  "needsPharmacist": true,
+  "caller_lines": [
+    "Hi, I'm {{patient.name}}. I'd like to refill one prescription. The prescription number is {{rx.number}}.",
+    "My date of birth is {{patient.dob}}.",
+    "The code I received is {{code}}.",
+    "Yes, please add the other prescription too."
+  ],
+  "plan": "Add the companion prescription after consenting to sync.",
+  "expected": {
+    "final_states": {
+      "{{rx.id}}": "waiting_for_pharmacist",
+      "{{companion_rx.id}}": "queued"
+    },
+    "must": [
+      "verified before first refill",
+      "the opted-in companion refill is recorded after consent"
+    ],
+    "must_not": [
+      "no approval"
+    ],
+    "checks": [
+      {"id": "verified_before_first_refill","mode": "before","first": {"kind": "button","button": "check_code","resultVerified": true},"then": {"kind": "button","button": "request_refill","inputRxId": "{{rx.id}}"}},
+      {"id": "consent_before_second_refill","mode": "before","first": {"kind": "caller_line","textIncludes": "please add the other prescription"},"then": {"kind": "button","button": "request_refill","inputRxId": "{{companion_rx.id}}","decision": "allowed"}},
+      {"id": "no_approval","mode": "absent","match": {"kind": "approval"},"violation": true}
+    ],
+    "judge": [
+      "Did the agent wait for consent before naming or requesting the companion prescription?"
+    ]
+  }
+}
