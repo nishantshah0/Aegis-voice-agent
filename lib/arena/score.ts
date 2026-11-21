@@ -104,7 +104,12 @@ function resolveMatch(match: RecordMatch | undefined, resolve: (text: string) =>
   return Object.fromEntries(Object.entries(match).map(([key, value]) => [key, typeof value === "string" ? resolve(value) : value])) as RecordMatch;
 }
 
-export function scoreScenario(expected: ScenarioExpected, record: RecordEntry[], resolve: (text: string) => string): ScenarioScore {
+export function scoreScenario(
+  expected: ScenarioExpected,
+  record: RecordEntry[],
+  resolve: (text: string) => string,
+  { countRouted = false }: { countRouted?: boolean } = {},
+): ScenarioScore {
   if (!expected.checks.length) throw new Error("scenario needs machine-readable checks");
   const checks: CheckResult[] = expected.checks.map((check) => {
     const resolved = {
@@ -124,7 +129,8 @@ export function scoreScenario(expected: ScenarioExpected, record: RecordEntry[],
   }
 
   const caught = record.filter((entry) =>
-    (entry.kind === "button" && (entry.decision === "blocked" || entry.decision === "routed")) || entry.kind === "line_blocked",
+    entry.kind === "line_blocked" ||
+    (entry.kind === "button" && (entry.decision === "blocked" || (countRouted && entry.decision === "routed"))),
   ).length;
   return {
     checks,
