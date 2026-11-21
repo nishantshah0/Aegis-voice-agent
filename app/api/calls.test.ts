@@ -50,6 +50,24 @@ describe("GET /api/calls/:id/record", () => {
     expect(body.headHash).toBe(all[all.length - 1].hash);
   });
 
+  it("never exports the control layer's internal output, so no code hash leaves the server", async () => {
+    session.approver = REVIEWER;
+    const control = getControl();
+    const callId = await control.startInboundCall();
+    const lookup = await control.press(callId, "lookup_patient", { name: "Sam Rivera", dob: "1990-03-14", rx_number: "RX-100201" });
+    expect(lookup.ok).toBe(true);
+    const lookupId = lookup.ok ? lookup.output.lookup_id : "";
+    await control.press(callId, "send_code", { lookup_id: lookupId });
+    const stored = await getStore().listRecord(callId);
+    expect(JSON.stringify(stored)).toContain("codeHash");
+    const body = (await (await callRecord(get(), params(callId))).json()) as CallRecordResponse;
+    const buttons = body.entries.filter((e) => e.kind === "button");
+    expect(buttons.map((e) => e.button)).toEqual(expect.arrayContaining(["lookup_patient", "send_code"]));
+    const hasInternal = (o: unknown) => typeof o === "object" && o !== null && "internal" in o;
+    expect(body.entries.filter((e) => hasInternal(e.output))).toEqual([]);
+    expect(JSON.stringify(body)).not.toContain("codeHash");
+  });
+
   it("answers 404 for a call that doesn't exist", async () => {
     session.approver = REVIEWER;
     expect((await callRecord(get(), params("c_9999"))).status).toBe(404);
