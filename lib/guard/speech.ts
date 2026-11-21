@@ -31,7 +31,7 @@ const NOT_A_PROMISE = new RegExp(
     "\\b(?:im|i am) (?:all set|done)\\b",
     "\\bare you (?:all )?done with\\b",
     // Saying it doesn't know is not a promise: "I don't know when it will be ready."
-    "\\b(?:i dont know|i do not know|im not sure|i am not sure|not sure) (?:when|if|whether) (?:it|its|itll|it ll|it will|they|theyre|your \\w+)(?: will| is| s| are)?(?: be)? (?:approved|ready|done|filled|confirmed|complete|sorted|delivered)\\b",
+    "\\b(?:i dont know|i do not know|im not sure|i am not sure|not sure|i cant say|i cannot say)(?: yet)? (?:when|if|whether) (?:it|its|itll|it ll|it will|they|theyre|your \\w+)(?: will| is| s| are)?(?: be)? (?:approved|ready|done|filled|confirmed|complete|sorted|delivered)\\b",
   ].join("|"),
   "g",
 );
