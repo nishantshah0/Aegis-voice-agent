@@ -15,6 +15,8 @@ An AI phone line for pharmacies. It calls patients before their medication runs 
 
 | You need | Read |
 |---|---|
+| **Every rule in one place (wins over other docs)** | **`docs/RULES.md`** |
+| Your role's lecture: where you've broken the rules | `agents/lectures/role-<n>.md` |
 | First time here: accounts, tools, Entire, keys | `SETUP.md` |
 | Your role's tasks, in order | `docs/TASKS.md` |
 | Your role's loop prompt | `agents/role-<n>.md` |
@@ -66,7 +68,7 @@ Need something from another role? Post REQUEST to that role, then keep going wit
 
 ## While you work
 
-- **Build against `lib/contract/`, never against another role's code.** Contract changes go through a "Contract change request" issue and need a HUMAN "ok".
+- **Build against `lib/contract/`, never against another role's code.** Contract changes go on a `role-4/` branch, get the code reviewer's approval, and are announced with a DECISION before they merge (see `docs/RULES.md`, section 3).
 - **Never change a test and the code it tests in the same step.**
 - **Never add a way around the 12 buttons or the speech guard,** even "just for the demo".
 - Small commits, scoped to your task, files staged by name. No destructive git: no force push, no history rewrite, no `reset --hard` on shared branches.
@@ -84,7 +86,7 @@ Need something from another role? Post REQUEST to that role, then keep going wit
 ## Integration (Role 4's agent)
 
 - Merge Trails in dependency order. Run the release gate, then `entire review`, before merging.
-- **Merge automatically** only if the gate passes, the diff stays inside the claiming role's folders, and it doesn't touch `lib/contract/`, `lib/control/` or `lib/guard/`. Anything touching those needs a HUMAN "ok".
+- **Merge automatically** only if the gate passes, the diff stays inside the claiming role's folders, and it doesn't touch `lib/contract/`, `lib/control/` or `lib/guard/`. Those (the lock) merge automatically too, once the code reviewer approves and `npm run hammer` reports 0 rules broken. No HUMAN ok needed (Nishant's call: ship fast).
 - Post problems as findings on the Trail, and post MERGED on the channel after merging.
 - After the overnight run, post `entire dispatch` output to the channel.
 
