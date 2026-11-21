@@ -321,6 +321,16 @@ const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "
 const color = (r) => (ROLES[r] || ROLES.ALL).c;
 const label = (r) => (ROLES[r] || { name: r }).name;
 const roleOf = (who) => { const w = String(who || "").toLowerCase(); return Object.keys(PEOPLE).find((r) => PEOPLE[r].includes(w)) || null; };
+// Which role a commit belongs to. One person can run two roles, so the login alone isn't enough:
+// first the task number in the subject ("1.2: ...", "Task 3.3 ...", "4.3-4.5: ..."), then the branch it came
+// from ("role-1/..."), then the author's login as a last resort.
+function commitRole(c) {
+  const t = String(c.subject || "").match(/^(?:Task\s+)?([1-4])\.\d+/);
+  if (t) return "ROLE-" + t[1];
+  const b = String(c.branch || "").match(/^role-([1-4])\//);
+  if (b) return "ROLE-" + b[1];
+  return roleOf(c.author);
+}
 function inline(s) {
   return esc(s)
     .replace(/`([^`\n]+)`/g, "<code>$1</code>")
@@ -402,7 +412,7 @@ function roleCard(r, compact) {
   const line = doing ? "<b>" + (doing.type === "HUMAN" ? "" : doing.type.toLowerCase() + ": ") + "</b>" + inline(doing.summary) + " · " + ago(doing.t) : (mine.length ? "" : "Hasn't posted yet");
   let mini = "";
   if (!compact && r !== "HUMAN" && r !== "TOOLS" && S.commits) {
-    const cs = S.commits.commits.filter((c) => roleOf(c.author) === r);
+    const cs = S.commits.commits.filter((c) => commitRole(c) === r);
     const l = cs.filter((c) => c.checkpoints.length).length;
     const tr = new Set(mine.flatMap((m) => trailRefs(m.body))).size;
     mini = '<div class="mini"><span><b>' + mine.length + "</b> msgs</span><span><b>" + cs.length + "</b> commits</span><span><b>" + pct(l, cs.length) + "%</b> AI-linked</span><span><b>" + tr + "</b> Trails</span></div>";
@@ -515,7 +525,7 @@ function renderTrails() {
 function renderPeople() {
   if (!S.commits) return;
   const by = {};
-  for (const c of S.commits.commits) { const r = roleOf(c.author) || "other"; (by[r] ||= { n: 0, l: 0 }); by[r].n++; if (c.checkpoints.length) by[r].l++; }
+  for (const c of S.commits.commits) { const r = commitRole(c) || "other"; (by[r] ||= { n: 0, l: 0 }); by[r].n++; if (c.checkpoints.length) by[r].l++; }
   $("people").innerHTML = ["ROLE-1", "ROLE-2", "ROLE-3", "ROLE-4", "other"].filter((r) => by[r]).map((r) => {
     const { n, l } = by[r], c = ROLES[r]?.c || "var(--all)";
     return '<div class="b"><span><b style="color:' + c + '">' + (ROLES[r]?.name || "Others") + '</b> <span class="small muted">' + (ROLES[r]?.job || "") + '</span></span><div class="track"><span style="width:' + pct(l, n) + "%;background:" + c + '"></span></div><span class="small muted">' + l + "/" + n + " · " + pct(l, n) + "%</span></div>";
@@ -526,7 +536,7 @@ function renderCommits() {
   if (S.commits.error) { $("commits").innerHTML = '<div class="error">' + esc(S.commits.error) + "</div>"; return; }
   const list = S.commits.commits.filter((c) => S.cf === "all" || (S.cf === "linked") === c.checkpoints.length > 0);
   $("commits").innerHTML = list.slice(0, 120).map((c) => {
-    const r = roleOf(c.author), id = c.checkpoints[0];
+    const r = commitRole(c), id = c.checkpoints[0];
     const open = id && S.cpOpen.has(id);
     return '<div class="commit"><div class="row">' + cpPill(c) + '<a class="subj" href="' + ghCommit(c.sha) + '" target="_blank" rel="noopener noreferrer">' + esc(c.subject) + "</a>" +
       (id ? '<button class="x" data-cp="' + id + '">' + (open ? "Hide" : "What it changed") + "</button>" : "") + '</div><div class="meta" style="margin-top:3px"><span class="mono">' + c.sha.slice(0, 7) + '</span><span style="color:' + (r ? color(r) : "var(--muted)") + ';font-weight:700">' + esc(c.author) + (r ? " · " + label(r) : "") + "</span><span>" + esc(c.branch) + '</span><span class="time">' + ago(c.date) + "</span></div>" +
@@ -670,7 +680,7 @@ function renderTimeline() {
   }
   // Commits: small ticks just under each role's lane.
   for (const c of S.commits?.commits || []) {
-    const r = roleOf(c.author);
+    const r = commitRole(c);
     if (!r || new Date(c.date) < t0) continue;
     svg += '<line x1="' + x(c.date) + '" x2="' + x(c.date) + '" y1="' + (y(r) + 6) + '" y2="' + (y(r) + 12) + '" stroke="' + color(r) + '" stroke-width="1.5" opacity=".7"><title>' + esc(c.subject) + "</title></line>";
   }
