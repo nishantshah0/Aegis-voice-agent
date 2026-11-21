@@ -14,14 +14,16 @@ Full plan: [`docs/SPEC.md`](docs/SPEC.md). How the parts fit: [`docs/DESIGN.md`]
 
 ## Who does what
 
+**Nobody is pre-assigned: pick a role.** The shared contract (types and fakes) is set up for everyone first, as task 0, so no role is stuck doing it.
+
 | Role | Owns | First task (before sleep) | Done when |
 |---|---|---|---|
 | **1 · Voice and agent** | The agent loop on Claude, the prompt, the outbound call, the side-effect question, voice in (Chrome) and out (ElevenLabs), turn timing, **the patient phone page**. Calls the guard and safety check, doesn't write them. | A typed agent loop that presses the 12 buttons through the contract's fake | Sam's Concerta refill works typed, start to finish, three times in a row, then by voice on a real phone |
 | **2 · Platform and pharmacist** | App shell and API routes, the event stream, the demo clock, reset and daily reminder check, Auth0 (sign-in, roles, phone approvals), the Postgres store, hosting on Vultr with https, the domain, **the pharmacy console's Today view and approvals** | App deployed over https with Auth0 sign-in, and check whether Auth0's phone approval works on the free plan | A pharmacist approves Sam's refill from the console (or their phone), and it lands in the record |
 | **3 · Red team and evals** | The scripted hijack agent and attack cards, the scenario runner and scoring, the 28 scenarios. After the core: the Gemini attacker, the Fable planner, the judge, the overnight run, the fix loop, cited briefs, and **the console's Review calls, Rules and checks, and Overnight safety tabs** | The hijack agent and the scenario file format, with the first 10 scenarios | Every attack card is blocked, and all 28 scenarios run and score |
-| **4 · Control layer** (Nishant, with Claude) | The contract (shared types and fakes), the control layer, rule cards and engine, triage lanes, the speech guard (S1 to S4) and safety keywords, the in-memory store, seed data, both hammers, the release gate, **the stage view with the gate animation**, the agent coordination setup | The contract with fakes, so everyone can start now | The hammers report 0 rules broken, every rule has tests, and the gate animation runs from real events |
+| **4 · The lock** | The control layer behind the 12 buttons, rule cards and the strictest-wins engine, triage lanes, the speech guard (S1 to S4) and safety keywords, the hash-chained record, the in-memory store and seed data, the hammers and release gate, **the stage view with the gate animation** | The in-memory store, seed data and the first rules (core rules 1 and 5, card 4b) | The hammers report 0 rules broken against millions of hostile presses, and the gate animation shows it live |
 
-**There's no separate design and pitch role.** Each role builds and polishes its own screen with Tailwind. The pitch belongs to everyone: Role 3 brings the real numbers, Role 4 owns the demo script and reset, and the whole team rehearses five times from Sunday 6 AM. Devpost is written together in the last hours.
+**All four roles write code.** Each role builds and polishes its own screens with Tailwind. The pitch, video and Devpost are done together at the end. **Each role's tasks, in order, are in [`docs/TASKS.md`](docs/TASKS.md).**
 
 **Everyone's AI tool reads [`AGENTS.md`](AGENTS.md) first.** Who owns which folder, and how the pieces connect, is in [`docs/DESIGN.md`](docs/DESIGN.md). Progress and requests go in [`docs/STATUS.md`](docs/STATUS.md). Decisions go in [`docs/DECISIONS.md`](docs/DECISIONS.md).
 
@@ -55,12 +57,12 @@ claim issue  ──▶  task branch  ──▶  pull request (handoff checklist)
 |---|---|---|
 | Sat now to ~5 AM | Interface file, app skeleton, seed data, core rules, stage layout | The hammers report 0 |
 | Sat ~5 to 9 AM | Sleep in shifts. Role 1 keeps the agent loop moving. | |
-| Sat 9 AM to noon | Typed refill end to end. Visit the Sun Life table. | **A typed refill works three times in a row** |
+| Sat 9 AM to noon | Typed refill end to end. Someone visits the Sun Life table. | **A typed refill works three times in a row** |
 | Sat noon to 4 PM | Speech guard, safety checks, outbound call, side effects, triage, first arena run | First real numbers. **Record a backup video.** |
 | Sat 4 to 8 PM | Voice, Auth0 approvals, hijack switch, console | A spoken outbound refill works three times in a row |
 | Sat 8 PM to midnight | Only once the core works twice: scenarios and scoreboard, then the attacker and overnight run | The core demo runs twice in a row |
 | Sun midnight to 6 AM | Overnight run, final numbers, polish | Final numbers saved |
-| Sun 6 to 8:30 AM | No new features. Video, Devpost, five rehearsals. | **Submitted by 8:30 AM** |
+| Sun 6 to 8:30 AM | No new features. Everyone together: pitch, video, Devpost, five rehearsals. | **Submitted by 8:30 AM** |
 
 ## Core demo first
 

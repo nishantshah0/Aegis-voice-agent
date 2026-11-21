@@ -4,31 +4,31 @@ Every role (and its AI agent) updates its own section before opening a pull requ
 
 ## Role 1 · Voice and agent
 
-- **Doing:** 
+- **Doing:** 1.1 prompt and fixed lines (see `docs/TASKS.md`)
 - **Done:** 
 - **Blocked:** 
 - **Needs from others:** 
 
 ## Role 2 · Platform and pharmacist
 
-- **Doing:** 
+- **Doing:** 2.1 API skeleton and event stream
 - **Done:** 
 - **Blocked:** 
 - **Needs from others:** 
 
 ## Role 3 · Red team and evals
 
-- **Doing:** 
+- **Doing:** 3.1 scenario format and first 10 scenarios
 - **Done:** 
 - **Blocked:** 
 - **Needs from others:** 
 
-## Role 4 · Control layer (Nishant with Claude)
+## Role 4 · The lock
 
-- **Doing:** `lib/contract/` with fakes, then the control layer, guard, in-memory store, seed and hammers
-- **Done:** README, `docs/SPEC.md`, `docs/DESIGN.md`, `AGENTS.md`, the Next.js app, the GitHub coordination setup (issue templates, pull request template, release gate workflow), Entire (capture, Graph, Brain seeded with our rules, `docs/ENTIRE.md`)
+- **Doing:** 4.2 in-memory store and seed data, then the control layer, guard and hammers
+- **Done:** task 0 setup: README, `docs/SPEC.md`, `docs/DESIGN.md`, `AGENTS.md`, the Next.js app, the GitHub coordination setup (issue templates, pull request template, release gate workflow), Entire (capture, Graph, Brain seeded with our rules, `docs/ENTIRE.md`)
 - **Blocked:** 
-- **Needs from others:** everyone: install Entire and run `entire login` (see `docs/ENTIRE.md`). Nishant: install Entire's GitHub App and run `entire brain connect`, so Trails and shared memories work.
+- **Needs from others:** everyone: install Entire and run `entire login` (see `docs/ENTIRE.md`). Entire's repo onboarding, Trails and shared Brain are already set up.
 
 ---
 
