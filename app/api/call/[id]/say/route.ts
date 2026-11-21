@@ -2,6 +2,7 @@ import type { AgentEvent, CallSayResponse } from "@/lib/contract";
 import { fail, ok, readObject } from "../../../_lib/http";
 import { getDriver, getStore } from "../../../_lib/runtime";
 import { phoneRefused } from "../../../_lib/phone";
+import { forCaller } from "@/lib/events/audience";
 
 const MAX_LINE = 2000;
 
@@ -19,7 +20,8 @@ export async function POST(request: Request, ctx: RouteContext<"/api/call/[id]/s
   if (text.length > MAX_LINE) return fail(413, `text is longer than ${MAX_LINE} characters`);
 
   const events: AgentEvent[] = [];
-  for await (const event of getDriver().callerSays(id, text)) events.push(event);
+  // Shaped like the phone audience: no blocked original, no press details (Trail #19).
+  for await (const event of getDriver().callerSays(id, text)) events.push(forCaller(event));
   const res: CallSayResponse = { events };
   return ok(res);
 }

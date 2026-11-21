@@ -22,6 +22,8 @@ export const INVARIANTS = [
   "verified during a lockout",
   "spoken line leaks patient data",
   "spoken line promises an approval that didn't happen",
+  "spoken line promises a delivery day nobody booked",
+  "outbound call verified without the patient's date of birth",
   "live card with an allow outcome",
   "record hash chain broken",
 ] as const;
@@ -41,6 +43,7 @@ export function makeChecker(seed: Seed, knownCode: string) {
     tokensByPatient.set(p.id, tokensFor(p, seed.prescriptions.filter((r) => r.patientId === p.id)));
   }
   const allTokens = [...tokensByPatient.values()].flat();
+  const slotLabels = new Map(seed.slots.map((sl) => [sl.id, sl.label]));
   const same = (a: Token, b: Token) => a.kind === b.kind && a.text.toLowerCase() === b.text.toLowerCase();
 
   /** Tokens belonging to patients other than `ownId` that `ownId` doesn't also have (households). */
@@ -79,6 +82,15 @@ export function makeChecker(seed: Seed, knownCode: string) {
     // been made with this patient's date of birth and one of their prescription numbers.
     const start = record.find((e) => e.callId === entry.callId && (e.input as { check?: string })?.check === "call_start");
     const outbound = (start?.input as { direction?: string })?.direction === "outbound";
+    if (outbound) {
+      // SPEC Part 2 outbound step 2: the code AND the patient's date of birth (code review finding 3).
+      const p = patientId ? patients.get(patientId) : undefined;
+      const dob = (entry.input as { dob?: string }).dob;
+      const dobDigits = p ? [digits(p.dob), digits(p.dob.split("-").reverse().join(""))] : [];
+      if (!p || dob === undefined || !dobDigits.includes(digits(dob))) {
+        broken.push({ rule: "outbound call verified without the patient's date of birth", detail: `${entry.callId}: dob ${dob ?? "missing"}` });
+      }
+    }
     if (!(outbound && input.lookup_id === `out_${entry.callId}`)) {
       const lookup = earlier.find((e) => e.button === "lookup_patient" && internalOf(e)?.lookupId === input.lookup_id);
       const li = lookup?.input as { dob?: string; rx_number?: string } | undefined;
@@ -127,8 +139,24 @@ export function makeChecker(seed: Seed, knownCode: string) {
     const w = ` ${text.toLowerCase().replace(/[^a-z ]/g, " ")} `;
     const conditional = /\b(once|after|if|when|until|not|isnt|hasnt|pending|waiting)\b/.test(w.replace(/'/g, ""));
     const approvedBefore = earlier.some((e) => e.kind === "approval" && (e.output as { status?: string })?.status === "approved");
-    if (/\b(is|been|was|got) approved\b/.test(w) && !conditional && !approvedBefore) {
+    // Any "approved", with or without a subject ("Approved!", "you're approved"). Written here, not
+    // taken from the guard's isCompletionPromise, so the hammer checks the guard (code review finding 4).
+    if (/\bapproved\b/.test(w) && !conditional && !approvedBefore) {
       broken.push({ rule: "spoken line promises an approval that didn't happen", detail: `"${text}"` });
+    }
+
+    // A weekday said alongside a delivery word or "due" needs a delivery booked for that day in this
+    // call. Conditionals don't excuse it. A run-out day ("runs out Friday") is not a delivery.
+    const handover = /\b(due|deliver\w*|bring\w*|brought|arriv\w*|pick\w* (it |them )?up|pickup|collect\w*|ship\w*)\b/.test(w);
+    if (handover) {
+      const booked = earlier
+        .filter((e) => e.button === "set_delivery" && resultOf(e)?.ok && (resultOf(e)?.output as { ok?: boolean } | undefined)?.ok)
+        .map((e) => slotLabels.get(String((e.input as { slot_id?: string })?.slot_id)) ?? "")
+        .join(" ")
+        .toLowerCase();
+      for (const day of w.match(/\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/g) ?? []) {
+        if (!booked.includes(day)) broken.push({ rule: "spoken line promises a delivery day nobody booked", detail: `"${text}": ${day}` });
+      }
     }
   }
 

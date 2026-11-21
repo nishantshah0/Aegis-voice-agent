@@ -94,6 +94,13 @@ describe("the prompt sets the tone SPEC Part 2 asks for", () => {
     expect(inbound).toMatch(pattern);
   });
 
+  it("asks for plain spoken sentences, since every word is read aloud on a call", () => {
+    // Live run results/agent-live/sam-2026-11-21T16-49-38-431Z.json: Haiku said "- **Drug:** Concerta".
+    const prompt = systemPrompt({ pharmacyName: "Maple Street Pharmacy", direction: "outbound" });
+    expect(prompt).toMatch(/plain spoken sentences/i);
+    expect(prompt).toMatch(/no lists, headings or formatting/i);
+  });
+
   it("makes the buttons the only way it acts", () => {
     expect(inbound).toMatch(/buttons are how you act/i);
     expect(inbound).toMatch(/one button at a time/i);
