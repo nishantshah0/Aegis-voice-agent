@@ -17,7 +17,7 @@ const SPECS: Record<ButtonName, Record<string, FieldSpec>> = {
     rx_number: { type: "string", max: 40 },
   },
   send_code: { lookup_id: { type: "string", max: MAX_ID } },
-  check_code: { lookup_id: { type: "string", max: MAX_ID }, code: { type: "string", max: 20 } },
+  check_code: { lookup_id: { type: "string", max: MAX_ID }, code: { type: "string", max: 20 }, dob: { type: "string", max: 40, optional: true } },
   check_prescription: { rx_id: { type: "string", max: MAX_ID }, include_other_names: { type: "boolean" } },
   read_label: { rx_id: { type: "string", max: MAX_ID } },
   check_coverage: { rx_id: { type: "string", max: MAX_ID } },

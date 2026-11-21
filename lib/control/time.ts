@@ -22,6 +22,12 @@ export function localHour(iso: string, timeZone = PHARMACY_TZ): number {
   return Number(hour);
 }
 
-/** Whether `at` is within `windowMs` before `now` (inclusive of now). */
-export const within = (at: string, now: string, windowMs: number): boolean =>
-  ms(at) <= ms(now) && ms(now) - ms(at) <= windowMs;
+/**
+ * For counting limits (codes per hour, rule 11, renewals, outbound calls): is `at` recent?
+ * An entry stamped after `now` (the demo clock was moved back) counts as recent, so moving
+ * the clock backwards can never reset a limit. Found by the hammer.
+ */
+export const within = (at: string, now: string, windowMs: number): boolean => ms(now) - ms(at) <= windowMs;
+
+/** For freshness (a code's 10 minutes): issued no later than now, and no more than `windowMs` ago. */
+export const fresh = (at: string, now: string, windowMs: number): boolean => ms(at) <= ms(now) && ms(now) - ms(at) <= windowMs;

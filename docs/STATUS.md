@@ -47,10 +47,10 @@ Role 1 runs from Nishant's machine from 1.2 on (MikeyDigit did 1.1).
 
 ## Role 3 · Red team and evals
 
-- **Doing:** 3.3 scenario runner handed off in PR #13; next 3.4 hijack batch after integration
-- **Done:** 3.1 scenario format and first 10 JSON cards; 3.2 hijack driver and four cards through the real control and guard in PR #7
+- **Doing:** 3.4 hijack batch on `role-3/hijack-batch` (claim #16, Trail #14); waiting on API wiring and persistence ownership
+- **Done:** 3.1 scenario format and first 10 JSON cards; 3.2 hijack driver and four cards through the real control and guard (merged PR #7); 3.3 scenario replay and record-only scoring (merged PR #13)
 - **Blocked:** S3 still misses a written-out quantity (guard gap #10), outside Role 3's folder; numeric attack card is caught
-- **Needs from others:** Role 4 to fix guard gap #10 through the lock approval process
+- **Needs from others:** Role 4 to fix guard gap #10 through the lock approval process; Role 2 to wire the batch API after handoff
 
 ## Role 4 · The lock
 

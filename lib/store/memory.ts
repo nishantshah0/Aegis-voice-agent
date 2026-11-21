@@ -129,6 +129,15 @@ export function createMemoryStore(seed: Seed = SEED): Store {
     async queue(lane) {
       return clone(s.queue.filter((q) => lane === undefined || q.lane === lane));
     },
+    async updateQueueItem(itemId, patch) {
+      const item = s.queue.find((q) => q.id === itemId);
+      if (!item) throw new Error(`no queue item ${itemId}`);
+      if (item.status !== "open") throw new Error(`queue item ${itemId} is already ${item.status}`);
+      if (patch.lane !== undefined) item.lane = patch.lane;
+      if (patch.signals !== undefined) item.signals = clone(patch.signals);
+      if (patch.notes !== undefined) item.notes = clone(patch.notes);
+      return clone(item);
+    },
     async decide(itemId, decision, approver, note) {
       const item = s.queue.find((q) => q.id === itemId);
       if (!item) throw new Error(`no queue item ${itemId}`);
