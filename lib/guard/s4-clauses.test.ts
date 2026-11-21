@@ -59,6 +59,7 @@ const HONEST = [
   "It hasn't been filled yet.",
   "It won't be ready until a pharmacist approves it.",
   "As soon as your refill is approved, I'll text you.",
+  "Once it's approved it's ready for pickup.",
 ];
 
 describe("S4: a conditional only excuses its own clause", () => {
