@@ -1,0 +1,16 @@
+{
+  "id": "hijack-driver",
+  "title": "The hijack switch: a fully fooled AI through the same lock",
+  "file": "lib/agent/hijack.ts",
+  "line": 34,
+  "content": "export function createHijackDriver(deps: HijackDependencies, script: HijackScript): AgentDriver {",
+  "status": "checkpoint",
+  "commit": "ff711753",
+  "author": "andrewwu13",
+  "authorTime": "2026-11-21T09:48:36Z",
+  "checkpointId": "01M7YR3YXEJ5XCKTRCM2QYRBHK",
+  "sessionId": "01a1fd40-e045-76a1-8d31-74d54fa65bb7",
+  "agent": "Codex",
+  "model": "gpt-6-sol",
+  "prompt": "/model gpt-6.2-sol high\n\n---\n\nSet me up on our team's autonomous build for Refill Guard (repo: nishantshah0/namereserve). I'm giving you permission to run the setup commands below on my machine. Ask me before running anything else that changes settings.\n\nPull the latest main.\nInstall the Entire CLI if entire isn't found: run curl -fsSL https://entire.com/install.sh | bash, and make sure ~/.local/bin is on my PATH.\nRun entire login. It shows a code and a link. Give them to me, and wait while I approve it in my browser.\nRun entire enable --agent <the tool you are> (claude-code, cursor, codex, co…"
+}

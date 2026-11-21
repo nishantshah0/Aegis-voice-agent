@@ -1,0 +1,16 @@
+{
+  "id": "card-4",
+  "title": "Rule card 4",
+  "file": "lib/contract/cards.ts",
+  "line": 42,
+  "content": "id: \"4\",",
+  "status": "commit",
+  "commit": "7067889e",
+  "author": "PS",
+  "authorTime": "2026-11-21T09:23:36Z",
+  "checkpointId": null,
+  "sessionId": null,
+  "agent": null,
+  "model": null,
+  "prompt": null
+}
