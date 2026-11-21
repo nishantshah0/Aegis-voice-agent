@@ -4,6 +4,16 @@ Kept by the demo tie-in agent. One row per step of the 3-minute script, walked i
 
 Legend: ✅ works · ⚠️ works with a fallback · ❌ broken (owner fixing it)
 
+## Pass 6 (about 14:25 EST, main 5a50196): one break left
+
+Screenshots: `results/demo/2026-11-21T1425-pass6/walkthrough.md`. Not clean (0 of 3), because of step 2's ready day only.
+- ✅ Set-up, ring, opener once (Trail #48), verify, price, side effect with follow-up, Review on the console, Approve, phone "Approved by the pharmacist".
+- ✅ Hijack screen on `/stage` (Trail: role-4/hijack-screen): judge's card struck through by S3/S4, Run batch → Rules broken 0, Caught 9.
+- ⚠️ Overnight tab (Trail #46): real counts, no gaps, no overnight attacker run yet, so no fix to approve. The spec's fallback line covers it.
+- ✅ Close: Calls tab shows the verified record chain and Sam's call.
+- ❌ Ready day: no button returns one (Role 1 asked Role 4 at 18:43 for `ready_label`), and S4 blocks "I can't say yet when it will be ready." URGENT to ROLE-4, sent to the review fixer.
+- ⚠️ Length: the agent asks to confirm the order three times (status, order, read-back). Step 2 is planned at 55 s; Tiger Data turns are 3 to 11 s. To time with a stopwatch once clean.
+
 ## Pass 5 (about 14:00 EST, main 0675448: Trail #27 S4 change and the Tiger Data store)
 
 Not clean (0 of 3). Same results as pass 4 except:
