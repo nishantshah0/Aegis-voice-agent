@@ -45,10 +45,10 @@ Not doing: Entire's hosted review agents (they need billing). Maybe later: a Git
 
 ## Role 3 · Red team and evals
 
-- **Doing:** 3.2 hijack agent once task 0 lands
+- **Doing:** 3.2 scripted hijack driver and four attack cards on `role-3/hijack` (claim #5)
 - **Done:** 3.1 scenario format and first 10 JSON cards; replay is task 3.3
-- **Blocked:** task 0 contract has not landed; Entire Trails are not visible to this login, so claim issue #3 tracks the work
-- **Needs from others:** Role 4 to confirm fixture and prescription IDs for Sam, P4 and P7
+- **Blocked:** Real-control validation waits for tasks 4.3 and 4.4; Entire Trails are not visible to this login, so claim issue #5 tracks the work
+- **Needs from others:** Role 4's real press and guard implementations for the four-card run
 
 ## Role 4 · The lock
 
