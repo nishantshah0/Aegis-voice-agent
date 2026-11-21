@@ -222,7 +222,10 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
       yield* speak(callId, opener);
       pushSaid(call, opener);
       const sent = yield* pressFixed(callId, "send_code", { lookup_id: outboundLookupId(callId) });
-      if (sent.ok) call.callNote += "\nThe code has been sent to the phone on file. Ask them to read it back.";
+      if (sent.ok) {
+        call.callNote +=
+          "\nThe code has been sent to the phone on file. Ask them to read it back and to confirm their date of birth, then press check_code with both: the code, and the date of birth as dob.";
+      }
     },
 
     async *speakLine(callId, line) {
@@ -244,6 +247,9 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
 
       const safety = await checkCallerLine(callId, text);
       if (safety.action !== "continue") {
+        // The safety check has already queued this line for a pharmacist, so it isn't a side-effect answer,
+        // and the next line isn't either.
+        call.awaitingSideEffect = undefined;
         yield { type: "safety", result: safety };
         pushUser(call, text);
         call.messages.push({ role: "assistant", content: safety.script });

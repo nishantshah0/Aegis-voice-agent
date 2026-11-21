@@ -174,6 +174,12 @@ export function createFakeStore(seed: Seed = FAKE_SEED): Store {
     async queue(lane) {
       return clone(queueItems.filter((q) => !lane || q.lane === lane));
     },
+    async updateQueueItem(itemId, patch) {
+      const item = queueItems.find((q) => q.id === itemId);
+      if (!item || item.status !== "open") throw new Error(`no open queue item ${itemId}`);
+      Object.assign(item, clone(patch));
+      return clone(item);
+    },
     async decide(itemId, decision, approver, note) {
       const item = queueItems.find((q) => q.id === itemId);
       if (!item) throw new Error(`no queue item ${itemId}`);
@@ -250,12 +256,13 @@ export function createFakePress(store: Store, emit: EmitFn = () => {}): PressFn 
         return done({ message: "code sent if matched" });
       case "check_code": {
         const { lookup_id, code } = input as ButtonInputs["check_code"];
-        if (call.lockedUntil && call.lockedUntil > (await store.now())) return done({ locked_until: call.lockedUntil });
+        if (call.lockedUntil && Date.parse(call.lockedUntil) > Date.parse(await store.now())) return done({ locked_until: call.lockedUntil });
         const match = lookups.get(lookup_id) ?? (call.direction === "outbound" ? call.targetPatientId : null);
         if (match && code === FAKE_CODE) {
           const p = await store.getPatient(match);
           await store.saveCall({ ...call, state: "verified", lockedPatientId: match, failedCodeTries: 0 });
-          return done({ verified: true, patient_first_name: p?.firstName ?? "" });
+          const prescriptions = (await store.getPrescriptions(match)).map((r) => ({ rx_id: r.id, drug: r.drug }));
+          return done({ verified: true, patient_first_name: p?.firstName ?? "", prescriptions });
         }
         const tries = call.failedCodeTries + 1;
         if (tries >= 3) {

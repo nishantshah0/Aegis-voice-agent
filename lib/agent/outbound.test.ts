@@ -42,9 +42,13 @@ async function ring(steps: ScriptStep[]) {
   return { store, events, control, model, driver, callId, lookupId };
 }
 
+/** Sam's date of birth as the caller says it, and as the model sends it (the lock reads YYYY-MM-DD). */
+const SAM_DOB = "March 14, 1990";
+const SAM_DOB_SENT = "1990-03-14";
+
 const verifyAndOffer = (lookupId: string): ScriptStep[] => [
-  // "It's 112358."
-  { tools: [{ name: "check_code", input: { lookup_id: lookupId, code: CODE } }] },
+  // "It's 112358, and my birthday is March 14, 1990."
+  { tools: [{ name: "check_code", input: { lookup_id: lookupId, code: CODE, dob: SAM_DOB_SENT } }] },
   { text: ["Thanks, Sam. ", "It's a controlled medication, so a pharmacist has to approve your Concerta. ", "Want me to send it to them now?"] },
   // "Yes please."
   { tools: [{ name: "request_refill", input: { rx_id: IDS.samConcerta } }] },
@@ -70,6 +74,9 @@ describe("1.3: the outbound opening", () => {
     expect(system).toContain(`You have already said to the caller: "${outboundOpener(PHARMACY, "Sam Rivera")}"`);
     expect(system).toContain(`the lookup id is ${lookupId}`);
     expect(system).toContain("The code has been sent");
+    // SPEC Part 2 outbound step 2: the code and the date of birth, both, before the reason for the call.
+    expect(system).toMatch(/date of birth/i);
+    expect(system).toContain("dob");
   });
 
   it("greets an inbound caller with the fixed greeting and presses nothing", async () => {
@@ -164,6 +171,41 @@ describe("1.3: Sam's outbound call ends in Review with his side-effect note", ()
     const again = await collect(t.driver.callerSays(t.callId, "Can you order the Concerta again?"));
     expect(presses(first).map((p) => p.button)).toContain("read_label");
     expect(presses(again).map((p) => p.button)).not.toContain("read_label");
+  });
+});
+
+describe("1.3: outbound verification needs the date of birth (Trail #15 finding)", () => {
+  it("presses check_code with the code and Sam's date of birth", async () => {
+    const t = await ring(verifyAndOffer("out_c_0001"));
+    await collect(t.driver.opening(t.callId));
+    const evs = await collect(t.driver.callerSays(t.callId, `It's ${CODE}, and my birthday is ${SAM_DOB}.`));
+    const [check] = presses(evs);
+    expect(check).toMatchObject({ button: "check_code", input: { code: CODE, dob: SAM_DOB_SENT }, result: { ok: true, output: { verified: true } } });
+  });
+
+  it("is a failed try on the real lock when the date of birth is wrong", async () => {
+    const t = await ring([
+      { tools: [{ name: "check_code", input: { lookup_id: "out_c_0001", code: CODE, dob: "1980-01-01" } }] },
+      { text: ["Sorry, those details don't match."] },
+    ]);
+    await collect(t.driver.opening(t.callId));
+    const evs = await collect(t.driver.callerSays(t.callId, `It's ${CODE}, born January 1, 1980.`));
+    expect(presses(evs)[0].result).toMatchObject({ ok: true, output: { verified: false } });
+    expect((await t.store.getCall(t.callId))?.state).not.toBe("verified");
+  });
+});
+
+describe("1.3: a safety line clears the side-effect question (Trail #15 finding)", () => {
+  it("after chest pain, the caller's next line isn't treated as a side-effect answer", async () => {
+    const t = await ring([...verifyAndOffer("out_c_0001"), { text: ["Your copay is on the way."] }]);
+    await collect(t.driver.opening(t.callId));
+    await collect(t.driver.callerSays(t.callId, `It's ${CODE}, ${SAM_DOB}.`));
+    await collect(t.driver.callerSays(t.callId, "Yes please."));
+    const emergency = await collect(t.driver.callerSays(t.callId, "I have chest pain."));
+    expect(emergency[0]).toMatchObject({ type: "safety", result: { action: "emergency" } });
+    await collect(t.driver.callerSays(t.callId, "What's my copay?"));
+    const last = t.model.requests.at(-1)!.messages;
+    expect(JSON.stringify(last)).not.toContain("answering the side-effect question");
   });
 });
 
