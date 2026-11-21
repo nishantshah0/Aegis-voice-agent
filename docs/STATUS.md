@@ -31,10 +31,10 @@ Not doing: Entire's hosted review agents (they need billing). Maybe later: a Git
 
 ## Role 1 · Voice and agent
 
-- **Doing:** 1.1 prompt and fixed lines (see `docs/TASKS.md`)
-- **Done:** 
-- **Blocked:** 
-- **Needs from others:** 
+- **Doing:** 1.2 typed agent loop next (needs `ANTHROPIC_API_KEY` in `.env`, which a human sets)
+- **Done:** 1.1 prompt and fixed lines on `role-1/prompt-and-lines` (Trail #8): `lib/agent/prompt.ts` (per call, no list of forbidden things, the three firm things from SPEC Part 2) and `lib/agent/lines.ts` (greeting, verification ask, code line, holding line, outbound opener and wrong-person variant, refill-sync offer, side-effect acknowledgement, missed-doses line, `sideEffectQuestion` built from label text). 36 tests.
+- **Blocked:** `entire trail ready` and `entire trail list` fail for this login (`project gh/nishantshah0 ... not visible`), same as Role 3. Trail #8 exists and shows under `entire trail list --mine`, so the fix is an Entire project grant: `entire project grant add <project> github:MikeyDigit --role writer`.
+- **Needs from others:** Role 4: the seeded `labelText` carries directions only, so SPEC 126's side-effect question cannot quote any side effect (REQUEST on the channel). My code asks the question without naming any and invents nothing; a decision is needed on whether to add real label side-effect text or correct the SPEC example.
 
 ## Role 2 · Platform and pharmacist
 
@@ -45,10 +45,10 @@ Not doing: Entire's hosted review agents (they need billing). Maybe later: a Git
 
 ## Role 3 · Red team and evals
 
-- **Doing:** 3.2 hijack agent once task 0 lands
-- **Done:** 3.1 scenario format and first 10 JSON cards; replay is task 3.3
-- **Blocked:** task 0 contract has not landed; Entire Trails are not visible to this login, so claim issue #3 tracks the work
-- **Needs from others:** Role 4 to confirm fixture and prescription IDs for Sam, P4 and P7
+- **Doing:** 3.4 hijack batch on `role-3/hijack-batch` (claim #16, Trail #14); waiting on API wiring and persistence ownership
+- **Done:** 3.1 scenario format and first 10 JSON cards; 3.2 hijack driver and four cards through the real control and guard (merged PR #7); 3.3 scenario replay and record-only scoring (merged PR #13)
+- **Blocked:** S3 still misses a written-out quantity (guard gap #10), outside Role 3's folder; numeric attack card is caught
+- **Needs from others:** Role 4 to fix guard gap #10 through the lock approval process; Role 2 to wire the batch API after handoff
 
 ## Role 4 · The lock
 

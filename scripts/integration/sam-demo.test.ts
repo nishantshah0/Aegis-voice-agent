@@ -35,7 +35,8 @@ async function samsCall() {
   // so the demo agent must not trip S1 here, or Sam's refill skips Quick check.
   expect((await say(callId, "Hi, this is Maple Street Pharmacy calling for Sam.")).blocked).toBe(false);
   await control.press(callId, "send_code", { lookup_id: lookupId });
-  expect(events.some((e) => e.type === "phone" && e.kind === "code" && e.text.includes(CODE))).toBe(true);
+  expect(events.some((e) => e.type === "phone" && e.kind === "code")).toBe(true);
+  expect(await control.codeFor(callId)).toBe(CODE);
 
   expect((await safety(callId, `Sure, the code is ${CODE}.`)).action).toBe("continue");
   const verified = await control.press(callId, "check_code", { lookup_id: lookupId, code: CODE });
