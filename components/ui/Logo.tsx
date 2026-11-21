@@ -1,7 +1,7 @@
 import { cn } from "./cn";
 
 /**
- * The Refill Guard mark: a shield holding a two-tone capsule. It takes its colours from
+ * The Aegis mark: a shield holding a two-tone capsule. It takes its colours from
  * the tokens, so it is green on warm white and bright green on the dark theme.
  */
 export function Mark({ className, title }: { className?: string; title?: string }) {
@@ -22,7 +22,7 @@ export function Logo({ size = "md", className }: { size?: "sm" | "md" | "lg"; cl
   return (
     <span className={cn("inline-flex items-center gap-2", className)}>
       <Mark className={s[0]} />
-      <span className={cn("font-semibold tracking-[-0.02em] text-ink", s[1])}>Refill Guard</span>
+      <span className={cn("font-semibold tracking-[-0.02em] text-ink", s[1])}>Aegis</span>
     </span>
   );
 }

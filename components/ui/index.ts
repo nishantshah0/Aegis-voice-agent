@@ -1,4 +1,4 @@
-// The shared Refill Guard UI kit. Usage and tokens: docs/BRAND.md.
+// The shared Aegis UI kit. Usage and tokens: docs/BRAND.md.
 export { cn } from "./cn";
 export { Logo, Mark } from "./Logo";
 export { Button, ButtonLink, buttonClass } from "./Button";
