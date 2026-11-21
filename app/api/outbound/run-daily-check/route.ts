@@ -1,10 +1,7 @@
-import type { CallId, Patient, Prescription, RuleId, RunDailyCheckResponse, Store } from "@/lib/contract";
-import { evaluate, loadContext } from "@/lib/control";
-import { emit } from "@/lib/events";
-import { PHARMACY_NAME } from "@/lib/seed";
+import type { Patient, Prescription, RuleId, RunDailyCheckResponse, Store } from "@/lib/contract";
 import { demoControlsRefused } from "../../_lib/demo";
-import { recordRing } from "../../_lib/devices";
 import { ok } from "../../_lib/http";
+import { DUE_WITHIN_DAYS, daysLeft, patientsOnOpenCalls, refillPreview, ringPatient } from "../../_lib/outbound";
 import { getControl, getStore } from "../../_lib/runtime";
 
 // POST /api/outbound/run-daily-check → { callIds, skipped }
@@ -14,24 +11,11 @@ import { getControl, getStore } from "../../_lib/runtime";
 // only; then control.startOutboundCall applies rule 7's cards (opt-in, hours, frequency).
 // One call per patient; nobody is rung again while their last call is still open.
 
-const DUE_WITHIN_DAYS = 3;
-const DAY_MS = 24 * 60 * 60 * 1000;
-
 /** Why not to ring about this prescription today, as rule ids, or null if it's due and would pass. */
 async function notDueReason(store: Store, patient: Patient, rx: Prescription): Promise<RuleId[] | null> {
-  const now = Date.parse(await store.now());
-  const daysLeft = rx.daysSupplied - Math.floor((now - Date.parse(rx.lastFill)) / DAY_MS);
-  if (daysLeft > DUE_WITHIN_DAYS) return ["7"];
-  const verdict = evaluate(await store.listCards(), "request_refill", await loadContext(store, patient, rx));
-  return verdict.outcome === "refuse" ? verdict.deciding : null;
-}
-
-async function patientsOnOpenCalls(store: Store): Promise<Set<string>> {
-  const starts = (await store.listRecord()).filter(
-    (e) => e.kind === "safety" && (e.input as { check?: string; direction?: string })?.direction === "outbound" && e.callId,
-  );
-  const calls = await Promise.all(starts.map((e) => store.getCall(e.callId as CallId)));
-  return new Set(calls.filter((c) => c && c.state !== "ended" && c.targetPatientId).map((c) => c!.targetPatientId!));
+  if (daysLeft(rx, await store.now()) > DUE_WITHIN_DAYS) return ["7"];
+  const preview = await refillPreview(store, patient, rx);
+  return preview.kind === "refused" ? preview.ruleIds : null;
 }
 
 export async function POST() {
@@ -50,14 +34,12 @@ export async function POST() {
         res.skipped.push({ patientId: patient.id, ruleIds: reason });
         continue;
       }
-      const started = await control.startOutboundCall(patient.id, rx.id);
-      if (!started.ok) {
-        res.skipped.push({ patientId: patient.id, ruleIds: started.ruleIds });
+      const rang = await ringPatient(control, patient.id, rx.id);
+      if (!rang.ok) {
+        res.skipped.push({ patientId: patient.id, ruleIds: rang.ruleIds });
         continue;
       }
-      res.callIds.push(started.callId);
-      recordRing(started.callId, patient.id);
-      emit({ type: "phone", callId: started.callId, kind: "ring", text: `${PHARMACY_NAME} is calling` });
+      res.callIds.push(rang.callId);
       break;
     }
   }
