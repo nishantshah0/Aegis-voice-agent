@@ -101,49 +101,63 @@ export default function Home() {
   const ranLabel = `${ran.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })}, ${ran.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "UTC" })} UTC`;
 
   return (
-    <div className="flex min-h-screen flex-col bg-canvas text-ink">
+    <div className="theme-dark flex min-h-screen flex-col bg-canvas text-ink">
       <SiteHeader links={LANDING_LINKS} right={<ButtonLink href="#demo" size="sm">Try the demo</ButtonLink>} />
 
       <main className="flex-1">
         {/* Hero */}
-        <section className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-14 px-5 pb-20 pt-14 md:px-8 md:pt-20 lg:grid-cols-[1.05fr_1fr] lg:gap-10 lg:pb-28">
-          <div>
+        <section className="relative overflow-hidden">
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 [background-image:linear-gradient(rgb(255_255_255/0.035)_1px,transparent_1px),linear-gradient(90deg,rgb(255_255_255/0.035)_1px,transparent_1px)] [background-size:72px_72px] [mask-image:radial-gradient(ellipse_at_70%_20%,#000_20%,transparent_70%)]"
+          />
+          <div className="relative mx-auto max-w-6xl px-5 pb-20 pt-16 md:px-8 md:pt-24 lg:pb-28">
             <p className="rg-rise inline-flex items-center gap-2 rounded-full border border-line bg-surface px-3 py-1 text-[13px] text-ink-2">
               <span className="size-1.5 rounded-full bg-accent" aria-hidden />
               An AI phone line for pharmacies
             </p>
-            <h1 className="rg-rise rg-rise-1 mt-6 text-[2.75rem] font-semibold leading-[1.02] tracking-[-0.045em] sm:text-6xl lg:text-[4.5rem]">
+            <h1 className="rg-rise rg-rise-1 mt-8 text-[2.9rem] font-medium leading-[0.98] tracking-[-0.055em] sm:text-7xl lg:text-[6.25rem]">
               The AI can be fooled.
               <br />
               <span className="text-accent">The pharmacy can&apos;t.</span>
             </h1>
-            <p className="rg-rise rg-rise-2 mt-6 max-w-lg text-lg leading-relaxed text-ink-2">
-              Refill Guard calls patients before their medication runs out, handles the refill, and sends only the tricky calls to a pharmacist. Everything the AI tries passes through rules written in code.
-            </p>
-            <div className="rg-rise rg-rise-3 mt-8 flex flex-wrap gap-3">
-              <ButtonLink href="/phone" size="lg">
-                Take the call <Arrow />
-              </ButtonLink>
-              <ButtonLink href="#safety" size="lg" variant="secondary">
-                How it stays safe
-              </ButtonLink>
+            <div className="mt-14 grid grid-cols-1 items-start gap-14 lg:grid-cols-[0.85fr_1.15fr] lg:gap-10">
+              <div className="lg:pt-6">
+                <p className="rg-rise rg-rise-2 max-w-md text-lg leading-relaxed text-ink-2">
+                  Aegis calls patients before their medication runs out, handles the refill, and sends only the tricky calls to a pharmacist. Everything the AI tries passes through rules written in code.
+                </p>
+                <div className="rg-rise rg-rise-3 mt-8 flex flex-wrap gap-3">
+                  <ButtonLink href="/phone" size="lg">
+                    Take the call <Arrow />
+                  </ButtonLink>
+                  <ButtonLink href="#safety" size="lg" variant="secondary">
+                    How it stays safe
+                  </ButtonLink>
+                </div>
+                <dl className="rg-rise rg-rise-4 mt-12 grid max-w-md grid-cols-2 gap-6 border-t border-line pt-6">
+                  <div>
+                    <dt className="text-[13px] text-ink-3">Rules broken</dt>
+                    <dd className="mt-1 text-3xl font-medium tabular-nums tracking-[-0.04em] text-accent">{fmt(h.broken)}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-[13px] text-ink-3">Hostile presses, last run</dt>
+                    <dd className="mt-1 text-3xl font-medium tabular-nums tracking-[-0.04em]">{fmt(h.presses)}</dd>
+                  </div>
+                </dl>
+              </div>
+              <ProductPreview />
             </div>
-            <p className="rg-rise rg-rise-4 mt-8 text-sm text-ink-3">
-              <span className="font-semibold tabular-nums text-ink">{fmt(h.presses)}</span> hostile button presses in the last hammer run.{" "}
-              <span className="font-semibold tabular-nums text-ink">{fmt(h.broken)}</span> rules broken.
-            </p>
           </div>
-          <ProductPreview />
         </section>
 
         {/* How it works */}
-        <section id="how" className="scroll-mt-20 border-t border-line bg-surface">
+        <section id="how" className="scroll-mt-20 border-t border-line">
           <div className="mx-auto max-w-6xl px-5 py-20 md:px-8 md:py-28">
             <Eyebrow>How it works</Eyebrow>
-            <h2 className="mt-3 max-w-2xl text-3xl font-semibold tracking-[-0.035em] md:text-5xl">Three steps, one wall the AI can&apos;t talk its way past.</h2>
+            <h2 className="mt-3 max-w-2xl text-4xl font-medium tracking-[-0.045em] md:text-6xl">Three steps, one wall the AI can&apos;t talk its way past.</h2>
             <ol className="mt-14 grid gap-10 md:grid-cols-3 md:gap-8">
               {STEPS.map((s) => (
-                <li key={s.n} className="flex flex-col border-t border-ink pt-6">
+                <li key={s.n} className="flex flex-col border-t border-line-strong pt-6">
                   <span className="font-mono text-sm text-ink-3">{s.n}</span>
                   <h3 className="mt-4 text-xl font-semibold tracking-[-0.02em]">{s.title}</h3>
                   <p className="mt-3 text-[15px] leading-relaxed text-ink-2">{s.body}</p>
@@ -154,11 +168,11 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Safety: the dark band */}
-        <section id="safety" className="theme-dark scroll-mt-16 bg-canvas text-ink">
+        {/* Safety */}
+        <section id="safety" className="scroll-mt-16 border-t border-line">
           <div className="mx-auto max-w-6xl px-5 py-20 md:px-8 md:py-28">
             <Eyebrow>Safety</Eyebrow>
-            <h2 className="mt-3 max-w-3xl text-3xl font-semibold tracking-[-0.035em] md:text-5xl">
+            <h2 className="mt-3 max-w-3xl text-4xl font-medium tracking-[-0.045em] md:text-6xl">
               Four locks. <span className="text-ink-3">None of them is a prompt.</span>
             </h2>
 
@@ -210,12 +224,12 @@ export default function Home() {
         </section>
 
         {/* Numbers */}
-        <section id="numbers" className="scroll-mt-16">
+        <section id="numbers" className="scroll-mt-16 border-t border-line">
           <div className="mx-auto max-w-6xl px-5 py-20 md:px-8 md:py-28">
             <div className="flex flex-wrap items-end justify-between gap-6">
               <div>
                 <Eyebrow>The numbers</Eyebrow>
-                <h2 className="mt-3 max-w-2xl text-3xl font-semibold tracking-[-0.035em] md:text-5xl">We attack the lock before anyone else can.</h2>
+                <h2 className="mt-3 max-w-2xl text-4xl font-medium tracking-[-0.045em] md:text-6xl">We attack the lock before anyone else can.</h2>
               </div>
               <p className="max-w-xs text-sm text-ink-3">
                 From <span className="font-mono">results/hammer-latest.json</span>, run {ranLabel}. Real runs only, never estimates.
@@ -230,7 +244,7 @@ export default function Home() {
               ].map(([label, value, tone]) => (
                 <div key={label} className="bg-canvas p-6 md:p-8">
                   <dt className="text-sm text-ink-2">{label}</dt>
-                  <dd className={`mt-2 text-4xl font-semibold tabular-nums tracking-[-0.04em] md:text-5xl ${tone}`}>{value}</dd>
+                  <dd className={`mt-2 text-4xl font-medium tabular-nums tracking-[-0.05em] md:text-6xl ${tone}`}>{value}</dd>
                 </div>
               ))}
             </dl>
@@ -241,17 +255,17 @@ export default function Home() {
         </section>
 
         {/* Demo CTA */}
-        <section id="demo" className="scroll-mt-16 border-t border-line bg-surface">
+        <section id="demo" className="scroll-mt-16 border-t border-line">
           <div className="mx-auto max-w-6xl px-5 py-20 md:px-8 md:py-28">
             <Eyebrow>The demo</Eyebrow>
-            <h2 className="mt-3 text-3xl font-semibold tracking-[-0.035em] md:text-5xl">See it take a call.</h2>
+            <h2 className="mt-3 text-4xl font-medium tracking-[-0.045em] md:text-6xl">See it take a call.</h2>
             <p className="mt-4 max-w-xl text-lg text-ink-2">Open the three screens side by side and run the daily check. Demo data only.</p>
             <ul className="mt-12 grid gap-4 md:grid-cols-3">
               {PAGES.map((p) => (
                 <li key={p.href}>
                   <Link
                     href={p.href}
-                    className="group flex h-full flex-col rounded-card border border-line bg-canvas p-6 transition-[border-color,transform] duration-200 hover:-translate-y-0.5 hover:border-ink-3"
+                    className="group flex h-full flex-col rounded-card border border-line bg-surface p-6 transition-[border-color,transform] duration-200 hover:-translate-y-0.5 hover:border-ink-3"
                   >
                     <span className="flex items-center justify-between text-lg font-semibold tracking-[-0.02em]">
                       {p.title}
@@ -310,7 +324,7 @@ export default function Home() {
         </div>
         <div className="mx-auto flex max-w-6xl items-center gap-2 border-t border-line px-5 py-5 text-xs text-ink-3 md:px-8">
           <Mark className="size-3.5" />
-          Refill Guard · Hack Western 13
+          Aegis · Hack Western 13
         </div>
       </footer>
     </div>
