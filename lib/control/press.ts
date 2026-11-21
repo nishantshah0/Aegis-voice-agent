@@ -305,7 +305,12 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
     const state = lane === "automatic" ? "queued" : "waiting_for_pharmacist";
     const ruleIds = verdict.matched.map((m) => m.id);
     const now = await store.now();
-    const order = await store.saveOrder({ id: `o_${call.id}_${rx.id}`, rxId: rx.id, patientId: patient.id, state, createdAt: now });
+    // A new id if this call already has an order for this prescription (e.g. one the
+    // pharmacist denied), so the old order and its decision are never overwritten.
+    const taken = new Set((await store.listOrders()).map((o) => o.id));
+    let orderId = `o_${call.id}_${rx.id}`;
+    for (let n = 2; taken.has(orderId); n++) orderId = `o_${call.id}_${rx.id}_${n}`;
+    const order = await store.saveOrder({ id: orderId, rxId: rx.id, patientId: patient.id, state, createdAt: now });
     const item = await addItem({
       callId: call.id,
       patientId: patient.id,
