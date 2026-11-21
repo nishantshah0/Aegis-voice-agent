@@ -28,7 +28,7 @@ import {
 import { internalOf, loadContext, resultOf, type PressRecordOutput } from "./context";
 import { evaluate, type Verdict } from "./engine";
 import { chooseLane, signalsFromCards } from "./lanes";
-import { addMs, isBefore, MINUTE_MS, within } from "./time";
+import { addMs, fresh as isFresh, isBefore, MINUTE_MS, within } from "./time";
 import { checkInput, normalise, normaliseDob, normaliseRxNumber } from "./validate";
 
 export const MAX_CODE_TRIES = 3;
@@ -173,8 +173,8 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
     const sent = (await store.listRecord(current.id))
       .filter((e) => internalOf(e)?.lookupId === input.lookup_id && internalOf(e)?.codeHash)
       .at(-1);
-    const fresh = sent && within(sent.at, now, CODE_VALID_MS);
-    const right = lookup?.patientId && fresh && internalOf(sent)?.codeHash === hashCode(input.lookup_id, input.code.trim());
+    const codeFresh = sent && isFresh(sent.at, now, CODE_VALID_MS);
+    const right = lookup?.patientId && codeFresh && internalOf(sent)?.codeHash === hashCode(input.lookup_id, input.code.trim());
 
     if (right && lookup?.patientId) {
       if (current.lockedPatientId && current.lockedPatientId !== lookup.patientId) {
@@ -593,7 +593,7 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
     const sent = sentCodes.get(callId);
     if (!sent) return undefined;
     const entry = (await store.listRecord(callId)).filter((e) => internalOf(e)?.codeHash).at(-1);
-    if (!entry || internalOf(entry)?.codeHash !== sent.hash || !within(entry.at, await store.now(), CODE_VALID_MS)) return undefined;
+    if (!entry || internalOf(entry)?.codeHash !== sent.hash || !isFresh(entry.at, await store.now(), CODE_VALID_MS)) return undefined;
     return sent.code;
   }
 
