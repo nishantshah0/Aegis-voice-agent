@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { QueueItem, StreamEvent } from "@/lib/contract";
-import { describePass, initialStage, MAX_PASSES, stageReducer, stopped } from "./state";
+import { describePass, initialStage, latestHijack, MAX_PASSES, stageReducer, stopped } from "./state";
 
 const play = (events: StreamEvent[]) => events.reduce((s, e, i) => stageReducer(s, e, i + 1), initialStage());
 
@@ -76,5 +76,14 @@ describe("stage state", () => {
       "request refill → To a pharmacist · rule 4",
     );
     expect(describePass({ id: 2, gate: "speech", label: "S1", decision: "blocked", ruleIds: ["S1"], callId: "c" })).toBe("Speech rule S1 replaced a line");
+  });
+
+  it("spotlights the newest hijack attempt and never a live call's press", () => {
+    const s = play([
+      { type: "press", callId: "hijack_pick_1_early_refill", button: "request_refill", decision: "refused", ruleIds: ["4b"] },
+      { type: "press", callId: "c_0001", button: "lookup_patient", decision: "allowed", ruleIds: [] },
+    ]);
+    expect(latestHijack(s)).toMatchObject({ callId: "hijack_pick_1_early_refill", label: "request_refill" });
+    expect(latestHijack(play([{ type: "press", callId: "c_0001", button: "read_label", decision: "refused", ruleIds: ["1"] }]))).toBeUndefined();
   });
 });
