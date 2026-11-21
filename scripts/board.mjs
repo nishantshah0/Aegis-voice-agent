@@ -48,12 +48,14 @@ function parse(c) {
   const m = first.match(HEADER);
   const details = rest.join("\n").trim();
   if (!m) return { ...c, from: "?", type: "NOTE", to: "ALL", summary: first, details };
-  const human = !m[1] || m[1] === "0";
+  // ROLE-0 is Nishant's tools agent, not a person, so it gets its own lane ("TOOLS").
+  const human = !m[1];
+  const from = human ? "HUMAN" : m[1] === "0" ? "TOOLS" : `ROLE-${m[1]}`;
   return {
     ...c,
-    from: human ? "HUMAN" : `ROLE-${m[1]}`,
+    from,
     type: human && !m[2] ? "HUMAN" : m[2],
-    to: (m[3] || m[4]).replace(/^ROLE-0$/, "HUMAN"),
+    to: (m[3] || m[4]).replace(/^ROLE-0$/, "TOOLS"),
     summary: m[5],
     details,
   };
@@ -65,6 +67,33 @@ const channel = () => cached("channel", 8000, async () => {
   const [normal, urgent] = await Promise.all([read(ISSUE, false), read(URGENT_ISSUE, true)]);
   const messages = [...normal, ...urgent].sort((a, b) => (a.t < b.t ? -1 : a.t > b.t ? 1 : 0));
   return { repo: REPO, issue: ISSUE, urgentIssue: URGENT_ISSUE, messages };
+});
+
+// ---------- The plan: every task from docs/TASKS.md ----------
+// Submission deadline for the countdown (Sun Nov 22, 9:00 AM Eastern). Override with BOARD_DEADLINE.
+const DEADLINE = process.env.BOARD_DEADLINE || "2026-11-22T09:00:00-05:00";
+const tasks = () => cached("tasks", 60000, async () => {
+  // Read main's copy, so the board tracks the plan everyone works from.
+  const md = await run("git", ["show", "origin/main:docs/TASKS.md"]).catch(() => readFileSync(join(ROOT, "docs/TASKS.md"), "utf8"));
+  const list = [];
+  let role = null, core = true;
+  for (const line of md.split("\n")) {
+    const h = line.match(/^## Role (\d)/);
+    if (h) { role = h[1]; core = true; continue; }
+    if (/^## /.test(line)) { role = null; continue; }
+    if (!role) continue;
+    if (/\*\*After core\*\*/.test(line)) { core = false; continue; }
+    // Table rows look like: | 1.2 | **Typed agent loop:** ... | Done when | Needs |
+    const r = line.match(/^\|\s*(\d\.\d+)\s*\|\s*(.+?)\s*\|\s*(.*?)\s*\|/);
+    if (!r) continue;
+    // A struck-out title marked "**Done**" (like 2.5) was settled in the plan itself.
+    const struck = r[2].match(/^~~(.+?)~~/);
+    const bold = r[2].match(/^\*\*(.+?)\*\*/);
+    const title = (struck ? struck[1] : bold ? bold[1] : r[2]).replace(/[*`]/g, "").replace(/[:.]\s*$/, "").trim();
+    const done = Boolean(struck) && /\*\*Done/.test(r[2]);
+    list.push({ id: r[1], role: "ROLE-" + role, core, title, done, doneWhen: r[3].replace(/[*`]/g, "") });
+  }
+  return { tasks: list, deadline: DEADLINE };
 });
 
 // ---------- Trails and findings ----------
@@ -123,7 +152,15 @@ const commits = () => cached("commits", 30000, async () => {
   } catch {}
   const branches = (await run("git", ["for-each-ref", "--format=%(refname:short)", "refs/remotes/origin"]).catch(() => ""))
     .split("\n").filter((b) => b && !b.endsWith("/HEAD")).map((b) => b.replace(/^origin\//, ""));
-  return { repo: REPO, commits: list, recorded, branches };
+  // Branches merged into main, from the merge commits ("Merge role-2/x: ..." or "Merge pull request #4 from owner/role-3/y").
+  // Some merges happen as GitHub PRs with no MERGED message, so the plan view needs these too.
+  const mergeSubjects = lines(await run("git", ["log", "origin/main", "--merges", "--format=%s"]).catch(() => ""));
+  const merged = mergeSubjects.filter((s) => !/ into /.test(s)).map((s) => {
+    const pr = s.match(/^Merge pull request #\d+ from [^/\s]+\/(\S+)/);
+    const plain = s.match(/^Merge ([\w./-]+)/);
+    return { branch: pr ? pr[1] : plain ? plain[1] : "", subject: s };
+  }).filter((m) => m.branch);
+  return { repo: REPO, commits: list, recorded, branches, merged };
 });
 
 // Which commits are on each Trail's branch (so a Trail card can show the AI work behind it).
@@ -192,6 +229,7 @@ const server = createServer(async (req, res) => {
       const ch = await channel();
       return ch.error ? send(res, 502, { error: `gh couldn't read the channel: ${ch.error}` }) : send(res, 200, ch);
     }
+    if (url.pathname === "/api/tasks") return send(res, 200, await tasks());
     if (url.pathname === "/api/trails") return send(res, 200, await trails());
     if (url.pathname === "/api/commits") return send(res, 200, await commits());
     if (url.pathname === "/api/brain") return send(res, 200, await brain());

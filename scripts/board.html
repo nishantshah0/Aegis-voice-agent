@@ -152,6 +152,51 @@
   .pill.urgent { background: var(--r3); border-color: var(--r3); color: #fff; }
   .msg.urgent { border-color: var(--r3); box-shadow: 0 0 0 1px color-mix(in srgb, var(--r3) 45%, transparent); }
   footer { color: var(--faint); font-size: 12px; text-align: center; margin-top: 30px; }
+  /* Mission strip: countdown and core-demo progress */
+  .mission { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 0; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); margin-bottom: 16px; overflow: hidden; }
+  @media (max-width: 900px) { .mission { grid-template-columns: minmax(0, 1fr); } }
+  .clockbox { padding: 16px 20px; border-right: 1px solid var(--line); background: linear-gradient(135deg, color-mix(in srgb, var(--r4) 14%, transparent), transparent 70%); }
+  .clockbox .k, .core .k { font-size: 10.5px; font-weight: 800; letter-spacing: .1em; color: var(--faint); text-transform: uppercase; }
+  .clockbox .big { font-size: 34px; font-weight: 800; letter-spacing: -.03em; font-variant-numeric: tabular-nums; line-height: 1.1; margin: 4px 0 2px; }
+  .clockbox .big small { font-size: 15px; color: var(--muted); font-weight: 700; margin: 0 6px 0 1px; }
+  .core { padding: 16px 20px; }
+  .core .head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .core .pct { font-size: 34px; font-weight: 800; letter-spacing: -.03em; font-variant-numeric: tabular-nums; line-height: 1.1; }
+  .core .note { color: var(--muted); font-size: 12.5px; }
+  .rolebars { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-top: 12px; }
+  @media (max-width: 900px) { .rolebars { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .rb .row { font-size: 12px; } .rb .row b { color: var(--c); }
+  .seg { display: flex; height: 8px; border-radius: 999px; background: var(--panel2); overflow: hidden; margin-top: 5px; }
+  .seg span { display: block; height: 100%; transition: width .6s ease; }
+  .seg .m { background: var(--c); }
+  .seg .h { background: repeating-linear-gradient(45deg, var(--c) 0 4px, color-mix(in srgb, var(--c) 45%, transparent) 4px 8px); }
+  .seg .c { background: color-mix(in srgb, var(--c) 25%, transparent); }
+  .legend { display: flex; gap: 14px; font-size: 11.5px; color: var(--muted); margin-top: 10px; flex-wrap: wrap; }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+  /* Task map: one column per role, one tile per task */
+  .tmap { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+  @media (max-width: 1100px) { .tmap { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .tcol h3 { margin: 0 0 8px; font-size: 13px; display: flex; gap: 6px; align-items: baseline; color: var(--c); }
+  .tcol h3 span { color: var(--muted); font-weight: 600; font-size: 12px; }
+  .task { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 7px 9px; border-radius: 9px; border: 1px solid var(--line); background: var(--panel2); margin-bottom: 6px; font-size: 12.5px; }
+  .task .id { font: 700 11.5px ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--muted); }
+  .task .tt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+  .task.merged { border-color: color-mix(in srgb, var(--c) 55%, transparent); background: color-mix(in srgb, var(--c) 13%, var(--panel2)); }
+  .task.merged .id { color: var(--c); }
+  .task.handoff { border-style: dashed; border-color: var(--c); }
+  .task.claimed { box-shadow: inset 3px 0 0 var(--c); }
+  .task.claimed .st { animation: blink 1.6s ease-in-out infinite; }
+  @keyframes blink { 50% { opacity: .35; } }
+  .task.later { opacity: .55; }
+  .st { font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; color: var(--faint); }
+  .task.merged .st, .task.handoff .st, .task.claimed .st { color: var(--c); }
+  .divider { font-size: 10.5px; font-weight: 800; letter-spacing: .1em; color: var(--faint); text-transform: uppercase; margin: 12px 0 6px; }
+  /* Timeline: every message and commit through the night, one lane per role */
+  .tl text { fill: var(--muted); font-size: 11px; font-weight: 700; }
+  .tl .hour { stroke: var(--line); stroke-width: 1; }
+  .tl .lane { stroke: var(--line); stroke-dasharray: 2 4; }
+  .tl .now { stroke: var(--r2); stroke-width: 1.5; }
+  .tl circle { transition: r .15s; } .tl circle:hover { r: 7; }
 </style>
 </head>
 <body>
@@ -177,10 +222,13 @@
 <div class="wrap">
   <div id="err"></div>
   <div id="urgent"></div>
+  <div class="mission" id="mission"></div>
   <div class="hero" id="hero"></div>
   <div class="flow" id="flow"></div>
 
   <section data-tab="overview">
+    <div class="panel"><h2>The plan, live <span class="src">docs/TASKS.md + CLAIM, HANDOFF and MERGED on the channel</span></h2><div id="tmap"><p class="loading">Reading the plan…</p></div></div>
+    <div class="panel"><h2>The night so far <span class="src">every message and commit, by role</span></h2><svg class="tl" id="tl" width="100%" role="img" aria-label="Timeline of messages and commits by role"></svg></div>
     <div class="grid3">
       <aside>
         <div class="panel"><h2>Who's doing what <span class="src">channel + git</span></h2><div id="roles"></div></div>
@@ -255,6 +303,7 @@ const ROLES = {
   "ROLE-3": { name: "Role 3", job: "Red team and evals", c: "var(--r3)" },
   "ROLE-4": { name: "Role 4", job: "The lock, integrator", c: "var(--r4)" },
   "HUMAN": { name: "Humans", job: "Steering", c: "var(--human)" },
+  "TOOLS": { name: "Tools", job: "Nishant's tools agent", c: "var(--accent)" },
   "ALL": { name: "Everyone", job: "", c: "var(--all)" },
 };
 // Git author names and GitHub logins for each role, so commits line up with agents.
@@ -326,7 +375,8 @@ function renderHero() {
     [d.length, "Agent messages", new Set(d.map((m) => m.from)).size + " voices on the channel", "var(--r1)"],
     [d.filter((m) => m.type === "DECISION").length, "Decisions shared", d.filter((m) => m.type === "OBJECT").length + " objections raised", "var(--r4)"],
     [S.trails ? tr.length : "…", "Entire Trails", (S.trails ? tr.filter((t) => t.phase === "complete").length : "…") + " complete", "var(--accent)"],
-    [S.trails ? merged : "…", "Branches merged", "through the release gate", "var(--r2)"],
+    // Falls back to git's merge commits when Entire Trails can't be read.
+    [S.trails && tr.length ? merged : S.commits?.merged ? S.commits.merged.length : "…", "Branches merged", "through the release gate", "var(--r2)"],
     [S.commits ? pct(linked, cs.length) + "%" : "…", "Commits linked to AI", S.commits ? linked + " of " + cs.length + " commits" : "", "var(--r2)"],
     [S.commits ? S.commits.recorded.length : "…", "Checkpoints recorded", "transcripts in the sessions repo", "var(--r3)"],
     [S.brain ? S.brain.memories : "…", "Brain memories", S.brain ? (S.brain.shared ? "shared with the team" : "local only") : "", "var(--human)"],
@@ -353,7 +403,7 @@ function roleCard(r, compact) {
   const doing = r === "HUMAN" ? last(["HUMAN"]) : last(["STATUS", "CLAIM", "HANDOFF", "MERGED", "BLOCKED"]);
   const line = doing ? "<b>" + (doing.type === "HUMAN" ? "" : doing.type.toLowerCase() + ": ") + "</b>" + inline(doing.summary) + " · " + ago(doing.t) : (mine.length ? "" : "Hasn't posted yet");
   let mini = "";
-  if (!compact && r !== "HUMAN" && S.commits) {
+  if (!compact && r !== "HUMAN" && r !== "TOOLS" && S.commits) {
     const cs = S.commits.commits.filter((c) => roleOf(c.author) === r);
     const l = cs.filter((c) => c.checkpoints.length).length;
     const tr = new Set(mine.flatMap((m) => trailRefs(m.body))).size;
@@ -362,7 +412,7 @@ function roleCard(r, compact) {
   return '<button class="role' + (S.role === r ? " on" : "") + '" data-role="' + r + '" style="--c:' + ROLES[r].c + '"><div class="row"><span class="name">' + ROLES[r].name + ' <span class="muted small">' + esc(ROLES[r].job) + '</span></span><span class="muted small">' + mine.length + '</span></div><div class="doing">' + line + "</div>" + mini + "</button>";
 }
 function renderRoles() {
-  const rs = ["ROLE-1", "ROLE-2", "ROLE-3", "ROLE-4", "HUMAN"];
+  const rs = ["ROLE-1", "ROLE-2", "ROLE-3", "ROLE-4", "TOOLS", "HUMAN"];
   $("roles").innerHTML = rs.map((r) => roleCard(r, false)).join("");
   $("roles2").innerHTML = rs.map((r) => roleCard(r, true)).join("");
 }
@@ -523,9 +573,123 @@ function renderGraph() {
     '<div class="col" style="margin-top:12px"><h4>Relations it tracks</h4><div class="bars">' + rels.map(([k, v], i) => '<div class="b"><span class="mono">' + esc(k.toLowerCase().replace(/_/g, " ")) + '</span><div class="track"><span style="width:' + (100 * v / maxR) + "%;background:" + pal[(i + 2) % pal.length] + '"></span></div><span class="small muted">' + v + "</span></div>").join("") + "</div></div>";
 }
 
+// ---------- The plan: task states from the channel ----------
+// Task numbers in a summary: "1.4", "4.3-4.5", "2.4+2.2", "4.3/4.4/4.6". Unknown numbers
+// (like "Sonnet 5.5") are ignored later because they aren't in TASKS.md.
+function taskIds(text) {
+  const ids = new Set();
+  for (const m of String(text).matchAll(/\b(\d)\.(\d{1,2})(?:\s*[-–]\s*(?:\1\.)?(\d{1,2}))?\b/g)) {
+    const a = Number(m[2]), b = m[3] ? Number(m[3]) : a;
+    for (let i = a; i <= Math.min(b, a + 10); i++) ids.add(m[1] + "." + i);
+  }
+  return [...ids];
+}
+// Each task's furthest state: claimed < handed off < merged. Only these three message types count.
+const RANK = { CLAIM: 1, HANDOFF: 2, MERGED: 3 };
+const STATE = ["todo", "claimed", "handoff", "merged"];
+const STATE_LABEL = { todo: "", claimed: "building", handoff: "to merge", merged: "merged" };
+function taskStates() {
+  const st = {};
+  const bump = (id, rank) => { if (!st[id] || st[id].rank < rank) st[id] = { rank }; };
+  // Branches git says are on main. Match whole names, so "role-3/hijack" doesn't match "role-3/hijack-batch".
+  // A message's own branch is the one right after the word "branch" ("Trail #13, branch role-1/agent-loop").
+  // Other branches it mentions ("stacked on role-1/prompt-and-lines") don't count.
+  const onMainSet = new Set((S.commits?.merged || []).map((b) => b.branch));
+  const onMain = (text) => { const b = String(text).match(/\b[Bb]ranch\s+`?([\w./-]+?)`?(?=[\s,;:)]|$)/); return Boolean(b && onMainSet.has(b[1])); };
+  const merged = S.commits?.merged || [];
+  for (const b of merged) for (const id of taskIds(b.subject)) bump(id, 3);
+  for (const m of S.msgs) {
+    const rank = RANK[m.type];
+    if (!rank) continue;
+    // A CLAIM or HANDOFF that names a branch now on main counts as merged.
+    const r = rank < 3 && onMain(m.body) ? 3 : rank;
+    for (const id of taskIds(m.summary)) bump(id, r);
+  }
+  // Tasks the plan itself marks done (struck out, "Done, decided").
+  for (const t of S.tasks?.tasks || []) if (t.done) bump(t.id, 3);
+  return st;
+}
+// Progress for a set of tasks: merged counts fully, handed off 0.75, building 0.25.
+function progress(list, st) {
+  const n = { merged: 0, handoff: 0, claimed: 0, todo: 0 };
+  for (const t of list) n[STATE[st[t.id]?.rank || 0]]++;
+  const score = list.length ? (n.merged + 0.75 * n.handoff + 0.25 * n.claimed) / list.length : 0;
+  return { ...n, total: list.length, pct: Math.round(100 * score) };
+}
+function seg(p) {
+  const w = (x) => (p.total ? (100 * x) / p.total : 0) + "%";
+  return '<div class="seg"><span class="m" style="width:' + w(p.merged) + '"></span><span class="h" style="width:' + w(p.handoff) + '"></span><span class="c" style="width:' + w(p.claimed) + '"></span></div>';
+}
+function renderMission() {
+  // Countdown to the submission deadline.
+  const left = S.tasks ? Math.max(0, new Date(S.tasks.deadline) - Date.now()) : 0;
+  const h = Math.floor(left / 3600e3), mi = Math.floor((left % 3600e3) / 60e3);
+  const clockHtml = '<div class="clockbox"><div class="k">Submissions close</div><div class="big">' + (S.tasks ? h + "<small>h</small>" + String(mi).padStart(2, "0") + "<small>m</small>" : "…") +
+    '</div><div class="small muted">' + (S.tasks ? new Date(S.tasks.deadline).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" }) + " · Hack Western 13" : "") + "</div></div>";
+  if (!S.tasks?.tasks) { $("mission").innerHTML = clockHtml + '<div class="core"><p class="loading">Reading the plan…</p></div>'; return; }
+  // Core-demo progress, overall and per role.
+  const st = taskStates(), core = S.tasks.tasks.filter((t) => t.core);
+  const all = progress(core, st);
+  const roles = ["ROLE-1", "ROLE-2", "ROLE-3", "ROLE-4"].map((r) => {
+    const p = progress(core.filter((t) => t.role === r), st);
+    return '<div class="rb" style="--c:' + color(r) + '"><div class="row"><span><b>' + label(r) + '</b> <span class="muted">' + esc(ROLES[r].job) + '</span></span><span class="muted">' + p.pct + "%</span></div>" + seg(p) + "</div>";
+  }).join("");
+  $("mission").innerHTML = clockHtml + '<div class="core" style="--c:var(--r2)"><div class="k">Core demo</div><div class="head"><span class="pct">' + all.pct + '%</span><span class="note">' +
+    all.merged + " of " + all.total + " core tasks merged · " + all.handoff + " waiting to merge · " + all.claimed + " being built · " + all.todo + " not started</span></div>" +
+    '<div class="rolebars">' + roles + '</div><div class="legend"><span><i style="background:var(--muted)"></i>merged</span><span><i style="background:repeating-linear-gradient(45deg,var(--muted) 0 3px,transparent 3px 6px)"></i>handed off</span><span><i style="background:color-mix(in srgb,var(--muted) 30%,transparent)"></i>being built</span></div></div>';
+}
+function renderTaskMap() {
+  if (!S.tasks) return;
+  if (S.tasks.error) { $("tmap").innerHTML = '<div class="error">Couldn\'t read docs/TASKS.md: ' + esc(S.tasks.error) + "</div>"; return; }
+  const st = taskStates();
+  const tile = (t) => {
+    const s = STATE[st[t.id]?.rank || 0];
+    return '<div class="task ' + s + (t.core ? "" : " later") + '" title="' + esc(t.id + " " + t.title + "\nDone when: " + t.doneWhen) + '"><span class="id">' + t.id + '</span><span class="tt">' + esc(t.title) + '</span><span class="st">' + STATE_LABEL[s] + "</span></div>";
+  };
+  $("tmap").innerHTML = '<div class="tmap">' + ["ROLE-1", "ROLE-2", "ROLE-3", "ROLE-4"].map((r) => {
+    const mine = S.tasks.tasks.filter((t) => t.role === r), core = mine.filter((t) => t.core), later = mine.filter((t) => !t.core);
+    const p = progress(core, st);
+    return '<div class="tcol" style="--c:' + color(r) + '"><h3>' + label(r) + " <span>" + esc(ROLES[r].job) + " · " + p.merged + "/" + p.total + " core merged</span></h3>" +
+      core.map(tile).join("") + (later.length ? '<div class="divider">After core</div>' + later.map(tile).join("") : "") + "</div>";
+  }).join("") + "</div>";
+}
+function renderTimeline() {
+  const el = $("tl");
+  if (!S.msgs.length) return;
+  // One lane per role; x runs from the first message to now.
+  const lanes = ["ROLE-1", "ROLE-2", "ROLE-3", "ROLE-4", "TOOLS", "HUMAN"];
+  const W = 1200, L = 110, R = 16, top = 26, gap = 30, H = top + gap * lanes.length;
+  const t0 = new Date(S.msgs[0].t).getTime(), t1 = Date.now();
+  const x = (t) => L + ((new Date(t).getTime() - t0) / Math.max(1, t1 - t0)) * (W - L - R);
+  const y = (r) => top + gap * lanes.indexOf(r) + gap / 2;
+  let svg = "";
+  // Hour gridlines with local-time labels.
+  for (let h = Math.ceil(t0 / 3600e3) * 3600e3; h <= t1; h += 3600e3) {
+    svg += '<line class="hour" x1="' + x(h) + '" x2="' + x(h) + '" y1="' + (top - 8) + '" y2="' + H + '"/><text x="' + x(h) + '" y="' + (top - 12) + '" text-anchor="middle">' + new Date(h).toLocaleTimeString([], { hour: "numeric" }) + "</text>";
+  }
+  for (const r of lanes) {
+    svg += '<line class="lane" x1="' + L + '" x2="' + (W - R) + '" y1="' + y(r) + '" y2="' + y(r) + '"/><text x="8" y="' + (y(r) + 4) + '" style="fill:' + color(r) + '">' + esc(label(r)) + "</text>";
+  }
+  // Commits: small ticks just under each role's lane.
+  for (const c of S.commits?.commits || []) {
+    const r = roleOf(c.author);
+    if (!r || new Date(c.date) < t0) continue;
+    svg += '<line x1="' + x(c.date) + '" x2="' + x(c.date) + '" y1="' + (y(r) + 6) + '" y2="' + (y(r) + 12) + '" stroke="' + color(r) + '" stroke-width="1.5" opacity=".7"><title>' + esc(c.subject) + "</title></line>";
+  }
+  // Messages: dots, bigger for handoffs and merges.
+  for (const m of S.msgs) {
+    if (!lanes.includes(m.from)) continue;
+    const big = m.type === "MERGED" || m.type === "HANDOFF", ring = m.type === "MERGED";
+    svg += '<circle cx="' + x(m.t) + '" cy="' + y(m.from) + '" r="' + (big ? 5.5 : 3.2) + '" fill="' + (ring ? "var(--panel)" : color(m.from)) + '" stroke="' + color(m.from) + '" stroke-width="' + (ring ? 2.5 : 0) + '" opacity="' + (big ? 1 : 0.75) + '"><title>' + esc(clock(m.t) + " · " + m.type + " · " + m.summary) + "</title></circle>";
+  }
+  svg += '<line class="now" x1="' + x(t1) + '" x2="' + x(t1) + '" y1="' + (top - 8) + '" y2="' + H + '"/>';
+  el.setAttribute("viewBox", "0 0 " + W + " " + (H + 6));
+  el.innerHTML = svg;
+}
+
 // ---------- Load and render ----------
 function renderAll() {
-  renderUrgent(); renderHero(); renderRoles(); renderLife(); renderSide(); renderMap(); renderTypes(); renderFeed();
+  renderUrgent(); renderMission(); renderTaskMap(); renderTimeline(); renderHero(); renderRoles(); renderLife(); renderSide(); renderMap(); renderTypes(); renderFeed();
   renderTrails(); renderPeople(); renderCommits(); renderBrain(); renderGraph();
   $("n-channel").textContent = S.msgs.length || "";
   $("n-trails").textContent = S.trails?.trails?.length || "";
@@ -563,6 +727,7 @@ async function loadSource(key, path) {
   renderAll();
 }
 function loadEntire() {
+  loadSource("tasks", "/api/tasks");
   loadSource("trails", "/api/trails");
   loadSource("commits", "/api/commits");
   loadSource("brain", "/api/brain");
@@ -599,6 +764,7 @@ loadChannel();
 loadEntire();
 setInterval(loadChannel, 10000);
 setInterval(loadEntire, 60000);
+setInterval(renderMission, 30000); // keep the countdown ticking between loads
 </script>
 </body>
 </html>
