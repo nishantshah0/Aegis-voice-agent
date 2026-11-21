@@ -38,7 +38,7 @@ Not doing: Entire's hosted review agents (they need billing). Maybe later: a Git
 
 ## Role 2 · Platform and pharmacist
 
-- **Doing:** 2.2 handed off (Trail for 2.2, branch `role-2/reset-daily-check`, stacked on 2.4's `role-2/auth0-signin`). Next: 2.3 the full Today view, then 2.6 hosting.
+- **Doing:** 2.2 handed off (Trail #9, branch `role-2/reset-daily-check`, stacked on 2.4's `role-2/auth0-signin`). Next: 2.3 the full Today view, then 2.6 hosting.
 - **Done:** 2.1 and the contract switch (merged). 2.5 decided: no phone push. 2.4 Auth0 sign-in and Approve/Deny (handed off, Trail #7; real Auth0 sign-in checked in a browser). 2.2 demo reset, daily reminder check on rule 7, demo controls.
 - **Blocked:** 
 - **Needs from others:** Role 1: the real AgentDriver for `app/api/_lib/runtime.ts`, so a live call can press buttons and put Sam's refill in the queue (today only tests do).
