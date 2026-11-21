@@ -160,7 +160,7 @@ Prototype: `demo/console.html`, with sample data. Tabs are named for pharmacy jo
 | Stage | Everyone watching | The demo screen: transcript, the gate animation, the pharmacist queue, the blocked feed and the scoreboard on one screen |
 | Call | The patient (the judge) | Talk button, live transcript with blocked lines shown struck through and labelled, the patient's phone (rings for outbound, shows the code, then "Refill confirmed" with cost and delivery), the demo clock |
 
-Design rules for person 4: one font, one spacing scale, three decision colours (green allowed, amber needs a person, red blocked), rule numbers always shown as chips, the transcript readable from the back of a room.
+Design rules for every screen: one font, one spacing scale, three decision colours (green allowed, amber needs a person, red blocked), rule numbers always shown as chips, the transcript readable from the back of a room.
 
 **The gate animation** is the centre of the stage view. Every button press the AI tries appears as a card ("Request refill · Concerta 36 mg") that slides into a gate. The rule cards it's checked against light up one by one, and it exits green (allowed), amber (to a pharmacist) or red (blocked) with the deciding rule's chip. Lines the speech guard blocks pass through the same gate. During the hijack batch, cards stack up and bounce off red. Use CSS transforms and opacity only, so it stays smooth on a projector.
 
@@ -519,35 +519,43 @@ Expect these in the 2 minutes of questions, and rehearse each:
 
 ### Repo layout
 
+Folders and owners are defined in `docs/DESIGN.md` section 2 and `AGENTS.md`. In short:
+
 ```
-/app            Next.js pages: phone, stage, console (Today, Review calls, Rules and checks, Overnight safety)
+/app/phone, /app/stage, /app/console/{today,review,rules,overnight}   pages
 /app/api        API routes and the event stream
-/lib/control    buttons.ts, rules-core.ts, cards.ts, engine.ts, speech-guard.ts, safety.ts, record.ts, triage.ts
-/lib/agent      loop.ts, prompt.md, hijack.ts, outbound.ts, voice.ts
-/lib/arena      scenarios/, planner.ts, caller.ts, judge.ts, score.ts, hardening.ts
-/lib/writer     rule-writer.ts, impact.ts
-/lib/reports    brief.ts, call-report.ts, cite-check.ts
-/scripts        hammer-exhaustive.ts, hammer-random.ts, gate.ts, overnight.ts, seed.ts
-/analysis       optional Python notebooks for charts
-/docs           this spec, the model card, the change log
+/lib/contract   shared types and fakes (task 0)
+/lib/control    buttons, rules, cards, engine, triage, record
+/lib/guard      speech guard S1 to S4, safety keywords
+/lib/store      in-memory store first, Postgres later
+/lib/seed       made-up patients
+/lib/agent      agent loop, prompt, outbound, hijack
+/lib/voice      speech in and out
+/lib/arena      scenarios runner, planner, caller, judge, scoring, fix loop
+/scenarios      scenario JSON files
+/scripts        hammers, release gate, channel and loop scripts, Entire check
+/results        real run outputs only
+/docs           spec, design, tasks, autonomy, Entire, status, decisions
 ```
 
 ### Page endpoints
 
+All under `/api`. The exact request and response types live in `lib/contract/`.
+
 | Endpoint | Does |
 |---|---|
-| `POST /call/start`, `POST /call/:id/say` | Start an inbound call, send a caller line (text or transcribed speech) |
-| `POST /outbound/run-daily-check` | Run the daily due-soon check at the demo clock's time |
-| `GET /events` | Server-sent events: transcript lines, blocked items, queue changes, scoreboard, gate runs |
-| `POST /queue/:id/approve`, `POST /queue/:id/deny` | Pharmacist decisions (signed in) |
-| `POST /rules/draft`, `POST /rules/:id/approve` | Rule writer (pharmacist) |
-| `POST /arena/run`, `POST /arena/hijack` | Run a scenario or the hijack batch |
-| `GET /proposals`, `POST /proposals/:id/approve` | Hardening loop (reviewer) |
-| `GET /calls/:id/record`, `GET /calls/:id/report` | Record and cited report export |
-| `POST /gate/run`, `GET /gate/latest` | Release gate |
-| `POST /clock` | Set the demo clock |
-| `POST /demo/reset` | Reseed patients, clear calls, set the clock to Tuesday 10 AM, keep overnight results and rule history |
-| `GET /stage` | The stage view: transcript, queue, blocked feed and scoreboard on one screen |
+| `POST /api/call/start`, `POST /api/call/:id/say` | Start a call, send a caller line (typed or transcribed) |
+| `POST /api/outbound/run-daily-check` | Run the daily due-soon check at the demo clock's time |
+| `GET /api/events` | Server-sent events: lines, blocked lines, presses, phone, queue, score, clock |
+| `POST /api/queue/:id/decide` | Pharmacist approves or denies (`{ decision, note? }`), Auth0 session and role required, approver taken from the token |
+| `POST /api/rules/draft`, `POST /api/rules/:id/approve` | Rule writer (after core) |
+| `POST /api/arena/run`, `POST /api/arena/hijack` | Run a scenario or the hijack batch |
+| `GET /api/calls/:id/record`, `GET /api/calls/:id/report` | Record and cited report export |
+| `GET /api/gate/latest` | Latest release gate result |
+| `POST /api/clock` | Set the demo clock |
+| `POST /api/demo/reset` | Reseed, clear calls, set Tuesday 10 AM, keep overnight results and rule history |
+
+Pages: `/phone`, `/stage`, `/console/today`, `/console/review`, `/console/rules`, `/console/overnight`.
 
 ### Made-up data to seed
 
@@ -566,15 +574,7 @@ Each prescription has: drug, drug class, strength, days supplied, last fill, ref
 
 ### Who owns what
 
-> **Superseded.** Roles were re-split into four build roles with no design and pitch role. The current split is in the README and `docs/DESIGN.md`. The table below is kept for history.
-
-| Person | Owns |
-|---|---|
-| 1. Voice and agent | Speech in and out, the prompt, the agent loop, wiring the buttons and the speech guard into the call, the outbound flow, measuring time to first word |
-| 2. Platform | Database, Auth0 sign-in and roles, approvals, the daily check, the demo clock, the event stream, deployment |
-| 3. Red team | Planner, Gemini caller, judge, hardening loop, overnight run, the numbers, the model comparison |
-| 4. Page, design and pitch | The four views and the one look, the gate animation, the phone, the rule-writer box, the Devpost write-up, the video, rehearsals, the Sun Life visit |
-| Claude, on this machine | The interface file, seed data, the twelve buttons, core rules, the card engine and cards, the speech guard checks, both hammers, scenario format and scoring, the release gate, the cite check |
+Four coding roles, nobody pre-assigned, with the pitch done together at the end. Roles, folders and ordered tasks: `AGENTS.md`, `docs/DESIGN.md` and `docs/TASKS.md`.
 
 ---
 

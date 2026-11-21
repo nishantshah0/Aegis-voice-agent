@@ -57,7 +57,7 @@ Session transcripts go **only** to the private repo `nishantshah0/namereserve-se
 | **Before changing shared code** | `entire graph impact <symbol>` | The blast radius, for example everyone who builds against a contract type |
 | **While working** | (automatic) | Every session is captured. Every commit gets an `Entire-Checkpoint` trailer linking it to its prompts. |
 | **Claim and hand off** | `entire trail create --title "..."` on your task branch | A Trail replaces the issue and pull request: intent, branch, agent review, findings and approval in one place |
-| **Review** | Agents review each other with **findings**: `entire trail finding add` on the other role's Trail. Then `entire review` (multi-agent review), the release gate, and `entire trail approve` by Role 4 or a person. | Review agents score each push against the Trail's intent. Our release gate must pass too. |
+| **Review** | Agents review each other with **findings**: `entire trail finding add` on the other role's Trail. Then `entire review` (multi-agent review using our own agents on our own machines), the release gate, and `entire trail approve` by Role 4 or a person. | Review agents score each push against the Trail's intent. Our release gate must pass too. |
 | **Merge** | `entire trail merge` | Integrated by the coordinating agent (Role 4) |
 | **Sleep-shift handover** | `entire session resume <branch>` | The next person's agent picks up exactly where the last one stopped |
 | **After a decision** | `entire brain remember "<rule>" --kind decision --path project.<area>.<topic>` | Everyone's agent recalls it from then on |
@@ -70,6 +70,10 @@ Session transcripts go **only** to the private repo `nishantshah0/namereserve-se
 If you don't have an Entire account yet, use the GitHub fallback: the "Claim a task" issue and a pull request with the template. Same rules either way.
 
 ---
+
+## Entire's hosted review agents: we don't use them
+
+The Agents page on entire.com offers hosted reviewers (Code review, Security review, Slop). They need paid billing, because free credits are paused for new accounts. **We don't add them.** Our reviews come from our own agents' findings, `entire review` on our machines, and the release gate. They aren't required for the prize.
 
 ## What Brain already knows
 

@@ -8,6 +8,8 @@ An AI phone line for pharmacies. It calls patients before their medication runs 
 
 **The line judges should repeat:** *The AI can be fooled. The pharmacy can't.*
 
+**Start here:** [`docs/STATUS.md`](docs/STATUS.md) has the role sign-up table and the next steps. Then [`docs/TASKS.md`](docs/TASKS.md) for your role's tasks.
+
 Full plan: [`docs/SPEC.md`](docs/SPEC.md). How the parts fit: [`docs/DESIGN.md`](docs/DESIGN.md). For product behaviour, the spec wins. For roles, ownership and how we work, this README and `docs/DESIGN.md` win.
 
 ---
@@ -126,7 +128,7 @@ Overall · Best Health Hack by Sun Life · Best Use of Auth0 · Best Use of Vult
 1. **Vibe the UI, read the lock.** Pages and styling can go fast. Someone reads every line of the control layer, rule cards and speech guard.
 2. **Tests before trust.** Nothing in the control layer is done until the hammers say 0 broken.
 3. **Never let an AI change a test and the code it tests in the same step.**
-4. **Build against the interface file.** Give your AI tool `docs/SPEC.md` and `lib/control/contract.ts` at the start of every session.
+4. **Build against the interface file.** Give your AI tool `AGENTS.md`, `docs/TASKS.md` and `lib/contract/` at the start of every session.
 5. **One person per area. Commit often, pull often.**
 6. **Keys never go in code.** Use `.env`, which is in `.gitignore`. Check before every push, because this repo may go public later.
 7. **Made-up patients only.** Phone numbers use 555-01xx.
