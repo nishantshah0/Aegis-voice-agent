@@ -81,6 +81,13 @@ const HONEST = [
   "Once the pharmacist signs off, it'll be ready.",
   "It isn't done yet.",
   "It won't ship until a pharmacist approves it.",
+  // Done-words about identity, a question to the caller, or the agent itself, never the order.
+  "Your identity is confirmed.",
+  "Thanks, that's confirmed: your date of birth matches.",
+  "Your details are confirmed.",
+  "Are you done with your questions?",
+  "Are you all set?",
+  "I'm all set to help.",
 ];
 
 describe("S4: a conditional only excuses its own clause", () => {
