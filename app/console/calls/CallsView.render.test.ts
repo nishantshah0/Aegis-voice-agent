@@ -42,7 +42,9 @@ describe("the Calls page (2.9b)", () => {
     const html = renderToStaticMarkup(await Calls());
     expect(html).toContain("S.R.");
     expect(html).toContain("send code");
-    expect(html).toContain("S4");
+    // Sam isn't verified yet, so the guard blocks naming his drug (S1); any blocked line shows struck, with its replacement.
+    expect(html).toMatch(/line-through">Your Concerta refill is approved\.</);
+    expect(html).toContain("Said instead:");
     expect(html).toContain("Record chain verified");
     expect(html).not.toMatch(/confidence/i);
   });
