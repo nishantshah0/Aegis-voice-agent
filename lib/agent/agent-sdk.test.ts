@@ -148,3 +148,24 @@ describe("1.2b: Agent SDK model", () => {
     expect(new UsageCapError("x")).toBeInstanceOf(Error);
   });
 });
+
+describe("1.2b: a failed SDK turn doesn't break the rest of the call", () => {
+  it("starts a fresh session on the next line, with the whole conversation so far", async () => {
+    const t = setup([
+      async function* () {
+        throw new Error("interrupted");
+      },
+      async function* () {
+        yield result("I'm here.");
+      },
+    ]);
+    const callId = await t.driver.startCall({ direction: "inbound" });
+    const first = await collect(t.driver.callerSays(callId, "First."));
+    expect(presses(first).map((p) => p.button)).toEqual(["escalate"]);
+    const second = await collect(t.driver.callerSays(callId, "Second."));
+    expect(lines(second)).toEqual(["I'm here."]);
+    expect(t.sessions.started).toHaveLength(2);
+    expect(t.sessions.sent[1]).toContain("First.");
+    expect(t.sessions.sent[1]).toContain("Second.");
+  });
+});
