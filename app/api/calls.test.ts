@@ -105,3 +105,15 @@ describe("two approvals of the same item at once (Trail #12, low)", () => {
     expect(((await loser.json()) as { error: string }).error).toMatch(/already/i);
   });
 });
+
+describe("other store failures while deciding (Trail #12, second review)", () => {
+  it("are not dressed up as 409: only an item that really was decided meanwhile is", async () => {
+    session.approver = PHARMACIST;
+    const store = getStore();
+    const item = await store.addQueueItem({ callId: "c_err", patientId: "p_sam", kind: "refill", lane: "quick_check", ruleIds: ["4"], signals: [], notes: [] });
+    const spy = vi.spyOn(store, "decide").mockRejectedValueOnce(new Error("store unavailable"));
+    await expect(decide(post({ decision: "approve" }), params(item.id))).rejects.toThrow("store unavailable");
+    spy.mockRestore();
+    expect((await store.queue()).find((q) => q.id === item.id)?.status).toBe("open");
+  });
+});
