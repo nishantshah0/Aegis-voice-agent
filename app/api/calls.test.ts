@@ -38,7 +38,7 @@ describe("GET /api/calls/:id/record", () => {
     const control = getControl();
     const a = await control.startInboundCall();
     const b = await control.startInboundCall();
-    await control.press(a, "lookup_patient", { first_name: "Sam", last_name: "Rivera", dob: "1990-03-14" });
+    await control.press(a, "order_status", {});
     await control.press(b, "order_status", {});
     const res = await callRecord(get(), params(a));
     expect(res.status).toBe(200);
