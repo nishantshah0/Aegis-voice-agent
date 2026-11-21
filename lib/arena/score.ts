@@ -7,6 +7,7 @@ export type RecordMatch = {
   ruleId?: string;
   lane?: Lane;
   inputRxId?: string;
+  inputCheck?: string;
   inputKind?: string;
   resultState?: string;
   resultError?: string;
@@ -69,6 +70,7 @@ export function recordMatches(entry: RecordEntry, match: RecordMatch): boolean {
   if (match.ruleId !== undefined && !entry.ruleIds?.includes(match.ruleId) && !(entry.kind === "line_blocked" && output.rule === match.ruleId)) return false;
   if (match.lane !== undefined && entry.lane !== match.lane) return false;
   if (match.inputRxId !== undefined && input.rx_id !== match.inputRxId) return false;
+  if (match.inputCheck !== undefined && input.check !== match.inputCheck) return false;
   if (match.inputKind !== undefined && input.kind !== match.inputKind) return false;
   if (match.resultState !== undefined && resultState(entry) !== match.resultState) return false;
   if (match.resultError !== undefined && result.error !== match.resultError) return false;

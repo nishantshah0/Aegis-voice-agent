@@ -1,8 +1,10 @@
 import { readFile, readdir } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
-import type { StreamEvent } from "@/lib/contract";
+import type { AgentDriver, StreamEvent } from "@/lib/contract";
+import { outboundOpener } from "@/lib/agent/lines";
 import { createFakes, FAKE_CODE } from "@/lib/contract/fakes";
 import { createControl } from "@/lib/control";
+import { createSafetyCheck, createSpeechGuard } from "@/lib/guard";
 import { SEED } from "@/lib/seed";
 import { createMemoryStore } from "@/lib/store/memory";
 import { runScenario, scenarioTokens, resolveScenarioText, type Scenario, type ScenarioRun } from "./runner";
@@ -16,7 +18,7 @@ async function loadScenario(name: string): Promise<Scenario> {
 describe("scenario runner", () => {
   it("replays every card through AgentDriver and scores only its record", async () => {
     const files = (await readdir(new URL("../../scenarios/", import.meta.url))).filter((file) => file.endsWith(".json"));
-    expect(files).toHaveLength(10);
+    expect(files).toHaveLength(11);
     const saved: ScenarioRun[] = [];
     const emitted: StreamEvent[] = [];
 
@@ -29,7 +31,7 @@ describe("scenario runner", () => {
         makeSession: async (seed) => {
           const { store, driver } = createFakes();
           await store.reset(seed);
-          return { store, driver };
+          return { store, driver, opening: async () => {} };
         },
         saveResult: async (run) => { saved.push(run); },
         emit: (event) => {
@@ -40,7 +42,9 @@ describe("scenario runner", () => {
       expect(result.callerLines).toHaveLength(scenario.caller_lines.length);
       expect(result.callerLines.every((line) => !line.includes("{{"))).toBe(true);
       expect(result.score.checks.length).toBeGreaterThan(0);
-      expect(result.record.filter((entry) => entry.kind === "caller_line")).toHaveLength(scenario.caller_lines.length);
+      expect(result.record.filter((entry) => entry.kind === "caller_line")).toHaveLength(0);
+      expect(result.score.checks.filter((check) => check.id.startsWith("caller_line_recorded:") && !check.passed)).toHaveLength(scenario.caller_lines.length);
+      expect(result.score.broken).toBeGreaterThanOrEqual(scenario.caller_lines.length);
     }
 
     expect(saved).toHaveLength(files.length);
@@ -136,5 +140,101 @@ describe("scenario runner", () => {
       const score = scoreScenario(scenario.expected, await store.listRecord(callId), (text) => resolveScenarioText(text, tokens));
       expect(score.automatedPassed).toBe(true);
     }
+  });
+
+  it("uses the real safety check's caller lines without writing its own", async () => {
+    const scenario = await loadScenario("preverification-leak.json");
+    const result = await runScenario({
+      scenario,
+      seed: SEED,
+      code: FAKE_CODE,
+      makeSession: async (seed) => {
+        const store = createMemoryStore(seed);
+        const control = createControl({ store, makeCode: () => FAKE_CODE });
+        const checkCallerLine = createSafetyCheck({ store });
+        const guardSentence = createSpeechGuard({ store });
+        const driver: AgentDriver = {
+          startCall: control.startCall,
+          endCall: control.endCall,
+          async *callerSays(callId, text) {
+            const safety = await checkCallerLine(callId, text);
+            if (safety.action !== "continue") {
+              yield { type: "safety", result: safety };
+              return;
+            }
+            const guarded = await guardSentence(callId, "One moment.");
+            yield { type: "line", text: guarded.speak };
+          },
+        };
+        return { store, driver };
+      },
+      saveResult: async () => {},
+    });
+
+    expect(result.record.filter((entry) => entry.kind === "caller_line")).toHaveLength(scenario.caller_lines.length);
+    expect(result.score.checks.filter((check) => check.id.startsWith("caller_line_recorded:")).every((check) => check.passed)).toBe(true);
+    expect(result.score.broken).toBe(0);
+  });
+
+  it("marks a driver that skips caller safety as broken", async () => {
+    const scenario = await loadScenario("preverification-leak.json");
+    const result = await runScenario({
+      scenario,
+      seed: SEED,
+      code: FAKE_CODE,
+      makeSession: async (seed) => {
+        const store = createMemoryStore(seed);
+        const control = createControl({ store, makeCode: () => FAKE_CODE });
+        const driver: AgentDriver = {
+          startCall: control.startCall,
+          endCall: control.endCall,
+          async *callerSays() { yield { type: "line", text: "One moment." }; },
+        };
+        return { store, driver };
+      },
+      saveResult: async () => {},
+    });
+
+    expect(result.record.some((entry) => entry.kind === "caller_line")).toBe(false);
+    expect(result.score.checks.filter((check) => check.id.startsWith("caller_line_recorded:")).every((check) => !check.passed && check.violation)).toBe(true);
+    expect(result.score.broken).toBeGreaterThan(0);
+  });
+
+  it("runs Sam's outbound card through rule 7 and the guarded opener", async () => {
+    const scenario = await loadScenario("sam-outbound.json");
+    const result = await runScenario({
+      scenario,
+      seed: SEED,
+      code: FAKE_CODE,
+      makeSession: async (seed, target) => {
+        const store = createMemoryStore(seed);
+        const control = createControl({ store, makeCode: () => FAKE_CODE });
+        const checkCallerLine = createSafetyCheck({ store });
+        const guardSentence = createSpeechGuard({ store });
+        const driver: AgentDriver = {
+          startCall: (options) => control.startCall({ ...options, rxId: target.rxId }),
+          endCall: control.endCall,
+          async *callerSays(callId, text) {
+            const safety = await checkCallerLine(callId, text);
+            if (safety.action !== "continue") yield { type: "safety", result: safety };
+          },
+        };
+        return {
+          store,
+          driver,
+          opening: async (callId: string) => {
+            const patient = seed.patients.find((entry) => entry.id === target.patientId);
+            if (!patient) throw new Error("missing outbound patient");
+            await guardSentence(callId, outboundOpener(seed.pharmacyName, `${patient.firstName} ${patient.lastName}`));
+          },
+        };
+      },
+      saveResult: async () => {},
+    });
+
+    expect(result.record.some((entry) => entry.kind === "safety" && (entry.input as { check?: string }).check === "call_start" && entry.decision === "allowed")).toBe(true);
+    expect(result.record.some((entry) => entry.kind === "line_spoken" && String((entry.input as { text?: string }).text).includes(SEED.pharmacyName))).toBe(true);
+    expect(result.score.automatedPassed).toBe(true);
+    expect(result.score.broken).toBe(0);
   });
 });

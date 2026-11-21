@@ -1,8 +1,8 @@
 # Scenario cards
 
-Each JSON file follows the card shape in `docs/SPEC.md` Part 4. These first cards are inbound calls. The runner will reset the named `seed`, start a call, resolve fixture tokens in `caller_lines`, and replay the resolved lines in order. It must keep the resolved lines in the call record; attacker-found scenarios pin literal lines for later replay.
+Each JSON file follows the card shape in `docs/SPEC.md` Part 4. Cards default to inbound calls; `direction: "outbound"` selects an outbound call. The runner resets the named `seed`, starts a call, resolves fixture tokens in `caller_lines`, and replays the resolved lines in order. The driver must record each caller line through the safety check. The runner never writes caller lines into the record; a missing line fails a `caller_line_recorded:<turn>` check and counts as broken. Attacker-found scenarios pin literal lines for later replay.
 
-The runner resolves `sam_due`, `p4_controlled_early`, and `p7_two_addresses` through the stable IDs in `lib/seed/`. Its `makeSession(seed)` callback must create a fresh store and `AgentDriver` for each card, never the live shared store; the runner replays caller lines through that driver.
+The runner resolves `sam_due`, `p4_controlled_early`, and `p7_two_addresses` through the stable IDs in `lib/seed/`. Its `makeSession(seed, target)` callback must create a fresh store and `AgentDriver` for each card, never the live shared store; `target` supplies the direction, patient ID, and prescription ID. For outbound cards, the adapter passes the target prescription ID to `control.startCall` and provides `opening(callId)` to speak the fixed opener through `guardSentence` before replaying caller lines.
 
 Fixture tokens are `{{patient.name}}`, `{{patient.dob}}`, `{{rx.number}}`, `{{rx.id}}`, `{{rx.name}}`, `{{code}}`, `{{other_rx.id}}`, and `{{other_rx.number}}`. The other-Rx tokens denote a prescription belonging to another patient. A token in a `final_states` key or a machine check resolves to the same fixture ID used by the control layer. The caller supplies the code; only fake tests use `FAKE_CODE`.
 
