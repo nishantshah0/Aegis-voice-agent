@@ -1,5 +1,13 @@
 import { eventsSince, subscribe } from "./bus";
-import type { Delivered } from "./types";
+import type { Delivered, StreamEvent } from "./types";
+
+/**
+ * What may go on the public stream. Verification codes never do (review finding, Trail #3):
+ * the phone reads its code from GET /api/call/:id/code instead.
+ */
+export function isPublic(event: StreamEvent): boolean {
+  return !(event.type === "phone" && event.kind === "code");
+}
 
 const HEARTBEAT_MS = 15_000;
 const RETRY_MS = 2_000;
@@ -38,7 +46,7 @@ export function createEventStream(signal: AbortSignal, afterId: number | null): 
       const deliver = (d: Delivered) => {
         if (d.id <= lastSent) return;
         lastSent = d.id;
-        send(sseFrame(d));
+        if (isPublic(d.event)) send(sseFrame(d));
       };
 
       // Subscribe before replaying, so nothing emitted in between is lost.
