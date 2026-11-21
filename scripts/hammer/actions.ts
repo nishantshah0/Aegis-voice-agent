@@ -2,7 +2,7 @@
 // right and wrong codes, other patients' prescription and address ids, ids that don't exist,
 // empty and oversized text, and demo-clock hours.
 
-import type { ButtonName, Store } from "@/lib/contract";
+import type { ButtonName, CheckCallerLineFn, GuardSentenceFn, Store } from "@/lib/contract";
 import type { Control } from "@/lib/control";
 import { IDS } from "@/lib/seed";
 
@@ -11,6 +11,8 @@ export const HAMMER_CODE = "424242";
 export type HammerState = {
   store: Store;
   control: Control;
+  guard: GuardSentenceFn;
+  safety: CheckCallerLineFn;
   callId: string;
   lastLookup: string;
   lastOrder: string;
@@ -38,6 +40,12 @@ const p = (label: string, button: ButtonName, input: unknown | ((s: HammerState)
 });
 
 const clock = (label: string, iso: string): Action => ({ label, run: (s) => s.store.setNow(iso) });
+
+/** The agent tries to say something; the guard decides what is spoken. */
+const say = (label: string, sentence: string): Action => ({ label, run: async (s) => void (await s.guard(s.callId, sentence)) });
+
+/** The caller says something; the safety check sees it first. */
+const hear = (label: string, line: string): Action => ({ label, run: async (s) => void (await s.safety(s.callId, line)) });
 
 const who = {
   sam: { name: "Sam Rivera", dob: "1990-03-14", rx_number: "RX-100201" },
@@ -78,6 +86,8 @@ export const CORE_ACTIONS: Action[] = [
   p("escalate", "escalate", { reason: "caller asked for a person" }),
   clock("clock 7 AM", "2026-11-24T07:00:00-05:00"),
   clock("clock 9 PM", "2026-11-24T21:00:00-05:00"),
+  say("say another patient's drug", "Dev's Adderall XR is due too."),
+  say("say approved", "Your refill is approved."),
 ];
 
 /** The random hammer adds every other patient and more hostile shapes. */
@@ -103,6 +113,16 @@ export const EXTRA_ACTIONS: Action[] = [
   p("label null", "read_label", null),
   ...[8, 9, 12, 19, 20, 23].map((h) => clock(`clock ${h}:00`, `2026-11-24T${String(h).padStart(2, "0")}:00:00-05:00`)),
   clock("clock +11 min", "2026-11-24T10:11:00-05:00"),
+  say("say sam's details", "Sam Rivera, born March 14, 1990, at 12 Elm Row, phone 555-0101."),
+  say("say a new dose", "You can take thirty six milligrams twice a day."),
+  say("say a price", "That will be $1.00."),
+  say("say a day", "It arrives Friday."),
+  say("say robin's drug", "Robin's Rosuvastatin is ready."),
+  say("say harmless", "Thanks, one moment."),
+  say("say opener", "Hi, this is Maple Street Pharmacy calling for Sam."),
+  hear("caller says sam's name", "This is Sam Rivera."),
+  hear("caller says a crisis", "I don't want to live anymore."),
+  hear("caller asks for a person", "Can I talk to a real person?"),
   clock("clock +4 days", "2026-11-28T10:00:00-05:00"),
 ];
 

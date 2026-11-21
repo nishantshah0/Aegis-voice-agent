@@ -356,7 +356,29 @@ describe("outbound calls (rule 7)", () => {
     expect(out(await control.press(started.callId, "check_code", { lookup_id: started.lookupId, code: CODE }))).toEqual({
       verified: true,
       patient_first_name: "Sam",
+      prescriptions: [
+        { rx_id: IDS.samConcerta, drug: "Concerta" },
+        { rx_id: IDS.samMetformin, drug: "Metformin" },
+      ],
     });
+  });
+
+  it("an outbound call can confirm the date of birth with the code; a wrong one is a failed try", async () => {
+    const started = await control.startOutboundCall(IDS.sam, IDS.samConcerta);
+    if (!started.ok) throw new Error("refused");
+    await control.press(started.callId, "send_code", { lookup_id: started.lookupId });
+    expect(out(await control.press(started.callId, "check_code", { lookup_id: started.lookupId, code: CODE, dob: "1990-03-15" }))).toEqual({
+      verified: false,
+      tries_left: 2,
+    });
+    expect(out(await control.press(started.callId, "check_code", { lookup_id: started.lookupId, code: CODE, dob: "14/03/1990" })).verified).toBe(true);
+  });
+
+  it("inbound: the verified output gives the rx_ids later buttons need", async () => {
+    const callId = await control.startInboundCall();
+    const lookup = out(await control.press(callId, "lookup_patient", people.dev));
+    const check = out(await control.press(callId, "check_code", { lookup_id: lookup.lookup_id, code: CODE }));
+    expect(check.prescriptions).toEqual([{ rx_id: IDS.p4Adderall, drug: "Adderall XR" }]);
   });
 
   it("refuses a second call about the same prescription within 3 days", async () => {

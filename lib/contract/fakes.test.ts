@@ -27,7 +27,7 @@ describe("fakes", () => {
     const lookup = await press(callId, "lookup_patient", { name: "Sam Rivera", dob: "1990-03-14", rx_number: "RX-100201" });
     if (!lookup.ok) throw new Error("lookup failed");
     const check = await press(callId, "check_code", { lookup_id: lookup.output.lookup_id, code: FAKE_CODE });
-    expect(check.ok && check.output).toEqual({ verified: true, patient_first_name: "Sam" });
+    expect(check.ok && check.output).toMatchObject({ verified: true, patient_first_name: "Sam", prescriptions: [{ rx_id: SAM_CONCERTA, drug: "Concerta" }, { rx_id: "rx_sam_metformin", drug: "Metformin" }] });
 
     const refill = await press(callId, "request_refill", { rx_id: SAM_CONCERTA });
     expect(refill.ok && refill.output.state).toBe("waiting_for_pharmacist");

@@ -39,6 +39,9 @@ for candidate in python3 python py; do
   fi
 done
 [ -n "$PY" ] || { echo "channel.sh needs Python 3 on PATH" >&2; exit 1; }
+# Messages are UTF-8 (headers use "·" and "→"). Windows Python defaults to cp1252, which made
+# every header fail to parse, so inbox, waiting and even `stopped` saw nothing. Force UTF-8.
+export PYTHONIOENCODING=utf-8 PYTHONUTF8=1
 
 # All messages as JSON lines: {"t": time, "u": login, "b": body}
 # Pass an issue number to read another channel (the urgent one is $URGENT_ISSUE).
@@ -169,48 +172,7 @@ for n, (t, head) in sorted(seen.items(), key=lambda kv: kv[1][0], reverse=True):
     ;;
   waiting)
     role="${2:?usage: $0 waiting <ROLE>}"
-    all_messages | "$PY" -c '
-import sys, json, re
-# Keep this rule in sync with openItems() in scripts/channel-view.mjs.
-HEAD = re.compile(r"^\[(?:ROLE-(\d)|HUMAN) · (?:([A-Z]+) → ([A-Z0-9-]+)|([A-Z0-9-]+))\] *(.*)$")
-msgs = []
-for line in sys.stdin:
-    if not line.strip():
-        continue
-    m = json.loads(line)
-    h = HEAD.match(m["b"].split("\n", 1)[0])
-    if not h:
-        continue
-    human = not h.group(1) or h.group(1) == "0"
-    to = (h.group(3) or h.group(4)).replace("ROLE-0", "HUMAN")
-    msgs.append({"t": m["t"], "from": "HUMAN" if human else "ROLE-" + h.group(1),
-                 "type": "HUMAN" if human and not h.group(2) else h.group(2), "to": to, "s": h.group(5), "u": m.get("urgent", False)})
-def answered(i, m):
-    for r in msgs[i + 1:]:
-        if m["type"] == "BLOCKED":
-            if r["type"] in ("HUMAN", "REPLY") and r["to"] in (m["from"], "ALL") and r["from"] != m["from"]:
-                return True
-        elif r["from"] == m["to"] or (m["to"] in ("ALL", "HUMAN") and r["from"] != m["from"]):
-            if r["type"] == "REPLY" and r["to"] == m["from"]:
-                return True
-            if r["type"] in ("HANDOFF", "MERGED", "HUMAN") and r["to"] in (m["from"], "ALL"):
-                return True
-    return False
-me = "ROLE-" + sys.argv[1]
-open_ = [m for i, m in enumerate(msgs) if m["type"] in ("REQUEST", "OBJECT", "BLOCKED") and not answered(i, m)]
-open_.sort(key=lambda m: not m["u"])  # urgent first
-owe = [m for m in open_ if m["type"] != "BLOCKED" and m["to"] in (me, "ALL") and m["from"] != me]
-wait = [m for m in open_ if m["from"] == me]
-def show(title, items, empty):
-    print(title)
-    for m in items:
-        print("  %s  %s%s %s → %s: %s" % (m["t"].replace("T", " ")[:16], "URGENT " if m["u"] else "", m["type"], m["from"], m["to"], m["s"]))
-    if not items:
-        print("  " + empty)
-    print()
-show("You owe an answer (post a REPLY addressed to the role that asked):", owe, "nothing")
-show("You are waiting on:", wait, "nothing")
-' "$role"
+    all_messages | "$PY" "$(dirname "$0")/channel_waiting.py" "$role"
     ;;
   stopped)
     last=$(all_messages | "$PY" -c '

@@ -292,15 +292,17 @@ const ghCommit = (sha) => "https://github.com/" + (S.commits?.repo || "") + "/co
 
 // A REQUEST or OBJECT is open until the role it went to answers the sender (REPLY to them, or HANDOFF/MERGED/HUMAN
 // to them or ALL). A BLOCKED is open until someone else posts a REPLY or HUMAN to that role or ALL.
-// Keep in sync with "scripts/channel.sh waiting".
+// Keep in sync with "scripts/channel.sh waiting" (scripts/channel_waiting.py).
 function openItems() {
   const d = S.msgs;
+  // A REQUEST or OBJECT is answered only by a REPLY from the asked role to the asker (or, when the asked
+  // role is ALL or HUMAN, a REPLY or HUMAN from anyone else to the asker). HANDOFF and MERGED never answer.
+  // Keep in sync with answered() in scripts/channel_waiting.py.
   const answered = (m, i) => d.slice(i + 1).some((r) => {
     if (m.type === "BLOCKED") return (r.type === "HUMAN" || r.type === "REPLY") && (r.to === m.from || r.to === "ALL") && r.from !== m.from;
-    const fromTarget = r.from === m.to || ((m.to === "ALL" || m.to === "HUMAN") && r.from !== m.from);
-    if (!fromTarget) return false;
-    if (r.type === "REPLY" && r.to === m.from) return true;
-    return ["HANDOFF", "MERGED", "HUMAN"].includes(r.type) && (r.to === m.from || r.to === "ALL");
+    if (r.to !== m.from) return false;
+    if (m.to === "ALL" || m.to === "HUMAN") return r.from !== m.from && (r.type === "REPLY" || r.type === "HUMAN");
+    return r.from === m.to && r.type === "REPLY";
   });
   return d.map((m, i) => [m, i]).filter(([m, i]) => ["REQUEST", "OBJECT", "BLOCKED"].includes(m.type) && !answered(m, i)).map(([m]) => m).reverse();
 }

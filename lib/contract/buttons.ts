@@ -66,7 +66,8 @@ export type RefillState = "queued" | "waiting_for_pharmacist" | "refused" | "app
 export type ButtonInputs = {
   lookup_patient: { name: string; dob: string; rx_number: string };
   send_code: { lookup_id: LookupId };
-  check_code: { lookup_id: LookupId; code: string };
+  /** dob is optional: an outbound call confirms the date of birth with the code (SPEC outbound step 2). */
+  check_code: { lookup_id: LookupId; code: string; dob?: string };
   check_prescription: { rx_id: RxId; include_other_names: boolean };
   read_label: { rx_id: RxId };
   check_coverage: { rx_id: RxId };
@@ -83,7 +84,12 @@ export type ButtonOutputs = {
   lookup_patient: { lookup_id: LookupId; message: "code sent if matched" };
   send_code: { message: "code sent if matched" };
   check_code:
-    | { verified: true; patient_first_name: string }
+    | {
+        verified: true;
+        patient_first_name: string;
+        /** The locked patient's own prescriptions, so later buttons have an rx_id (inbound calls had none). */
+        prescriptions: { rx_id: RxId; drug: string }[];
+      }
     | { verified: false; tries_left: number }
     | { locked_until: IsoTime };
   check_prescription: {
