@@ -15,3 +15,6 @@ planning/
 *.tsbuildinfo
 next-env.d.ts
 *.pem
+
+# Per-user agent settings (Entire writes a personal hook here)
+.claude/settings.local.json
