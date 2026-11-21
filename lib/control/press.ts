@@ -174,7 +174,14 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
       .filter((e) => internalOf(e)?.lookupId === input.lookup_id && internalOf(e)?.codeHash)
       .at(-1);
     const codeFresh = sent && isFresh(sent.at, now, CODE_VALID_MS);
-    const right = lookup?.patientId && codeFresh && internalOf(sent)?.codeHash === hashCode(input.lookup_id, input.code.trim());
+    const codeRight = lookup?.patientId && codeFresh && internalOf(sent)?.codeHash === hashCode(input.lookup_id, input.code.trim());
+    // A date of birth, when given (outbound calls confirm it with the code), must match too.
+    let dobRight = true;
+    if (codeRight && input.dob !== undefined) {
+      const p = await store.getPatient(lookup!.patientId!);
+      dobRight = normaliseDob(input.dob) === p?.dob;
+    }
+    const right = codeRight && dobRight;
 
     if (right && lookup?.patientId) {
       if (current.lockedPatientId && current.lockedPatientId !== lookup.patientId) {
@@ -182,8 +189,9 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
       }
       await store.saveCall({ ...current, state: "verified", lockedPatientId: lookup.patientId });
       const p = await store.getPatient(lookup.patientId);
+      const prescriptions = (await store.getPrescriptions(lookup.patientId)).map((r) => ({ rx_id: r.id, drug: r.drug }));
       return {
-        result: ok<"check_code">({ verified: true, patient_first_name: p?.firstName ?? "" }),
+        result: ok<"check_code">({ verified: true, patient_first_name: p?.firstName ?? "", prescriptions }),
         decision: "allowed",
         internal: { lookupId: input.lookup_id, patientId: lookup.patientId },
       };
