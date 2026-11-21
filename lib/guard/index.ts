@@ -4,4 +4,4 @@
 export { createSpeechGuard, S4_REPLACEMENT } from "./speech";
 export { createSafetyCheck, classify, EMERGENCY_SCRIPT, CRISIS_SCRIPT, HANDOVER_SCRIPT } from "./safety";
 export { dosePhrases, unbackedDoses } from "./doses";
-export { tokensFor, mentions } from "./tokens";
+export { tokensFor, mentions, type Token } from "./tokens";
