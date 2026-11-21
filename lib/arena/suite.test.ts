@@ -167,7 +167,7 @@ describe("scenario suite", () => {
       ...options,
       scenarios: [card, { ...card, id: "second" }, { ...card, id: "third" }],
       concurrency: 2,
-      makeSession: async (seed, target, code) => {
+      makeSession: async (seed, target) => {
         active++;
         peak = Math.max(peak, active);
         await new Promise((resolve) => setTimeout(resolve, active === 1 ? 15 : 1));
