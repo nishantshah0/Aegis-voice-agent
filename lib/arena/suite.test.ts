@@ -28,7 +28,7 @@ const card: SuiteScenario = {
 };
 
 function setup() {
-  const saveReport = vi.fn(async (_report: SuiteReport) => {});
+  const saveReport = vi.fn<(report: SuiteReport) => Promise<void>>().mockResolvedValue(undefined);
   const makeSession = vi.fn(async (seed: typeof SEED, target: ScenarioTarget) => {
     const store = createMemoryStore(seed);
     const control = createControl({ store });

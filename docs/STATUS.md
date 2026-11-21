@@ -45,10 +45,10 @@ Not doing: Entire's hosted review agents (they need billing). Maybe later: a Git
 
 ## Role 3 · Red team and evals
 
-- **Doing:** urgent 3.3 review fixes on `role-3/runner-review-fixes` (claim #22, Trail #17): no caller-line backfill, failed checks for skipped safety, outbound opener and rule 7 coverage
+- **Doing:** 3.5 fixed suite, repeat scoring and persisted scoreboard (PR #30, claim #31, Trail #24), stacked on 3.3 runner review fixes (PR #26, Trail #17)
 - **Done:** 3.1 first scenarios; 3.2 hijack driver (merged PR #7); 3.3 runner and scoring (merged PR #13); 3.4 hijack batch (merged PR #20, Trail #14)
-- **Blocked:** S3 written-out quantity gap #10 is outside Role 3's folder; Entire still cannot list findings on Trails #6 and #11 or comments on Trail #2 because the project is not visible to this login
-- **Needs from others:** Role 4 to fix guard gap #10 through the lock approval process; Role 2 to wire the batch API and persist its result before emitting a score
+- **Blocked:** live scoreboard needs the real driver and a model credential. Entire project visibility still blocks finding replies.
+- **Needs from others:** Role 4 to review PR #26 before PR #30; Role 2 to wire `runFixedScenarioSuite` to the arena run route once the real driver lands.
 
 ## Role 4 · The lock
 
