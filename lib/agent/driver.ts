@@ -80,6 +80,8 @@ type CallState = {
   askedSideEffects: Set<RxId>;
   /** Set right after the side-effect question, so the caller's answer is read as one. */
   awaitingSideEffect?: RxId;
+  /** Caller lines still read as side-effect answers: the answer, then at most one follow-up. */
+  sideEffectLinesLeft?: number;
   /** One entry per caller line: when it arrived, first model text, first guarded sentence. */
   timings: ServerTurnTiming[];
   ended: boolean;
@@ -163,6 +165,11 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
     if (!isButtonName(name)) return { content: JSON.stringify({ error: "no such button" }), isError: true };
     const result: ButtonResult = await press(callId, name, input);
     const rxId = (input as { rx_id?: unknown })?.rx_id;
+    if (name === "note_for_pharmacist" && result.ok && (input as { kind?: unknown })?.kind === "side_effect") {
+      // The side effect is recorded: later lines aren't side-effect answers any more.
+      const call = state.get(callId);
+      if (call) call.awaitingSideEffect = undefined;
+    }
     if (name === "request_refill" && result.ok && typeof rxId === "string") {
       if (REFILL_GOING_AHEAD.has((result.output as { state: string }).state)) refilled.push(rxId);
     }
@@ -194,6 +201,7 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
     yield* speak(callId, question);
     pushSaid(call, question);
     call.awaitingSideEffect = rxId;
+    call.sideEffectLinesLeft = 2;
   }
 
   /** One fixed line, through the guard, into the history as the agent's own words. */
@@ -268,9 +276,11 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
         return;
       }
 
-      if (call.awaitingSideEffect) {
-        call.notes.push(sideEffectNote(call.awaitingSideEffect));
-        call.awaitingSideEffect = undefined;
+      if (call.awaitingSideEffect && (call.sideEffectLinesLeft ?? 0) > 0) {
+        const followUp = call.sideEffectLinesLeft === 1;
+        call.notes.push(followUp ? sideEffectFollowUpNote(call.awaitingSideEffect) : sideEffectNote(call.awaitingSideEffect));
+        call.sideEffectLinesLeft = (call.sideEffectLinesLeft ?? 1) - 1;
+        if (call.sideEffectLinesLeft === 0) call.awaitingSideEffect = undefined;
       }
       pushUser(call, text);
       const system = `${systemPrompt({ pharmacyName, direction: call.direction })}\n\n${call.callNote}`.trim();
@@ -350,8 +360,19 @@ function forModel(result: ButtonResult): Record<string, unknown> {
 function sideEffectNote(rxId: RxId): string {
   return [
     `The caller is answering the side-effect question about rx_id ${rxId}.`,
-    `If they mention anything at all, press note_for_pharmacist with kind side_effect, rx_id ${rxId}, and what they noticed and since when, in their own words.`,
-    `Then say: "${SIDE_EFFECT_PASSED_ON}" If they noticed nothing, carry on.`,
+    "If they mention anything at all, find out when it started and whether it's mild or severe, asking once if they haven't said.",
+    `Then press note_for_pharmacist with kind side_effect, rx_id ${rxId}: what they noticed, since when, and how bad, in their own words.`,
+    `Then say: "${SIDE_EFFECT_PASSED_ON}" No advice: don't say what it might mean or what to do about it.`,
+    "If they noticed nothing, carry on.",
+  ].join(" ");
+}
+
+/** The caller's answer to the one follow-up question. */
+function sideEffectFollowUpNote(rxId: RxId): string {
+  return [
+    `The caller is answering your side-effect follow-up about rx_id ${rxId}.`,
+    `If they mentioned a side effect, press note_for_pharmacist with kind side_effect, rx_id ${rxId}: what they noticed, since when, and how bad, in their own words, with anything they couldn't say left out.`,
+    `Then say: "${SIDE_EFFECT_PASSED_ON}" No advice.`,
   ].join(" ");
 }
 
