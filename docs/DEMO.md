@@ -4,6 +4,20 @@ Kept by the demo tie-in agent. One row per step of the 3-minute script, walked i
 
 Legend: ✅ works · ⚠️ works with a fallback · ❌ broken (owner fixing it)
 
+## Passes 7 to 9 (about 14:37 to 14:50 EST, main 0e14bea: s4-cant-say and pg-latency)
+
+Clean passes in a row: **0 of 3** (pass 7 was clean, pass 8 broke). Screenshots: `results/demo/2026-11-21T1440-pass7-9/`.
+
+Clean-pass rule (top session, 14:35): a pass is clean without a ready day if the agent's readiness line is honest and not blocked or cut off. The Overnight spec fallback counts as passing.
+
+| Step | Status | Note |
+|---|---|---|
+| Ready day ("ready Thursday once it's approved") | optional, waiting on Nishant (ready_label contract ok) | Needs a `ready_label` from request_refill/order_status (lib/contract). The review fixer has the plan; it needs Nishant's own ok |
+
+- **Pass 7 ✅ clean.** Live call with 0 S4 blocks; "Once they approve it, we'll let you know when it's ready." and "I don't know yet when it will be ready… so I can't give you a pickup or delivery time." Six agent turns, 27 s of server time; Answer to Approve took 92 s including my tool overhead. Approve ✅, phone approved ✅, hijack card + batch 0 broken / 9 caught ✅, Overnight fallback ✅, Calls "Record chain verified, 46 entries" ✅.
+- **Pass 8 ❌: stale call memory after Reset.** Pass 7's call wasn't hung up; after Reset demo the new call is c_0001 again and the agent said "You're already verified on this call…", then tried to list Sam's medicines (S1 blocked it: the lock held). Cause: `lib/agent/driver.ts:229` `joinCall` keeps state for a reused call id, and only `endCall` clears it; Reset demo doesn't. URGENT to ROLE-2 (reset route), REQUEST to ROLE-1 (driver). Workaround until fixed: **hang up before Reset demo**.
+- **Pass 9 ❌ (hung up first, so the call started fresh: cause confirmed).** S4 blocked a new honest wording, "I don't have a ready time yet." Haiku phrases this differently every run; asked the review fixer for a general rule for negated or unknown times (URGENT to ROLE-4).
+
 ## Pass 6 (about 14:25 EST, main 5a50196): one break left
 
 Screenshots: `results/demo/2026-11-21T1425-pass6/walkthrough.md`. Not clean (0 of 3), because of step 2's ready day only.
