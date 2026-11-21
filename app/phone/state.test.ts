@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { StreamEvent } from "@/lib/contract";
-import { codeIn, initialPhone, phoneReducer, type PhoneAction, type PhoneState } from "./state";
+import { initialPhone, phoneReducer, type PhoneAction, type PhoneState } from "./state";
 
 const play = (actions: PhoneAction[], from: PhoneState = initialPhone()) => actions.reduce(phoneReducer, from);
 const ev = (event: StreamEvent): PhoneAction => ({ type: "event", event });
@@ -31,7 +31,9 @@ describe("1.4: the phone's state, from events", () => {
       { kind: "line", who: "agent", text: "Hello." },
       { kind: "line", who: "caller", text: "Hi." },
     ]);
-    expect(s).toMatchObject({ code: "112358", status: "Approved, ready Thursday" });
+    expect(s).toMatchObject({ message: "Your pharmacy verification code is 112358.", status: "Approved, ready Thursday" });
+    // The code itself comes only from the phone's own code route, never from the shared stream.
+    expect(s.code).toBeUndefined();
   });
 
   it("shows a blocked line with its rule, and the replacement as the agent's next line", () => {
@@ -53,9 +55,9 @@ describe("1.4: the phone's state, from events", () => {
     expect(play([{ type: "code", code: "246810" }], s).code).toBe("246810");
   });
 
-  it("finds six-digit codes only", () => {
-    expect(codeIn("Your code is 112358.")).toBe("112358");
-    expect(codeIn("Call 555-0101")).toBeUndefined();
+  it("forgets the fetched code when a new code is sent", () => {
+    const s = play([{ type: "connected", callId: "c_1" }, { type: "code", code: "246810" }, ev({ type: "phone", callId: "c_1", kind: "code", text: "A new code was sent." })]);
+    expect(s.code).toBeUndefined();
   });
 
   it("starts clean when dialling, and ends on hang up", () => {
