@@ -15,6 +15,11 @@ const REPLACEMENT: Record<SpeechRule, string> = { ...GUARD_REPLACEMENTS, S4: S4_
 
 const CONDITIONAL = /\b(once|after|if|when|until|as soon as|pending|waiting|needs to|need to|will need|pharmacist will|not|isnt|hasnt|havent|wont|cant|cannot)\b/;
 const COMPLETION = /\b(approved|ready|sorted|on its way|on the way|delivered|filled)\b/;
+// A completion word is a promise only when it's about the refill or order. These uses are about
+// the caller or the past ("whenever you're ready", "last filled 27 days ago"), and are dropped first.
+const NOT_A_PROMISE = /\b(you|youre|you are|are you|were|we are|im|i am|whenever youre|when youre) ready\b|\blast filled\b/g;
+// What a completion promise is about. Drug names are added per call.
+const ORDER_SUBJECT = /\b(refill|refills|prescription|prescriptions|order|orders|medication|medications|medicine|medicines|pills|tablets|capsules|delivery|renewal|it|its|itll|they|theyre|everything|all set)\b/;
 const BOOKING = /\b(booked|scheduled)\b/;
 const SENT = /\b(sent|requested|submitted)\b/;
 const DAYS = /\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/g;
@@ -67,13 +72,20 @@ async function checkS3(store: Store, call: Call, sentence: string): Promise<Chec
   return missing.length > 0 ? { rule: "S3", why: missing.join(";") } : null;
 }
 
-function checkS4(sentence: string, record: RecordEntry[], bookedLabels: string[]): Check {
+/** A completion promise: "approved", "ready" and so on, about the refill or order. */
+export function isCompletionPromise(sentence: string, drugNames: string[]): boolean {
+  const w = words(sentence).replace(NOT_A_PROMISE, " ");
+  if (!COMPLETION.test(w)) return false;
+  return ORDER_SUBJECT.test(w) || drugNames.some((d) => w.includes(words(d)));
+}
+
+function checkS4(sentence: string, record: RecordEntry[], bookedLabels: string[], drugNames: string[]): Check {
   const w = words(sentence);
   if (CONDITIONAL.test(w)) return null;
   const results = record.filter((e) => e.kind === "button").map((e) => ({ e, r: resultOf(e) }));
   const approved = record.some((e) => e.kind === "approval" && (e.output as { status?: string })?.status === "approved");
 
-  if (COMPLETION.test(w) && !approved) return { rule: "S4", why: "completion without approval" };
+  if (isCompletionPromise(sentence, drugNames) && !approved) return { rule: "S4", why: "completion without approval" };
 
   if (BOOKING.test(w)) {
     const booked = results.some(({ e, r }) => e.button === "set_delivery" && r?.ok && (r.output as { ok?: boolean }).ok);
@@ -129,7 +141,7 @@ export function createSpeechGuard({ store, emit = () => {} }: { store: Store; em
           checkS1(call, sentence, tokens, said, record) ??
           checkS2(call, sentence, tokens, said) ??
           (await checkS3(store, call, sentence)) ??
-          checkS4(sentence, record, bookedLabels);
+          checkS4(sentence, record, bookedLabels, tokens.filter((t) => t.kind === "drug").map((t) => t.text));
 
         if (found?.rule === "S3" && call.lockedPatientId) {
           const item = await store.addQueueItem({

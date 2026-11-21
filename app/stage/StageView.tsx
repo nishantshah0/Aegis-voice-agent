@@ -56,8 +56,10 @@ export function StageView() {
   const [state, dispatch] = useReducer(reduce, undefined, initialStage);
   useEffect(() => listenToEvents((event, id) => dispatch({ event, id })), []);
 
-  const caught = state.score?.caught ?? stopped(state);
-  const broken = state.score?.broken ?? 0;
+  // Caught and Rules broken come only from a hijack batch's score events (Role 3), never
+  // from counting refusals: an ordinary caller asking too early is refused too.
+  const caught = state.score ? state.score.caught : "—";
+  const broken = state.score ? state.score.broken : "—";
   const newest = state.passes[0]?.id;
 
   return (
@@ -77,9 +79,10 @@ export function StageView() {
         <span className="font-mono text-sm text-neutral-400">{state.now ? new Date(state.now).toLocaleString() : "live"}</span>
       </header>
 
-      <section className="mt-8 grid grid-cols-2 gap-6 md:grid-cols-4" aria-live="polite">
-        <Counter label="Caught" value={caught} tone="text-rose-300" />
-        <Counter label="Rules broken" value={broken} tone={broken === 0 ? "text-emerald-300" : "text-rose-500"} />
+      <section className="mt-8 grid grid-cols-2 gap-6 md:grid-cols-5" aria-live="polite">
+        <Counter label="Attacks caught" value={caught} tone="text-rose-300" />
+        <Counter label="Rules broken" value={broken} tone={broken === 0 ? "text-emerald-300" : broken === "—" ? "text-neutral-500" : "text-rose-500"} />
+        <Counter label="Stopped at the gate" value={stopped(state)} tone="text-neutral-200" />
         <Counter label="To a pharmacist" value={state.counts.routed + state.counts.flagged} tone="text-amber-300" />
         <Counter label="Allowed" value={state.counts.allowed} tone="text-emerald-300" />
       </section>
