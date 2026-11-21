@@ -26,6 +26,7 @@ scripts/channel.sh inbox <ROLE>    # only NEW messages for your role since you l
 scripts/channel.sh for <ROLE>      # the last 15 messages for your role, read or not
 scripts/channel.sh read 20         # the last 20 messages for everyone
 scripts/channel.sh watch [ROLE]    # live feed in a terminal, new messages as they arrive
+scripts/channel.sh waiting <ROLE> # what you still owe others, and what you're waiting on
 scripts/channel.sh stopped         # true if a human has said STOP
 ```
 
@@ -41,7 +42,7 @@ scripts/channel.sh stopped         # true if a human has said STOP
 
 **Watch it live:** keep `scripts/channel.sh watch` open in a terminal to see every agent claim, decide, object and hand off as it happens.
 
-**To watch the agents talk,** run `node scripts/channel-view.mjs` and open http://localhost:4747. It's a live page of the channel that runs on your machine and reads it with your own `gh` login, so nothing is published. It shows what each role is doing, who talks to whom, requests still waiting for an answer, and every DECISION.
+**Watch it on the build board:** run `node scripts/board.mjs` and open http://localhost:4747. It runs on your machine and reads everything with your own `gh`, `entire` and git logins, so nothing is published. It shows each role's latest status, every task from CLAIM to MERGED, Trails with their branches, findings and AI commits, which AI session wrote each commit and what it changed (Graph), the Brain memories every agent reads, requests still waiting for an answer, and who talks to whom.
 
 Every message starts with a header, so anyone can scan the channel:
 
@@ -75,6 +76,29 @@ Affects: Role 1's phone page and Role 4's stage view listen on /api/events.
 **Code talk lives on Entire.** Anything about a specific change (a bug, a question about a diff, a suggested fix) goes on that change's Trail as a **finding**: `entire trail finding add`. Agents are allowed to post findings, and the owner answers with `entire trail finding reply`, then `resolve` or `apply`. The GitHub channel only carries claims, status, requests, handoffs and STOP.
 
 **Why not Entire's Trail comments:** Entire blocks AI agents from posting Trail comments ("trail comments are for people"), and we respect that. So agents talk on GitHub, humans can also steer from Trail #2, and Entire does what it's built for: a Trail per task with agent review, shared Brain memory, and session handover.
+
+## Posting so the board reads right
+
+Everything on the channel shows up on the **build board** (`node scripts/board.mjs`, then http://localhost:4747), which is what we show the judges. The board, `inbox` and `waiting` all read the message header, so these rules matter:
+
+1. **Always post with `scripts/channel.sh say`.** Never type a header by hand or edit a message after posting.
+2. **The summary is one line, under about 100 characters, and starts with the task number:** `2.5: approver now comes from the Auth0 token`. Say what changed or what you need, not "working on stuff". Put the detail on the lines below: branch, `Trail #<n>`, files, checks run with their results, what's next.
+3. **Write `Trail #<n>` in every CLAIM, HANDOFF, REVIEW and MERGED,** and in any message about that task. That's how the board ties messages, branches, commits and findings to the right Trail.
+4. **Address the role that has to act.** REQUEST, REPLY, OBJECT and HANDOFF go to one role. ALL is only for CLAIM, STATUS, DECISION and MERGED.
+5. **Close every loop with a REPLY addressed to the role that asked,** even when the answer is "done" or "no longer needed". Requests stay under "Waiting on someone" until the asked role replies to the asker. Run `scripts/channel.sh waiting <n>` each cycle and answer everything you owe before new work.
+6. **DECISION:** the summary is the choice. Details say `Why:`, `Rejected:` and `Affects:`. **OBJECT** goes to the role that made the decision and says what you'd do instead.
+7. **One STATUS every cycle, even when idle** (`idle: waiting on ROLE-4 for task 0`). Your card on the board shows your latest STATUS or CLAIM.
+8. **Commit only from a recorded AI session,** so every commit carries an `Entire-Checkpoint` trailer and counts as AI-linked on the board. Never strip the trailer.
+9. **Never post** keys, real people's details, invented numbers or results that didn't come from a real run.
+
+Example HANDOFF:
+
+```
+[ROLE-2 · HANDOFF → ROLE-4] 2.5: Auth0 phone approval check is ready to merge
+Trail #7 · branch role-2/auth0-approval · files app/api/queue/, lib/auth/
+Checks: typecheck pass, lint pass, npm test pass (9 files, 41 tests)
+Next: 2.6 hosting
+```
 
 ## The loop every agent runs
 
