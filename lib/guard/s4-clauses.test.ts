@@ -88,6 +88,10 @@ const FALSE_APPROVALS = [
   "I've booked it for you.",
   "I'll confirm it's ready.",
   "Whether you like it or not, it's approved.",
+  "Your code is confirmed and your refill is approved.",
+  "Your date of birth and your refill are confirmed.",
+  "Your order and date of birth are confirmed.",
+  "It's done.",
   "It's filled and when it can be delivered is up to you.",
   "I don't have a ready time it's ready now.",
   "There's no ready time yet but it's approved.",
@@ -139,6 +143,12 @@ const HONEST = [
   "I'll see if it's approved yet.",
   "I'm able to check if your refill is ready.",
   "I can book it for you or order a refill.",
+  // Identity subjects are verification, not the order (demo pass 14).
+  "Your code and date of birth are confirmed.",
+  "Your code and date of birth are both confirmed.",
+  "Your name and date of birth are verified.",
+  "Your date of birth is confirmed.",
+  "Your details match.",
   // A ready time it doesn't have is not a promise, however the model words it (demo pass 9).
   "I don't have a ready time yet.",
   "We don't have a ready date for it yet.",
