@@ -35,6 +35,15 @@ const FALSE_APPROVALS = [
   "If you like, it's approved.",
   "When you call back, your refill is ready.",
   "Once a pharmacist approves it, it'll be ready, and it's already on its way.",
+  // Same clause, a condition or negation that doesn't govern the completion word (re-review).
+  "Not to worry it's approved.",
+  "No need to wait it's approved.",
+  "You won't believe it's already approved.",
+  "If you can believe it the pharmacist approved it.",
+  "Cant complain it's all approved.",
+  "Nothing is pending it's approved.",
+  "When I checked it was approved.",
+  "After all that it's approved.",
 ];
 
 const HONEST = [
@@ -45,6 +54,11 @@ const HONEST = [
   "I'm ready when you are.",
   "Once a pharmacist approves it, it'll be ready.",
   "After the pharmacist approves it, it'll be on its way.",
+  "It isn't approved yet.",
+  "It's waiting for a pharmacist to approve.",
+  "It hasn't been filled yet.",
+  "It won't be ready until a pharmacist approves it.",
+  "As soon as your refill is approved, I'll text you.",
 ];
 
 describe("S4: a conditional only excuses its own clause", () => {
