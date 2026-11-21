@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createListener, type Listener, type ListenerMode } from "@/lib/voice/listener";
 import { createSilenceWatch } from "@/lib/voice/silence";
+import { createServerVoice } from "@/lib/voice/server-voice";
 import { createBrowserVoice, type Voice } from "@/lib/voice/speaker";
 import type { TranscriptItem } from "./state";
 
@@ -15,6 +16,8 @@ type VoiceOptions = {
   on: boolean;
   mode: ListenerMode;
   callId?: string;
+  /** The call's phone token: the ElevenLabs speak route needs it. */
+  phoneToken?: string;
   transcript: TranscriptItem[];
   onTurn: (text: string) => void;
   onProblem: (text: string) => void;
@@ -26,7 +29,7 @@ type VoiceOptions = {
 
 // Voice on the phone (task 1.5): the agent's lines are spoken as they arrive, the
 // microphone is off while it speaks, and the caller's turn ends after 600 ms of silence.
-export function useVoice({ on, mode, callId, transcript, onTurn, onProblem, onSpeechStart, onSilence }: VoiceOptions) {
+export function useVoice({ on, mode, callId, phoneToken, transcript, onTurn, onProblem, onSpeechStart, onSilence }: VoiceOptions) {
   const [hearing, setHearing] = useState("");
   const [speaking, setSpeaking] = useState(false);
   const listener = useRef<Listener | undefined>(undefined);
@@ -60,19 +63,19 @@ export function useVoice({ on, mode, callId, transcript, onTurn, onProblem, onSp
       },
       onProblem: (t) => problemRef.current(t),
     });
-    const v = createBrowserVoice({
-      onSpeaking: (s) => {
-        setSpeaking(s);
-        if (s) {
-          speechStartRef.current?.();
-          silence.cancel();
-          l.pause();
-        } else {
-          l.resume();
-          if (watching) silence.arm();
-        }
-      },
-    });
+    const onSpeaking = (s: boolean) => {
+      setSpeaking(s);
+      if (s) {
+        speechStartRef.current?.();
+        silence.cancel();
+        l.pause();
+      } else {
+        l.resume();
+        if (watching) silence.arm();
+      }
+    };
+    // ElevenLabs through the server (1.5 part 2); Chrome's own voice for any line it can't speak.
+    const v = createServerVoice({ callId, token: phoneToken, onSpeaking, fallback: createBrowserVoice() });
     listener.current = l;
     voice.current = v;
     l.start(mode);
@@ -82,7 +85,7 @@ export function useVoice({ on, mode, callId, transcript, onTurn, onProblem, onSp
       v.stop();
       listener.current = voice.current = undefined;
     };
-  }, [on, mode, callId]);
+  }, [on, mode, callId, phoneToken]);
 
   // Speak only lines that arrive after voice was turned on.
   useEffect(() => {
