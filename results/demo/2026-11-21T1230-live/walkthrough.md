@@ -1,6 +1,6 @@
 # Demo walkthrough: first run-through with the live agent (2026-11-21, 12:30 EST)
 
-main ef144a5 plus `role-2/live-agent` (Trail #41) and `role-1/agent-sdk-live-fixes` (Trail #43), neither merged yet. Local server on port 3001 with `LIVE_AGENT=1` on claude-haiku-5-5, signed in as the test pharmacist. Typed box, no voice. Made-up data only (Sam Rivera is from the seed). Agent usage for the whole call: 5 turns, 11 model calls, 1,739 output tokens (`results/agent-usage.jsonl`).
+main ef144a5 plus `role-2/live-agent` (Trail #41) and `role-1/agent-sdk-live-fixes` (Trail #43), neither merged yet. Local server on port 3001 with `LIVE_AGENT=1` on claude-haiku-5-5, signed in as the test pharmacist. Typed box, no voice. Made-up data only (Sam Rivera is from the seed). Agent usage for the whole call: 5 turns, 11 model calls, 1,739 output tokens (read from the server's usage log during the run; those log lines weren't kept).
 
 | Step | | Screenshot |
 |---|---|---|
