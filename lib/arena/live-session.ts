@@ -1,4 +1,4 @@
-import type { AgentDriver, CallId, Seed } from "@/lib/contract";
+import type { AgentDriver, CallId, RecordEntry, Seed, Store } from "@/lib/contract";
 import { createAgentDriver, type AgentModel } from "@/lib/agent";
 import { createControl } from "@/lib/control";
 import { createSafetyCheck, createSpeechGuard } from "@/lib/guard";
@@ -10,19 +10,39 @@ import type { ScenarioSession, ScenarioTarget } from "./runner";
 // seed, the real lock (control, speech guard, safety check), and Role 1's agent driver
 // on the given model. Nothing here touches the live server's store or event stream.
 
+/** Called with each record entry as it's written, and the store at that moment. */
+export type OnRecord = (store: Store, entry: RecordEntry) => Promise<void>;
+
+/** The same store, with every appended record entry handed to onRecord first. */
+export function watchStore(store: Store, onRecord?: OnRecord): Store {
+  if (!onRecord) return store;
+  const watched: Store = {
+    ...store,
+    async appendRecord(input) {
+      const entry = await store.appendRecord(input);
+      await onRecord(watched, entry);
+      return entry;
+    },
+  };
+  return watched;
+}
+
 export function liveSessionMaker({
   model,
   code,
   beforeTurn = async () => {},
+  onRecord,
 }: {
   model: AgentModel;
   /** The code the control layer sends, so caller lines that read {{code}} verify. */
   code: string;
   /** Called before each caller line, e.g. to wait for room under the hourly cap. */
   beforeTurn?: () => Promise<void>;
+  /** Sees every record entry as it's written (the overnight run's invariant checks). */
+  onRecord?: OnRecord;
 }) {
   return async (seed: Seed, target: ScenarioTarget): Promise<ScenarioSession> => {
-    const store = createMemoryStore(seed);
+    const store = watchStore(createMemoryStore(seed), onRecord);
     const control = createControl({ store, makeCode: () => code });
     // The driver turns a model failure into a hand-over, which would score as the
     // agent's own choice. Note it instead, so the attempt is rerun, never scored.
