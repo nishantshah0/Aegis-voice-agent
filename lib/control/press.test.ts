@@ -173,6 +173,44 @@ describe("read-only buttons 4 to 7", () => {
 });
 
 describe("request_refill: rule cards, strictest wins, lanes", () => {
+  it("records signer authorization and returns the committed result on an invocation retry", async () => {
+    const callId = await verified("sam");
+    const context = {
+      invocationId: "tool-synthetic-1",
+      tracekit: { runId: "run-synthetic", decisionId: "decision-synthetic", outcome: "allow" as const, ruleIds: [] },
+    };
+    const first = await control.press(callId, "request_refill", { rx_id: IDS.samConcerta }, context);
+    const retried = await control.press(callId, "request_refill", { rx_id: IDS.samConcerta }, context);
+
+    expect(retried).toEqual(first);
+    expect(await store.queue()).toHaveLength(1);
+    const calls = (await store.listRecord(callId)).filter((entry) => entry.button === "request_refill");
+    expect(calls).toHaveLength(1);
+    expect((calls[0].output as { internal: { tracekit?: unknown } }).internal.tracekit).toMatchObject({
+      runId: "run-synthetic",
+      invocationId: "tool-synthetic-1",
+      decisionId: "decision-synthetic",
+      outcome: "allow",
+    });
+  });
+
+  it("records a signer denial as a blocked press without executing the button", async () => {
+    const callId = await verified("sam");
+    const result = await control.press(callId, "request_refill", { rx_id: IDS.samConcerta }, {
+      invocationId: "tool-synthetic-denied",
+      tracekit: { runId: "run-synthetic", decisionId: "decision-synthetic", outcome: "deny", ruleIds: ["policy-rule"] },
+    });
+
+    expect(result).toMatchObject({ ok: false, error: "refused" });
+    expect(await store.queue()).toHaveLength(0);
+    expect((await store.listRecord(callId)).at(-1)).toMatchObject({
+      kind: "button",
+      button: "request_refill",
+      decision: "blocked",
+      output: { internal: { tracekit: { outcome: "deny", invocationId: "tool-synthetic-denied" } } },
+    });
+  });
+
   it("Sam's Concerta: rule 4 routes it to Quick check, waiting for a pharmacist", async () => {
     const callId = await verified("sam");
     const r = await control.press(callId, "request_refill", { rx_id: IDS.samConcerta });
