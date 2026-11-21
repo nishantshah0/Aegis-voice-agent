@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { poolConfig } from "./pool";
+import { poolConfig } from "./postgres";
 
 describe("poolConfig (2.7, Tiger Data)", () => {
   it("always verifies the server certificate, and drops sslmode from the URL so pg can't override that", () => {
