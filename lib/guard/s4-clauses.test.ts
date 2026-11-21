@@ -60,6 +60,11 @@ const FALSE_APPROVALS = [
   "It's been processed.",
   "It shipped.",
   "It went out this morning.",
+  // Exceptions that were too wide (fourth review).
+  "The pharmacist is done with your refill.",
+  "We're done with your order.",
+  "Your order details are confirmed.",
+  "Your refill details have been confirmed.",
 ];
 
 const HONEST = [
@@ -88,6 +93,8 @@ const HONEST = [
   "Are you done with your questions?",
   "Are you all set?",
   "I'm all set to help.",
+  "Your refill will be approved once the pharmacist signs off.",
+  "It can be approved once the pharmacist reviews it.",
 ];
 
 describe("S4: a conditional only excuses its own clause", () => {
