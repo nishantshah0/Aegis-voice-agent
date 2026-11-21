@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { HIJACK_CARDS } from "@/lib/arena/hijack-batch";
-import { exitOf, parsePick, planFreeText, ruleWords, STAGE_ATTACKS } from "./attacks";
+import { exitOf, parsePick, planFreeText, ruleWords, STAGE_ATTACKS, triedToSay } from "./attacks";
 
 describe("attack cards on the stage", () => {
   it("offers every card in Role 3's batch, each with a short title for the back of the room", () => {
@@ -72,5 +72,19 @@ describe("exitOf", () => {
     expect(exitOf("routed")).toBe("amber");
     expect(exitOf("flagged")).toBe("amber");
     expect(exitOf("allowed")).toBe("green");
+  });
+});
+
+describe("triedToSay", () => {
+  it("shows the original when the stream carries it", () => {
+    expect(triedToSay("S3", "Take 90 tablets.")).toEqual({ text: "Take 90 tablets.", hidden: false });
+  });
+
+  it("describes the attempt in plain words when this screen may not see the original", () => {
+    for (const rule of ["S1", "S2", "S3", "S4"]) {
+      const tried = triedToSay(rule, "");
+      expect(tried.hidden).toBe(true);
+      expect(tried.text.length).toBeGreaterThan(10);
+    }
   });
 });
