@@ -70,6 +70,17 @@ const FALSE_APPROVALS = [
   "That's confirmed.",
   "That is confirmed.",
   "That's confirmed, your refill is on its way.",
+  "I don't know why you'd worry, it's ready.",
+  "It'll be ready before it's approved.",
+  "Before it's approved, it's ready.",
+  // The identity clause can't excuse a bare "that's confirmed" when the order is named too.
+  "Your refill and your date of birth, that's confirmed.",
+  "Your prescription, your date of birth: that's confirmed.",
+  "Your Concerta and your date of birth, that's confirmed.",
+  // Uncertainty excuses only the word it governs, not the rest of the clause (regression on 8af6507).
+  "Not sure when you'll pick it up it's approved.",
+  "I'm not sure if you heard it's approved.",
+  "I don't know when you'll be home it's ready.",
 ];
 
 const HONEST = [
@@ -101,6 +112,11 @@ const HONEST = [
   "Your refill will be approved once the pharmacist signs off.",
   "It can be approved once the pharmacist reviews it.",
   "Your date of birth matches, that's confirmed.",
+  // Honest lines from the live demo call (URGENT, demo step 2).
+  "A pharmacist needs to check it before it is approved.",
+  "I'm sorry, I don't know when it will be ready.",
+  "I'm not sure when it will be ready.",
+  "I'm not sure if it's ready yet.",
 ];
 
 describe("S4: a conditional only excuses its own clause", () => {
