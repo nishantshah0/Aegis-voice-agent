@@ -1,7 +1,10 @@
 import { getApprover, hasRole } from "@/lib/auth/session";
-import { fail, notBuilt, readObject } from "../../../_lib/http";
+import type { DecideResponse } from "@/lib/contract";
+import { emit } from "@/lib/events";
+import { fail, ok, readObject } from "../../../_lib/http";
+import { getStore } from "../../../_lib/runtime";
 
-// POST /api/queue/:id/decide { decision: "approve" | "deny", note? }
+// POST /api/queue/:id/decide { decision: "approve" | "deny", note? } → { item }
 // Needs a signed-in pharmacist. The approver always comes from the Auth0
 // session, never from the body. Until task 2.4, nobody is signed in, so this
 // always answers 401.
@@ -19,6 +22,13 @@ export async function POST(request: Request, ctx: RouteContext<"/api/queue/[id]/
   }
   if (note !== undefined && typeof note !== "string") return fail(400, "note must be a string when given");
 
-  void id; // store.decide(id, decision, approver, note) once task 4.2's store lands.
-  return notBuilt("store.decide waits on task 4.2 (store) and 2.4 (Auth0)");
+  const store = getStore();
+  const existing = (await store.queue()).find((q) => q.id === id);
+  if (!existing) return fail(404, "No such queue item");
+  if (existing.status !== "open") return fail(409, `Already ${existing.status}`);
+
+  const item = await store.decide(id, decision, approver, note);
+  emit({ type: "queue", item });
+  const res: DecideResponse = { item };
+  return ok(res);
 }

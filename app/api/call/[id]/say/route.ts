@@ -1,5 +1,6 @@
+import type { AgentEvent, CallSayResponse } from "@/lib/contract";
 import { fail, ok, readObject } from "../../../_lib/http";
-import { callExists, getDriver } from "../../../_lib/driver";
+import { getDriver, getStore } from "../../../_lib/runtime";
 
 const MAX_LINE = 2000;
 
@@ -8,13 +9,14 @@ const MAX_LINE = 2000;
 // caller's line in and returns what the driver produced for this turn.
 export async function POST(request: Request, ctx: RouteContext<"/api/call/[id]/say">) {
   const { id } = await ctx.params;
-  if (!callExists(id)) return fail(404, "No such call");
+  if (!(await getStore().getCall(id))) return fail(404, "No such call");
   const body = await readObject(request);
   const text = typeof body?.text === "string" ? body.text.trim() : "";
   if (!text) return fail(400, "Body must be { text: a non-empty string }");
   if (text.length > MAX_LINE) return fail(413, `text is longer than ${MAX_LINE} characters`);
 
-  const events = [];
+  const events: AgentEvent[] = [];
   for await (const event of getDriver().callerSays(id, text)) events.push(event);
-  return ok({ events });
+  const res: CallSayResponse = { events };
+  return ok(res);
 }
