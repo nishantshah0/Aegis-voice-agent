@@ -26,7 +26,7 @@ export function Phone() {
   const say = (text: string) => {
     if (!state.callId) return;
     timing.current.callerStopped();
-    void run(() => phoneApi.say(state.callId!, text));
+    void run(() => phoneApi.say(state.callId!, text, state.phoneToken));
   };
 
   // Turn timing: the first agent line after the caller stopped.
@@ -54,13 +54,13 @@ export function Phone() {
   useEffect(() => {
     if (!state.callId || !state.message || state.code) return;
     let live = true;
-    phoneApi.code(state.callId).then((r) => {
+    phoneApi.code(state.callId, state.phoneToken).then((r) => {
       if (live && r.ok && r.value.code) dispatch({ type: "code", code: r.value.code });
     });
     return () => {
       live = false;
     };
-  }, [state.callId, state.message, state.code]);
+  }, [state.callId, state.phoneToken, state.message, state.code]);
 
   async function run(step: () => Promise<{ ok: boolean; problem?: string }>) {
     setBusy(true);
@@ -73,7 +73,9 @@ export function Phone() {
     run(async () => {
       const callId = state.callId!;
       dispatch({ type: "connected", callId });
-      return phoneApi.answer(callId);
+      const answered = await phoneApi.answer(callId);
+      if (answered.ok) dispatch({ type: "connected", callId, phoneToken: answered.value.phoneToken });
+      return answered;
     });
 
   const dial = () =>
@@ -81,15 +83,18 @@ export function Phone() {
       dispatch({ type: "dial" });
       const started = await phoneApi.dial();
       if (!started.ok) return started;
-      dispatch({ type: "connected", callId: started.value.callId });
-      return phoneApi.answer(started.value.callId);
+      const { callId, phoneToken } = started.value;
+      dispatch({ type: "connected", callId, phoneToken });
+      // Plays the greeting. The call already has its token from start, so a 409 here only means no greeting.
+      await phoneApi.answer(callId, phoneToken);
+      return { ok: true };
     });
 
   const hangUp = () =>
     run(async () => {
       const callId = state.callId;
       dispatch({ type: "hung_up" });
-      return callId ? phoneApi.end(callId) : { ok: true };
+      return callId ? phoneApi.end(callId, state.phoneToken) : { ok: true };
     });
 
   function send(e: FormEvent) {

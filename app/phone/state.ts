@@ -13,6 +13,8 @@ export type PhoneState = {
   /** idle → ringing (outbound) or dialling (inbound) → in_call → ended */
   mode: "idle" | "ringing" | "dialling" | "in_call" | "ended";
   callId?: string;
+  /** The call's phone token, from start or the first answer. Say, code and end need it. */
+  phoneToken?: string;
   /** The ring's own text, e.g. "Maple Street Pharmacy is calling". */
   ringText?: string;
   transcript: TranscriptItem[];
@@ -29,7 +31,7 @@ export type PhoneState = {
 export type PhoneAction =
   | { type: "event"; event: StreamEvent }
   | { type: "dial" }
-  | { type: "connected"; callId: string }
+  | { type: "connected"; callId: string; phoneToken?: string }
   | { type: "code"; code: string }
   | { type: "problem"; text: string }
   | { type: "hung_up" };
@@ -72,7 +74,7 @@ export function phoneReducer(state: PhoneState, action: PhoneAction): PhoneState
     case "dial":
       return { ...initialPhone(), mode: "dialling" };
     case "connected":
-      return { ...state, mode: "in_call", callId: action.callId, problem: undefined };
+      return { ...state, mode: "in_call", callId: action.callId, phoneToken: action.phoneToken ?? state.phoneToken, problem: undefined };
     case "code":
       return { ...state, code: action.code };
     case "problem":
