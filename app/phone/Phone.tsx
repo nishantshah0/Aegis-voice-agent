@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useReducer, useRef, useState, type FormEvent } from "react";
+import type { StreamEvent } from "@/lib/contract";
 import { listenToEvents } from "@/lib/events/client";
 import type { ListenerMode } from "@/lib/voice/listener";
 import { TURN_TARGET_MS, createPhoneTiming } from "@/lib/voice/timing";
 import { phoneApi } from "./api";
-import { RULE_LABEL, initialPhone, phoneReducer, type PhoneState, type TranscriptItem } from "./state";
+import { RULE_LABEL, initialPhone, phoneListener, phoneReducer, type PhoneState, type TranscriptItem } from "./state";
 import { useVoice } from "./useVoice";
 
 // The patient's phone (task 1.4). Everything on screen comes from /api/events;
@@ -52,7 +53,15 @@ export function Phone() {
     },
   });
 
-  useEffect(() => listenToEvents((event) => dispatch({ type: "event", event })), []);
+  // In a call, the phone listens on its own call's stream with its token: only that stream
+  // carries the call's lines (Trail #19). Before that, the plain stream, for rings.
+  const listener = phoneListener(state);
+  const listenCall = listener?.callId;
+  const listenToken = listener?.token;
+  useEffect(() => {
+    const onEvent = (event: StreamEvent) => dispatch({ type: "event", event });
+    return listenCall && listenToken ? listenToEvents(onEvent, { callId: listenCall, token: listenToken }) : listenToEvents(onEvent);
+  }, [listenCall, listenToken]);
 
   // The code text may hold only "a code was sent": then the phone asks for its own code.
   useEffect(() => {
@@ -78,7 +87,11 @@ export function Phone() {
       const callId = state.callId!;
       dispatch({ type: "connected", callId });
       const answered = await phoneApi.answer(callId);
-      if (answered.ok) dispatch({ type: "connected", callId, phoneToken: answered.value.phoneToken });
+      if (answered.ok) {
+        dispatch({ type: "connected", callId, phoneToken: answered.value.phoneToken });
+        // The opener and the code ran inside the answer request, before the call's stream connected.
+        dispatch({ type: "opening", events: answered.value.events ?? [] });
+      }
       return answered;
     });
 
@@ -89,8 +102,9 @@ export function Phone() {
       if (!started.ok) return started;
       const { callId, phoneToken } = started.value;
       dispatch({ type: "connected", callId, phoneToken });
-      // Plays the greeting. The call already has its token from start, so a 409 here only means no greeting.
-      await phoneApi.answer(callId, phoneToken);
+      // Plays the greeting, which comes back in the response (it runs before the call's stream connects).
+      const answered = await phoneApi.answer(callId, phoneToken);
+      if (answered.ok) dispatch({ type: "opening", events: answered.value.events ?? [] });
       return { ok: true };
     });
 
