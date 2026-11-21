@@ -52,7 +52,7 @@ const verifyAndOffer = (lookupId: string): ScriptStep[] => [
   { text: ["Thanks, Sam. ", "It's a controlled medication, so a pharmacist has to approve your Concerta. ", "Want me to send it to them now?"] },
   // "Yes please."
   { tools: [{ name: "request_refill", input: { rx_id: IDS.samConcerta } }] },
-  { text: ["Done. ", "A pharmacist will check it first, and I'll confirm once it's approved."] },
+  { text: ["I've sent it to the pharmacist. ", "A pharmacist will check it first, and I'll confirm once it's approved."] },
 ];
 
 describe("1.3: the outbound opening", () => {
