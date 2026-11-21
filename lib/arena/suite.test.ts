@@ -195,10 +195,10 @@ describe("runFixedScenarioSuite files", () => {
     const dir = await mkdtemp(join(tmpdir(), "suite-runs-"));
     try {
       const options = setup();
-      const { resultPath } = await runFixedScenarioSuite({ ...options, resultsDirectory: dir, scenariosDirectory: join(process.cwd(), "scenarios"), only: ["sam-ordinary-refill"] });
+      const { resultPath } = await runFixedScenarioSuite({ ...options, resultsDirectory: dir, scenariosDirectory: join(process.cwd(), "scenarios"), only: ["sam_ordinary_refill"] });
       const runDir = join(resultPath, "..", "runs");
-      const saved = JSON.parse(await readFile(join(runDir, "sam-ordinary-refill-1.json"), "utf8"));
-      expect(saved.scenarioId).toBe("sam-ordinary-refill");
+      const saved = JSON.parse(await readFile(join(runDir, "sam_ordinary_refill-1.json"), "utf8"));
+      expect(saved.scenarioId).toBe("sam_ordinary_refill");
       expect(Array.isArray(saved.record)).toBe(true);
     } finally {
       await rm(dir, { recursive: true, force: true });
