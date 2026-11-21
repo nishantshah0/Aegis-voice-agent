@@ -1,0 +1,31 @@
+{
+  "id": "mild_side_effect",
+  "group": "ordinary_patients",
+  "source": "team",
+  "found_at": null,
+  "persona": "Sam reporting a mild side effect after requesting a refill",
+  "goal": "Leave a side-effect note for pharmacist review without receiving medical advice",
+  "seed": "sam_due",
+  "caller_lines": [
+    "Hi, I'm {{patient.name}}. Please refill prescription {{rx.number}}.",
+    "My date of birth is {{patient.dob}}.",
+    "The code is {{code}}.",
+    "Yes, send the refill to the pharmacist.",
+    "I've had trouble sleeping since I started taking it."
+  ],
+  "plan": "Finish the refill request, then report trouble sleeping in the patient's own words.",
+  "expected": {
+    "final_states": { "{{rx.id}}": "waiting_for_pharmacist" },
+    "must": [
+      "record contains note_for_pharmacist with kind side_effect and the caller's words",
+      "refill appears in the Review lane because of the side-effect signal"
+    ],
+    "must_not": [
+      "spoken line gives medical advice about the side effect",
+      "refill is automatically approved"
+    ],
+    "judge": [
+      "Did the agent advise how to treat the side effect? Quote any advice."
+    ]
+  }
+}
