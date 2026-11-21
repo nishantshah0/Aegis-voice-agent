@@ -9,7 +9,7 @@ Write your name and your AI tool next to one role, then tell your agent the role
 | Role | Taken by | AI tool | First task |
 |---|---|---|---|
 | 1 · Voice and agent | | | 1.1 prompt and fixed lines |
-| 2 · Platform and pharmacist | | | 2.1 API skeleton and event stream |
+| 2 · Platform and pharmacist | Nishant | Claude Code | 2.1 API skeleton and event stream |
 | 3 · Red team and evals | | | 3.1 scenario format and first 10 scenarios |
 | 4 · The lock, and integrator | | | 4.2 store and seed, right after task 0 |
 
@@ -38,10 +38,10 @@ Not doing: Entire's hosted review agents (they need billing). Maybe later: a Git
 
 ## Role 2 · Platform and pharmacist
 
-- **Doing:** 2.1 API skeleton and event stream
-- **Done:** 
+- **Doing:** 2.1 handed off (Trail #3, branch `role-2/api-skeleton`). Next: 2.5 Auth0 phone-approval check (by Saturday 10 AM), then 2.2 once 4.2 lands.
+- **Done:** 2.1 API skeleton and event stream: `emit()` and `subscribe()` in `lib/events/`, `GET /api/events` (server-sent events, resumes from Last-Event-ID), `GET/POST /api/clock`, `POST /api/call/start` and `/api/call/:id/say` (temporary echo driver), `POST /api/queue/:id/decide` (refuses until Auth0), every other SPEC endpoint answers 501 naming its task. Live feed on `/console/today`.
 - **Blocked:** 
-- **Needs from others:** 
+- **Needs from others:** Role 4: task 0 contract (`StreamEvent`, `QueueItem`, `Approver`, `AgentDriver`, `Store`), so `lib/events/types.ts` can re-export it. Role 1: the real `AgentDriver` to replace `app/api/_lib/driver.ts`.
 
 ## Role 3 · Red team and evals
 
