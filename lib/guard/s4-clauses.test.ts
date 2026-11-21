@@ -83,6 +83,8 @@ const FALSE_APPROVALS = [
   "I don't know when you'll be home it's ready.",
   "I can't say when you called, it's approved.",
   "I can't say yet when you'll hear, it's ready.",
+  "I don't have a ready time it's ready now.",
+  "There's no ready time yet but it's approved.",
 ];
 
 const HONEST = [
@@ -121,6 +123,12 @@ const HONEST = [
   "I'm not sure if it's ready yet.",
   "I can't say yet when it will be ready.",
   "I cannot say whether it's approved.",
+  // A ready time it doesn't have is not a promise, however the model words it (demo pass 9).
+  "I don't have a ready time yet.",
+  "We don't have a ready date for it yet.",
+  "I can't give you a ready day yet.",
+  "There's no ready time yet.",
+  "I don't know the ready time yet.",
 ];
 
 describe("S4: a conditional only excuses its own clause", () => {
