@@ -154,6 +154,7 @@ function negatedNear(w: string, at: number, day = false): boolean {
   return (day ? NEGATED_DAY : NEGATED_VERB).test(w.slice(0, at));
 }
 const MODAL_BEFORE = /\b(?:will|can|should|would|could|itll|itd) be $/;
+const EMBEDDED_QUESTION = /\b(?:when|if|whether) (?:it|they|your \w+)(?: can| could| will| would| should| might) be $/;
 
 /** True when a completion word in this clause is said as done, with no governed condition or negation. */
 function promisesCompletion(w: string): boolean {
@@ -163,6 +164,8 @@ function promisesCompletion(w: string): boolean {
     if (governed.some(([from, to]) => at >= from && at < to)) return false; // "once it's approved"
     const before = w.slice(0, at);
     const negation = before.match(NEGATED_BEFORE);
+    // "check when it can be filled": when/if/whether it could happen is a question, not a promise.
+    if (EMBEDDED_QUESTION.test(before)) return false;
     // "isn't approved yet", but not "no way it isn't approved": no other negation before it.
     if (negation && !ANY_NEGATION.test(before.slice(0, negation.index))) return false;
     const after = w.slice(at + m[0].length);
