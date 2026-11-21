@@ -75,6 +75,23 @@ describe("POST /api/outbound/run-daily-check", () => {
     for (const s of body.skipped) expect(s.ruleIds.length).toBeGreaterThan(0);
   });
 
+  it("rings only prescriptions that run out within 3 days and would pass rules 3 and 4b today", async () => {
+    session.approver = PHARMACIST;
+    await resetDemo();
+    const body = (await (await runDailyCheck()).json()) as RunDailyCheckResponse;
+    const store = getStore();
+    const now = Date.parse(await store.now());
+    for (const callId of body.callIds) {
+      const start = (await store.listRecord(callId)).find((e) => (e.input as { check?: string })?.check === "call_start");
+      const rx = await store.getPrescription((start?.input as { rx_id: string }).rx_id);
+      const daysLeft = rx!.daysSupplied - Math.floor((now - Date.parse(rx!.lastFill)) / 86_400_000);
+      expect(daysLeft).toBeLessThanOrEqual(3);
+    }
+    // Someone in the seed has plenty left and is skipped under rule 7 (not due yet).
+    expect(body.skipped.some((s) => s.ruleIds.includes("7"))).toBe(true);
+    expect(body.callIds.length).toBeLessThan((await store.listPatients()).length);
+  });
+
   it("doesn't ring anyone twice while their call is still open", async () => {
     session.approver = PHARMACIST;
     await resetDemo();
