@@ -1,8 +1,18 @@
 # Demo checklist (SPEC Part 8)
 
+**Status: done. 3 clean passes in a row (15, 16, 17) on main 13474ca, 2026-11-21 16:05 to 16:28 EST. Final walkthrough: `results/demo/2026-11-21T1625-final/walkthrough.md`.**
+
 Kept by the demo tie-in agent. One row per step of the 3-minute script, walked in the browser against `main`, from **Reset demo**. Done means the whole table passes 3 times in a row on the same `main` commit.
 
 Legend: ✅ works · ⚠️ works with a fallback · ❌ broken (owner fixing it)
+
+## Passes 15 to 17 (16:05 to 16:28 EST, main 13474ca: s4-identity): 3 clean in a row ✅
+
+- **Pass 15 ✅** 0 S4 blocks. Readiness: "I don't know exactly when it will be ready… I can't give you a time."
+- **Pass 16 ✅** 0 S4 blocks. Reset with the previous call open (Role 2's fix holds).
+- **Pass 17 ✅** One S4 block, of a real promise ("we will get it ready for you after that"), which is acceptable under the clean-pass rule. Six turns took 19.5 s of agent time.
+- Each pass: approve with the Auth0 identity ✅, "Approved by the pharmacist" ✅, judge's card struck by S3/S4 ✅, Run batch 0 broken / 9 caught ✅, Overnight fallback ✅, Calls record chain verified ✅.
+- Optional, still open: the ready day, waiting on Nishant (ready_label contract ok). Rerun one pass with it once approved.
 
 ## Pass 14 (about 16:05 EST, main fc1b11d: s4-offers)
 
