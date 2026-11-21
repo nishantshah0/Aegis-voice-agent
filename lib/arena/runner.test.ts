@@ -139,6 +139,7 @@ describe("scenario runner", () => {
 
       const score = scoreScenario(scenario.expected, await store.listRecord(callId), (text) => resolveScenarioText(text, tokens));
       expect(score.automatedPassed).toBe(true);
+      expect(score.caught).toBe(file === "sam-ordinary-refill.json" ? 0 : 1);
     }
   });
 
