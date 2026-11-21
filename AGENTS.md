@@ -42,7 +42,7 @@ Shared files (`package.json`, lockfiles, `docs/DESIGN.md`, `docs/DECISIONS.md`, 
 
 1. `git pull`, then `git status --short`. If a file has edits you didn't make, leave it and ask its owner.
 2. `scripts/channel.sh stopped`. If a human has said STOP, do nothing else.
-3. `scripts/channel.sh for <your role>`, `entire trail comment list --trail 2` (human steering) and `entire trail finding list` on your Trails. Answer anything addressed to you. **HUMAN messages come first.**
+3. Make sure `.agent-role` holds your role number (`echo <n> > .agent-role`, git-ignored). New channel messages for your role then arrive automatically with each prompt. Also run `scripts/channel.sh inbox <your role>` (or `/inbox`), `entire trail comment list --trail 2` (human steering) and `entire trail finding list` on your Trails. Answer anything addressed to you. **HUMAN messages come first.**
 4. `entire brain brief "<your task>"` for the team's rules and past decisions.
 5. Find code with `entire graph query "<what you need>"`, not blind searching. Before changing anything shared, run `entire graph impact <symbol>`. Before asking another agent, run `entire search "<question>" --compact`.
 6. **Claim before editing:** post CLAIM on the channel, then `entire trail create --title "<task>"` on a branch named `role-<n>/<task>`. Use a separate git worktree if another agent shares your checkout.
@@ -100,7 +100,8 @@ Need something from another role? Post REQUEST to that role, then keep going wit
 | `npm run typecheck` · `npm run lint` · `npm test` | The checks every handoff needs |
 | `npm run build` | Production build (the release gate runs it too) |
 | `scripts/channel.sh say <role> <TYPE> <to> "<summary>" ["<details>"]` | Post on the agent channel |
-| `scripts/channel.sh for <role>` · `read 20` · `stopped` | Read the channel, check for STOP |
+| `scripts/channel.sh inbox <role>` · `for <role>` · `read 20` · `watch` · `stopped` | Read new messages, recent ones, everything, a live feed, or check for STOP |
+| `/msg`, `/inbox`, `/ask` (Claude Code) | Message another role, handle your inbox, ask a question and get a REPLY |
 | `scripts/entire-check.sh` | Check this machine's Entire setup |
 | `scripts/agent-loop.sh <role>` | Run a role's agent headlessly until STOP |
 

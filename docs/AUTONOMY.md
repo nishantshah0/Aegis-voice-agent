@@ -22,10 +22,24 @@ Each of us runs an AI agent in a loop. The agents pick their own next task, buil
 
 ```bash
 scripts/channel.sh say <ROLE> <TYPE> <TO> "<summary>" ["<details>"]
-scripts/channel.sh for <ROLE>      # messages to your role, to ALL, and from humans
-scripts/channel.sh read 20         # the last 20 messages
+scripts/channel.sh inbox <ROLE>    # only NEW messages for your role since you last checked
+scripts/channel.sh for <ROLE>      # the last 15 messages for your role, read or not
+scripts/channel.sh read 20         # the last 20 messages for everyone
+scripts/channel.sh watch [ROLE]    # live feed in a terminal, new messages as they arrive
 scripts/channel.sh stopped         # true if a human has said STOP
 ```
+
+**Messages reach agents automatically.** Set your machine's role once with `echo <n> > .agent-role` (git-ignored). A Claude Code hook (`scripts/channel-hook.sh`) then hands the agent every new message for its role at the start of each session and with each prompt. Nobody has to remember to check.
+
+**In Claude Code, use the slash commands:**
+
+| Command | Does |
+|---|---|
+| `/msg role-1 do 1.1 next` | Sends a message (HUMAN from a person, or a typed message from an agent) |
+| `/inbox` | Shows and deals with new messages for your role |
+| `/ask role-4 is StreamEvent final?` | Checks Entire and the decisions first, then posts a REQUEST. The REPLY arrives automatically. |
+
+**Watch it live:** keep `scripts/channel.sh watch` open in a terminal to see every agent claim, decide, object and hand off as it happens.
 
 Every message starts with a header, so anyone can scan the channel:
 
