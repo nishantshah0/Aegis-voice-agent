@@ -90,6 +90,25 @@ function makeDriver(store: Store, control: Control): AgentDriver {
 export const getControl = (): Control => parts().control;
 export const getDriver = (): AgentDriver => parts().driver;
 
+/**
+ * Demo reset (urgent, 19:40): hang up every call the agent still holds, so the agent and its
+ * model forget them, then drop the parts so the next call gets a fresh control and driver.
+ * Call ids restart at c_0001 after a reset, and a judge who didn't hang up would otherwise
+ * leave the old c_0001's conversation for the new one. Run it before the store is reseeded,
+ * while the old calls are still in it.
+ */
+export async function forgetCalls(): Promise<void> {
+  const current = holder.__refillGuardParts;
+  holder.__refillGuardParts = undefined;
+  if (!current) return;
+  const store = getStore();
+  const ids = new Set((await store.listRecord()).flatMap((e) => (e.callId ? [e.callId] : [])));
+  for (const id of ids) {
+    const call = await store.getCall(id);
+    if (call && call.state !== "ended") await current.driver.endCall(id).catch(() => {});
+  }
+}
+
 /** Test helper: reseed the store and start fresh parts. */
 export async function resetRuntimeForTests(): Promise<void> {
   if (pgHolder.__refillGuardPg) {

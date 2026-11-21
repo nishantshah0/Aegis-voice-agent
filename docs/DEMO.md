@@ -1,8 +1,52 @@
 # Demo checklist (SPEC Part 8)
 
+**Status: done. 3 clean passes in a row (15, 16, 17) on main 13474ca, 2026-11-21 16:05 to 16:28 EST. Final walkthrough: `results/demo/2026-11-21T1625-final/walkthrough.md`.**
+
 Kept by the demo tie-in agent. One row per step of the 3-minute script, walked in the browser against `main`, from **Reset demo**. Done means the whole table passes 3 times in a row on the same `main` commit.
 
 Legend: ✅ works · ⚠️ works with a fallback · ❌ broken (owner fixing it)
+
+## Passes 15 to 17 (16:05 to 16:28 EST, main 13474ca: s4-identity): 3 clean in a row ✅
+
+- **Pass 15 ✅** 0 S4 blocks. Readiness: "I don't know exactly when it will be ready… I can't give you a time."
+- **Pass 16 ✅** 0 S4 blocks. Reset with the previous call open (Role 2's fix holds).
+- **Pass 17 ✅** One S4 block, of a real promise ("we will get it ready for you after that"), which is acceptable under the clean-pass rule. Six turns took 19.5 s of agent time.
+- Each pass: approve with the Auth0 identity ✅, "Approved by the pharmacist" ✅, judge's card struck by S3/S4 ✅, Run batch 0 broken / 9 caught ✅, Overnight fallback ✅, Calls record chain verified ✅.
+- Optional, still open: the ready day, waiting on Nishant (ready_label contract ok). Rerun one pass with it once approved.
+
+## Pass 14 (about 16:05 EST, main fc1b11d: s4-offers)
+
+Clean passes in a row: **0 of 3**.
+- ✅ The offer fix works ("I can check whether it's ready for a refill… or book a pickup or delivery." passed). Readiness answer honest: "I don't have a ready time yet… it hasn't been approved."
+- ❌ Right after check_code, S4 blocked "Your code and date of birth are confirmed." (true, in the record). Sixth honest shape. Proposed a structural S4 rule to the review fixer: done-words only count when the subject is the refill, order, delivery, pickup or approval; identity is S1's job. URGENT to ROLE-4.
+- ⚠️ S4 also blocked "I'll be able to tell you once it's approved and ready." Borderline: it promises a future update. Not reported.
+- ⚠️ After the replaced line, the agent apologised on the call: "I'm sorry, I should correct what I said a moment ago." REQUEST to ROLE-1 (driver note at `lib/agent/driver.ts:135`).
+
+## Passes 12 and 13 (about 15:35 to 15:50 EST, main 7c7ea12: s4-when-can-be)
+
+Clean passes in a row: **0 of 3** (pass 12 clean, pass 13 broke).
+- **Pass 12 ✅ clean**, every step, with screenshots and a walkthrough: `results/demo/2026-11-21T1540-pass12/walkthrough.md`. Reset with the previous call open worked (Role 2's fix).
+- **Pass 13 ❌.** Right after verification, S4 blocked an offer: "I can check whether it's ready for a refill, what it would cost on your plan, or book it for you." That's the fifth honest sentence shape S4 has caught. URGENT to ROLE-4 / review fixer to cover offers as a family, and a REQUEST to ROLE-1 for a prompt nudge (offers as plain questions, no done-words in offers) to cut the variance.
+
+## Passes 10 and 11 (about 15:05 to 15:25 EST, main a0edd62: S4 ready-time family and reset-fresh-calls)
+
+Clean passes in a row: **0 of 3** (pass 10 clean, pass 11 broke).
+- **Pass 10 ✅ clean.** 0 S4 blocks: "I can't confirm a pickup day yet" and "I don't have a ready time for it." both passed. Approve ✅, phone approved ✅, hijack card + batch 0 broken / 9 caught ✅, Overnight fallback ✅, Calls record chain verified, 44 entries ✅. Left the call open on purpose.
+- **Pass 11 ❌.** Reset demo with the call still open: **Role 2's fix works** (Trail #57): the new c_0001 verified Sam fresh. But S4 blocked a question right after verification, "Would you like me to check its refills and when it can be filled?", and replaced it with "A pharmacist will check it first…". Probably a regression from `fix/trail-27-s4-clause-checks` (bb10e11) checking the clause outside its question. URGENT to ROLE-4, sent to the review fixer. Screenshot: `results/demo/2026-11-21T1520-pass10-11/p11-s4-blocks-question.jpg`.
+
+## Passes 7 to 9 (about 14:37 to 14:50 EST, main 0e14bea: s4-cant-say and pg-latency)
+
+Clean passes in a row: **0 of 3** (pass 7 was clean, pass 8 broke). Screenshots: `results/demo/2026-11-21T1440-pass7-9/`.
+
+Clean-pass rule (top session, 14:35): a pass is clean without a ready day if the agent's readiness line is honest and not blocked or cut off. The Overnight spec fallback counts as passing.
+
+| Step | Status | Note |
+|---|---|---|
+| Ready day ("ready Thursday once it's approved") | optional, waiting on Nishant (ready_label contract ok) | Needs a `ready_label` from request_refill/order_status (lib/contract). The review fixer has the plan; it needs Nishant's own ok |
+
+- **Pass 7 ✅ clean.** Live call with 0 S4 blocks; "Once they approve it, we'll let you know when it's ready." and "I don't know yet when it will be ready… so I can't give you a pickup or delivery time." Six agent turns, 27 s of server time; Answer to Approve took 92 s including my tool overhead. Approve ✅, phone approved ✅, hijack card + batch 0 broken / 9 caught ✅, Overnight fallback ✅, Calls "Record chain verified, 46 entries" ✅.
+- **Pass 8 ❌: stale call memory after Reset.** Pass 7's call wasn't hung up; after Reset demo the new call is c_0001 again and the agent said "You're already verified on this call…", then tried to list Sam's medicines (S1 blocked it: the lock held). Cause: `lib/agent/driver.ts:229` `joinCall` keeps state for a reused call id, and only `endCall` clears it; Reset demo doesn't. URGENT to ROLE-2 (reset route), REQUEST to ROLE-1 (driver). Workaround until fixed: **hang up before Reset demo**.
+- **Pass 9 ❌ (hung up first, so the call started fresh: cause confirmed).** S4 blocked a new honest wording, "I don't have a ready time yet." Haiku phrases this differently every run; asked the review fixer for a general rule for negated or unknown times (URGENT to ROLE-4).
 
 ## Pass 6 (about 14:25 EST, main 5a50196): one break left
 

@@ -3,7 +3,7 @@ import { connection } from "next/server";
 import { AUTH_ROUTES } from "@/lib/auth/auth0";
 import { getApprover } from "@/lib/auth/session";
 import { USAGE_LOG } from "@/lib/agent/usage";
-import { Badge, Card, Eyebrow, LaneBadge, RuleTag, StatTile, type Tone } from "@/components/ui";
+import { Badge, Card, Eyebrow, LaneBadge, RuleTag, StatTile, Table, TableEmpty, Td, Th, THead, Tr, type Tone } from "@/components/ui";
 import { describeAgent, getDriver, getStore } from "@/app/api/_lib/runtime";
 import { callsOverview, parseUsage, type CallSummary, type PressOutcome, type TimingSource } from "./calls";
 import { LiveRefresh } from "./LiveRefresh";
@@ -128,65 +128,66 @@ export async function Calls() {
         <StatTile label="Cost (log)" value={usd(totalCost)} />
       </section>
 
-      <div className="mt-6 grid gap-3 md:grid-cols-2">
-        <Card className="text-sm">
-          <Eyebrow>Agent on this server</Eyebrow>
+      <Card className="mt-6 text-sm">
+        <Eyebrow>Agent on this server</Eyebrow>
+        <p className="mt-2">
+          {agent.kind === "fake" ? "The contract's fake driver (no model)." : `${agent.kind === "agent-sdk" ? "Claude Agent SDK" : "Messages API"}, ${agent.model}`}
+        </p>
+        <Eyebrow className="mt-4">Record chain</Eyebrow>
+        {overview.chain.verified ? (
           <p className="mt-2">
-            {agent.kind === "fake" ? "The contract's fake driver (no model)." : `${agent.kind === "agent-sdk" ? "Claude Agent SDK" : "Messages API"}, ${agent.model}`}
+            <Badge tone="accent" dot>
+              Record chain verified
+            </Badge>{" "}
+            {overview.chain.entries} entries
+            {overview.chain.headHash && <span className="font-mono text-xs text-ink-3"> · head {overview.chain.headHash.slice(0, 12)}…</span>}
           </p>
-          <Eyebrow className="mt-4">Record chain</Eyebrow>
-          {overview.chain.verified ? (
-            <p className="mt-2">
-              <Badge tone="accent" dot>
-                Record chain verified
-              </Badge>{" "}
-              {overview.chain.entries} entries
-              {overview.chain.headHash && <span className="font-mono text-xs text-ink-3"> · head {overview.chain.headHash.slice(0, 12)}…</span>}
-            </p>
-          ) : (
-            <p className="mt-2">
-              <Badge tone="stop" dot>
-                Record chain broken
-              </Badge>{" "}
-              at entry {overview.chain.brokenAt}
-            </p>
-          )}
-        </Card>
-        <Card className="text-sm">
-          <Eyebrow>Tokens and cost, from {USAGE_LOG}</Eyebrow>
+        ) : (
+          <p className="mt-2">
+            <Badge tone="stop" dot>
+              Record chain broken
+            </Badge>{" "}
+            at entry {overview.chain.brokenAt}
+          </p>
+        )}
+      </Card>
+
+      <section className="mt-6" data-testid="usage">
+        <Eyebrow>Tokens and cost, from {USAGE_LOG}</Eyebrow>
+        <div className="mt-2">
           {models.length === 0 ? (
-            <p className="mt-2 text-ink-3">No Agent SDK usage logged yet.</p>
+            <TableEmpty>No Agent SDK usage logged yet.</TableEmpty>
           ) : (
-            <table className="mt-2 w-full text-xs">
-              <thead>
-                <tr className="text-left text-ink-3">
-                  <th className="py-1 font-medium">Model</th>
-                  <th className="py-1 font-medium">Turns</th>
-                  <th className="py-1 font-medium">In</th>
-                  <th className="py-1 font-medium">Out</th>
-                  <th className="py-1 font-medium">Cache read / write</th>
-                  <th className="py-1 font-medium">Cost</th>
+            <Table>
+              <THead>
+                <tr>
+                  <Th>Model</Th>
+                  <Th>Turns</Th>
+                  <Th>In</Th>
+                  <Th>Out</Th>
+                  <Th>Cache read / write</Th>
+                  <Th>Cost</Th>
                 </tr>
-              </thead>
-              <tbody className="tabular-nums">
+              </THead>
+              <tbody>
                 {models.map(([model, m]) => (
-                  <tr key={model}>
-                    <td className="py-1 font-mono">{model}</td>
-                    <td className="py-1">{m.turns}</td>
-                    <td className="py-1">{tokens(m.inputTokens)}</td>
-                    <td className="py-1">{tokens(m.outputTokens)}</td>
-                    <td className="py-1">
+                  <Tr key={model}>
+                    <Td className="font-mono text-ink">{model}</Td>
+                    <Td>{m.turns}</Td>
+                    <Td>{tokens(m.inputTokens)}</Td>
+                    <Td>{tokens(m.outputTokens)}</Td>
+                    <Td>
                       {tokens(m.cacheReadTokens)} / {tokens(m.cacheWriteTokens)}
-                    </td>
-                    <td className="py-1">{usd(m.costUsd)}</td>
-                  </tr>
+                    </Td>
+                    <Td>{usd(m.costUsd)}</Td>
+                  </Tr>
                 ))}
               </tbody>
-            </table>
+            </Table>
           )}
-          <p className="mt-2 text-xs text-ink-3">Totals since the log began. Call ids restart after each demo reset, so usage isn&apos;t split per call.</p>
-        </Card>
-      </div>
+        </div>
+        <p className="mt-2 text-xs text-ink-3">Totals since the log began. Call ids restart after each demo reset, so usage isn&apos;t split per call.</p>
+      </section>
 
       <section className="mt-6 space-y-3" data-testid="calls">
         {overview.calls.length === 0 ? (

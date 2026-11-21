@@ -83,6 +83,18 @@ const FALSE_APPROVALS = [
   "I don't know when you'll be home it's ready.",
   "I can't say when you called, it's approved.",
   "I can't say yet when you'll hear, it's ready.",
+  "It's ready when it can be filled.",
+  "I can tell you it's ready.",
+  "I've booked it for you.",
+  "I'll confirm it's ready.",
+  "Whether you like it or not, it's approved.",
+  "Your code is confirmed and your refill is approved.",
+  "Your date of birth and your refill are confirmed.",
+  "Your order and date of birth are confirmed.",
+  "It's done.",
+  "It's filled and when it can be delivered is up to you.",
+  "I don't have a ready time it's ready now.",
+  "There's no ready time yet but it's approved.",
 ];
 
 const HONEST = [
@@ -121,6 +133,28 @@ const HONEST = [
   "I'm not sure if it's ready yet.",
   "I can't say yet when it will be ready.",
   "I cannot say whether it's approved.",
+  // When something can happen is a question, not a promise (demo pass 11).
+  "Would you like me to check its refills and when it can be filled?",
+  "I can check when it can be filled.",
+  "Let me see if it could be ready soon.",
+  // Offers: a done-word inside whether/if/when is a question (demo pass 13).
+  "I can check whether it's ready for a refill, what it would cost on your plan, or book it for you.",
+  "I could look at whether it's been filled.",
+  "I'll see if it's approved yet.",
+  "I'm able to check if your refill is ready.",
+  "I can book it for you or order a refill.",
+  // Identity subjects are verification, not the order (demo pass 14).
+  "Your code and date of birth are confirmed.",
+  "Your code and date of birth are both confirmed.",
+  "Your name and date of birth are verified.",
+  "Your date of birth is confirmed.",
+  "Your details match.",
+  // A ready time it doesn't have is not a promise, however the model words it (demo pass 9).
+  "I don't have a ready time yet.",
+  "We don't have a ready date for it yet.",
+  "I can't give you a ready day yet.",
+  "There's no ready time yet.",
+  "I don't know the ready time yet.",
 ];
 
 describe("S4: a conditional only excuses its own clause", () => {
@@ -135,6 +169,58 @@ describe("S4: a conditional only excuses its own clause", () => {
   it.each([...FALSE_APPROVALS.slice(0, 2), "Your refill is confirmed.", "You're all set.", "It's good to go."])("allows once the pharmacist has approved: %s", async (sentence) => {
     const [item] = await store.queue("quick_check");
     await store.decide(item.id, "approve", { id: "u_test", name: "Test Pharmacist", role: "pharmacist" });
+    expect((await guard(callId, sentence)).blocked).toBe(false);
+  });
+});
+
+// Days, bookings, "sent" and prices, clause by clause (Trail #27): a filler condition such as
+// "If you like," no longer switches these checks off for the whole sentence.
+const FALSE_OTHER_PROMISES = [
+  "If you like, we'll deliver it Friday.",
+  "If you like we'll deliver it Friday.",
+  "If it helps, your copay is $4.10.",
+  "No need to worry we'll deliver it Friday.",
+  "Once it's approved, your copay is $9.99.",
+  "If you want, it's booked for Thursday morning.",
+  "When you get a chance, your renewal was sent.",
+  "If that matches, we'll deliver it Friday.",
+  "If those details match, your renewal was sent.",
+  // Filler is not a negation, and an approval condition never backs a day or a booking (re-review).
+  "Don't worry it's booked.",
+  "No worries I've sent the renewal request.",
+  "No problem it's booked for delivery.",
+  "Once it's approved we'll deliver it Friday.",
+  "Never fear I've sent the renewal request.",
+  "No doubt it's booked.",
+  "Not a problem it's booked.",
+  "No need to worry it's booked.",
+  "Nothing to worry about it's booked.",
+  "Not to worry I've sent the renewal request.",
+  // No button backs a ready day yet (Role 1's ready_label request), so these wait for it.
+  "It'll be ready Thursday once it's approved.",
+  "Once it's approved, we can deliver it Thursday.",
+];
+
+const HONEST_OTHER = [
+  "It's not sent yet.",
+  "It's not booked yet.",
+  "I haven't booked a delivery yet.",
+  "We can't deliver it Friday.",
+  "I haven't sent the renewal request yet.",
+  "It hasn't been sent yet.",
+  "Once it's booked for Friday, I'll text you.",
+  "We haven't booked a delivery yet.",
+  "Your renewal hasn't been sent yet.",
+  "I can't deliver it Friday.",
+  "Your refill was sent to the pharmacist.",
+];
+
+describe("S4: days, bookings, sent and prices are checked clause by clause", () => {
+  it.each(FALSE_OTHER_PROMISES)("blocks: %s", async (sentence) => {
+    expect(await guard(callId, sentence)).toMatchObject({ blocked: true, rule: "S4" });
+  });
+
+  it.each(HONEST_OTHER)("allows: %s", async (sentence) => {
     expect((await guard(callId, sentence)).blocked).toBe(false);
   });
 });

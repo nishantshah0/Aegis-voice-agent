@@ -1,7 +1,7 @@
 import { connection } from "next/server";
 import { AUTH_ROUTES } from "@/lib/auth/auth0";
 import { getApprover } from "@/lib/auth/session";
-import { Badge, Card, Eyebrow, LaneBadge, RuleTag, cn } from "@/components/ui";
+import { Badge, Card, Eyebrow, LaneBadge, RuleTag, Table, TableEmpty, Td, Th, THead, TimelineStrip, Tr } from "@/components/ui";
 import { getStore } from "@/app/api/_lib/runtime";
 import { CallNow } from "./CallNow";
 import { upcoming, type UpcomingRow } from "./upcoming";
@@ -54,67 +54,59 @@ export async function Upcoming() {
   }
   const canCall = approver.role === "pharmacist" || process.env.DEMO_CONTROLS === "on";
   const { rows, days } = await upcoming(getStore());
-  const most = Math.max(1, ...days.map((d) => d.count));
 
   return (
     <>
       <Card className="mt-6" data-testid="upcoming-strip">
         <Eyebrow>Run-outs in the next 14 days</Eyebrow>
-        <ol className="mt-3 grid grid-cols-7 gap-1.5 md:grid-cols-14">
-          {days.map((d, i) => (
-            <li key={d.date} className="flex flex-col items-center gap-1" title={`${d.count} on ${d.date}`}>
-              <div className="flex h-12 w-full items-end rounded-md bg-sunken">
-                <div className={cn("w-full rounded-md", d.count ? "bg-accent" : "")} style={{ height: `${(d.count / most) * 100}%` }} />
-              </div>
-              <span className={cn("text-[11px] tabular-nums", i === 0 ? "font-medium text-ink" : "text-ink-3")}>{i === 0 ? "Today" : weekday(d.date)}</span>
-              <span className="text-[11px] tabular-nums text-ink-3">{d.count}</span>
-            </li>
-          ))}
-        </ol>
+        <TimelineStrip
+          className="mt-3"
+          days={days.map((d, i) => ({ label: i === 0 ? "Today" : weekday(d.date), count: d.count, title: `${d.count} on ${d.date}` }))}
+        />
       </Card>
 
-      <Card className="mt-6 overflow-x-auto" padded={false}>
+      <div className="mt-6">
         {rows.length === 0 ? (
-          <p className="p-5 text-sm text-ink-3">No refills due in the next 14 days.</p>
+          <TableEmpty>No refills due in the next 14 days.</TableEmpty>
         ) : (
-          <table className="w-full text-sm" data-testid="upcoming-table">
-            <thead>
-              <tr className="border-b border-line text-left text-xs text-ink-3">
-                <th className="px-4 py-3 font-medium">Patient</th>
-                <th className="px-4 py-3 font-medium">Medication</th>
-                <th className="px-4 py-3 font-medium">Runs out</th>
-                <th className="px-4 py-3 font-medium">Would land in</th>
-                <th className="px-4 py-3 font-medium">Last call</th>
-                <th className="px-4 py-3 font-medium">Next reminder</th>
-                {canCall && <th className="px-4 py-3" />}
+          <Table data-testid="upcoming-table">
+            <THead>
+              <tr>
+                <Th>Patient</Th>
+                <Th>Medication</Th>
+                <Th>Runs out</Th>
+                <Th>Would land in</Th>
+                <Th>Last call</Th>
+                <Th>Next reminder</Th>
+                {canCall && <Th />}
               </tr>
-            </thead>
+            </THead>
             <tbody>
               {rows.map((row) => (
-                <tr key={row.rxId} className="border-b border-line last:border-0 align-middle">
-                  <td className="px-4 py-3 font-medium">{row.initials}</td>
-                  <td className="px-4 py-3">
+                <Tr key={row.rxId}>
+                  <Td className="font-medium text-ink">{row.initials}</Td>
+                  <Td>
                     {row.drug} {row.controlled && <Badge tone="review">controlled</Badge>}
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
+                  </Td>
+                  <Td className="whitespace-nowrap">
                     <DaysLeft left={row.daysLeft} /> <span className="text-ink-3">· {short(row.runOut)}</span>
-                  </td>
-                  <td className="px-4 py-3">
+                  </Td>
+                  <Td>
                     <Preview row={row} />
-                  </td>
-                  <td className="px-4 py-3 text-ink-2">{row.lastCall ? `${row.lastCall.direction}, ${row.lastCall.state.replace(/_/g, " ")}` : "none"}</td>
-                  <td className="px-4 py-3 text-ink-2">{/^\d{4}-/.test(row.nextReminder) ? short(row.nextReminder) : row.nextReminder}</td>
+                  </Td>
+                  <Td>{row.lastCall ? `${row.lastCall.direction}, ${row.lastCall.state.replace(/_/g, " ")}` : "none"}</Td>
+                  <Td>{/^\d{4}-/.test(row.nextReminder) ? short(row.nextReminder) : row.nextReminder}</Td>
                   {canCall && (
-                    <td className="px-4 py-3 text-right">
+                    <Td className="text-right">
                       <CallNow patientId={row.patientId} rxId={row.rxId} />
-                    </td>
+                    </Td>
                   )}
-                </tr>
+                </Tr>
               ))}
             </tbody>
-          </table>
+          </Table>
         )}
-      </Card>
+      </div>
       <p className="mt-3 text-xs text-ink-3">
         &ldquo;Would land in&rdquo; runs today&apos;s rule cards as a preview: nothing is pressed or recorded.
         {canCall && " Call now goes through rule 7, like the daily check."}
