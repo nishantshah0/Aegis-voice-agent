@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { BUTTON_NAMES, type ButtonResult, type PressFn } from "@/lib/contract";
 import { createMemoryStore } from "@/lib/store/memory";
-import { createSignedPress, type SignerRun } from "./signed-press";
+import { createSignedPress, type SignerRun, type SignerDecision } from "./signed-press";
 
-const okResult = { ok: true, output: {}, ruleIds: [] } as ButtonResult;
+const okResult = { ok: true, output: {}, ruleIds: [] } as unknown as ButtonResult;
 const refusedResult = { ok: false, error: "refused", ruleIds: [] } as ButtonResult;
 
 function fakeRun(decision: "allow" | "deny" | "ask" = "allow", events: string[] = []): SignerRun {
@@ -17,6 +17,7 @@ function fakeRun(decision: "allow" | "deny" | "ask" = "allow", events: string[] 
       events.push("complete");
       return { event_id: "event-synthetic" };
     }),
+    close: vi.fn(async () => undefined),
   };
 }
 
@@ -55,8 +56,8 @@ describe("createSignedPress", () => {
     expect(press).toHaveBeenCalledTimes(BUTTON_NAMES.length);
     expect(run.complete).toHaveBeenCalledTimes(BUTTON_NAMES.length);
     expect(events).toEqual(BUTTON_NAMES.flatMap(() => ["decide", "press", "complete"]));
-    for (const [id, _status, fields] of vi.mocked(run.complete).mock.calls) {
-      expect(id).toMatch(/^tool-/);
+    for (const [id, , fields] of vi.mocked(run.complete).mock.calls) {
+      expect(id).toMatch(/:tool-/);
       expect(fields).toHaveProperty("result_digest");
       expect(fields).not.toHaveProperty("result");
     }
@@ -69,7 +70,7 @@ describe("createSignedPress", () => {
     await expect(wrapped("call-synthetic", "request_refill", { rx_id: "rx_synthetic" }, { invocationId: "tool-denied" })).resolves.toMatchObject({ ok: false });
 
     expect(press).toHaveBeenCalledTimes(1);
-    expect(press.mock.calls[0][3]).toMatchObject({ tracekit: { outcome: "deny", decisionId: "decision-synthetic" } });
+    expect(press.mock.calls[0][3]).toMatchObject({ tracekit: { outcome: decision, decisionId: "decision-synthetic" } });
   });
 
   it("fails closed and records a local blocked press if the signer cannot be reached", async () => {
@@ -83,6 +84,16 @@ describe("createSignedPress", () => {
     expect(press).toHaveBeenCalledTimes(1);
     expect(press.mock.calls[0][3]).toMatchObject({ tracekit: { outcome: "unavailable" } });
     expect(run.decide).not.toHaveBeenCalled();
+  });
+
+  it("ignores a signer fail-open allow when the signer marks the decision unavailable", async () => {
+    run.decide = vi.fn(async () => ({ decision: "allow", unavailable: true, rule_ids: [] }) as SignerDecision);
+    wrapped = createSignedPress({ press: press as unknown as PressFn, getRun: async () => run, store });
+
+    await expect(wrapped("call-synthetic", "request_refill", { rx_id: "rx_synthetic" }, { invocationId: "tool-fail-open" })).resolves.toMatchObject({ ok: false });
+    expect(press).toHaveBeenCalledTimes(1);
+    expect(press.mock.calls[0][3]).toMatchObject({ tracekit: { outcome: "unavailable" } });
+    expect(run.complete).not.toHaveBeenCalled();
   });
 
   it("does not return a successful tool result when Tracekit reports that completion was not recorded", async () => {

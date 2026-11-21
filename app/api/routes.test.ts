@@ -18,9 +18,34 @@ vi.mock("next/server", async (importOriginal) => ({
 
 // The signed-in person comes from the Auth0 session; tests set it here.
 const session = vi.hoisted(() => ({ approver: null as Approver | null }));
+const signerState = vi.hoisted(() => ({
+  decision: "allow" as "allow" | "deny" | "ask",
+  recordsCompletion: true,
+  steps: [] as string[],
+}));
 vi.mock("@/lib/auth/session", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/auth/session")>()),
   getApprover: async () => session.approver,
+}));
+vi.mock("@/lib/audit/signed-press", () => ({
+  createTracekitRuntime: () => ({
+    close: async () => { signerState.steps.push("close"); },
+    registerRun: async () => {
+      signerState.steps.push("register");
+      return {
+        runId: "run-synthetic",
+        decide: async () => {
+          signerState.steps.push("decide");
+          return { decision: signerState.decision, decision_id: "decision-synthetic", rule_ids: ["pharmacist-policy"] };
+        },
+        complete: async () => {
+          signerState.steps.push("complete");
+          return signerState.recordsCompletion ? { event_id: "event-synthetic" } : null;
+        },
+        close: async () => undefined,
+      };
+    },
+  }),
 }));
 
 const PHARMACIST: Approver = { id: "auth0|test-pharmacist", name: "Test Pharmacist", role: "pharmacist" };
@@ -28,6 +53,9 @@ const REVIEWER: Approver = { id: "auth0|test-reviewer", name: "Test Reviewer", r
 
 beforeEach(async () => {
   session.approver = null;
+  signerState.decision = "allow";
+  signerState.recordsCompletion = true;
+  signerState.steps = [];
   await resetRuntimeForTests();
 });
 
@@ -131,6 +159,36 @@ describe("POST /api/queue/:id/decide", () => {
     expect(decided.decidedBy).toEqual(PHARMACIST);
     expect(decided.decisionNote).toBe("Chat at pickup");
     expect(got.map((d) => d.event)).toContainEqual({ type: "queue", item: decided });
+    expect(signerState.steps).toEqual(["register", "decide", "complete", "close"]);
+  });
+
+  it("does not commit or emit when signer policy denies a pharmacist action", async () => {
+    session.approver = PHARMACIST;
+    signerState.decision = "deny";
+    const item = await openItem();
+    const got: Delivered[] = [];
+    subscribe((event) => got.push(event));
+
+    const res = await decide(post({ decision: "approve" }), params(item.id));
+
+    expect(res.status).toBe(403);
+    expect((await getStore().queue()).find((q) => q.id === item.id)?.status).toBe("open");
+    expect(got).toEqual([]);
+    expect(signerState.steps).toEqual(["register", "decide", "complete", "close"]);
+  });
+
+  it("withholds console success when the signer cannot record the committed result", async () => {
+    session.approver = PHARMACIST;
+    signerState.recordsCompletion = false;
+    const item = await openItem();
+    const got: Delivered[] = [];
+    subscribe((event) => got.push(event));
+
+    const res = await decide(post({ decision: "approve" }), params(item.id));
+
+    expect(res.status).toBe(503);
+    expect((await getStore().queue()).find((q) => q.id === item.id)?.status).toBe("approved");
+    expect(got).toEqual([]);
   });
 
   it("tells the patient's phone when a refill with an order is approved or denied", async () => {
