@@ -149,6 +149,8 @@ const FALSE_OTHER_PROMISES = [
   "Once it's approved, your copay is $9.99.",
   "If you want, it's booked for Thursday morning.",
   "When you get a chance, your renewal was sent.",
+  "If that matches, we'll deliver it Friday.",
+  "If those details match, your renewal was sent.",
 ];
 
 const HONEST_OTHER = [
