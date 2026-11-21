@@ -96,26 +96,42 @@ export function isCompletionPromise(sentence: string): boolean {
 // is two clauses and the "need to" in the second can't excuse the first.
 const CLAUSE_BREAK = /[,;:.!?]+|\b(?:and|but|so)\b/i;
 const COMPLETION_ALL = new RegExp(COMPLETION.source, "g");
-const LEADING_CONDITION = /^\s*(once|after|as soon as|when|if|until)\b/;
-const ABOUT_APPROVAL = /\b(approv\w*|pharmacist|reviewed)\b/;
+
+// The only forms that excuse a completion word (Trail #27 re-review); everything else blocks.
+//   a condition on the approval: once/after/if/when/until/as soon as + it/they/your x/the x/a pharmacist
+//     + (is/has been ...) + approves/approved/signs off        "once it's approved"
+//   a negation on the word itself: not/isn't/hasn't/won't (yet) (be/been) + the word   "isn't ready yet"
+// A loose condition or negation elsewhere ("Not to worry, it's approved") excuses nothing.
+const GOVERNED =
+  "(?:once|after|if|when|until|as soon as) (?:it|its|they|theyre|a pharmacist|your \\w+|the \\w+) (?:(?:is|are|has|have|gets|get|has been|have been) )?(?:approves|approve|approved|signs off|sign off)\\b";
+const GOVERNED_ALL = new RegExp(`\\b${GOVERNED}`, "g");
+const GOVERNED_AFTER = new RegExp(`^ (?:\\w+ ){0,2}${GOVERNED}`);
+const GOVERNED_LEAD = new RegExp(`^ ${GOVERNED}`);
+const NEGATED_BEFORE = /\b(?:not|isnt|hasnt|havent|wont|cant|cannot|arent|wasnt|werent|never) (?:yet )?(?:be |been )?$/;
+
+/** True when a completion word in this clause is said as done, with no governed condition or negation. */
+function promisesCompletion(w: string): boolean {
+  const governed = [...w.matchAll(GOVERNED_ALL)].map((m) => [m.index, m.index + m[0].length]);
+  return [...w.matchAll(COMPLETION_ALL)].some((m) => {
+    const at = m.index;
+    if (governed.some(([from, to]) => at >= from && at < to)) return false; // "once it's approved"
+    if (NEGATED_BEFORE.test(w.slice(0, at))) return false; // "isn't approved yet"
+    return !GOVERNED_AFTER.test(w.slice(at + m[0].length)); // "ready once it's approved"
+  });
+}
 
 /**
- * A completion promise no conditional excuses. A conditional ("once", "not", "pending" ...)
- * excuses a completion word only in the same clause and when it comes before one
- * ("it'll be ready once it's approved"); a conditional after it ("ready when you are") doesn't.
+ * A completion promise ("approved", "ready" ...) that nothing governs, checked clause by clause.
+ * A clause that opens with the approval condition ("Once a pharmacist approves it ...") covers
+ * itself and the clause right after it, and only those.
  */
 export function unexcusedCompletion(sentence: string): boolean {
   let ledByApproval = false;
   return sentence.split(CLAUSE_BREAK).some((clause) => {
-    const w = words(clause).replace(NOT_A_PROMISE, " ");
-    const excused = ledByApproval;
-    // "Once a pharmacist approves it, it'll be ready.": a leading clause that sets the approval
-    // as the condition also covers the clause right after it, and only that one.
-    ledByApproval = LEADING_CONDITION.test(w) && ABOUT_APPROVAL.test(w);
-    const completions = [...w.matchAll(COMPLETION_ALL)].map((m) => m.index);
-    if (completions.length === 0 || excused) return false;
-    const cond = w.search(CONDITIONAL);
-    return cond < 0 || cond > Math.max(...completions);
+    const w = words(clause).replace(NOT_A_PROMISE, " ").replace(/ +/g, " ");
+    const excused = ledByApproval || GOVERNED_LEAD.test(w); // "Once it's approved it's ready."
+    ledByApproval = GOVERNED_LEAD.test(w);
+    return !excused && promisesCompletion(w);
   });
 }
 
