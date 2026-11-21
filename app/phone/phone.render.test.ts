@@ -62,7 +62,9 @@ describe("1.4: Sam's call on the phone", () => {
   it("rings, shows the code, the whole conversation and the approved status", async () => {
     const phone = phoneAfter(await samsCallEvents());
     expect(phone.mode).toBe("in_call");
-    expect(phone.code).toBe(CODE);
+    // Codes never come off the event stream: the phone fetches its own (GET /api/call/:id/code).
+    expect(phone.code).toBeUndefined();
+    expect(phone.message).toBeDefined();
     expect(phone.status).toBe("Approved, ready Thursday");
     const said = phone.transcript.flatMap((t) => (t.kind === "line" ? [`${t.who}: ${t.text}`] : []));
     expect(said[0]).toBe(`agent: ${outboundOpener("Maple Street Pharmacy", "Sam Rivera")}`);
