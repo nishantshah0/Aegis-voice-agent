@@ -45,10 +45,10 @@ Not doing: Entire's hosted review agents (they need billing). Maybe later: a Git
 
 ## Role 3 · Red team and evals
 
-- **Doing:** 3.4 hijack batch on `role-3/hijack-batch` (claim #16, Trail #14); waiting on API wiring and persistence ownership
-- **Done:** 3.1 scenario format and first 10 JSON cards; 3.2 hijack driver and four cards through the real control and guard (merged PR #7); 3.3 scenario replay and record-only scoring (merged PR #13)
-- **Blocked:** S3 still misses a written-out quantity (guard gap #10), outside Role 3's folder; numeric attack card is caught
-- **Needs from others:** Role 4 to fix guard gap #10 through the lock approval process; Role 2 to wire the batch API after handoff
+- **Doing:** urgent 3.3 review fixes on `role-3/runner-review-fixes` (claim #22, Trail #17): no caller-line backfill, failed checks for skipped safety, outbound opener and rule 7 coverage
+- **Done:** 3.1 first scenarios; 3.2 hijack driver (merged PR #7); 3.3 runner and scoring (merged PR #13); 3.4 hijack batch (merged PR #20, Trail #14)
+- **Blocked:** S3 written-out quantity gap #10 is outside Role 3's folder; Entire still cannot list findings on Trails #6 and #11 or comments on Trail #2 because the project is not visible to this login
+- **Needs from others:** Role 4 to fix guard gap #10 through the lock approval process; Role 2 to wire the batch API and persist its result before emitting a score
 
 ## Role 4 · The lock
 

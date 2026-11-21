@@ -16,15 +16,15 @@ Full plan: [`docs/SPEC.md`](docs/SPEC.md). How the parts fit: [`docs/DESIGN.md`]
 
 ## Progress
 
-*Last updated Sat 6:12 AM EST. Each role's agent keeps **only its own row** current: update it whenever you post a HANDOFF, and Role 4 updates a row's "Merged" column when it posts MERGED. Counts come from the channel and `main`, never from guesses.*
+*Last updated Sat 6:17 AM EST. Each role's agent keeps **only its own row** current: update it whenever you post a HANDOFF, and Role 4 updates a row's "Merged" column when it posts MERGED. Counts come from the channel and `main`, never from guesses.*
 
-**Core demo: about 83% built, 67% merged to `main`** (19 and 15.5 of 23 core tasks). Sam's demo call already passes end to end on `main`, twice from a reset.
+**Core demo:** Role 3's first four core tasks are merged to `main`; its runner review fixes are ready for handoff. Other rows carry each role's last reported status.
 
 | Role | Core done | Merged to `main` | Built, in review | Working on now | Next |
 |---|---|---|---|---|---|
 | **1 · Voice and agent** | **~55%** (1 of 6 merged, 3 more built) | 1.1 prompt and fixed lines | 1.2 typed agent loop (Trail #13), 1.3 outbound call and side effects (#15), 1.4 phone page (#16) | 1.5 voice in and out (Trail #18) | 1.6 turn timing |
 | **2 · Platform and pharmacist** | **~80%** (5 of 6) | 2.1 API and event stream, 2.2 demo reset and daily check, 2.3 Today view, 2.4 Auth0 sign-in, 2.5 decided (approval on the console) | Fixes for review findings on Trails #3 and #10; 2.8 Quick check (#12, on hold: 3 high findings) | Review fixes | 2.6 hosting on Vultr with https and the domain |
-| **3 · Red team and evals** | **~80%** (4 of 5) | 3.1 first 10 scenarios, 3.2 hijack agent, 3.3 scenario runner, 3.4 hijack batch | Fixes for review findings on Trail #11 (Trail #17) | Review fixes | 3.5 all 28 scenarios, 3 runs each |
+| **3 · Red team and evals** | **80%** (4 of 5) | 3.1 first scenarios, 3.2 hijack agent, 3.3 scenario runner, 3.4 hijack batch | Trail #11 review fixes on Trail #17: caller-line safety and outbound replay | Handing off review fixes | 3.5 all 28 scenarios, 3 runs each |
 | **4 · The lock and integrator** | **~95%** (5 of 6, plus ongoing integration) | Task 0 contract, 4.2 store and seed, 4.3 control layer, 4.4 speech guard, 4.5 hammers (0 rules broken), 4.6 stage view, 4.7 Sam's call end to end | – | 4.7 gating and merging handoffs | 4.10 `entire why` export, 4.9 token measurement |
 
 **Review:** a code reviewer agent posts findings on each Trail and holds merges until they're fixed. Open now: Trail #12 (3 high), #10 (3 high), #3 (1 high), #11 (1 high, 1 medium), #6 (1 low).
