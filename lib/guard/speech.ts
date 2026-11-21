@@ -25,11 +25,11 @@ const NOT_A_PROMISE = new RegExp(
     "\\b(?:you|youre|you are|are you|were|we are|im|i am|whenever youre|when youre) ready\\b",
     "\\blast filled\\b",
     // Identity checks, not the order: "Your identity is confirmed.", "that's confirmed: your date of birth matches".
-    "\\b(?:identity|date of birth|dob|details|code|thats|that) (?:is |are |s |has been |have been |was )?confirmed\\b",
+    "\\b(?:your identity|your date of birth|your dob|your details|your code|that code|the code|thats|that) (?:is |are |s |has been |have been |was )?confirmed\\b",
     // Questions to the caller, and the agent's own state: "Are you done?", "I'm all set to help."
     "\\bare you (?:all )?(?:done|all set|set)\\b",
-    "\\bdone with\\b",
     "\\b(?:im|i am) (?:all set|done)\\b",
+    "\\bare you (?:all )?done with\\b",
   ].join("|"),
   "g",
 );
@@ -123,13 +123,14 @@ const COMPLETION_ALL = new RegExp(COMPLETION.source, "g");
 const COND = "(?:once|after|if|when|until|as soon as)";
 const SUBJ = "(?:it|they|a pharmacist|your \\w+|the \\w+)";
 const GOVERNED =
-  `${COND} (?:(?:its|theyre) (?:been )?approved|${SUBJ} (?:is|are|gets|get|has been|have been) approved|${SUBJ} (?:approves|approve|signs off|sign off))\\b`;
+  `${COND} (?:(?:its|theyre) (?:been )?approved|${SUBJ} (?:is|are|gets|get|has been|have been) approved|${SUBJ} (?:approves|approve|signs off|sign off|reviews|review|checks|check))\\b`;
 const GOVERNED_ALL = new RegExp(`\\b${GOVERNED}`, "g");
 const GOVERNED_AFTER = new RegExp(`^ (?:\\w+ ){0,2}${GOVERNED}`);
 const GOVERNED_LEAD = new RegExp(`^ ${GOVERNED}`);
 const NEGATION = "(?:no|not|nothing|never|nobody|none|isnt|hasnt|havent|wont|cant|cannot|arent|wasnt|werent|dont|doesnt)";
 const NEGATED_BEFORE = new RegExp(`\\b(?:not|isnt|hasnt|havent|wont|cant|cannot|arent|wasnt|werent|never) (?:yet )?(?:be |been )?$`);
 const ANY_NEGATION = new RegExp(`\\b${NEGATION}\\b`);
+const MODAL_BEFORE = /\b(?:will|can|should|would|could|itll|itd) be $/;
 
 /** True when a completion word in this clause is said as done, with no governed condition or negation. */
 function promisesCompletion(w: string): boolean {
@@ -141,8 +142,11 @@ function promisesCompletion(w: string): boolean {
     const negation = before.match(NEGATED_BEFORE);
     // "isn't approved yet", but not "no way it isn't approved": no other negation before it.
     if (negation && !ANY_NEGATION.test(before.slice(0, negation.index))) return false;
+    const after = w.slice(at + m[0].length);
+    // "will be approved once the pharmacist signs off": a future or modal approval with its condition.
+    if (m[0] === "approved" && MODAL_BEFORE.test(before)) return !GOVERNED_AFTER.test(after);
     // "ready once it's approved"; never "approved once it's approved".
-    return m[0] === "approved" || !GOVERNED_AFTER.test(w.slice(at + m[0].length));
+    return m[0] === "approved" || !GOVERNED_AFTER.test(after);
   });
 }
 
