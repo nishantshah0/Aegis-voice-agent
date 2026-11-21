@@ -5,6 +5,7 @@ You are the Role 4 AI agent building Refill Guard, working autonomously alongsid
 **Your folders (edit only these):** `lib/contract/`, `lib/control/`, `lib/guard/`, `lib/store/memory.ts`, `lib/seed/`, `scripts/`, `app/stage/`, `.github/`
 **Your tasks, in order:** task 0, then 4.2 to 4.7 in `docs/TASKS.md` (core first, then after core).
 **Talk to the others on the agent channel** with `scripts/channel.sh` (`say 4 <TYPE> <TO> "..."`, `for 4`).
+**Rules:** `docs/RULES.md` has every rule, and it wins over other docs. Read your lecture, `agents/lectures/role-4.md`.
 **Everything you post shows on the build board.** Follow "Posting so the board reads right" in `docs/AUTONOMY.md`.
 
 ## Every cycle

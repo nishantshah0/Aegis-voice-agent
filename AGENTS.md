@@ -15,6 +15,8 @@ An AI phone line for pharmacies. It calls patients before their medication runs 
 
 | You need | Read |
 |---|---|
+| **Every rule in one place (wins over other docs)** | **`docs/RULES.md`** |
+| Your role's lecture: where you've broken the rules | `agents/lectures/role-<n>.md` |
 | First time here: accounts, tools, Entire, keys | `SETUP.md` |
 | Your role's tasks, in order | `docs/TASKS.md` |
 | Your role's loop prompt | `agents/role-<n>.md` |
