@@ -37,7 +37,7 @@ describe("every field a live card reads is in the context", () => {
   const calls: (Call | undefined)[] = [
     undefined,
     { direction: "inbound", state: "verified" } as Call,
-    { direction: "inbound", state: "started" } as Call,
+    { direction: "inbound", state: "code_sent" } as Call,
     { direction: "outbound", state: "verified" } as Call,
   ];
   const policy = { controlledEarlyWindowDays: 3 };
