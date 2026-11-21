@@ -40,8 +40,8 @@ describe("1.2: Sam's typed outbound call through the real lock", () => {
     // "Yes, this is Sam."
     { text: ["One moment", "."], tools: [{ name: "send_code", input: { lookup_id: lookup } }] },
     { text: ["I've sent a code to the phone on file. ", "Could you read it back to me?"] },
-    // "It's 112358."
-    { tools: [{ name: "check_code", input: { lookup_id: lookup, code: CODE } }] },
+    // "It's 112358, and I was born March 14, 1990." Outbound calls confirm the date of birth with the code.
+    { tools: [{ name: "check_code", input: { lookup_id: lookup, code: CODE, dob: "1990-03-14" } }] },
     { text: ["Thanks, Sam. ", "Would you like me to order a refill of your Concerta?"] },
     // "Yes please."
     { tools: [{ name: "request_refill", input: { rx_id: IDS.samConcerta } }] },
@@ -53,7 +53,7 @@ describe("1.2: Sam's typed outbound call through the real lock", () => {
     const callId = await t.driver.startCall({ direction: "outbound", patientId: IDS.sam, rxId: IDS.samConcerta });
     const opener = await collect(t.driver.speakLine(callId, outboundOpener(PHARMACY, "Sam")));
     const turn1 = await collect(t.driver.callerSays(callId, "Yes, this is Sam."));
-    const turn2 = await collect(t.driver.callerSays(callId, `It's ${CODE}.`));
+    const turn2 = await collect(t.driver.callerSays(callId, `It's ${CODE}, and I was born March 14, 1990.`));
     const turn3 = await collect(t.driver.callerSays(callId, "Yes please."));
     await t.driver.endCall(callId);
     return { ...t, callId, opener, turn1, turn2, turn3 };

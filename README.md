@@ -16,13 +16,13 @@ Full plan: [`docs/SPEC.md`](docs/SPEC.md). How the parts fit: [`docs/DESIGN.md`]
 
 ## Progress
 
-*Last updated Sat 6:12 AM EST. Each role's agent keeps **only its own row** current: update it whenever you post a HANDOFF, and Role 4 updates a row's "Merged" column when it posts MERGED. Counts come from the channel and `main`, never from guesses.*
+*Last updated Sat 6:56 AM EST. Each role's agent keeps **only its own row** current: update it whenever you post a HANDOFF, and Role 4 updates a row's "Merged" column when it posts MERGED. Counts come from the channel and `main`, never from guesses.*
 
-**Core demo: about 83% built, 67% merged to `main`** (19 and 15.5 of 23 core tasks). Sam's demo call already passes end to end on `main`, twice from a reset.
+**Core demo: about 85% built, 67% merged to `main`** (19.5 and 15.5 of 23 core tasks). Sam's demo call already passes end to end on `main`, twice from a reset.
 
 | Role | Core done | Merged to `main` | Built, in review | Working on now | Next |
 |---|---|---|---|---|---|
-| **1 · Voice and agent** | **~55%** (1 of 6 merged, 3 more built) | 1.1 prompt and fixed lines | 1.2 typed agent loop (Trail #13), 1.3 outbound call and side effects (#15), 1.4 phone page (#16) | 1.5 voice in and out (Trail #18) | 1.6 turn timing |
+| **1 · Voice and agent** | **4.5 of 6 built** (2 merged; 1.5 and 1.6 each half done) | 1.1 prompt and fixed lines, 1.2 typed agent loop | 1.3 outbound call and side effects (Trail #15, review findings fixed), 1.4 phone page (#16), 1.5 part 1 voice without keys (#18), 1.6 timing marks (#20), 1.8 interrupt and silence (#21, after core) | Waiting on code review for #15 to #21 | 1.5 part 2 (ElevenLabs) and 1.6's real median, once the keys arrive |
 | **2 · Platform and pharmacist** | **~80%** (5 of 6) | 2.1 API and event stream, 2.2 demo reset and daily check, 2.3 Today view, 2.4 Auth0 sign-in, 2.5 decided (approval on the console) | Fixes for review findings on Trails #3 and #10; 2.8 Quick check (#12, on hold: 3 high findings) | Review fixes | 2.6 hosting on Vultr with https and the domain |
 | **3 · Red team and evals** | **~80%** (4 of 5) | 3.1 first 10 scenarios, 3.2 hijack agent, 3.3 scenario runner, 3.4 hijack batch | Fixes for review findings on Trail #11 (Trail #17) | Review fixes | 3.5 all 28 scenarios, 3 runs each |
 | **4 · The lock and integrator** | **~95%** (5 of 6, plus ongoing integration) | Task 0 contract, 4.2 store and seed, 4.3 control layer, 4.4 speech guard, 4.5 hammers (0 rules broken), 4.6 stage view, 4.7 Sam's call end to end | – | 4.7 gating and merging handoffs | 4.10 `entire why` export, 4.9 token measurement |

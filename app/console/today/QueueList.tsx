@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { listenToEvents } from "@/lib/events/client";
-import type { ItemDetail, LaneTotals } from "./detail";
+import type { ItemDetail, LaneTotals as Totals } from "./detail";
+import { LaneTotals } from "./LaneTotals";
 
 const LANE_LABEL = { review: "Review", quick_check: "Quick check", automatic: "Automatic" } as const;
 const LANE_STYLE = {
@@ -143,7 +144,7 @@ export function QueueList({
   canDecide,
   signedIn,
 }: {
-  totals: LaneTotals;
+  totals: Totals;
   waiting: ItemDetail[];
   decided: ItemDetail[];
   canDecide: boolean;
@@ -175,16 +176,46 @@ export function QueueList({
     router.refresh();
   }
 
+  const review = waiting.filter((d) => d.lane === "review");
+  const quick = waiting.filter((d) => d.lane === "quick_check");
+
+  // A plain function, not a component: a component defined here would remount on every
+  // render and the note box would lose focus on each keystroke.
+  function decideControls(id: string, compact = false) {
+    return (
+      <div className={compact ? "flex items-center gap-2" : "mt-3 flex flex-wrap items-center gap-2"}>
+        {!compact && (
+          <input
+            aria-label="Note for the record"
+            placeholder="Note (optional), e.g. chat at pickup"
+            value={notes[id] ?? ""}
+            onChange={(e) => setNotes((prev) => ({ ...prev, [id]: e.target.value }))}
+            className="min-w-48 flex-1 rounded border border-neutral-300 bg-transparent px-2 py-1 text-sm"
+          />
+        )}
+        <button
+          type="button"
+          disabled={busy === id}
+          onClick={() => decide(id, "approve")}
+          className="rounded bg-green-700 px-3 py-1.5 text-sm text-white hover:opacity-80 disabled:opacity-50"
+        >
+          Approve
+        </button>
+        <button
+          type="button"
+          disabled={busy === id}
+          onClick={() => decide(id, "deny")}
+          className="rounded bg-red-700 px-3 py-1.5 text-sm text-white hover:opacity-80 disabled:opacity-50"
+        >
+          Deny
+        </button>
+      </div>
+    );
+  }
+
   return (
     <>
-      <section className="mt-6 grid grid-cols-3 gap-3" data-testid="lane-totals">
-        {(["automatic", "quick_check", "review"] as const).map((lane) => (
-          <div key={lane} className="rounded border border-neutral-300 p-3">
-            <div className="text-xs text-neutral-500">{LANE_LABEL[lane]}</div>
-            <div className="text-2xl font-semibold">{totals[lane]}</div>
-          </div>
-        ))}
-      </section>
+      <LaneTotals totals={totals} />
 
       <section className="mt-6">
         <h2 className="text-lg font-medium">Waiting for a pharmacist</h2>
@@ -195,11 +226,14 @@ export function QueueList({
             {error}
           </p>
         )}
-        {waiting.length === 0 ? (
-          <p className="mt-2 text-sm text-neutral-500">Nothing waiting.</p>
-        ) : (
+        {waiting.length === 0 && <p className="mt-2 text-sm text-neutral-500">Nothing waiting.</p>}
+      </section>
+
+      {review.length > 0 && (
+        <section className="mt-4" data-testid="review">
+          <h3 className="font-medium">Review ({review.length})</h3>
           <ul className="mt-2 space-y-3" data-testid="queue">
-            {waiting.map((d, i) => (
+            {review.map((d, i) => (
               <li key={d.id} className="rounded border border-neutral-300 p-3">
                 <details open={i === 0}>
                   <summary className="cursor-pointer">
@@ -207,38 +241,34 @@ export function QueueList({
                   </summary>
                   <Detail d={d} />
                 </details>
-                {canDecide && (
-                  <div className="mt-3 flex flex-wrap items-center gap-2">
-                    <input
-                      aria-label="Note for the record"
-                      placeholder="Note (optional), e.g. chat at pickup"
-                      value={notes[d.id] ?? ""}
-                      onChange={(e) => setNotes((prev) => ({ ...prev, [d.id]: e.target.value }))}
-                      className="min-w-48 flex-1 rounded border border-neutral-300 bg-transparent px-2 py-1 text-sm"
-                    />
-                    <button
-                      type="button"
-                      disabled={busy === d.id}
-                      onClick={() => decide(d.id, "approve")}
-                      className="rounded bg-green-700 px-3 py-1.5 text-sm text-white hover:opacity-80 disabled:opacity-50"
-                    >
-                      Approve
-                    </button>
-                    <button
-                      type="button"
-                      disabled={busy === d.id}
-                      onClick={() => decide(d.id, "deny")}
-                      className="rounded bg-red-700 px-3 py-1.5 text-sm text-white hover:opacity-80 disabled:opacity-50"
-                    >
-                      Deny
-                    </button>
-                  </div>
-                )}
+                {canDecide && decideControls(d.id)}
               </li>
             ))}
           </ul>
-        )}
-      </section>
+        </section>
+      )}
+
+      {quick.length > 0 && (
+        <section className="mt-4" data-testid="quick-check">
+          <h3 className="font-medium">Quick check ({quick.length})</h3>
+          <p className="text-xs text-neutral-500">Policy-only items with nothing unusual. One tap each; every approval is signed with your sign-in.</p>
+          <ul className="mt-2 divide-y divide-neutral-200 rounded border border-neutral-300">
+            {quick.map((d) => (
+              <li key={d.id} className="p-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <details>
+                    <summary className="cursor-pointer">
+                      <Summary d={d} />
+                    </summary>
+                    <Detail d={d} />
+                  </details>
+                  {canDecide && decideControls(d.id, true)}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {decided.length > 0 && (
         <section className="mt-6">
