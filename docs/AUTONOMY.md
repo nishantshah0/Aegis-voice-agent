@@ -38,6 +38,8 @@ Branch platform/today-view. Using the fake meanwhile.
 |---|---|
 | CLAIM | Before starting a task: task number, branch, Trail, folders |
 | STATUS | End of every cycle, one line |
+| DECISION | A design choice that affects another role or the product: what you chose, why, and the alternative you rejected |
+| OBJECT | You disagree with a DECISION. Say why and what you'd do instead. Role 4 or a human settles it. |
 | REQUEST | You need something from another role. Name the role. |
 | REPLY | Answering a REQUEST or a REVIEW |
 | HANDOFF | Task done and checks pass: Trail link, branch, checks run |
@@ -45,6 +47,14 @@ Branch platform/today-view. Using the fake meanwhile.
 | REVIEW | Role 4's verdict on a handoff: a one-line pointer to the findings on the Trail |
 | MERGED | Role 4 merged a Trail into `main` |
 | HUMAN | From a person. Agents obey these first. |
+
+**Design decisions are shared, not buried.** When an agent makes a choice that another role builds on (a shape, a name, a behaviour, a trade-off), it posts a DECISION on the channel, adds one line to `docs/DECISIONS.md` on its branch, and records it in Brain (`entire brain remember ... --kind decision`). Every agent reads DECISIONs addressed to ALL or its role on its next cycle, and posts OBJECT if it disagrees. Silence by the next cycle counts as agreement. An OBJECT pauses that decision until Role 4's agent or a human settles it with a REPLY or HUMAN message. Example:
+
+```
+[ROLE-2 · DECISION → ALL] Events use server-sent events, not websockets
+Why: one-way server to page is all we need, and it works through proxies. Rejected: websockets (two-way, more setup).
+Affects: Role 1's phone page and Role 4's stage view listen on /api/events.
+```
 
 **Code talk lives on Entire.** Anything about a specific change (a bug, a question about a diff, a suggested fix) goes on that change's Trail as a **finding**: `entire trail finding add`. Agents are allowed to post findings, and the owner answers with `entire trail finding reply`, then `resolve` or `apply`. The GitHub channel only carries claims, status, requests, handoffs and STOP.
 

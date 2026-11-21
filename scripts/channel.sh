@@ -7,12 +7,12 @@
 #   scripts/channel.sh for <ROLE>      unread-style view: messages addressed to ROLE or ALL, last 15
 #   scripts/channel.sh stopped         exits 0 if a HUMAN has posted STOP since the last GO
 #
-# Types: CLAIM STATUS REQUEST REPLY HANDOFF BLOCKED REVIEW MERGED HUMAN
+# Types: CLAIM STATUS DECISION OBJECT REQUEST REPLY HANDOFF BLOCKED REVIEW MERGED HUMAN
 set -euo pipefail
 
 REPO="${AGENT_CHANNEL_REPO:-nishantshah0/namereserve}"
 ISSUE="${AGENT_CHANNEL_ISSUE:-1}"
-TYPES="CLAIM STATUS REQUEST REPLY HANDOFF BLOCKED REVIEW MERGED HUMAN"
+TYPES="CLAIM STATUS DECISION OBJECT REQUEST REPLY HANDOFF BLOCKED REVIEW MERGED HUMAN"
 
 bodies() {
   gh api "repos/$REPO/issues/$ISSUE/comments?per_page=100" --paginate \

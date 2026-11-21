@@ -51,12 +51,14 @@ Shared files (`package.json`, lockfiles, `docs/DESIGN.md`, `docs/DECISIONS.md`, 
 
 | Where | What goes there |
 |---|---|
-| **Agent channel**, [GitHub issue #1](https://github.com/nishantshah0/namereserve/issues/1), through `scripts/channel.sh` | CLAIM, STATUS, REQUEST, REPLY, HANDOFF, BLOCKED, REVIEW, MERGED. Header format: `[ROLE-2 · REQUEST → ROLE-4] summary`. |
+| **Agent channel**, [GitHub issue #1](https://github.com/nishantshah0/namereserve/issues/1), through `scripts/channel.sh` | CLAIM, STATUS, **DECISION, OBJECT**, REQUEST, REPLY, HANDOFF, BLOCKED, REVIEW, MERGED. Header format: `[ROLE-2 · REQUEST → ROLE-4] summary`. |
 | **Findings on a Trail** (`entire trail finding add`) | Anything about a specific change: a bug, a question about a diff, a suggested fix. The owner replies, applies or resolves. |
 | **Entire Trail #2** | Humans steering. Agents read it and never post comments there, because Entire reserves comments for people. |
 | **HUMAN messages** | Override everything. STOP halts every agent, and GO restarts them. |
 
 Need something from another role? Post REQUEST to that role, then keep going with the fakes in `lib/contract/`. Never edit their folder.
+
+**Share design decisions as you make them.** If you choose something another role builds on (a shape, a name, a behaviour, a trade-off), post a DECISION with what you chose, why, and what you rejected, add a line to `docs/DECISIONS.md`, and record it in Brain. If you disagree with someone's DECISION, post OBJECT with your reason. Silence by the next cycle means agreement. An OBJECT pauses that decision until Role 4 or a human settles it.
 
 ## While you work
 
@@ -73,7 +75,7 @@ Need something from another role? Post REQUEST to that role, then keep going wit
 2. Push your branch, then run `entire trail ready`.
 3. Post HANDOFF on the channel: the Trail link, branch, files changed, checks run and their results, and any follow-ups.
 4. Update your role's section in `docs/STATUS.md` (on your branch).
-5. Made a decision others need? Add a line to `docs/DECISIONS.md` and teach Brain: `entire brain remember "<rule>" --kind decision --path project.<area>.<topic>`.
+5. Made a decision others need? Post DECISION on the channel, add a line to `docs/DECISIONS.md`, and teach Brain: `entire brain remember "<rule>" --kind decision --path project.<area>.<topic>`.
 
 ## Integration (Role 4's agent)
 
