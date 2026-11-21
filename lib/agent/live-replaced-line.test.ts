@@ -31,8 +31,19 @@ const SAM_DOB = SEED.patients.find((p) => p.id === IDS.sam)!.dob;
 /** S4 blocks this while the refill is still waiting on a pharmacist. */
 const FALSE_PROMISE = "Your Concerta refill is approved.";
 
-/** How the agent talked about a replaced line in pass 14. */
-const APOLOGY = /\b(i'm sorry|i am sorry|apolog|correct(ion)? (what|something) i said|misspoke|i should correct|let me correct)\b/i;
+/**
+ * Any apology, not just pass 14's wording. The first version of this listed
+ * phrases like "i'm sorry" and "misspoke", and a live run walked straight
+ * through it with "Sorry about that." A narrow pattern here is worse than none,
+ * because it passes while the thing it guards against is happening.
+ */
+const APOLOGY = /\b(sorry|apolog|misspoke|my (mistake|error)|i was wrong|let me correct|i should correct)\b/i;
+
+/**
+ * A neutral prompt to carry on. "Sorry, what was that?" invites an apology, so
+ * the earlier version of this test was asking for the behaviour it then measured.
+ */
+const CARRY_ON = "Right, go on.";
 
 async function collect(stream: AsyncIterable<AgentEvent>): Promise<AgentEvent[]> {
   const out: AgentEvent[] = [];
@@ -74,7 +85,7 @@ describe.skipIf(!LIVE)("1.2 live: a replaced line is not mentioned on the call",
       const blocked = replaced.filter((e) => e.type === "blocked_line");
 
       // Then give the model a turn, which is where pass 14's apology appeared.
-      const after = await collect(driver.callerSays(callId, "Sorry, what was that?"));
+      const after = await collect(driver.callerSays(callId, CARRY_ON));
       const spoken = after.flatMap((e) => (e.type === "line" ? [e.text] : []));
 
       mkdirSync("results/agent-live", { recursive: true });
@@ -87,6 +98,7 @@ describe.skipIf(!LIVE)("1.2 live: a replaced line is not mentioned on the call",
             at: new Date().toISOString(),
             spokenInsteadOf: FALSE_PROMISE,
             blocked: blocked.map((e) => (e.type === "blocked_line" ? { rule: e.rule, replacement: e.replacement } : null)),
+            callerSaid: CARRY_ON,
             nextTurn: spoken,
           },
           null,
