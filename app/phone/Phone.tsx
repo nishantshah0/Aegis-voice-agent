@@ -7,6 +7,7 @@ import type { ListenerMode } from "@/lib/voice/listener";
 import { TURN_TARGET_MS, createPhoneTiming } from "@/lib/voice/timing";
 import { phoneApi } from "./api";
 import { RULE_LABEL, initialPhone, phoneListener, phoneReducer, type PhoneState, type TranscriptItem } from "./state";
+import { scrollToEnd } from "./scroll";
 import { useVoice } from "./useVoice";
 
 // The patient's phone (task 1.4). Everything on screen comes from /api/events;
@@ -291,7 +292,9 @@ function Idle({ ended, onDial, busy }: { ended: boolean; onDial: () => void; bus
 
 export function Transcript({ items }: { items: TranscriptItem[] }) {
   const end = useRef<HTMLLIElement>(null);
-  useEffect(() => end.current?.scrollIntoView?.({ block: "end" }), [items.length]);
+  useEffect(() => {
+    scrollToEnd(end.current);
+  }, [items.length]);
   return (
     <ol aria-live="polite" data-testid="phone-transcript" className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-3 text-sm">
       {items.map((item, i) =>

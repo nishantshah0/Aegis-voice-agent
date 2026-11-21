@@ -31,10 +31,11 @@ import type {
 import { outboundLookupId } from "@/lib/control";
 import type { ServerTurnTiming } from "@/lib/voice/timing";
 import { HOLDING, SIDE_EFFECT_PASSED_ON, STILL_THERE, inboundGreeting, outboundOpener, sideEffectQuestion } from "./lines";
-import type { AgentModel, ModelTurn } from "./model";
+import type { AgentModel, ModelTurn, PressForModel } from "./model";
 import { systemPrompt } from "./prompt";
 import { createSentenceSplitter } from "./sentences";
 import { BUTTON_TOOLS, isButtonName } from "./tools";
+import { UsageCapError } from "./usage";
 
 type MessageParam = Anthropic.Beta.BetaMessageParam;
 type ToolResult = Anthropic.Beta.BetaToolResultBlockParam;
@@ -157,21 +158,24 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
     else call.messages.push({ role: "assistant", content: line });
   }
 
+  /** One button press for the model, through the lock. A name that isn't a button never reaches it. */
+  async function pressOne(callId: CallId, name: string, input: unknown, refilled: RxId[]): Promise<{ event?: AgentEvent; content: string; isError: boolean }> {
+    if (!isButtonName(name)) return { content: JSON.stringify({ error: "no such button" }), isError: true };
+    const result: ButtonResult = await press(callId, name, input);
+    const rxId = (input as { rx_id?: unknown })?.rx_id;
+    if (name === "request_refill" && result.ok && typeof rxId === "string") {
+      if (REFILL_GOING_AHEAD.has((result.output as { state: string }).state)) refilled.push(rxId);
+    }
+    return { event: { type: "press", button: name, input, result }, content: JSON.stringify(forModel(result)), isError: !result.ok };
+  }
+
   async function* pressAll(callId: CallId, turn: ModelTurn, refilled: RxId[]): AsyncGenerator<AgentEvent, ToolResult[]> {
     const results: ToolResult[] = [];
     for (const block of turn.content) {
       if (block.type !== "tool_use") continue;
-      if (!isButtonName(block.name)) {
-        results.push({ type: "tool_result", tool_use_id: block.id, is_error: true, content: JSON.stringify({ error: "no such button" }) });
-        continue;
-      }
-      const result: ButtonResult = await press(callId, block.name, block.input);
-      yield { type: "press", button: block.name, input: block.input, result };
-      results.push({ type: "tool_result", tool_use_id: block.id, is_error: !result.ok, content: JSON.stringify(forModel(result)) });
-      const rxId = (block.input as { rx_id?: unknown })?.rx_id;
-      if (block.name === "request_refill" && result.ok && typeof rxId === "string") {
-        if (REFILL_GOING_AHEAD.has((result.output as { state: string }).state)) refilled.push(rxId);
-      }
+      const pressed = await pressOne(callId, block.name, block.input, refilled);
+      if (pressed.event) yield pressed.event;
+      results.push({ type: "tool_result", tool_use_id: block.id, is_error: pressed.isError, content: pressed.content });
     }
     return results;
   }
@@ -275,12 +279,32 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
       for (let step = 0; step < maxSteps; step++) {
         const splitter = createSentenceSplitter();
         let turn: ModelTurn | undefined;
-        for await (const event of model.turn({ system, messages: call.messages, tools: BUTTON_TOOLS })) {
-          if (event.type === "done") turn = event.turn;
-          else if (timing.firstModelTextMs === undefined) timing.firstModelTextMs = now() - timing.receivedAt;
-          if (event.type === "text") for (const sentence of splitter.push(event.text)) yield* speak(callId, sentence);
+        // Presses made by a model that runs its own tool steps (the Agent SDK), yielded in order.
+        const pressed: AgentEvent[] = [];
+        const pressForModel: PressForModel = async (name, input) => {
+          const r = await pressOne(callId, name, input, refilled);
+          if (r.event) pressed.push(r.event);
+          return { content: r.content, isError: r.isError };
+        };
+        try {
+          for await (const event of model.turn({ callId, system, messages: call.messages, tools: BUTTON_TOOLS, press: pressForModel })) {
+            if (pressed.length) {
+              for (const sentence of splitter.flush()) yield* speak(callId, sentence);
+              yield* pressed.splice(0);
+            }
+            if (event.type === "done") turn = event.turn;
+            else if (timing.firstModelTextMs === undefined) timing.firstModelTextMs = now() - timing.receivedAt;
+            if (event.type === "text") for (const sentence of splitter.push(event.text)) yield* speak(callId, sentence);
+          }
+        } catch (error) {
+          // The model is unavailable (usage cap, SDK error, network): say so through the guard and get a person.
+          for (const sentence of splitter.flush()) yield* speak(callId, sentence);
+          yield* pressed.splice(0);
+          yield* handOver(callId, error instanceof UsageCapError ? "The assistant reached its usage limit." : "The assistant could not continue this call.");
+          return;
         }
         for (const sentence of splitter.flush()) yield* speak(callId, sentence);
+        yield* pressed.splice(0);
 
         if (!turn || turn.stop_reason === "refusal") {
           yield* handOver(callId, "The assistant could not continue this call.");
@@ -309,6 +333,7 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
     async endCall(callId) {
       const call = state.get(callId);
       if (call) call.ended = true;
+      model.endCall?.(callId);
       await calls.endCall(callId);
       state.delete(callId);
     },

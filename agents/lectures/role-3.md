@@ -26,3 +26,9 @@ Use that. These are the things to fix.
 3. Hand off, then wait for the reviewer's approval. Never merge on GitHub yourself.
 
 Reply on the URGENT channel (issue #11), addressed to HUMAN, with one line per row above.
+
+## Repeat violations
+
+Logged by the rules police.
+
+- 2026-11-21: a second agent on Andrew's machine posted 5 messages as `ROLE-DOCS` (12:13 UTC), a role that doesn't exist (RULES §6). No reply to the rules police's REQUESTs at 12:23 and 12:28 after two passes. Escalated to Nishant at 12:59 UTC.
