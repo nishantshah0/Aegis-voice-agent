@@ -10,7 +10,12 @@ const POLL_MS = 1_000;
  * stream and polls /api/events/poll once a second instead. Same events either way.
  * Returns the function that stops listening.
  */
-export function listenToEvents(onEvent: (event: StreamEvent, id: number) => void): () => void {
+export function listenToEvents(
+  onEvent: (event: StreamEvent, id: number) => void,
+  phone?: { callId: string; token: string },
+): () => void {
+  // A phone listens to its own call with its token; staff are recognised by their sign-in.
+  const query = phone ? `call=${encodeURIComponent(phone.callId)}&token=${encodeURIComponent(phone.token)}` : "";
   let stopped = false;
   let helloSeen = false;
   let lastId: number | null = null;
@@ -25,7 +30,7 @@ export function listenToEvents(onEvent: (event: StreamEvent, id: number) => void
     }
   };
 
-  const source = new EventSource("/api/events");
+  const source = new EventSource(query ? `/api/events?${query}` : "/api/events");
   source.addEventListener("hello", () => {
     helloSeen = true;
   });
@@ -40,7 +45,8 @@ export function listenToEvents(onEvent: (event: StreamEvent, id: number) => void
   async function poll() {
     if (stopped) return;
     try {
-      const res = await fetch(lastId === null ? "/api/events/poll" : `/api/events/poll?after=${lastId}`);
+      const params = [lastId === null ? "" : `after=${lastId}`, query].filter(Boolean).join("&");
+      const res = await fetch(params ? `/api/events/poll?${params}` : "/api/events/poll");
       if (res.ok) {
         const body = (await res.json()) as { events: Delivered[]; last: number };
         for (const d of body.events) deliver(d.event, d.id);
