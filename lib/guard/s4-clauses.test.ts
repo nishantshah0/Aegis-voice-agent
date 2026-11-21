@@ -156,14 +156,24 @@ const FALSE_OTHER_PROMISES = [
   "No worries I've sent the renewal request.",
   "No problem it's booked for delivery.",
   "Once it's approved we'll deliver it Friday.",
+  "Never fear I've sent the renewal request.",
+  "No doubt it's booked.",
+  "Not a problem it's booked.",
+  "No need to worry it's booked.",
+  "Nothing to worry about it's booked.",
+  "Not to worry I've sent the renewal request.",
   // No button backs a ready day yet (Role 1's ready_label request), so these wait for it.
   "It'll be ready Thursday once it's approved.",
   "Once it's approved, we can deliver it Thursday.",
 ];
 
 const HONEST_OTHER = [
-  "There's no delivery booked yet.",
   "It's not sent yet.",
+  "It's not booked yet.",
+  "I haven't booked a delivery yet.",
+  "We can't deliver it Friday.",
+  "I haven't sent the renewal request yet.",
+  "It hasn't been sent yet.",
   "Once it's booked for Friday, I'll text you.",
   "We haven't booked a delivery yet.",
   "Your renewal hasn't been sent yet.",
