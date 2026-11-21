@@ -139,13 +139,16 @@ const BOOKING_CONDITION = /\b(?:once|after|when|if|as soon as) (?:its|it is|it s
 // "If those details match, I've sent a code to the phone on file.": the code goes out only on a match.
 const MATCH_CONDITION_LEAD = /^ (?:if|once|when) (?:those |the |your |all )?(?:details|that|everything|it|they) (?:match|matches|checks out|check out)\b/;
 
-// Reassurance, not negation: "Don't worry, it's booked." still promises the booking.
-const FILLER = /\b(?:dont worry|do not worry|no worries|no problem|not to worry|never mind|no rush|no need to worry)\b/g;
+// Only a negation that governs the word's own verb phrase excuses it: "haven't booked",
+// "not sent yet", "hasn't been sent", "can't deliver it Friday". Filler such as "No doubt",
+// "Never fear" or "Don't worry" never does, and no/never/nothing/none never count.
+const NEG_AUX = "(?:not|havent|hasnt|cant|cannot|wont|isnt|arent|didnt|wasnt|werent|dont|doesnt)";
+const NEGATED_VERB = new RegExp(`\\b${NEG_AUX}(?: yet)?(?: be| been| have| be able to)? $`);
+const NEGATED_DAY = /\b(?:cant|cannot|wont|dont|not) \w+(?: it| them)? $/;
 
-/** A negation that governs the word: within the three words before `at` ("can't deliver it Friday"), after filler is removed. */
-function negatedNear(w: string, at: number): boolean {
-  const before = w.slice(0, at).replace(FILLER, " ").trim().split(/ +/).slice(-3).join(" ");
-  return ANY_NEGATION.test(` ${before} `);
+/** A negation governing the word at `at`: a verb ("haven't booked") or a day ("can't deliver it Friday"). */
+function negatedNear(w: string, at: number, day = false): boolean {
+  return (day ? NEGATED_DAY : NEGATED_VERB).test(w.slice(0, at));
 }
 const MODAL_BEFORE = /\b(?:will|can|should|would|could|itll|itd) be $/;
 
@@ -240,7 +243,7 @@ function checkS4(sentence: string, record: RecordEntry[], bookedLabels: string[]
     if (m && !negatedNear(cw, m.index ?? 0) && !booked) return { rule: "S4", why: "booking without set_delivery" };
 
     for (const d of cw.matchAll(DAYS)) {
-      if (negatedNear(cw, d.index)) continue;
+      if (negatedNear(cw, d.index, true)) continue;
       if (!bookedLabels.some((l) => l.toLowerCase().includes(d[0]))) return { rule: "S4", why: `day ${d[0]} not booked or a run-out day` };
     }
 
