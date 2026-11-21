@@ -49,4 +49,20 @@ describe("liveSessionMaker", () => {
     await collect(session.driver.callerSays(callId, "Hi."));
     await expect(session.driver.endCall(callId)).rejects.toThrow(/model failed.*Live agent calls are off/);
   });
+
+  it("hands every record entry, as it's written, to onRecord with the store at that moment", async () => {
+    const seen: string[] = [];
+    const model = scriptedModel([{ text: ["Thanks for calling."] }]);
+    const make = liveSessionMaker({
+      model,
+      code: "123456",
+      onRecord: async (store, entry) => { seen.push(`${entry.seq}:${entry.kind}:${(await store.listRecord()).length}`); },
+    });
+    const { driver } = await make(SEED, { direction: "inbound", patientId: IDS.sam, rxId: IDS.samConcerta });
+    const callId = await driver.startCall({ direction: "inbound" });
+    await collect(driver.callerSays(callId, "Hi."));
+    // Each entry is seen once, when the record is exactly that long.
+    expect(seen.length).toBeGreaterThanOrEqual(3);
+    expect(seen.every((s) => { const [seq, , len] = s.split(":"); return seq === len; })).toBe(true);
+  });
 });
