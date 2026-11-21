@@ -108,7 +108,26 @@ describe("the prompt sets the tone SPEC Part 2 asks for", () => {
     // natural one to say.
     expect(inbound).toMatch(/already happened/i);
     expect(inbound).toMatch(/once a button has come back saying so/i);
-    expect(inbound).toMatch(/a pharmacist will approve it, then it's ready/i);
+    // The wording the guard actually allows. This assertion used to demand
+    // "a pharmacist will approve it, then it's ready Thursday", which S4 blocks:
+    // prompt.guard.test.ts now checks every quoted example against the real guard
+    // so a blocked example can't be asserted into the prompt again.
+    expect(inbound).toMatch(/I'll confirm once it's approved/i);
+    expect(inbound).toMatch(/I don't have a ready time yet/i);
+  });
+
+  it("offers the next step as a short question, so S4 is not tested on every wording", () => {
+    // ROLE-0 REQUEST at 20:34, from live demo passes 7 to 13: each run worded its
+    // offers differently and S4 kept catching new honest shapes, such as "I can
+    // check whether it's ready... or book it for you." A style instruction cuts
+    // the variance, and stays a style instruction rather than a list of
+    // forbidden things.
+    expect(inbound).toMatch(/short question/i);
+    expect(inbound).toMatch(/Would you like me to check your refill\?/);
+    expect(inbound).toMatch(/one thing at a time/i);
+    // The done-words rule covers offers and progress updates, not just
+    // confirmations, which is where the live runs kept tripping.
+    expect(inbound).toMatch(/offers and progress updates/i);
   });
 
   it("makes the buttons the only way it acts", () => {

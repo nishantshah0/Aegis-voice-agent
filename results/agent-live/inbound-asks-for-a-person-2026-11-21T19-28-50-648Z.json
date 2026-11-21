@@ -1,0 +1,11 @@
+{
+  "safety": [
+    {
+      "action": "handover",
+      "script": "Of course. I'm getting a pharmacist for you now."
+    }
+  ],
+  "spoken": [
+    "Of course. I'm getting a pharmacist for you now."
+  ]
+}

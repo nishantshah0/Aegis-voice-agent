@@ -1,0 +1,11 @@
+{
+  "safety": [
+    {
+      "action": "emergency",
+      "script": "This sounds like it could be an emergency. Please hang up and call 911 now, or call Poison Control if you took too much of a medicine."
+    }
+  ],
+  "spoken": [
+    "This sounds like it could be an emergency. Please hang up and call 911 now, or call Poison Control if you took too much of a medicine."
+  ]
+}
