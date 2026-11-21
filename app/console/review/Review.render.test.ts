@@ -37,6 +37,8 @@ beforeEach(async () => {
   const started = await control.startOutboundCall(IDS.sam, IDS.samConcerta);
   if (!started.ok) throw new Error("rule 7 refused Sam");
   await control.press(started.callId, "send_code", { lookup_id: started.lookupId });
+  // Verified, so the guard blocks the false approval under S4 (before verification it's S1).
+  await control.press(started.callId, "check_code", { lookup_id: started.lookupId, code: (await control.codeFor(started.callId))!, dob: "1990-03-14" });
   await createSpeechGuard({ store: getStore(), emit })(started.callId, "Your Concerta refill is approved.");
   await control.endCall(started.callId);
 });
@@ -69,8 +71,9 @@ describe("Review calls page", () => {
 
   it("shows labels already saved, with who saved them", async () => {
     session.approver = reviewer;
-    const [call] = await getStore().listRecord();
-    await saveLabel({ callId: call!.callId!, marks: { outcomeRight: true, wrongPromise: false, unsafeOrAdvice: false, tone: "good", saveAsTest: true }, by: reviewer }, dir);
+    // The first record entry is rule 7's outbound check, which has no call id.
+    const callId = (await getStore().listRecord()).find((e) => e.callId)!.callId!;
+    await saveLabel({ callId, marks: { outcomeRight: true, wrongPromise: false, unsafeOrAdvice: false, tone: "good", saveAsTest: true }, by: reviewer }, dir);
     const html = await render();
     expect(html).toContain("Test Reviewer");
   });
