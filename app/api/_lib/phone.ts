@@ -44,6 +44,7 @@ export async function phoneRefused(request: Request, callId: CallId): Promise<Re
 export type JoinableDriver = AgentDriver & {
   joinCall?(callId: CallId, opts: { direction: "outbound"; patientId: string; rxId: string; patientName: string }): void;
   opening?(callId: CallId): AsyncIterable<AgentEvent>;
+  checkIn?(callId: CallId): AsyncIterable<AgentEvent>;
 };
 
 /** Hand an answered call to the driver and collect its opening. */
@@ -69,4 +70,12 @@ export async function codeRefused(request: Request, callId: CallId): Promise<Res
   if (given) return fail(403, "That token isn't for this call");
   if (await getApprover()) return fail(403, "Staff can't read a patient's code");
   return fail(401, "This call's phone token is required");
+}
+
+/** "Are you still there?": the driver's check-in events, or null if it has no check-in. */
+export async function checkInCall(driver: JoinableDriver, callId: CallId): Promise<AgentEvent[] | null> {
+  if (!driver.checkIn) return null;
+  const events: AgentEvent[] = [];
+  for await (const event of driver.checkIn(callId)) events.push(event);
+  return events;
 }
