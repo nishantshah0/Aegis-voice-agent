@@ -60,14 +60,17 @@ describe("1.2: Sam's typed outbound call through the real lock", () => {
   }
 
   it("verifies Sam, sends his refill to Quick check, and guards every sentence", async () => {
-    const { store, events, model, callId, opener, turn1, turn2, turn3 } = await samsCall();
+    const { store, events, control, model, callId, opener, turn1, turn2, turn3 } = await samsCall();
     expect(callId).toBe("c_0001");
     expect(model.remaining()).toBe(0);
 
     expect(lines(opener)).toEqual([outboundOpener(PHARMACY, "Sam")]);
     expect(lines(turn1)).toEqual(["One moment.", "I've sent a code to the phone on file.", "Could you read it back to me?"]);
     expect(presses(turn1)[0].result.ok).toBe(true);
-    expect(events.some((e) => e.type === "phone" && e.kind === "code" && e.text.includes(CODE))).toBe(true);
+    // The code goes to the phone on file, never onto the stream: the stream only says one was sent.
+    expect(events.some((e) => e.type === "phone" && e.kind === "code")).toBe(true);
+    expect(events.some((e) => e.type === "phone" && e.text.includes(CODE))).toBe(false);
+    expect(await control.codeFor(callId)).toBe(CODE);
 
     expect(presses(turn2)[0].result).toMatchObject({ ok: true, output: { verified: true, patient_first_name: "Sam" } });
     expect(lines(turn2)).toEqual(["Thanks, Sam.", "Would you like me to order a refill of your Concerta?"]);
