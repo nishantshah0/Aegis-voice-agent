@@ -190,6 +190,9 @@ function promisesCompletion(w: string): boolean {
 const BARE_CONFIRMED = /^ (?:yes |thanks |ok |okay |great )?(?:thats|that is|that s) confirmed $/;
 const NAMES_IDENTITY = /\b(?:identity|date of birth|dob|birthday|your details|your name|the code|that code|your code)\b/;
 
+// A clause about the caller's identity, also after "and" splits "your code and date of birth".
+const IDENTITY_CLAUSE =
+  /^ (?:(?:your|the|that|those) )?(?:identity|date of birth|dob|birthday|details|code|name|phone number|address)(?: (?:is|are|s|has been|have been|was|were))?(?: both| all)? (?:confirmed|verified|matched|checked) $/;
 const NAMES_ORDER = /\b(?:refills?|prescriptions?|orders?|medications?|medicines?|meds|deliver\w*|pickup|rx)\b/;
 
 /** Drug names come from the store (see createSpeechGuard), so "your Concerta" counts as the order too. */
@@ -200,6 +203,11 @@ export function unexcusedCompletion(sentence: string, drugNames: string[] = []):
   const namesOrder = NAMES_ORDER.test(whole) || drugNames.some((d) => d.trim() && whole.includes(words(d)));
   return clauses.some((raw, i) => {
     const beside = [clauses[i - 1], clauses[i + 1]].filter((c): c is string => c !== undefined);
+    // "Your code and date of birth are confirmed.": verification, not the order. S1 covers identity.
+    if (IDENTITY_CLAUSE.test(raw) && !namesOrder) {
+      ledByApproval = false;
+      return false;
+    }
     if (BARE_CONFIRMED.test(raw) && !namesOrder && beside.some((c) => NAMES_IDENTITY.test(c))) {
       ledByApproval = false;
       return false;
