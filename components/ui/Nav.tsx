@@ -17,7 +17,7 @@ export function SiteHeader({ links = PRODUCT_LINKS, current, right, className }:
   return (
     <header className={cn("sticky top-0 z-30 border-b border-line bg-canvas/85 backdrop-blur-md", className)}>
       <div className="mx-auto flex h-16 max-w-6xl items-center gap-6 px-5 md:px-8">
-        <Link href="/" aria-label="Refill Guard home" className="rounded-md">
+        <Link href="/" aria-label="Aegis home" className="rounded-md">
           <Logo />
         </Link>
         <nav aria-label="Main" className="hidden items-center gap-1 md:flex">

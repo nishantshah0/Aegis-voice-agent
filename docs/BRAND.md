@@ -1,6 +1,8 @@
-# Refill Guard brand
+# Aegis brand
 
-Calm, precise, clinical but warm. One accent on a warm white or near-black base, one typeface, lots of space. The product UI is the picture: no illustrations, gradients, glows, emoji or stock art.
+**Aegis** (the shield in Greek myth) is an AI phone line for pharmacies. The project started as Refill Guard; the product name is now Aegis.
+
+Calm, precise, clinical but warm. The site leads dark, like the products we measure ourselves against. One accent on a warm white or near-black base, one typeface, lots of space. The product UI is the picture: no illustrations, gradients, glows, emoji or stock art.
 
 **The line:** *The AI can be fooled. The pharmacy can't.*
 
@@ -22,7 +24,7 @@ Calm, precise, clinical but warm. One accent on a warm white or near-black base,
 - Clear space around the logo: at least the mark's width on every side.
 - Minimum size: mark 16 px, full logo 96 px wide.
 - Never recolour, stretch, rotate, outline or add effects. Never put the green mark on a busy background.
-- Write the name as **Refill Guard**: two words, both capitalised.
+- Write the name as **Aegis**: one word, capital A. Describe it as "an AI phone line for pharmacies". The repo and code still say `refill-guard`; that is fine and stays.
 
 ## Colour
 
@@ -46,7 +48,7 @@ Each of `accent`, `quick`, `review` and `stop` has a `-soft` tint for badge back
 
 **One accent.** Green is the only colour used at size. Lane and state colours are for badges, dots and small text, never large fills.
 
-**Light or dark.** The landing page and the pharmacist console are light. The stage (a projector) and the patient's phone (a call screen) are dark: wrap them in `theme-dark` (or `<PageShell theme="dark">`) and every token switches.
+**Light or dark.** The landing page, the stage (a projector) and the patient's phone (a call screen) are dark; the pharmacist console is light, because it's a work tool used all day. Dark screens: wrap them in `theme-dark` (or `<PageShell theme="dark">`) and every token switches.
 
 ## Lanes
 
