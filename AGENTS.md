@@ -2,7 +2,9 @@
 
 Read this first, every session. It applies to every AI tool the team uses: Claude Code, Cursor, Codex, Copilot and others. Product requirements are in `docs/SPEC.md`. Who owns what and how the parts connect is in `docs/DESIGN.md` and the ownership table at the bottom of this file.
 
-**Coordinating agent:** Role 4's agent (Claude on Nishant's laptop), which integrates branches into `main`. If the team picks someone else, record it in `docs/DECISIONS.md`.
+**Coordinating agent:** Role 4's agent, which integrates branches into `main`. If the team picks someone else, record it in `docs/DECISIONS.md`.
+
+**Autonomous build:** each role's agent runs in a loop and talks to the others on the agent channel, [GitHub issue #1](https://github.com/nishantshah0/namereserve/issues/1), using `scripts/channel.sh`. Protocol: `docs/AUTONOMY.md`. Your role's loop prompt: `agents/role-<n>.md`. HUMAN messages come first, and STOP halts every agent.
 
 **Where agents coordinate:** on GitHub. Claim work with the "Claim a task" issue template, propose contract changes with the "Contract change request" template, and hand off with a pull request using the template. Use the `gh` command if you're an AI agent. The "Release gate" workflow runs on every push and pull request.
 
@@ -60,7 +62,7 @@ Read this first, every session. It applies to every AI tool the team uses: Claud
 | 1 · Voice and agent | `lib/agent/` (except `hijack.ts`), `lib/voice/`, `app/phone/` |
 | 2 · Platform and pharmacist | `app/api/`, `lib/events/`, `lib/auth/`, `lib/store/postgres.ts`, `app/console/today/`, hosting |
 | 3 · Red team and evals | `lib/agent/hijack.ts`, `lib/arena/`, `scenarios/`, `app/console/review/`, `app/console/rules/`, `app/console/overnight/` |
-| 4 · Control layer (coordinating agent) | `lib/contract/`, `lib/control/`, `lib/guard/`, `lib/store/memory.ts`, `lib/seed/`, `scripts/`, `app/stage/`, `.github/` |
+| 4 · The lock (coordinating agent) | `lib/contract/`, `lib/control/`, `lib/guard/`, `lib/store/memory.ts`, `lib/seed/`, `scripts/`, `app/stage/`, `.github/` |
 
 <!-- BEGIN:nextjs-agent-rules -->
 

@@ -33,7 +33,7 @@ Three things never change, whoever is coding:
 
 | Part | Folder | Owner | Pure code or uses AI? |
 |---|---|---|---|
-| Contract (shared types) | `lib/contract/` | Role 4, changes need a contract-change issue | Types only |
+| Contract (shared types and fakes) | `lib/contract/` | Set up once as task 0. Changes need a contract-change issue, merged by Role 4. | Types only |
 | Control layer: buttons, rules, cards, engine, triage | `lib/control/` | Role 4 | Pure code, no AI, no network |
 | Speech guard (S1 to S4) and safety keyword check | `lib/guard/` | Role 4 | Pure code. Role 1 adds the optional Haiku checks behind the same function. |
 | Store | `lib/store/` | Role 4 writes the in-memory version, Role 2 the Postgres version | Pure code |
@@ -50,7 +50,7 @@ Three things never change, whoever is coding:
 | Stage view and gate animation | `app/stage/` | Role 4 | UI driven by events |
 | Pharmacy console: Today view and approvals | `app/console/today/` | Role 2 | UI |
 | Pharmacy console: Review calls, Rules and checks, Overnight safety | `app/console/{review,rules,overnight}/` | Role 3 | UI |
-| Demo script and reset flow | `docs/pitch/` | Role 4. Numbers from Role 3. Everyone rehearses. | |
+| Pitch, video and Devpost | `docs/pitch/` | Everyone, together, Sunday morning | |
 
 ---
 
@@ -66,7 +66,7 @@ press(callId: CallId, button: ButtonName, input: unknown): Promise<ButtonResult>
 // Never throws to the agent. Every press writes a record entry.
 ```
 
-- Used by: the agent loop (Role 1), the hijack agent and scenario runner (Role 3), the hammers (Claude).
+- Used by: the agent loop (Role 1), the hijack agent and scenario runner (Role 3), the hammers (Role 4).
 - The 12 button names and their input and output shapes are in `lib/contract/buttons.ts`, matching SPEC Part 3.
 
 ### 3.2 Speech guard (agent → guard → voice)
@@ -172,15 +172,15 @@ Checked against the spec, the critical path and the demo. These are the problems
 | 2 | **Role 3 had nothing on the critical path early**, since the attacker and overnight run come after the core | Role 3's first job is now the hijack agent and the scenario runner, both core. The attacker comes after. |
 | 3 | **Role 1 was overloaded:** voice, agent, outbound, side effects, guard wiring and timing | The guard and safety checks are now Claude's code behind two functions, so Role 1 only calls them. The outbound trigger (daily check) moves to Role 2's clock. |
 | 4 | **Role 2's Auth0 phone approval is the riskiest unknown** and sat in the middle of the plan | It's moved off the critical path behind the approve endpoint. The console button is the default, and the phone path replaces it when it works. Check the free plan by Saturday 10 AM. |
-| 5 | **Everyone needed the database before they could start** | Claude ships an in-memory store first. Postgres comes later behind the same interface. |
+| 5 | **Everyone needed the database before they could start** | Role 4 ships an in-memory store first. Postgres comes later behind the same interface. |
 | 6 | **The event stream had no agreed shape,** so the stage view would have broken whenever someone added an event | The event types are in the contract (3.6), and nobody adds a type without updating it. |
 | 7 | **Post-core items were unowned:** cited briefs, rule writer, Review calls lab | Cited briefs and the Review calls lab go to Role 3 (both use AI judging). The rule writer is Claude's engine plus Role 4's UI. All are after the core. |
-| 8 | **Nobody owned rehearsal and the pitch on the day** beyond Role 4 | Role 4 runs rehearsals. Everyone presents their part. The friend opens, and the presenter is decided by Saturday 6 PM. |
+| 8 | **Nobody owned the pitch on the day** | The pitch, video and Devpost are done by everyone together on Sunday morning. During the build, every role writes code. |
 | 9 | **Two people could edit the same files** (agent loop and hijack, console and API) | Each folder in section 2 has exactly one owner. Cross-folder changes go through a request (see `AGENTS.md`). |
 
-**Load after the fixes (core hours):** Role 1, agent loop, voice and the phone page. Role 2, app shell, API, events, Auth0, hosting and the console's Today view. Role 3, hijack agent, scenario runner and first scenarios. Role 4 (Nishant with Claude), contract, control layer, guard, store, seed, hammers and the stage view. Every role has one critical-path item, and no one has two.
+**Load after the fixes (core hours):** Role 1, agent loop, voice and the phone page. Role 2, app shell, API, events, Auth0, hosting and the console's Today view. Role 3, hijack agent, scenario runner and first scenarios. Role 4, control layer, guard, store, seed, hammers and the stage view. Every role has one critical-path item, and no one has two.
 
-**Update:** there's no separate design and pitch role. Its screens were split by who produces the data behind them: the phone page to Role 1, the console's Today view to Role 2, the other console tabs to Role 3, and the stage view to Role 4. The pitch is everyone's.
+**Update:** there's no separate design and pitch role, and all four roles write code. Screens were split by who produces the data behind them: the phone page to Role 1, the console's Today view to Role 2, the other console tabs to Role 3, and the stage view to Role 4. The task list is in `docs/TASKS.md`.
 
 ---
 

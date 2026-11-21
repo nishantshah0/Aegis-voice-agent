@@ -4,6 +4,13 @@ Entire captures every AI agent session, links it to the commit it produced, maps
 
 **The story:** our product puts a lock around an AI pharmacist. Entire put a lock around our AI developers. Brain remembers the rules (the AI only acts through the 12 buttons, never edit the contract directly), so every teammate's agent recalls them before it edits.
 
+## Entire inside the product, not just around it
+
+The strongest Entire projects make Entire part of what they build. Ours does it twice:
+
+1. **The overnight fix loop runs on Entire Trails.** When our AI attacker finds a gap in Refill Guard, its agent opens a **Trail** with the failing scenario and a proposed fix. `entire review` (several reviewer agents, then a judge) and our release gate check it, a person **approves it on Entire**, and only then does it merge. Our pitch line, *"the AI proposes, a person approves, the gate checks,"* is literally an Entire Trail.
+2. **The console's Rules and checks tab shows `entire why` for every rule.** Click rule 4b and see the commit, prompt, agent session and approval that created it. Refill Guard audits the AI pharmacist, and Entire audits the AI that built the auditor. (A script saves `entire why --json` output for each rule file to `results/why/`, so the hosted app doesn't need the CLI.)
+
 ---
 
 ## One-time setup for each teammate (about 5 minutes)
@@ -23,9 +30,11 @@ Entire captures every AI agent session, links it to the commit it produced, maps
    entire plugin install graph
    entire plugin install brain
    entire brain setup --no-backfill --no-daemon
+   entire brain connect
    ```
 5. Sign in, for Trails and shared Brain memories: `entire login`.
 6. **Start a new agent session.** Agents only load Entire's hooks when a session starts.
+7. **Check everything:** `scripts/entire-check.sh` prints a tick or a cross for each piece, and how to fix a cross.
 
 **Important:** if you use Claude Code, install Entire before opening a session in this repo. The committed hooks call `entire`, and they'll error if it isn't installed.
 
@@ -48,11 +57,15 @@ Session transcripts go **only** to the private repo `nishantshah0/namereserve-se
 | **Before changing shared code** | `entire graph impact <symbol>` | The blast radius, for example everyone who builds against a contract type |
 | **While working** | (automatic) | Every session is captured. Every commit gets an `Entire-Checkpoint` trailer linking it to its prompts. |
 | **Claim and hand off** | `entire trail create --title "..."` on your task branch | A Trail replaces the issue and pull request: intent, branch, agent review, findings and approval in one place |
-| **Review** | `entire trail show`, `entire trail finding ...`, `entire trail approve` | Review agents score each push against the Trail's intent. Our release gate must pass too. |
+| **Review** | Agents review each other with **findings**: `entire trail finding add` on the other role's Trail. Then `entire review` (multi-agent review), the release gate, and `entire trail approve` by Role 4 or a person. | Review agents score each push against the Trail's intent. Our release gate must pass too. |
 | **Merge** | `entire trail merge` | Integrated by the coordinating agent (Role 4) |
 | **Sleep-shift handover** | `entire session resume <branch>` | The next person's agent picks up exactly where the last one stopped |
 | **After a decision** | `entire brain remember "<rule>" --kind decision --path project.<area>.<topic>` | Everyone's agent recalls it from then on |
 | **Explain a commit** | `entire checkpoint explain <id>` | The prompts, tool calls and diff behind any commit |
+| **Explain a line** | `entire why <file>:<line>` | The commit, checkpoint, prompt and session behind one line |
+| **Before asking another agent** | `entire search "<question>" --compact` | Finds past sessions and checkpoints that already solved it |
+| **Morning handover** | `entire dispatch` | A summary of overnight agent work, posted to the agent channel |
+| **Who built what** | `entire experts <folder>`, `entire blame <file>` | Which agents, skills and tools touched each part of the code |
 
 If you don't have an Entire account yet, use the GitHub fallback: the "Claim a task" issue and a pull request with the template. Same rules either way.
 
@@ -83,20 +96,20 @@ Memories stay on the machine that made them until someone runs `entire brain con
 
 ## Measuring token efficiency (real numbers only)
 
-The prize asks for measurable token efficiency. Entire's "up to 71%" is its own figure, so we measure ours:
+The prize asks for measurable token efficiency. Entire's "up to 71%" is its own figure, so we measure ours with Entire's own tools:
 
-1. Pick three real tasks from our build, for example "find where rule 4b is enforced", "add a field to the Sam seed", "which code emits press events?"
-2. Run each in a **fresh** agent session twice: once told not to use Entire Graph, once told to use it.
-3. Read the token usage Entire records for each session (shown with the checkpoint on entire.com, or with `entire checkpoint explain`).
-4. Record the results in `results/entire-tokens.md`: task, tokens without Graph, tokens with Graph, and the difference.
+1. **Across the whole build:** `entire tokens profile --all` adds up token usage across every committed checkpoint. Run it Saturday evening and Sunday morning, and save both to `results/entire-tokens-profile-*.json`.
+2. **Per session:** `entire session tokens <session-id>` shows one session's usage and Entire's recommendations. Record what we changed because of them.
+3. **Graph versus no Graph:** pick three real tasks (for example "find where rule 4b is enforced", "add a field to Sam's seed", "which code emits press events?"). Run each in a fresh session twice, once told not to use Graph and once told to use it, then compare with `entire session tokens`. Record the results in `results/entire-tokens.md`.
 
-`entire graph stats` reports a **modelled** balance, not measured savings. Label it that way if we ever show it.
-
----
+`entire graph stats` reports a **modelled** balance, not measured savings. Label it that way if it's ever shown. These are labs commands, so check the flags with `entire <command> --help` on the day.
 
 ## What we show judges
 
-- The README's "Built with Entire" section: Trails merged, checkpoints captured, the share of lines written by agents versus humans (from Entire's line attribution), and the measured token table. **Real numbers from the repo only.**
+- The README's "Built with Entire" section: Trails merged, checkpoints captured, findings resolved between agents, fixes approved on Trails, and the measured token table. **Real numbers from the repo only.** Entire doesn't attribute individual lines to AI or humans, so never claim a percentage of AI-written lines.
+- The product moment: an overnight gap, its fix Trail, the multi-agent review, and the human approval, all on Entire.
+- The console's `entire why` panel on a rule.
+- The morning dispatch, as the "what our agents did while we slept" screenshot.
 - A screenshot of `entire brain viz`, the team's memory graph.
 - One 20-second clip for the video: an agent recalls "never add a shortcut, even for the demo" from Brain before editing the control layer.
 - The sleep-shift handover: one agent resuming another's session.
