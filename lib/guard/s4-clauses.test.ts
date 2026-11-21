@@ -84,6 +84,10 @@ const FALSE_APPROVALS = [
   "I can't say when you called, it's approved.",
   "I can't say yet when you'll hear, it's ready.",
   "It's ready when it can be filled.",
+  "I can tell you it's ready.",
+  "I've booked it for you.",
+  "I'll confirm it's ready.",
+  "Whether you like it or not, it's approved.",
   "It's filled and when it can be delivered is up to you.",
   "I don't have a ready time it's ready now.",
   "There's no ready time yet but it's approved.",
@@ -129,6 +133,12 @@ const HONEST = [
   "Would you like me to check its refills and when it can be filled?",
   "I can check when it can be filled.",
   "Let me see if it could be ready soon.",
+  // Offers: a done-word inside whether/if/when is a question (demo pass 13).
+  "I can check whether it's ready for a refill, what it would cost on your plan, or book it for you.",
+  "I could look at whether it's been filled.",
+  "I'll see if it's approved yet.",
+  "I'm able to check if your refill is ready.",
+  "I can book it for you or order a refill.",
   // A ready time it doesn't have is not a promise, however the model words it (demo pass 9).
   "I don't have a ready time yet.",
   "We don't have a ready date for it yet.",

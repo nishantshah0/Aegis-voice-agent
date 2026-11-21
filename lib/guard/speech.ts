@@ -154,7 +154,11 @@ function negatedNear(w: string, at: number, day = false): boolean {
   return (day ? NEGATED_DAY : NEGATED_VERB).test(w.slice(0, at));
 }
 const MODAL_BEFORE = /\b(?:will|can|should|would|could|itll|itd) be $/;
-const EMBEDDED_QUESTION = /\b(?:when|if|whether) (?:it|they|your \w+)(?: can| could| will| would| should| might) be $/;
+// "check whether it's ready", "see if your refill is ready", "when it can be filled": a done-word
+// asked about, not claimed. The subject comes straight after when/if/whether, so "Whether you like
+// it or not, it's approved" is still a claim.
+const EMBEDDED_QUESTION =
+  /\b(?:when|if|whether) (?:it|its|it is|they|theyre|they are|your \w+(?: is| are| s)?)(?: has been| have been| been)?(?:(?: can| could| will| would| should| might) be)? $/;
 
 /** True when a completion word in this clause is said as done, with no governed condition or negation. */
 function promisesCompletion(w: string): boolean {
