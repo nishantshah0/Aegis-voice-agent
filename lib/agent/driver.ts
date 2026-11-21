@@ -30,7 +30,7 @@ import type {
 } from "@/lib/contract";
 import { outboundLookupId } from "@/lib/control";
 import type { ServerTurnTiming } from "@/lib/voice/timing";
-import { HOLDING, SIDE_EFFECT_PASSED_ON, inboundGreeting, outboundOpener, sideEffectQuestion } from "./lines";
+import { HOLDING, SIDE_EFFECT_PASSED_ON, STILL_THERE, inboundGreeting, outboundOpener, sideEffectQuestion } from "./lines";
 import type { AgentModel, ModelTurn } from "./model";
 import { systemPrompt } from "./prompt";
 import { createSentenceSplitter } from "./sentences";
@@ -99,6 +99,8 @@ export type ClaudeAgentDriver = AgentDriver & {
   opening(callId: CallId): AsyncIterable<AgentEvent>;
   /** Speak one fixed line through the guard, and tell the model it was said. */
   speakLine(callId: CallId, line: string): AsyncIterable<AgentEvent>;
+  /** After a long silence (task 1.8): the fixed "are you still there?" line, through the guard. */
+  checkIn(callId: CallId): AsyncIterable<AgentEvent>;
   /** Turn timing for this call (task 1.6): one entry per caller line. */
   turnTimings(callId: CallId): ServerTurnTiming[];
 };
@@ -190,6 +192,14 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
     call.awaitingSideEffect = rxId;
   }
 
+  /** One fixed line, through the guard, into the history as the agent's own words. */
+  async function* speakFixed(callId: CallId, line: string): AsyncIterable<AgentEvent> {
+    const call = state.get(callId);
+    if (!call || call.ended) return;
+    yield* speak(callId, line);
+    pushSaid(call, line);
+  }
+
   /** Hand the call to a pharmacist, through the escalate button like any other action. */
   async function* handOver(callId: CallId, reason: string): AsyncIterable<AgentEvent> {
     yield* pressFixed(callId, "escalate", { reason });
@@ -225,12 +235,9 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
       if (sent.ok) call.callNote += "\nThe code has been sent to the phone on file. Ask them to read it back.";
     },
 
-    async *speakLine(callId, line) {
-      const call = state.get(callId);
-      if (!call || call.ended) return;
-      yield* speak(callId, line);
-      pushSaid(call, line);
-    },
+    speakLine: speakFixed,
+
+    checkIn: (callId) => speakFixed(callId, STILL_THERE),
 
     async *callerSays(callId, text) {
       const call = state.get(callId);

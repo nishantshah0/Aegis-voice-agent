@@ -39,5 +39,6 @@ export const phoneApi = {
   say: (callId: string, text: string, token?: string) => call<unknown>(`/api/call/${id(callId)}/say`, json({ text }, token), "This call has ended."),
   code: (callId: string, token?: string) =>
     call<{ code?: string }>(`/api/call/${id(callId)}/code`, { method: "GET", headers: tokenHeader(token) }, "No code for this call."),
+  checkIn: (callId: string, token?: string) => call<unknown>(`/api/call/${id(callId)}/check-in`, json({}, token), "Check-in isn't connected yet."),
   end: (callId: string, token?: string) => call<unknown>(`/api/call/${id(callId)}/end`, json({}, token), "Hanging up isn't connected yet."),
 };

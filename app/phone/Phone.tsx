@@ -46,6 +46,10 @@ export function Phone() {
       dispatch({ type: "problem", text });
     },
     onSpeechStart: () => mark("speechStarted"),
+    // A missing check-in route only means no prompt: never interrupt the call over it.
+    onSilence: () => {
+      if (state.callId) void phoneApi.checkIn(state.callId, state.phoneToken);
+    },
   });
 
   useEffect(() => listenToEvents((event) => dispatch({ type: "event", event })), []);
@@ -126,6 +130,7 @@ export function Phone() {
               onMode={setMode}
               onHoldDown={voice.holdDown}
               onHoldUp={voice.holdUp}
+              onInterrupt={voice.interrupt}
             />
             <form onSubmit={send} className="flex gap-2 border-t border-neutral-200 p-3 dark:border-neutral-800">
               <label htmlFor="say" className="sr-only">
@@ -168,9 +173,10 @@ type VoiceBarProps = {
   onMode: (mode: ListenerMode) => void;
   onHoldDown: () => void;
   onHoldUp: () => void;
+  onInterrupt?: () => void;
 };
 
-export function VoiceBar({ on, mode, hearing, speaking, onToggle, onMode, onHoldDown, onHoldUp }: VoiceBarProps) {
+export function VoiceBar({ on, mode, hearing, speaking, onToggle, onMode, onHoldDown, onHoldUp, onInterrupt }: VoiceBarProps) {
   return (
     <div className="border-t border-neutral-200 px-3 pt-2 text-sm dark:border-neutral-800">
       <div className="flex items-center justify-between gap-2">
@@ -188,6 +194,11 @@ export function VoiceBar({ on, mode, hearing, speaking, onToggle, onMode, onHold
         <p aria-live="polite" className="mt-1 min-h-5 text-xs text-neutral-500">
           {speaking ? "Pharmacy speaking…" : hearing ? `Hearing: ${hearing}` : mode === "hold" ? "Hold the button and talk." : "Listening…"}
         </p>
+      )}
+      {on && speaking && onInterrupt && (
+        <button type="button" onClick={onInterrupt} className="mt-1 w-full rounded-xl bg-amber-500 py-4 text-base font-semibold text-white">
+          Tap to interrupt
+        </button>
       )}
       {on && mode === "hold" && (
         <button
