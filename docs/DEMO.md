@@ -4,6 +4,14 @@ Kept by the demo tie-in agent. One row per step of the 3-minute script, walked i
 
 Legend: ✅ works · ⚠️ works with a fallback · ❌ broken (owner fixing it)
 
+## Pass 14 (about 16:05 EST, main fc1b11d: s4-offers)
+
+Clean passes in a row: **0 of 3**.
+- ✅ The offer fix works ("I can check whether it's ready for a refill… or book a pickup or delivery." passed). Readiness answer honest: "I don't have a ready time yet… it hasn't been approved."
+- ❌ Right after check_code, S4 blocked "Your code and date of birth are confirmed." (true, in the record). Sixth honest shape. Proposed a structural S4 rule to the review fixer: done-words only count when the subject is the refill, order, delivery, pickup or approval; identity is S1's job. URGENT to ROLE-4.
+- ⚠️ S4 also blocked "I'll be able to tell you once it's approved and ready." Borderline: it promises a future update. Not reported.
+- ⚠️ After the replaced line, the agent apologised on the call: "I'm sorry, I should correct what I said a moment ago." REQUEST to ROLE-1 (driver note at `lib/agent/driver.ts:135`).
+
 ## Passes 12 and 13 (about 15:35 to 15:50 EST, main 7c7ea12: s4-when-can-be)
 
 Clean passes in a row: **0 of 3** (pass 12 clean, pass 13 broke).
