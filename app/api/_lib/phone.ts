@@ -22,12 +22,24 @@ export function issuePhoneToken(callId: CallId): string | null {
   return token;
 }
 
+const speechHolder = globalThis as typeof globalThis & { __refillGuardSpeakCounts?: Map<CallId, number> };
+const speechCounts = () => (speechHolder.__refillGuardSpeakCounts ??= new Map());
+
+/** Count one speech request for a call; false once it has used `limit`. */
+export function takeSpeech(callId: CallId, limit: number): boolean {
+  const used = speechCounts().get(callId) ?? 0;
+  if (used >= limit) return false;
+  speechCounts().set(callId, used + 1);
+  return true;
+}
+
 const openedHolder = globalThis as typeof globalThis & { __refillGuardOpened?: Set<CallId> };
 const opened = () => (openedHolder.__refillGuardOpened ??= new Set());
 
-/** Forget every token and played opening (demo reset reuses call ids). */
+/** Forget every token, speech allowance and played opening (demo reset reuses call ids). */
 export function clearPhoneTokens(): void {
   tokens().clear();
+  speechCounts().clear();
   opened().clear();
 }
 
