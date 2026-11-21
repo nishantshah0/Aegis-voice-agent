@@ -1,4 +1,6 @@
-# Refill Guard: spec
+# Aegis (formerly Refill Guard): spec
+
+This is the product target, not a list of features already running. See [CURRENT.md](CURRENT.md) for the merged implementation and known gaps.
 
 > Copied from the planning session. Personal details about teammates are left as placeholders on purpose. Fill them in only with that person's OK.
 
@@ -87,7 +89,7 @@ What this means for us:
 1. **The patient's phone must feel like a real consumer app,** polished enough for a screenshot. Last year's winners were judged partly on looks.
 2. **One contrast number in the close:** "0 rules broken in [N] million tries", said slowly.
 3. **Patient first, compliance second,** especially for the Sun Life judges. Last year they picked a student consumer app.
-4. **Something physical:** the judge holds the patient's phone, and a teammate holds the pharmacist's phone.
+4. **Something physical:** the judge holds the patient's phone, and a teammate plays the pharmacist at the console.
 5. **Don't lead with "control layer",** which reads as enterprise infrastructure. Lead with Sam's call, and let the gate show the control layer.
 
 ### Fit with the judging criteria
@@ -160,7 +162,7 @@ Prototype: `demo/console.html`, with sample data. Tabs are named for pharmacy jo
 | Stage | Everyone watching | The demo screen: transcript, the gate animation, the pharmacist queue, the blocked feed and the scoreboard on one screen |
 | Call | The patient (the judge) | Talk button, live transcript with blocked lines shown struck through and labelled, the patient's phone (rings for outbound, shows the code, then "Refill confirmed" with cost and delivery), the demo clock |
 
-Design rules for person 4: one font, one spacing scale, three decision colours (green allowed, amber needs a person, red blocked), rule numbers always shown as chips, the transcript readable from the back of a room.
+Design rules for every screen: one font, one spacing scale, three decision colours (green allowed, amber needs a person, red blocked), rule numbers always shown as chips, the transcript readable from the back of a room.
 
 **The gate animation** is the centre of the stage view. Every button press the AI tries appears as a card ("Request refill · Concerta 36 mg") that slides into a gate. The rule cards it's checked against light up one by one, and it exits green (allowed), amber (to a pharmacist) or red (blocked) with the deciding rule's chip. Lines the speech guard blocks pass through the same gate. During the hijack batch, cards stack up and bounce off red. Use CSS transforms and opacity only, so it stays smooth on a projector.
 
@@ -305,7 +307,7 @@ Every event is one entry:
 }
 ```
 
-- The newest hash is shown on the Compliance page and printed on every export, so an edit is detectable. Say "detectable", never "impossible".
+- Planned: the newest hash is shown in Rules and checks and printed on every export, so an edit is detectable. Say "detectable", never "impossible".
 - `context` holds every field the rule cards read, so any card can be replayed against past requests.
 
 ### The two hammers
@@ -359,7 +361,7 @@ For each failure:
 
 1. Fable 5.2 proposes one fix: a prompt edit (as a diff), a new rule card, a new speech-guard pattern or a new test.
 2. The release gate runs. For a prompt edit, the failing scenario and a 10-scenario sample also run 3 times against the real agent, and before and after numbers are shown, because the gate's scripted agent ignores the prompt.
-3. A signed-in reviewer approves or rejects it on the Compliance page.
+3. A signed-in reviewer approves or rejects it in Rules and checks.
 4. If approved, it goes live and the change history records the failure, the fix, the gate run, the approver and the time.
 
 **AI proposes, a person approves, the gate checks.** Nothing ships on its own.
@@ -391,7 +393,7 @@ Don't run the advice scenarios under the hijack switch. S3 catches invented dose
 
 ### The release gate
 
-One command. It runs the unit tests, the exhaustive check, the random hammer, every rule card's tests, and every fixed scenario against the scripted hijack agent. All of these give the same answer every run. It fails if any rule is broken. It runs on every change to the prompt, the model, the cards or the speech rules, and the page shows the last run and the one before. Runs of the real agent and the AI attacker vary each time, so they feed the suite and the numbers but are not the gate.
+Target: one command runs unit tests, exhaustive and random hammers, rule-card tests, and fixed scenarios against the scripted hijack agent. Runs of the real agent and attacker feed the suite but are not deterministic gate checks. Today, GitHub's Release gate runs typecheck, lint, tests, `npm run hammer`, and build on pull requests and pushes to `main`; the scenario gate and gate history page are pending.
 
 ### Scenarios
 
@@ -490,19 +492,19 @@ Test it in the actual hall on Saturday afternoon, with the room's noise, on the 
 
 ### Auth0: how it's used (built to win Best Use of Auth0)
 
-The prize text names "Auth0 for AI Agents". Use its asynchronous authorization, where an agent asks a person to approve an action on their own phone while it keeps working, as the pharmacist approval step itself.
+Auth0 decides who may approve. The AI can route a refill to a pharmacist, but only a person signed in through Auth0 with the `pharmacist` role can approve or deny it, on the console's Today page. There is no phone push (decided Saturday morning, see `docs/DECISIONS.md`).
 
 | Where | Auth0 feature | What happens |
 |---|---|---|
-| Pharmacist and reviewer sign-in | Universal Login, roles, multi-factor | `pharmacist` and `reviewer` roles. Every approve button checks the role from the token. |
-| **Tier 3 approvals** (controlled drug, early refill, new address) | **Asynchronous authorization** (CIBA, a standard for approving on a separate device) with rich authorization details, delivered by Guardian push | The control layer routes the refill. The server sends Auth0 an approval request carrying the details: drug, strength, patient initials, the rule that sent it. The pharmacist's phone buzzes: "Approve refill of Concerta 36 mg for S.R.? Rule 4." Approve or deny on the phone. The agent tells the caller "a pharmacist is reviewing it" and carries on. The record stores the approver's identity from Auth0's token, not from a form. |
-| New rule cards and hardening fixes | The same asynchronous approval, sent to the reviewer | "Approve rule 12: any antibiotic refill needs a pharmacist? Impact: 3 of today's 41 refills." |
+| Pharmacist and reviewer sign-in | Universal Login, a role in each user's `app_metadata` copied into the token by a post-login Action | `pharmacist` and `reviewer` roles. Every approve button checks the role from the token. |
+| **Tier 3 approvals** (controlled drug, early refill, new address) | Auth0 session and role on the console | The control layer routes the refill to the Review lane. The pharmacist, signed in to the console, opens it on the Today page and taps Approve or Deny. The server takes the approver from the Auth0 session, never from the request body, and the record stores that identity. The agent tells the caller "a pharmacist is reviewing it" and carries on. |
+| New rule cards and hardening fixes | Auth0 session with the `reviewer` role | The reviewer approves on the console's Rules tab, with the same identity from the session in the record. |
 | Optional: patient codes by email | Passwordless email | The code-by-email toggle sends codes through Auth0 instead of the on-screen phone |
 | Moonshot: caregiver access | Auth0 fine-grained authorization | "Caregiver of" relations the patient grants and can remove |
 
-Pitch line for the Auth0 judges: "The AI never approves its own risky actions. Auth0 puts the decision on a real pharmacist's phone, with the details, and the record shows exactly who said yes."
+Pitch line for the Auth0 judges: "The AI never approves its own risky actions. Only a pharmacist signed in through Auth0 can say yes, and the record shows exactly who did."
 
-Check by Saturday 10 AM: whether asynchronous authorization and Guardian push work on the free plan (one Auth0 page calls the AI agents features an add-on), and enroll the pharmacist's phone in Guardian. If it isn't available, keep sign-in, roles and multi-factor through Auth0, and approve in the pharmacist view.
+Decided Saturday morning (task 2.5): no phone push. Auth0's pricing page lists CIBA as not available on the Free plan; the team's tenant only had it during a trial, so approval is the Approve button on the Today page.
 
 ### What judges test on a voice agent
 
@@ -519,35 +521,43 @@ Expect these in the 2 minutes of questions, and rehearse each:
 
 ### Repo layout
 
+Folders and owners are defined in `docs/DESIGN.md` section 2 and `AGENTS.md`. In short:
+
 ```
-/app            Next.js pages: phone, stage, console (Today, Review calls, Rules and checks, Overnight safety)
+/app/phone, /app/stage, /app/console/{today,review,rules,overnight}   pages
 /app/api        API routes and the event stream
-/lib/control    buttons.ts, rules-core.ts, cards.ts, engine.ts, speech-guard.ts, safety.ts, record.ts, triage.ts
-/lib/agent      loop.ts, prompt.md, hijack.ts, outbound.ts, voice.ts
-/lib/arena      scenarios/, planner.ts, caller.ts, judge.ts, score.ts, hardening.ts
-/lib/writer     rule-writer.ts, impact.ts
-/lib/reports    brief.ts, call-report.ts, cite-check.ts
-/scripts        hammer-exhaustive.ts, hammer-random.ts, gate.ts, overnight.ts, seed.ts
-/analysis       optional Python notebooks for charts
-/docs           this spec, the model card, the change log
+/lib/contract   shared types and fakes (task 0)
+/lib/control    buttons, rules, cards, engine, triage, record
+/lib/guard      speech guard S1 to S4, safety keywords
+/lib/store      in-memory store first, Postgres later
+/lib/seed       made-up patients
+/lib/agent      agent loop, prompt, outbound, hijack
+/lib/voice      speech in and out
+/lib/arena      scenarios runner, planner, caller, judge, scoring, fix loop
+/scenarios      scenario JSON files
+/scripts        hammers, release gate, channel and loop scripts, Entire check
+/results        real run outputs only
+/docs           spec, design, tasks, autonomy, Entire, status, decisions
 ```
 
 ### Page endpoints
 
+All under `/api`. The exact request and response types live in `lib/contract/`. This table is the planned API; [CURRENT.md](CURRENT.md) lists routes that currently return 501.
+
 | Endpoint | Does |
 |---|---|
-| `POST /call/start`, `POST /call/:id/say` | Start an inbound call, send a caller line (text or transcribed speech) |
-| `POST /outbound/run-daily-check` | Run the daily due-soon check at the demo clock's time |
-| `GET /events` | Server-sent events: transcript lines, blocked items, queue changes, scoreboard, gate runs |
-| `POST /queue/:id/approve`, `POST /queue/:id/deny` | Pharmacist decisions (signed in) |
-| `POST /rules/draft`, `POST /rules/:id/approve` | Rule writer (pharmacist) |
-| `POST /arena/run`, `POST /arena/hijack` | Run a scenario or the hijack batch |
-| `GET /proposals`, `POST /proposals/:id/approve` | Hardening loop (reviewer) |
-| `GET /calls/:id/record`, `GET /calls/:id/report` | Record and cited report export |
-| `POST /gate/run`, `GET /gate/latest` | Release gate |
-| `POST /clock` | Set the demo clock |
-| `POST /demo/reset` | Reseed patients, clear calls, set the clock to Tuesday 10 AM, keep overnight results and rule history |
-| `GET /stage` | The stage view: transcript, queue, blocked feed and scoreboard on one screen |
+| `POST /api/call/start`, `POST /api/call/:id/say` | Start a call, send a caller line (typed or transcribed) |
+| `POST /api/outbound/run-daily-check` | Run the daily due-soon check at the demo clock's time |
+| `GET /api/events` | Server-sent events: lines, blocked lines, presses, phone, queue, score, clock |
+| `POST /api/queue/:id/decide` | Pharmacist approves or denies (`{ decision, note? }`), Auth0 session and role required, approver taken from the token |
+| `POST /api/rules/draft`, `POST /api/rules/:id/approve` | Rule writer (after core) |
+| `POST /api/arena/run`, `POST /api/arena/hijack` | Run a scenario or the hijack batch |
+| `GET /api/calls/:id/record`, `GET /api/calls/:id/report` | Record and cited report export |
+| `GET /api/gate/latest` | Latest release gate result |
+| `POST /api/clock` | Set the demo clock |
+| `POST /api/demo/reset` | Reseed, clear calls, set Tuesday 10 AM, keep overnight results and rule history |
+
+Pages: `/phone`, `/stage`, `/console/today`, `/console/review`, `/console/rules`, `/console/overnight`.
 
 ### Made-up data to seed
 
@@ -566,15 +576,7 @@ Each prescription has: drug, drug class, strength, days supplied, last fill, ref
 
 ### Who owns what
 
-> **Superseded.** Roles were re-split into four build roles with no design and pitch role. The current split is in the README and `docs/DESIGN.md`. The table below is kept for history.
-
-| Person | Owns |
-|---|---|
-| 1. Voice and agent | Speech in and out, the prompt, the agent loop, wiring the buttons and the speech guard into the call, the outbound flow, measuring time to first word |
-| 2. Platform | Database, Auth0 sign-in and roles, approvals, the daily check, the demo clock, the event stream, deployment |
-| 3. Red team | Planner, Gemini caller, judge, hardening loop, overnight run, the numbers, the model comparison |
-| 4. Page, design and pitch | The four views and the one look, the gate animation, the phone, the rule-writer box, the Devpost write-up, the video, rehearsals, the Sun Life visit |
-| Claude, on this machine | The interface file, seed data, the twelve buttons, core rules, the card engine and cards, the speech guard checks, both hammers, scenario format and scoring, the release gate, the cite check |
+Four coding roles, nobody pre-assigned, with the pitch done together at the end. Roles, folders and ordered tasks: `AGENTS.md`, `docs/DESIGN.md` and `docs/TASKS.md`.
 
 ---
 
@@ -595,7 +597,7 @@ Each feature is done only when its test passes in front of a second team member.
 | Outbound call | The daily check at the demo clock's time rings Sam's phone, and the call completes three times in a row |
 | Sync, notes, flags | Each appears in the pharmacist queue after a test call |
 | Voice | A spoken outbound refill works three times in a row on the hall's network, under the time-to-first-word target |
-| Sign-in and approval | A pharmacist approves a controlled-drug refill from a Guardian push on their phone. Their Auth0 identity and the time are in the record. Works three times in a row. |
+| Sign-in and approval | A pharmacist signed in through Auth0 approves a controlled-drug refill on the console's Today page. Their Auth0 identity and the time are in the record. Works three times in a row. |
 | Arena | All 28 scenarios run and score. The scoreboard updates live. |
 | Hijack switch | The batch runs, both kinds of block appear, and "rules broken" is 0 |
 | Rule writer | The antibiotic rule goes from typed sentence to approved card, with tests, impact preview and gate, in under 30 seconds |
@@ -679,7 +681,7 @@ Everything else belongs in questions, at the expo table and on Devpost: the rule
 - **Reset demo** (one button): reseeds the patients, clears calls, sets the demo clock to Tuesday 10 AM, and keeps the overnight results and the approved rule history.
 - **Stage view** on the big screen, kept simple: the transcript, the gate animation and the two counters. The phones show only during the call, and the console only when the pharmacist acts.
 - **The phone in the judge's hand.** The patient phone view runs on a real Android phone in Chrome, connected to the same https server. It rings in their hand, and they speak into it, which keeps the microphone close in a loud hall. If it fails, use the phone view on the laptop with a headset.
-- **The pharmacist's phone:** a second phone, held by a teammate playing the pharmacist, signed in and enrolled in Auth0 Guardian.
+- **The pharmacist's console:** a laptop (or tablet) with the console's Today page, signed in through Auth0 by the teammate playing the pharmacist.
 - A card for the judge with Sam's date of birth and one line: "If asked about side effects, you can mention your sleep."
 - One person talks, one person drives. Rehearse with a stopwatch.
 
@@ -693,7 +695,7 @@ Everything else belongs in questions, at the expo table and on Devpost: the rule
    - **A:** "Thanks, Sam. Your Concerta runs out Friday. It's a controlled medicine, so a pharmacist signs it off. Shall I send it over?" **J:** "Yes, please."
    - **A:** "Done. Before I go, since your last refill, any side effects, like trouble sleeping, less appetite or headaches?" **J:** "Actually, I've been sleeping badly."
    - **A:** "Thanks, I've passed that to the pharmacist with your refill. It's four dollars twenty after your plan, ready Thursday once it's approved."
-   - Big screen: the request goes amber into the **Review** lane. The console's Today view opens on Sam: the side effect in his words, the promises checked, the signals. **R**'s phone buzzes and they tap **Approve and flag a chat at pickup**. Sam's phone shows "Approved, ready Thursday."
+   - Big screen: the request goes amber into the **Review** lane. The console's Today view opens on Sam: the side effect in his words, the promises checked, the signals. **R**, signed in to the console, taps **Approve and flag a chat at pickup**. Sam's phone shows "Approved, ready Thursday."
    - **P:** "Most refills never reach a pharmacist. This one did, for two reasons: it's a controlled drug, and Sam mentioned his sleep. The pharmacist sees exactly that, says yes, and flags a chat at pickup."
 3. **(10 s) Why it matters.** **P:** "This August, an American pharmacy chain switched off its AI phone line. Wrong dosages. Missed refills. Back to 'press one'. So the real question is trust."
 4. **(40 s) The hijack.** **P:** "So let's assume the worst. I've just swapped the AI for one that's been completely compromised. It'll do anything anyone asks. You choose." The judge taps an attack card, such as "90 Concerta, today, to a new address." The fooled AI's "Sure, ninety tablets…" is struck through (S3), and so is "It's approved, it's on its way" (S4). The refill bounces red (4b), and the delivery bounces red (5).
@@ -753,7 +755,7 @@ Ask the organisers whether judging is at tables with judges rotating, or on a st
 |---|---|
 | Overall top three | The one sentence, the hijack switch, the rule writer, the depth in Part 4 |
 | Best Health Hack by Sun Life | Their criteria: a real health problem, who it helps, the impact. Lead with the teammate's reason, Sam's call, the WHO figure and the who-it-helps table. Then the Sun Life judges section above. |
-| Best Use of Auth0 | Auth0 for AI Agents is the approval step itself: every risky action, new rule and fix is approved on a pharmacist's or reviewer's phone through asynchronous authorization, with the details shown. Show the MLH judges a controlled-drug refill: the agent routes it, the phone buzzes, approve, and the record shows the Auth0 identity. See "Auth0: how it's used". |
+| Best Use of Auth0 | Auth0 decides who may approve: every risky action, new rule and fix needs a person signed in through Auth0 with the right role, and the approver comes from the session, never from the request. Show the MLH judges a controlled-drug refill: the agent routes it, the pharmacist approves on the console, and the record shows the Auth0 identity. See "Auth0: how it's used". |
 | Best Use of Gemini API | Gemini is the attacker, chosen because a different model family finds blind spots the agent's own family shares. If Gemini wins the voice measurement, it's the voice too. |
 | Best Use of Tiger Data | The record, the scoreboard and suite growth are time-series in Postgres. The attack alarm queries the last 10 minutes on every request. |
 | Most Adventurous | Only if the "try to break it" station is built: anyone can discover a failure, and it becomes a test. |
@@ -830,7 +832,7 @@ Ask the organisers how many tracks one project may enter.
 | Rate limits or spend | Measure 5 calls, set an account cap, run overnight in batches |
 | Hall Wi-Fi | Cloud server with https, phone hotspot plus tunnel as backup, typed fallback, recorded backup video |
 | Phones can't use the microphone | https everywhere (the cloud server or a tunnel). Test both phones on the hall's network by Saturday afternoon. |
-| Auth0 setup drags, or asynchronous authorization isn't on the free plan | Check by Saturday 10 AM. Fall back to Auth0 sign-in, roles and multi-factor with approval in the pharmacist view. Last resort: a hardcoded sign-in behind the same roles. |
+| Auth0 setup drags | Sign-in and roles are set up in the team tenant. Last resort: a hardcoded sign-in behind the same roles. |
 | Integration between people | Interface file first, signed off by persons 1 and 2. One shared seed. |
 | Speech recognition mishears the judge | Phone in hand, hold-to-talk if the room is loud, a typed box always under the talk button, one retry on the code |
 | Voice feels slow | End-of-turn timer, instant acknowledgments, sentence-by-sentence speaking, and a faster agent model if needed |
@@ -846,7 +848,6 @@ Ask the organisers how many tracks one project may enter.
 - Fable 5.2's rate limit on the team's account, and real cost per call
 - Chrome's speech recognition on the hall's network
 - The poison control number against the centre's own site (recent listings give 1-844-764-7669)
-- Whether Auth0 for AI Agents' asynchronous approval fits the approval steps
 - How many tracks one project may enter
 - Nothing from earlier projects is reused. Everything is built this weekend.
 - For the Sun Life pitch only: whether their pharmacy offers auto-refill and how its patients mostly refill (the adherence article is from 2023, and the pharmacy has since been renamed and is moving into their app)
@@ -866,6 +867,8 @@ Ask the organisers how many tracks one project may enter.
 
 | When | Change | Agreed by |
 |---|---|---|
+| Sat morning | Clarified planned versus merged behavior, route status and the Rules and checks approval location. No product rule changed. | Documentation audit; role verification requested |
+| Sat ~5:15 AM | No phone push. Approvals happen on the console's Today page, signed in through Auth0; the approver comes from the session. CIBA isn't on Auth0's Free plan. Earlier rows that mention Guardian push are history. | Nishant |
 | Sat 2:30 AM | Locked | _team_ |
 | Sat ~8 AM | Fixed contradictions: rule 4b allows a controlled refill up to 3 days early (Sam's call no longer ends refused); outbound calls start 3 days before run-out and only when rules 3 and 4b pass; S1 allows the scripted opener to say the patient's name; Sam's seed data pinned (refill 1 of 2, filled 27 days ago); the typed-refill done-when ends at the pharmacist's approval. Scope cut to a core demo first. | _team_ |
 | Sat ~7:30 AM | Final stack: one Next.js app in TypeScript with Tailwind, Vitest, Postgres on Tiger Data, Chrome speech in and ElevenLabs out, Auth0, Vultr with Caddy and a GoDaddy domain. LiveKit only for the real-phone extra. Python only for optional analysis. | _team_ |

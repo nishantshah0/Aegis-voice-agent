@@ -1,0 +1,780 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Build board · Aegis</title>
+<style>
+  :root {
+    --bg: #0b0f14; --panel: #121820; --panel2: #18202a; --line: #252f3b; --text: #e8eef4; --muted: #8794a3; --faint: #5c6876;
+    --r1: #4ea1ff; --r2: #3fb68b; --r3: #f2706b; --r4: #c79bff; --human: #f5b94a; --all: #8794a3; --accent: #7cc4ff;
+    --radius: 14px;
+  }
+  @media (prefers-color-scheme: light) {
+    :root { --bg: #f5f7fa; --panel: #fff; --panel2: #f0f3f7; --line: #dde3ea; --text: #17202b; --muted: #5a6574; --faint: #8a95a3;
+      --r1: #1f6fd6; --r2: #12865e; --r3: #d2423c; --r4: #7c4fd0; --human: #b07400; --all: #6b7684; --accent: #1f6fd6; }
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+  a { color: inherit; }
+  header { position: sticky; top: 0; z-index: 10; background: color-mix(in srgb, var(--bg) 86%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+  .bar { display: flex; align-items: center; gap: 14px; padding: 12px 24px; max-width: 1560px; margin: 0 auto; }
+  .logo { width: 28px; height: 28px; border-radius: 8px; background: conic-gradient(from 210deg, var(--r1), var(--r2), var(--r3), var(--r4), var(--r1)); flex: none; }
+  h1 { font-size: 16px; margin: 0; font-weight: 700; letter-spacing: -.01em; }
+  .sub { color: var(--muted); font-size: 12.5px; }
+  .state { font-weight: 800; font-size: 11px; padding: 3px 9px; border-radius: 999px; letter-spacing: .06em; }
+  .state.go { background: color-mix(in srgb, var(--r2) 18%, transparent); color: var(--r2); }
+  .state.stop { background: color-mix(in srgb, var(--r3) 22%, transparent); color: var(--r3); }
+  .live { display: inline-flex; align-items: center; gap: 7px; color: var(--muted); font-size: 12px; margin-left: auto; white-space: nowrap; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--r2); animation: pulse 2s infinite; }
+  .dot.err { background: var(--r3); animation: none; }
+  @keyframes pulse { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--r2) 60%, transparent); } 70% { box-shadow: 0 0 0 8px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
+  nav { display: flex; gap: 4px; padding: 0 24px; max-width: 1560px; margin: 0 auto; overflow-x: auto; }
+  nav a { text-decoration: none; color: var(--muted); font-weight: 600; font-size: 13px; padding: 9px 12px; border-bottom: 2px solid transparent; white-space: nowrap; }
+  nav a.on { color: var(--text); border-color: var(--accent); }
+  nav a .n { color: var(--faint); font-weight: 500; margin-left: 4px; }
+  .wrap { max-width: 1560px; margin: 0 auto; padding: 20px 24px 60px; }
+  .hero { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 10px; margin-bottom: 16px; }
+  @media (max-width: 1200px) { .hero { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+  .kpi { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; position: relative; overflow: hidden; }
+  .kpi b { display: block; font-size: 26px; font-weight: 750; letter-spacing: -.02em; font-variant-numeric: tabular-nums; line-height: 1.1; }
+  .kpi span { color: var(--muted); font-size: 12px; }
+  .kpi i { display: block; font-style: normal; color: var(--faint); font-size: 11px; margin-top: 2px; }
+  .kpi::after { content: ""; position: absolute; inset: auto 0 0 0; height: 3px; background: var(--k, var(--accent)); opacity: .8; }
+  .flow { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 0; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); margin-bottom: 18px; overflow: hidden; }
+  @media (max-width: 1000px) { .flow { grid-template-columns: repeat(3, 1fr); } }
+  .step { padding: 14px 16px 14px 18px; position: relative; border-right: 1px solid var(--line); }
+  .step:last-child { border-right: 0; }
+  .step .k { font-size: 10.5px; font-weight: 800; letter-spacing: .1em; color: var(--faint); text-transform: uppercase; }
+  .step .t { font-weight: 700; margin: 2px 0 4px; }
+  .step .d { color: var(--muted); font-size: 12px; }
+  .step .v { font-size: 22px; font-weight: 750; font-variant-numeric: tabular-nums; color: var(--s); }
+  .step .tool { display: inline-block; font-size: 10.5px; font-weight: 700; padding: 1px 7px; border-radius: 999px; background: color-mix(in srgb, var(--s) 16%, transparent); color: var(--s); margin-top: 6px; }
+  .grid3 { display: grid; grid-template-columns: 320px minmax(0, 1fr) 340px; gap: 16px; }
+  .grid2 { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 16px; }
+  @media (max-width: 1250px) { .grid3 { grid-template-columns: 300px minmax(0, 1fr); } .grid3 > :last-child { grid-column: 1 / -1; } }
+  @media (max-width: 860px) { .grid3, .grid2 { grid-template-columns: minmax(0, 1fr); } }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 16px; }
+  .panel h2 { display: flex; align-items: center; gap: 8px; font-size: 11.5px; text-transform: uppercase; letter-spacing: .09em; color: var(--muted); margin: 0 0 12px; font-weight: 700; }
+  .panel h2 .src { margin-left: auto; text-transform: none; letter-spacing: 0; font-weight: 600; color: var(--faint); font-size: 11px; }
+  .role { display: block; width: 100%; text-align: left; border: 1px solid var(--line); background: var(--panel2); color: var(--text); border-radius: 11px; padding: 10px 12px; margin-bottom: 8px; cursor: pointer; border-left: 4px solid var(--c); font: inherit; }
+  .role:hover { border-color: var(--c); }
+  .role.on { outline: 2px solid var(--c); outline-offset: 1px; }
+  .row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .role .name { font-weight: 700; }
+  .muted { color: var(--muted); }
+  .small { font-size: 12px; }
+  .role .doing { color: var(--muted); font-size: 12.5px; margin-top: 4px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .role .doing b { color: var(--text); font-weight: 600; }
+  .mini { display: flex; gap: 10px; margin-top: 6px; font-size: 11.5px; color: var(--faint); }
+  .mini b { color: var(--muted); font-weight: 700; }
+  svg text { fill: var(--text); font-size: 11px; font-weight: 700; }
+  svg .cnt { fill: var(--muted); font-size: 10px; font-weight: 600; }
+  .edge { fill: none; stroke-linecap: round; opacity: .55; }
+  .edge.dim { opacity: .07; }
+  .toolbar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 12px; }
+  .chip { border: 1px solid var(--line); background: var(--panel); color: var(--muted); border-radius: 999px; padding: 4px 10px; font: 700 11px/1.2 inherit; cursor: pointer; letter-spacing: .04em; }
+  .chip.on { color: var(--text); border-color: var(--text); }
+  .search { flex: 1 1 200px; min-width: 140px; border: 1px solid var(--line); background: var(--panel); color: var(--text); border-radius: 999px; padding: 7px 13px; font: inherit; }
+  .msg { background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--c); border-radius: 12px; padding: 11px 14px; margin-bottom: 10px; }
+  .msg.new { animation: flash 2.5s ease-out; }
+  @keyframes flash { from { background: color-mix(in srgb, var(--c) 22%, var(--panel)); } to { background: var(--panel); } }
+  .meta { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; font-size: 12px; color: var(--muted); }
+  .who { font-weight: 800; color: var(--c); }
+  .to { font-weight: 700; color: var(--tc); }
+  .type { font-weight: 800; font-size: 10px; letter-spacing: .07em; padding: 2px 7px; border-radius: 5px; background: var(--panel2); color: var(--text); border: 1px solid var(--line); }
+  .type.HUMAN { background: color-mix(in srgb, var(--human) 20%, transparent); color: var(--human); border-color: transparent; }
+  .type.DECISION, .type.OBJECT, .type.decision { background: color-mix(in srgb, var(--r4) 18%, transparent); color: var(--r4); border-color: transparent; }
+  .type.HANDOFF, .type.MERGED, .type.merged, .type.invariant { background: color-mix(in srgb, var(--r2) 18%, transparent); color: var(--r2); border-color: transparent; }
+  .type.BLOCKED, .type.high { background: color-mix(in srgb, var(--r3) 20%, transparent); color: var(--r3); border-color: transparent; }
+  .type.REQUEST, .type.open, .type.convention { background: color-mix(in srgb, var(--r1) 18%, transparent); color: var(--r1); border-color: transparent; }
+  .time { margin-left: auto; white-space: nowrap; }
+  .time a { text-decoration: none; } .time a:hover { text-decoration: underline; }
+  .summary { font-size: 14.5px; font-weight: 650; margin: 6px 0 0; }
+  .details { margin-top: 8px; opacity: .88; font-size: 13.5px; white-space: pre-wrap; word-wrap: break-word; }
+  .details.clamp { max-height: 4.4em; overflow: hidden; -webkit-mask-image: linear-gradient(#000 55%, transparent); mask-image: linear-gradient(#000 55%, transparent); }
+  .more { background: none; border: 0; padding: 4px 0 0; color: var(--muted); font: 700 12px inherit; cursor: pointer; }
+  code, .mono { font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; }
+  code { background: var(--panel2); border: 1px solid var(--line); padding: 0 4px; border-radius: 4px; }
+  .pill { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); text-decoration: none; white-space: nowrap; }
+  a.pill:hover { border-color: var(--accent); color: var(--text); }
+  .pill.cp { border-color: color-mix(in srgb, var(--r2) 50%, transparent); color: var(--r2); }
+  .pill.cp.linked { border-color: color-mix(in srgb, var(--accent) 45%, transparent); color: var(--accent); }
+  .item { padding: 9px 0; border-top: 1px solid var(--line); font-size: 13px; }
+  .item:first-of-type { border-top: 0; padding-top: 0; }
+  .item .meta { font-size: 11.5px; margin-bottom: 2px; }
+  .empty { color: var(--muted); font-size: 13px; margin: 0; }
+  .error { background: color-mix(in srgb, var(--r3) 14%, var(--panel)); border: 1px solid var(--r3); border-radius: 12px; padding: 10px 14px; margin-bottom: 14px; font-size: 13px; }
+  .life { display: grid; grid-template-columns: minmax(0, 1fr) repeat(6, 64px); align-items: center; gap: 6px; padding: 10px 0; border-top: 1px solid var(--line); }
+  .life:first-of-type { border-top: 0; }
+  .life.head { font-size: 10.5px; color: var(--faint); font-weight: 800; letter-spacing: .08em; text-transform: uppercase; padding-top: 0; }
+  .life.head div { text-align: center; } .life.head div:first-child { text-align: left; }
+  .life .tt { font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .life .tt a { text-decoration: none; } .life .tt a:hover { text-decoration: underline; }
+  .stage { display: flex; flex-direction: column; align-items: center; font-size: 10.5px; color: var(--faint); gap: 3px; }
+  .stage .o { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--line); display: grid; place-items: center; font-size: 11px; font-weight: 800; color: var(--muted); }
+  .stage.done .o { background: var(--s); border-color: var(--s); color: var(--bg); }
+  .stage.done { color: var(--muted); }
+  .trail { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px; margin-bottom: 14px; }
+  .trail h3 { margin: 0; font-size: 16px; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+  .trail h3 .num { color: var(--accent); font-variant-numeric: tabular-nums; }
+  .trail .body { color: var(--muted); margin: 6px 0 12px; font-size: 13px; }
+  .cols { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+  @media (max-width: 1000px) { .cols { grid-template-columns: minmax(0, 1fr); } }
+  .col h4 { margin: 0 0 6px; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); }
+  .line { display: flex; gap: 8px; align-items: baseline; padding: 4px 0; font-size: 12.5px; }
+  .line .s { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bars .b { display: grid; grid-template-columns: 140px minmax(0, 1fr) 70px; gap: 10px; align-items: center; padding: 6px 0; font-size: 13px; }
+  .track { height: 10px; border-radius: 999px; background: var(--panel2); overflow: hidden; display: flex; }
+  .track span { display: block; height: 100%; }
+  .commit { border-top: 1px solid var(--line); padding: 9px 0; }
+  .commit:first-of-type { border-top: 0; }
+  .commit .row { align-items: center; }
+  .commit .subj { flex: 1; min-width: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .commit button.x { background: none; border: 1px solid var(--line); color: var(--muted); border-radius: 999px; font: 700 11px inherit; padding: 2px 9px; cursor: pointer; }
+  .commit button.x:hover { color: var(--text); border-color: var(--accent); }
+  .changes { margin: 8px 0 2px 2px; padding: 10px 12px; border-radius: 10px; background: var(--panel2); font-size: 12.5px; }
+  .changes .f { margin: 4px 0; }
+  .changes .sym { display: inline-block; margin: 2px 4px 2px 0; }
+  .mem { border-top: 1px solid var(--line); padding: 10px 0; }
+  .mem:first-of-type { border-top: 0; padding-top: 0; }
+  .cat { margin-bottom: 18px; }
+  .cat > h4 { margin: 0 0 6px; font-size: 12px; text-transform: capitalize; color: var(--muted); }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 1000px) { .two { grid-template-columns: minmax(0, 1fr); } }
+  .loading { color: var(--faint); font-size: 12.5px; }
+  section[data-tab] { display: none; }
+  section[data-tab].on { display: block; }
+  .urgent-bar { background: color-mix(in srgb, var(--r3) 16%, var(--panel)); border: 1px solid var(--r3); border-radius: var(--radius); padding: 12px 16px; margin-bottom: 16px; }
+  .urgent-bar h2 { margin: 0 0 6px; font-size: 13px; color: var(--r3); letter-spacing: .06em; text-transform: uppercase; display: flex; gap: 8px; align-items: center; }
+  .urgent-bar .item { border-color: color-mix(in srgb, var(--r3) 35%, transparent); }
+  .pill.urgent { background: var(--r3); border-color: var(--r3); color: #fff; }
+  .msg.urgent { border-color: var(--r3); box-shadow: 0 0 0 1px color-mix(in srgb, var(--r3) 45%, transparent); }
+  footer { color: var(--faint); font-size: 12px; text-align: center; margin-top: 30px; }
+  /* Mission strip: countdown and core-demo progress */
+  .mission { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 0; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); margin-bottom: 16px; overflow: hidden; }
+  @media (max-width: 900px) { .mission { grid-template-columns: minmax(0, 1fr); } }
+  .clockbox { padding: 16px 20px; border-right: 1px solid var(--line); background: linear-gradient(135deg, color-mix(in srgb, var(--r4) 14%, transparent), transparent 70%); }
+  .clockbox .k, .core .k { font-size: 10.5px; font-weight: 800; letter-spacing: .1em; color: var(--faint); text-transform: uppercase; }
+  .clockbox .big { font-size: 34px; font-weight: 800; letter-spacing: -.03em; font-variant-numeric: tabular-nums; line-height: 1.1; margin: 4px 0 2px; }
+  .clockbox .big small { font-size: 15px; color: var(--muted); font-weight: 700; margin: 0 6px 0 1px; }
+  .core { padding: 16px 20px; }
+  .core .head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .core .pct { font-size: 34px; font-weight: 800; letter-spacing: -.03em; font-variant-numeric: tabular-nums; line-height: 1.1; }
+  .core .note { color: var(--muted); font-size: 12.5px; }
+  .rolebars { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-top: 12px; }
+  @media (max-width: 900px) { .rolebars { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .rb .row { font-size: 12px; } .rb .row b { color: var(--c); }
+  .seg { display: flex; height: 8px; border-radius: 999px; background: var(--panel2); overflow: hidden; margin-top: 5px; }
+  .seg span { display: block; height: 100%; transition: width .6s ease; }
+  .seg .m { background: var(--c); }
+  .seg .h { background: repeating-linear-gradient(45deg, var(--c) 0 4px, color-mix(in srgb, var(--c) 45%, transparent) 4px 8px); }
+  .seg .c { background: color-mix(in srgb, var(--c) 25%, transparent); }
+  .legend { display: flex; gap: 14px; font-size: 11.5px; color: var(--muted); margin-top: 10px; flex-wrap: wrap; }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+  /* Task map: one column per role, one tile per task */
+  .tmap { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+  @media (max-width: 1100px) { .tmap { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .tcol h3 { margin: 0 0 8px; font-size: 13px; display: flex; gap: 6px; align-items: baseline; color: var(--c); }
+  .tcol h3 span { color: var(--muted); font-weight: 600; font-size: 12px; }
+  .task { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 7px 9px; border-radius: 9px; border: 1px solid var(--line); background: var(--panel2); margin-bottom: 6px; font-size: 12.5px; }
+  .task .id { font: 700 11.5px ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--muted); }
+  .task .tt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+  .task.merged { border-color: color-mix(in srgb, var(--c) 55%, transparent); background: color-mix(in srgb, var(--c) 13%, var(--panel2)); }
+  .task.merged .id { color: var(--c); }
+  .task.handoff { border-style: dashed; border-color: var(--c); }
+  .task.claimed { box-shadow: inset 3px 0 0 var(--c); }
+  .task.claimed .st { animation: blink 1.6s ease-in-out infinite; }
+  @keyframes blink { 50% { opacity: .35; } }
+  .task.later { opacity: .55; }
+  .st { font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; color: var(--faint); }
+  .task.merged .st, .task.handoff .st, .task.claimed .st { color: var(--c); }
+  .divider { font-size: 10.5px; font-weight: 800; letter-spacing: .1em; color: var(--faint); text-transform: uppercase; margin: 12px 0 6px; }
+  /* Timeline: every message and commit through the night, one lane per role */
+  .tl text { fill: var(--muted); font-size: 11px; font-weight: 700; }
+  .tl .hour { stroke: var(--line); stroke-width: 1; }
+  .tl .lane { stroke: var(--line); stroke-dasharray: 2 4; }
+  .tl .now { stroke: var(--r2); stroke-width: 1.5; }
+  .tl circle { transition: r .15s; } .tl circle:hover { r: 7; }
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <div class="logo"></div>
+    <div>
+      <h1>Aegis · Build board</h1>
+      <div class="sub">Four AI agents building one product, coordinated on GitHub and recorded with Entire</div>
+    </div>
+    <span class="state go" id="state">GO</span>
+    <span class="live"><span class="dot" id="dot"></span><span id="updated">connecting…</span></span>
+  </div>
+  <nav id="tabs">
+    <a href="#overview" data-t="overview">Overview</a>
+    <a href="#channel" data-t="channel">Agent channel<span class="n" id="n-channel"></span></a>
+    <a href="#trails" data-t="trails">Trails<span class="n" id="n-trails"></span></a>
+    <a href="#provenance" data-t="provenance">AI provenance<span class="n" id="n-prov"></span></a>
+    <a href="#memory" data-t="memory">Brain and Graph<span class="n" id="n-mem"></span></a>
+  </nav>
+</header>
+
+<div class="wrap">
+  <div id="err"></div>
+  <div id="urgent"></div>
+  <div class="mission" id="mission"></div>
+  <div class="hero" id="hero"></div>
+  <div class="flow" id="flow"></div>
+
+  <section data-tab="overview">
+    <div class="panel"><h2>The plan, live <span class="src">docs/TASKS.md + CLAIM, HANDOFF and MERGED on the channel</span></h2><div id="tmap"><p class="loading">Reading the plan…</p></div></div>
+    <div class="panel"><h2>The night so far <span class="src">every message and commit, by role</span></h2><svg class="tl" id="tl" width="100%" role="img" aria-label="Timeline of messages and commits by role"></svg></div>
+    <div class="grid3">
+      <aside>
+        <div class="panel"><h2>Who's doing what <span class="src">channel + git</span></h2><div id="roles"></div></div>
+      </aside>
+      <div>
+        <div class="panel"><h2>Every task, start to finish <span class="src">channel + Entire Trails + git</span></h2><div id="life"></div></div>
+        <div class="panel"><h2>Latest on the channel <span class="src"><a href="#channel">see all</a></span></h2><div id="latest"></div></div>
+      </div>
+      <aside>
+        <div class="panel"><h2>Waiting on someone</h2><div id="open"></div></div>
+        <div class="panel"><h2>Who talks to whom</h2><svg class="map" viewBox="0 0 280 250" width="100%" role="img" aria-label="Messages between roles"></svg></div>
+        <div class="panel"><h2>Decisions shared</h2><div id="decisions"></div></div>
+      </aside>
+    </div>
+  </section>
+
+  <section data-tab="channel">
+    <div class="grid2">
+      <div>
+        <div class="toolbar" id="types"></div>
+        <div class="toolbar"><input class="search" id="q" type="search" placeholder="Search messages: task number, file, Trail, person…"></div>
+        <div id="feed"></div>
+      </div>
+      <aside>
+        <div class="panel"><h2>Filter by role</h2><div id="roles2"></div></div>
+        <div class="panel"><h2>Who talks to whom</h2><svg class="map" viewBox="0 0 280 250" width="100%" role="img" aria-label="Messages between roles"></svg></div>
+      </aside>
+    </div>
+  </section>
+
+  <section data-tab="trails"><div id="trails"><p class="loading">Loading Trails from Entire…</p></div></section>
+
+  <section data-tab="provenance">
+    <div class="grid2">
+      <div class="panel">
+        <h2>Commits and the AI sessions behind them <span class="src">Entire-Checkpoint trailers</span></h2>
+        <div class="toolbar"><button class="chip on" data-cf="all">All commits</button><button class="chip" data-cf="linked">Linked to an AI session</button><button class="chip" data-cf="unlinked">Not linked</button></div>
+        <div id="commits"><p class="loading">Reading git history…</p></div>
+      </div>
+      <aside>
+        <div class="panel"><h2>Linked to an AI session, per person</h2><div class="bars" id="people"></div></div>
+        <div class="panel"><h2>What this means</h2>
+          <p class="small muted" style="margin:0">Every commit an agent makes gets an <code>Entire-Checkpoint</code> trailer pointing at the AI session that wrote it. The session's transcript is stored in a private sessions repo. Open a commit to see which functions, types and sections that session changed, from <code>entire graph checkpoint</code>.</p>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <section data-tab="memory">
+    <div class="two">
+      <div class="panel"><h2>Brain: what every agent is told before it edits <span class="src" id="brain-src"></span></h2><div id="brain"><p class="loading">Reading Brain…</p></div></div>
+      <div>
+        <div class="panel"><h2>Graph: the code map agents search instead of grepping <span class="src" id="graph-src"></span></h2><div id="graph"><p class="loading">Indexing with Graph… (first load takes a few seconds)</p></div></div>
+        <div class="panel"><h2>How agents use them</h2>
+          <div class="small muted">
+            <p style="margin-top:0"><b>Before editing,</b> each agent runs <code>entire brain brief "&lt;task&gt;"</code> to get the team's decisions and rules, then <code>entire graph query</code> to find the code and <code>entire graph impact</code> to see what a change would break.</p>
+            <p style="margin-bottom:0"><b>After deciding,</b> it posts a DECISION on the channel and records it with <code>entire brain remember</code>, so every other agent's next brief includes it.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>Runs on your machine. It reads GitHub with your <code>gh</code> login, Entire with your <code>entire</code> login and history with git. It never reads session transcripts or prompts.</footer>
+</div>
+
+<script>
+// ---------- Setup ----------
+const ROLES = {
+  "ROLE-1": { name: "Role 1", job: "Voice and agent", c: "var(--r1)" },
+  "ROLE-2": { name: "Role 2", job: "Platform and pharmacist", c: "var(--r2)" },
+  "ROLE-3": { name: "Role 3", job: "Red team and evals", c: "var(--r3)" },
+  "ROLE-4": { name: "Role 4", job: "The lock, integrator", c: "var(--r4)" },
+  "HUMAN": { name: "Humans", job: "Steering", c: "var(--human)" },
+  "TOOLS": { name: "Tools", job: "Nishant's tools agent", c: "var(--accent)" },
+  "ALL": { name: "Everyone", job: "", c: "var(--all)" },
+};
+// Git author names and GitHub logins for each role, so commits line up with agents.
+const PEOPLE = {
+  "ROLE-1": ["mikeydigit"],
+  "ROLE-2": ["nishantshah0", "nishant shah"],
+  "ROLE-3": ["andrewwu13", "andrew wu"],
+  "ROLE-4": ["ps12007", "ps", "priyansh sharma"],
+};
+const TYPES = ["CLAIM","STATUS","DECISION","OBJECT","REQUEST","REPLY","HANDOFF","BLOCKED","REVIEW","MERGED","HUMAN"];
+const S = { msgs: [], trails: null, commits: null, brain: null, graph: null, role: null, types: new Set(), q: "",
+  seen: new Set(), first: true, open: new Set(), cf: "all", cpOpen: new Map(), errors: {} };
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const color = (r) => (ROLES[r] || ROLES.ALL).c;
+const label = (r) => (ROLES[r] || { name: r }).name;
+const roleOf = (who) => { const w = String(who || "").toLowerCase(); return Object.keys(PEOPLE).find((r) => PEOPLE[r].includes(w)) || null; };
+// Which role a commit belongs to. One person can run two roles, so the login alone isn't enough:
+// first the task number in the subject ("1.2: ...", "Task 3.3 ...", "4.3-4.5: ..."), then the branch it came
+// from ("role-1/..."), then the author's login as a last resort.
+function commitRole(c) {
+  const t = String(c.subject || "").match(/^(?:Task\s+)?([1-4])\.\d+/);
+  if (t) return "ROLE-" + t[1];
+  const b = String(c.branch || "").match(/^role-([1-4])\//);
+  if (b) return "ROLE-" + b[1];
+  return roleOf(c.author);
+}
+function inline(s) {
+  return esc(s)
+    .replace(/`([^`\n]+)`/g, "<code>$1</code>")
+    .replace(/\*\*([^*\n]+)\*\*/g, "<b>$1</b>")
+    .replace(/(https:\/\/[^\s<)]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
+}
+function ago(t) {
+  const s = Math.max(0, (Date.now() - new Date(t)) / 1000);
+  if (s < 60) return "just now";
+  if (s < 3600) return Math.floor(s / 60) + "m ago";
+  if (s < 86400) return Math.floor(s / 3600) + "h ago";
+  return new Date(t).toLocaleDateString([], { month: "short", day: "numeric" });
+}
+const clock = (t) => new Date(t).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+const trailRefs = (text) => [...new Set([...String(text).matchAll(/(?:[Tt]rail\s*#\s*|\/trails\/)(\d+)/g)].map((x) => Number(x[1])))];
+const pct = (a, b) => (b ? Math.round((100 * a) / b) : 0);
+const ghCommit = (sha) => "https://github.com/" + (S.commits?.repo || "") + "/commit/" + sha;
+
+// A REQUEST or OBJECT is open until the role it went to answers the sender (REPLY to them, or HANDOFF/MERGED/HUMAN
+// to them or ALL). A BLOCKED is open until someone else posts a REPLY or HUMAN to that role or ALL.
+// Keep in sync with "scripts/channel.sh waiting" (scripts/channel_waiting.py).
+function openItems() {
+  const d = S.msgs;
+  // A REQUEST or OBJECT is answered only by a REPLY from the asked role to the asker (or, when the asked
+  // role is ALL or HUMAN, a REPLY or HUMAN from anyone else to the asker). HANDOFF and MERGED never answer.
+  // Keep in sync with answered() in scripts/channel_waiting.py.
+  const answered = (m, i) => d.slice(i + 1).some((r) => {
+    if (m.type === "BLOCKED") return (r.type === "HUMAN" || r.type === "REPLY") && (r.to === m.from || r.to === "ALL") && r.from !== m.from;
+    if (r.to !== m.from) return false;
+    if (m.to === "ALL" || m.to === "HUMAN") return r.from !== m.from && (r.type === "REPLY" || r.type === "HUMAN");
+    return r.from === m.to && r.type === "REPLY";
+  });
+  return d.map((m, i) => [m, i]).filter(([m, i]) => ["REQUEST", "OBJECT", "BLOCKED"].includes(m.type) && !answered(m, i)).map(([m]) => m).reverse();
+}
+
+// ---------- Urgent channel ----------
+function renderUrgent() {
+  const open = new Set(openItems().filter((m) => m.urgent).map((m) => m.id));
+  const recent = S.msgs.filter((m) => m.urgent && !["REQUEST", "OBJECT", "BLOCKED", "REPLY"].includes(m.type) && Date.now() - new Date(m.t) < 2 * 3600e3);
+  const list = [...S.msgs.filter((m) => open.has(m.id)), ...recent].sort((a, b) => (a.t < b.t ? 1 : -1));
+  $("urgent").innerHTML = list.length ? '<div class="urgent-bar"><h2>⚠ Urgent channel · ' + list.length + ' open <span class="src" style="margin-left:auto;text-transform:none;letter-spacing:0">issue #' + esc(S.urgentIssue || "11") + '</span></h2>' + list.map(msgItem).join("") + "</div>" : "";
+}
+
+// ---------- Hero and flow ----------
+function renderHero() {
+  const d = S.msgs, cs = S.commits?.commits || [], tr = S.trails?.trails || [];
+  const linked = cs.filter((c) => c.checkpoints.length).length;
+  const merged = tr.flatMap((t) => t.changes).filter((c) => c.status === "merged").length;
+  const findings = tr.reduce((n, t) => n + t.findings.length, 0);
+  const g = S.graph?.counts;
+  const tiles = [
+    [d.length, "Agent messages", new Set(d.map((m) => m.from)).size + " voices on the channel", "var(--r1)"],
+    [d.filter((m) => m.type === "DECISION").length, "Decisions shared", d.filter((m) => m.type === "OBJECT").length + " objections raised", "var(--r4)"],
+    [S.trails ? tr.length : "…", "Entire Trails", (S.trails ? tr.filter((t) => t.phase === "complete").length : "…") + " complete", "var(--accent)"],
+    // Falls back to git's merge commits when Entire Trails can't be read.
+    [S.trails && tr.length ? merged : S.commits?.merged ? S.commits.merged.length : "…", "Branches merged", "through the release gate", "var(--r2)"],
+    [S.commits ? pct(linked, cs.length) + "%" : "…", "Commits linked to AI", S.commits ? linked + " of " + cs.length + " commits" : "", "var(--r2)"],
+    [S.commits ? S.commits.recorded.length : "…", "Checkpoints recorded", "transcripts in the sessions repo", "var(--r3)"],
+    [S.brain ? S.brain.memories : "…", "Brain memories", S.brain ? (S.brain.shared ? "shared with the team" : "local only") : "", "var(--human)"],
+    [g ? g.symbols.toLocaleString() : "…", "Graph symbols", g ? g.relations.toLocaleString() + " relations mapped" : "", "var(--r4)"],
+  ];
+  $("hero").innerHTML = tiles.map(([v, k, i, c]) => '<div class="kpi" style="--k:' + c + '"><b>' + esc(v) + "</b><span>" + esc(k) + "</span><i>" + esc(i) + "</i></div>").join("");
+  const n = (t) => d.filter((m) => m.type === t).length;
+  const steps = [
+    ["1", "Claim", "Agent posts CLAIM on the channel", n("CLAIM"), "claims", "GitHub #1", "var(--r1)"],
+    ["2", "Trail", "Opens an Entire Trail for the task", S.trails ? tr.length : "…", "Trails", "entire trail", "var(--accent)"],
+    ["3", "Context", "Reads Brain rules and the Graph code map", S.brain ? S.brain.memories : "…", "memories", "brain + graph", "var(--human)"],
+    ["4", "Build", "Commits link to the AI session", S.commits ? linked : "…", "linked commits", "checkpoints", "var(--r2)"],
+    ["5", "Review", "HANDOFF, then findings on the Trail", n("HANDOFF") + n("REVIEW"), "handoffs + reviews" + (findings ? ", " + findings + " findings" : ""), "trail findings", "var(--r3)"],
+    ["6", "Merge", "Role 4 merges after the gate", n("MERGED"), "merges", "release gate", "var(--r4)"],
+  ];
+  $("flow").innerHTML = steps.map(([k, t, dsc, v, unit, tool, c]) =>
+    '<div class="step" style="--s:' + c + '"><div class="k">Step ' + k + '</div><div class="t">' + t + '</div><div class="d">' + dsc + '</div><div><span class="v">' + esc(v) + '</span> <span class="small muted">' + esc(unit) + '</span></div><span class="tool">' + tool + "</span></div>").join("");
+}
+
+// ---------- Overview ----------
+function roleCard(r, compact) {
+  const mine = S.msgs.filter((m) => m.from === r);
+  const last = (ts) => mine.filter((m) => ts.includes(m.type)).at(-1);
+  const doing = r === "HUMAN" ? last(["HUMAN"]) : last(["STATUS", "CLAIM", "HANDOFF", "MERGED", "BLOCKED"]);
+  const line = doing ? "<b>" + (doing.type === "HUMAN" ? "" : doing.type.toLowerCase() + ": ") + "</b>" + inline(doing.summary) + " · " + ago(doing.t) : (mine.length ? "" : "Hasn't posted yet");
+  let mini = "";
+  if (!compact && r !== "HUMAN" && r !== "TOOLS" && S.commits) {
+    const cs = S.commits.commits.filter((c) => commitRole(c) === r);
+    const l = cs.filter((c) => c.checkpoints.length).length;
+    const tr = new Set(mine.flatMap((m) => trailRefs(m.body))).size;
+    mini = '<div class="mini"><span><b>' + mine.length + "</b> msgs</span><span><b>" + cs.length + "</b> commits</span><span><b>" + pct(l, cs.length) + "%</b> AI-linked</span><span><b>" + tr + "</b> Trails</span></div>";
+  }
+  return '<button class="role' + (S.role === r ? " on" : "") + '" data-role="' + r + '" style="--c:' + ROLES[r].c + '"><div class="row"><span class="name">' + ROLES[r].name + ' <span class="muted small">' + esc(ROLES[r].job) + '</span></span><span class="muted small">' + mine.length + '</span></div><div class="doing">' + line + "</div>" + mini + "</button>";
+}
+function renderRoles() {
+  const rs = ["ROLE-1", "ROLE-2", "ROLE-3", "ROLE-4", "TOOLS", "HUMAN"];
+  $("roles").innerHTML = rs.map((r) => roleCard(r, false)).join("");
+  $("roles2").innerHTML = rs.map((r) => roleCard(r, true)).join("");
+}
+function trailMessages(t) {
+  const branches = t.changes.map((c) => c.branch);
+  return S.msgs.filter((m) => trailRefs(m.body).includes(t.number) || branches.some((b) => b && m.body.includes(b)));
+}
+function trailCommits(t) {
+  const shas = new Set(t.changes.flatMap((c) => c.shas || []));
+  return (S.commits?.commits || []).filter((c) => shas.has(c.sha));
+}
+function renderLife() {
+  if (!S.trails) { $("life").innerHTML = '<p class="loading">Loading Trails from Entire…</p>'; return; }
+  const tr = S.trails.trails.filter((t) => t.changes.length || trailMessages(t).length);
+  if (!tr.length) { $("life").innerHTML = '<p class="empty">No Trails yet.</p>'; return; }
+  const head = '<div class="life head"><div>Task (Trail)</div><div>Claimed</div><div>Trail</div><div>AI commits</div><div>Handoff</div><div>Reviewed</div><div>Merged</div></div>';
+  $("life").innerHTML = head + tr.map((t) => {
+    const ms = trailMessages(t), cs = trailCommits(t);
+    const has = (ty) => ms.find((m) => m.type === ty);
+    const merged = t.changes.some((c) => c.status === "merged") || has("MERGED");
+    const linked = cs.filter((c) => c.checkpoints.length).length;
+    const st = [
+      [has("CLAIM"), "var(--r1)", "✓"], [true, "var(--accent)", "#" + t.number], [linked > 0, "var(--r2)", linked || "0"],
+      [has("HANDOFF"), "var(--r2)", "✓"], [has("REVIEW") || t.findings.length, "var(--r3)", t.findings.length || "✓"], [merged, "var(--r4)", "✓"],
+    ];
+    const owner = ms.find((m) => m.type === "CLAIM")?.from || ms[0]?.from;
+    return '<div class="life"><div class="tt"><a href="#trails" data-goto="' + t.number + '">' + esc(t.title) + '</a><div class="small muted">' +
+      (owner ? '<span style="color:' + color(owner) + ';font-weight:700">' + label(owner) + "</span> · " : "") + esc(t.changes.map((c) => c.branch).join(", ") || "no branch yet") + "</div></div>" +
+      st.map(([ok, c, v]) => '<div class="stage' + (ok ? " done" : "") + '" style="--s:' + c + '"><span class="o">' + (ok ? esc(v) : "") + "</span></div>").join("") + "</div>";
+  }).join("");
+}
+function msgItem(m) {
+  return '<div class="item" style="--c:' + color(m.from) + ";--tc:" + color(m.to) + '"><div class="meta"><span class="who">' + label(m.from) + '</span><span>→</span><span class="to">' + label(m.to) + '</span><span class="type ' + esc(m.type) + '">' + esc(m.type) + "</span>" + (m.urgent ? '<span class="pill urgent">URGENT</span>' : "") + '<span class="time">' + ago(m.t) + "</span></div>" + inline(m.summary) + "</div>";
+}
+function renderSide() {
+  const w = openItems();
+  $("open").innerHTML = w.length ? w.map(msgItem).join("") : '<p class="empty">Nobody is waiting. Every request has an answer.</p>';
+  const dec = S.msgs.filter((m) => m.type === "DECISION" || m.type === "OBJECT").reverse().slice(0, 8);
+  $("decisions").innerHTML = dec.length ? dec.map(msgItem).join("") : '<p class="empty">No decisions yet.</p>';
+  $("latest").innerHTML = S.msgs.slice(-6).reverse().map(msgItem).join("") || '<p class="empty">No messages yet.</p>';
+}
+function renderMap() {
+  const P = { "HUMAN": [140, 26], "ROLE-1": [40, 100], "ROLE-2": [240, 100], "ROLE-3": [40, 220], "ROLE-4": [240, 220], "ALL": [140, 160] };
+  const counts = {};
+  for (const m of S.msgs) { if (!P[m.from] || !P[m.to] || m.from === m.to) continue; const k = m.from + ">" + m.to; counts[k] = (counts[k] || 0) + 1; }
+  const max = Math.max(1, ...Object.values(counts));
+  let edges = "", labels = "";
+  for (const [k, n] of Object.entries(counts)) {
+    const [a, b] = k.split(">"); const [x1, y1] = P[a], [x2, y2] = P[b];
+    const mx = (x1 + x2) / 2 + (y2 - y1) * 0.18, my = (y1 + y2) / 2 - (x2 - x1) * 0.18;
+    const dim = S.role && a !== S.role && b !== S.role ? " dim" : "";
+    edges += '<path class="edge' + dim + '" d="M' + x1 + " " + y1 + " Q" + mx + " " + my + " " + x2 + " " + y2 + '" stroke="' + color(a) + '" stroke-width="' + (1.5 + 5 * n / max) + '" marker-end="url(#h)"><title>' + label(a) + " → " + label(b) + ": " + n + "</title></path>";
+    if (!dim) labels += '<text class="cnt" x="' + (0.25 * x1 + 0.5 * mx + 0.25 * x2) + '" y="' + (0.25 * y1 + 0.5 * my + 0.25 * y2 + 3) + '" text-anchor="middle">' + n + "</text>";
+  }
+  const nodes = Object.entries(P).map(([r, [x, y]]) => '<g><circle cx="' + x + '" cy="' + y + '" r="' + (r === "ALL" ? 15 : 19) + '" fill="var(--panel2)" stroke="' + color(r) + '" stroke-width="2.5"/><text x="' + x + '" y="' + (y + 4) + '" text-anchor="middle">' + (r === "ALL" ? "ALL" : r === "HUMAN" ? "You" : r.slice(5)) + "</text></g>").join("");
+  const svg = '<defs><marker id="h" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--muted)"/></marker></defs>' + edges + labels + nodes;
+  document.querySelectorAll("svg.map").forEach((el) => (el.innerHTML = svg));
+}
+
+// ---------- Channel ----------
+function renderTypes() {
+  const present = new Set(S.msgs.map((m) => m.type));
+  $("types").innerHTML = '<button class="chip' + (S.types.size ? "" : " on") + '" data-type="">All</button>' +
+    (S.msgs.some((m) => m.urgent) ? '<button class="chip' + (S.types.has("URGENT") ? " on" : "") + '" data-type="URGENT" style="color:var(--r3)">URGENT</button>' : "") + TYPES.filter((t) => present.has(t)).map((t) => '<button class="chip' + (S.types.has(t) ? " on" : "") + '" data-type="' + t + '">' + t + "</button>").join("");
+}
+function renderFeed() {
+  const q = S.q.toLowerCase();
+  const list = S.msgs.filter((m) => (!S.role || m.from === S.role || m.to === S.role) && (!S.types.size || S.types.has(m.type) || (S.types.has("URGENT") && m.urgent)) && (!q || m.body.toLowerCase().includes(q) || m.u.toLowerCase().includes(q))).slice().reverse();
+  $("feed").innerHTML = list.length ? list.map((m) => {
+    const fresh = !S.first && !S.seen.has(m.id);
+    const long = m.details.length > 220 || m.details.split("\n").length > 3;
+    const open = S.open.has(m.id);
+    const tr = trailRefs(m.body).map((n) => '<a class="pill" href="#trails" data-goto="' + n + '">Trail #' + n + "</a>").join("");
+    return '<article class="msg' + (fresh ? " new" : "") + (m.urgent ? " urgent" : "") + '" style="--c:' + color(m.from) + ";--tc:" + color(m.to) + '"><div class="meta"><span class="who">' + esc(label(m.from)) + '</span><span>→</span><span class="to">' + esc(label(m.to)) + '</span><span class="type ' + esc(m.type) + '">' + esc(m.type) + "</span>" + (m.urgent ? '<span class="pill urgent">URGENT</span>' : "") + tr +
+      '<span class="time" title="' + esc(new Date(m.t).toLocaleString()) + '"><a href="' + esc(m.url) + '" target="_blank" rel="noopener noreferrer">' + clock(m.t) + " · " + ago(m.t) + "</a> · " + esc(m.u) + '</span></div><p class="summary">' + inline(m.summary) + "</p>" +
+      (m.details ? '<div class="details' + (long && !open ? " clamp" : "") + '">' + inline(m.details) + "</div>" + (long ? '<button class="more" data-id="' + m.id + '">' + (open ? "Show less" : "Show more") + "</button>" : "") : "") + "</article>";
+  }).join("") : '<p class="empty">No messages match.</p>';
+}
+
+// ---------- Trails ----------
+function cpPill(c) {
+  if (!c.checkpoints.length) return '<span class="pill">no session</span>';
+  const id = c.checkpoints[0], rec = S.commits?.recorded.includes(id);
+  return '<span class="pill cp' + (rec ? "" : " linked") + '" title="Entire checkpoint ' + id + (rec ? ", transcript recorded" : ", linked") + '">◆ ' + id.slice(-6) + "</span>";
+}
+function renderTrails() {
+  if (!S.trails) return;
+  if (S.trails.error) { $("trails").innerHTML = '<div class="error">Couldn\'t read Trails: ' + esc(S.trails.error) + "</div>"; return; }
+  $("trails").innerHTML = S.trails.trails.map((t) => {
+    const ms = trailMessages(t), cs = trailCommits(t);
+    const changes = t.changes.length ? t.changes.map((c) => '<div class="line"><span class="type ' + esc(c.status) + '">' + esc(c.status) + '</span><span class="s mono">' + esc(c.branch) + " → " + esc(c.base) + "</span>" + (c.url ? '<a class="pill" href="' + esc(c.url) + '" target="_blank" rel="noopener noreferrer">open</a>' : "") + "</div>").join("") : '<p class="empty">No branch attached yet.</p>';
+    const commits = cs.length ? cs.slice(0, 8).map((c) => '<div class="line">' + cpPill(c) + '<a class="s" href="' + ghCommit(c.sha) + '" target="_blank" rel="noopener noreferrer">' + esc(c.subject) + "</a></div>").join("") + (cs.length > 8 ? '<div class="small muted">+' + (cs.length - 8) + " more</div>" : "") : '<p class="empty">No commits found on these branches.</p>';
+    const findings = t.findings.length ? t.findings.map((f) => '<div class="line"><span class="type ' + esc(f.severity) + '">' + esc(f.severity || "note") + '</span><span class="s">' + esc(f.title) + '</span><span class="small muted">' + esc(f.status || "") + "</span></div>").join("") : '<p class="empty">No findings on this Trail.</p>';
+    const talk = ms.length ? ms.slice(-6).reverse().map(msgItem).join("") : '<p class="empty">Not mentioned on the channel yet.</p>';
+    return '<article class="trail" id="trail-' + t.number + '"><h3><span class="num">#' + t.number + "</span>" + esc(t.title) + ' <span class="type ' + esc(t.phase) + '">' + esc(t.phase) + '</span><a class="pill" href="' + esc(t.url) + '" target="_blank" rel="noopener noreferrer">Open on Entire ↗</a></h3>' +
+      (t.body ? '<div class="body">' + inline(t.body) + "</div>" : '<div class="body"></div>') +
+      '<div class="cols"><div class="col"><h4>Branches</h4>' + changes + '<h4 style="margin-top:12px">Review findings</h4>' + findings + '</div><div class="col"><h4>Commits and their AI sessions</h4>' + commits + '</div><div class="col"><h4>On the agent channel</h4>' + talk + "</div></div></article>";
+  }).join("") || '<p class="empty">No Trails yet.</p>';
+}
+
+// ---------- Provenance ----------
+function renderPeople() {
+  if (!S.commits) return;
+  const by = {};
+  for (const c of S.commits.commits) { const r = commitRole(c) || "other"; (by[r] ||= { n: 0, l: 0 }); by[r].n++; if (c.checkpoints.length) by[r].l++; }
+  $("people").innerHTML = ["ROLE-1", "ROLE-2", "ROLE-3", "ROLE-4", "other"].filter((r) => by[r]).map((r) => {
+    const { n, l } = by[r], c = ROLES[r]?.c || "var(--all)";
+    return '<div class="b"><span><b style="color:' + c + '">' + (ROLES[r]?.name || "Others") + '</b> <span class="small muted">' + (ROLES[r]?.job || "") + '</span></span><div class="track"><span style="width:' + pct(l, n) + "%;background:" + c + '"></span></div><span class="small muted">' + l + "/" + n + " · " + pct(l, n) + "%</span></div>";
+  }).join("") || '<p class="empty">No commits yet.</p>';
+}
+function renderCommits() {
+  if (!S.commits) return;
+  if (S.commits.error) { $("commits").innerHTML = '<div class="error">' + esc(S.commits.error) + "</div>"; return; }
+  const list = S.commits.commits.filter((c) => S.cf === "all" || (S.cf === "linked") === c.checkpoints.length > 0);
+  $("commits").innerHTML = list.slice(0, 120).map((c) => {
+    const r = commitRole(c), id = c.checkpoints[0];
+    const open = id && S.cpOpen.has(id);
+    return '<div class="commit"><div class="row">' + cpPill(c) + '<a class="subj" href="' + ghCommit(c.sha) + '" target="_blank" rel="noopener noreferrer">' + esc(c.subject) + "</a>" +
+      (id ? '<button class="x" data-cp="' + id + '">' + (open ? "Hide" : "What it changed") + "</button>" : "") + '</div><div class="meta" style="margin-top:3px"><span class="mono">' + c.sha.slice(0, 7) + '</span><span style="color:' + (r ? color(r) : "var(--muted)") + ';font-weight:700">' + esc(c.author) + (r ? " · " + label(r) : "") + "</span><span>" + esc(c.branch) + '</span><span class="time">' + ago(c.date) + "</span></div>" +
+      (open ? '<div class="changes">' + renderChanges(S.cpOpen.get(id)) + "</div>" : "") + "</div>";
+  }).join("") || '<p class="empty">No commits match.</p>';
+}
+function renderChanges(d) {
+  if (!d) return '<span class="loading">Asking Graph what this session changed…</span>';
+  if (d.error) return '<span class="muted">Graph couldn\'t analyse this one: ' + esc(d.error) + "</span>";
+  if (!d.files.length) return '<span class="muted">No file changes.</span>';
+  const kinds = { added: "+", body_changed: "~", signature_changed: "±", removed: "−", renamed: "→" };
+  return d.files.map((f) => '<div class="f"><span class="pill">' + esc(f.status) + '</span> <span class="mono">' + esc(f.path) + '</span> <span class="small muted">' + esc(f.language || "") + "</span><div>" +
+    f.changes.slice(0, 14).map((c) => '<span class="pill sym" title="' + esc(c.type) + (c.dependents ? ", " + c.dependents + " dependents" : "") + '">' + (kinds[c.type] || "•") + " " + esc(c.kind) + " " + esc(String(c.name).replace(/-/g, " ").slice(0, 60)) + "</span>").join("") +
+    (f.changes.length > 14 ? '<span class="small muted"> +' + (f.changes.length - 14) + " more</span>" : "") + "</div></div>").join("");
+}
+
+// ---------- Brain and Graph ----------
+function renderBrain() {
+  const b = S.brain;
+  if (!b) return;
+  if (b.error) { $("brain").innerHTML = '<div class="error">' + esc(b.error) + "</div>"; return; }
+  $("brain-src").textContent = b.memories + " memories · " + (b.docs ?? "?") + " doc sections · " + (b.shared ? "shared" : "local");
+  const cats = {};
+  for (const f of b.facts) (cats[f.path.split(".")[0] || "other"] ||= []).push(f);
+  const order = ["constraints", "architecture", "project", "workflow", "preferences", "other"];
+  $("brain").innerHTML = order.filter((c) => cats[c]).map((c) => '<div class="cat"><h4>' + c + " · " + cats[c].length + "</h4>" + cats[c].map((f) =>
+    '<div class="mem"><div class="meta"><span class="type ' + esc(f.kind) + '">' + esc(f.kind) + '</span><span class="mono">' + esc(f.path) + "</span>" + (f.commit ? '<a class="pill" href="' + ghCommit(f.commit) + '" target="_blank" rel="noopener noreferrer">' + f.commit.slice(0, 7) + "</a>" : "") + '<span class="time">' + (f.createdAt ? ago(f.createdAt) : "") + "</span></div>" + inline(f.text) + "</div>").join("") + "</div>").join("") || '<p class="empty">No memories yet.</p>';
+}
+function renderGraph() {
+  const g = S.graph;
+  if (!g) return;
+  if (g.error) { $("graph").innerHTML = '<div class="error">' + esc(g.error) + "</div>"; return; }
+  $("graph-src").textContent = "main @ " + (g.commit || "").slice(0, 7);
+  const langs = Object.entries(g.languages).sort((a, b) => b[1].symbols - a[1].symbols);
+  const maxL = Math.max(1, ...langs.map(([, v]) => v.symbols));
+  const rels = Object.entries(g.relations).sort((a, b) => b[1] - a[1]).slice(0, 8);
+  const maxR = Math.max(1, ...rels.map(([, v]) => v));
+  const pal = ["var(--r1)", "var(--r2)", "var(--r4)", "var(--human)", "var(--r3)", "var(--accent)", "var(--all)", "var(--r1)"];
+  $("graph").innerHTML = '<div class="hero" style="grid-template-columns:repeat(3,1fr);margin-bottom:14px">' +
+    [[g.counts.files, "Files indexed"], [g.counts.symbols, "Symbols"], [g.counts.relations, "Relations"]].map(([v, k], i) => '<div class="kpi" style="--k:' + pal[i] + '"><b>' + Number(v).toLocaleString() + "</b><span>" + k + "</span></div>").join("") + "</div>" +
+    '<div class="col"><h4>Symbols by language</h4><div class="bars">' + langs.map(([k, v], i) => '<div class="b"><span>' + esc(k) + '</span><div class="track"><span style="width:' + (100 * v.symbols / maxL) + "%;background:" + pal[i % pal.length] + '"></span></div><span class="small muted">' + v.symbols + " in " + v.files + "</span></div>").join("") + "</div></div>" +
+    '<div class="col" style="margin-top:12px"><h4>Relations it tracks</h4><div class="bars">' + rels.map(([k, v], i) => '<div class="b"><span class="mono">' + esc(k.toLowerCase().replace(/_/g, " ")) + '</span><div class="track"><span style="width:' + (100 * v / maxR) + "%;background:" + pal[(i + 2) % pal.length] + '"></span></div><span class="small muted">' + v + "</span></div>").join("") + "</div></div>";
+}
+
+// ---------- The plan: task states from the channel ----------
+// Task numbers in a summary: "1.4", "4.3-4.5", "2.4+2.2", "4.3/4.4/4.6". Unknown numbers
+// (like "Sonnet 5.5") are ignored later because they aren't in TASKS.md.
+function taskIds(text) {
+  const ids = new Set();
+  for (const m of String(text).matchAll(/\b(\d)\.(\d{1,2})(?:\s*[-–]\s*(?:\1\.)?(\d{1,2}))?\b/g)) {
+    const a = Number(m[2]), b = m[3] ? Number(m[3]) : a;
+    for (let i = a; i <= Math.min(b, a + 10); i++) ids.add(m[1] + "." + i);
+  }
+  return [...ids];
+}
+// Each task's furthest state: claimed < handed off < merged. Only these three message types count.
+const RANK = { CLAIM: 1, HANDOFF: 2, MERGED: 3 };
+const STATE = ["todo", "claimed", "handoff", "merged"];
+const STATE_LABEL = { todo: "", claimed: "building", handoff: "to merge", merged: "merged" };
+function taskStates() {
+  const st = {};
+  const bump = (id, rank) => { if (!st[id] || st[id].rank < rank) st[id] = { rank }; };
+  // Branches git says are on main. Match whole names, so "role-3/hijack" doesn't match "role-3/hijack-batch".
+  // A message's own branch is the one right after the word "branch" ("Trail #13, branch role-1/agent-loop").
+  // Other branches it mentions ("stacked on role-1/prompt-and-lines") don't count.
+  const onMainSet = new Set((S.commits?.merged || []).map((b) => b.branch));
+  const onMain = (text) => { const b = String(text).match(/\b[Bb]ranch\s+`?([\w./-]+?)`?(?=[\s,;:)]|$)/); return Boolean(b && onMainSet.has(b[1])); };
+  const merged = S.commits?.merged || [];
+  for (const b of merged) for (const id of taskIds(b.subject)) bump(id, 3);
+  for (const m of S.msgs) {
+    const rank = RANK[m.type];
+    if (!rank) continue;
+    // A CLAIM or HANDOFF that names a branch now on main counts as merged.
+    const r = rank < 3 && onMain(m.body) ? 3 : rank;
+    for (const id of taskIds(m.summary)) bump(id, r);
+  }
+  // Tasks the plan itself marks done (struck out, "Done, decided").
+  for (const t of S.tasks?.tasks || []) if (t.done) bump(t.id, 3);
+  return st;
+}
+// Progress for a set of tasks: merged counts fully, handed off 0.75, building 0.25.
+function progress(list, st) {
+  const n = { merged: 0, handoff: 0, claimed: 0, todo: 0 };
+  for (const t of list) n[STATE[st[t.id]?.rank || 0]]++;
+  const score = list.length ? (n.merged + 0.75 * n.handoff + 0.25 * n.claimed) / list.length : 0;
+  return { ...n, total: list.length, pct: Math.round(100 * score) };
+}
+function seg(p) {
+  const w = (x) => (p.total ? (100 * x) / p.total : 0) + "%";
+  return '<div class="seg"><span class="m" style="width:' + w(p.merged) + '"></span><span class="h" style="width:' + w(p.handoff) + '"></span><span class="c" style="width:' + w(p.claimed) + '"></span></div>';
+}
+function renderMission() {
+  // Countdown to the submission deadline.
+  const left = S.tasks ? Math.max(0, new Date(S.tasks.deadline) - Date.now()) : 0;
+  const h = Math.floor(left / 3600e3), mi = Math.floor((left % 3600e3) / 60e3);
+  const clockHtml = '<div class="clockbox"><div class="k">Submissions close</div><div class="big">' + (S.tasks ? h + "<small>h</small>" + String(mi).padStart(2, "0") + "<small>m</small>" : "…") +
+    '</div><div class="small muted">' + (S.tasks ? new Date(S.tasks.deadline).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" }) + " · Hack Western 13" : "") + "</div></div>";
+  if (!S.tasks?.tasks) { $("mission").innerHTML = clockHtml + '<div class="core"><p class="loading">Reading the plan…</p></div>'; return; }
+  // Core-demo progress, overall and per role.
+  const st = taskStates(), core = S.tasks.tasks.filter((t) => t.core);
+  const all = progress(core, st);
+  const roles = ["ROLE-1", "ROLE-2", "ROLE-3", "ROLE-4"].map((r) => {
+    const p = progress(core.filter((t) => t.role === r), st);
+    return '<div class="rb" style="--c:' + color(r) + '"><div class="row"><span><b>' + label(r) + '</b> <span class="muted">' + esc(ROLES[r].job) + '</span></span><span class="muted">' + p.pct + "%</span></div>" + seg(p) + "</div>";
+  }).join("");
+  $("mission").innerHTML = clockHtml + '<div class="core" style="--c:var(--r2)"><div class="k">Core demo</div><div class="head"><span class="pct">' + all.pct + '%</span><span class="note">' +
+    all.merged + " of " + all.total + " core tasks merged · " + all.handoff + " waiting to merge · " + all.claimed + " being built · " + all.todo + " not started</span></div>" +
+    '<div class="rolebars">' + roles + '</div><div class="legend"><span><i style="background:var(--muted)"></i>merged</span><span><i style="background:repeating-linear-gradient(45deg,var(--muted) 0 3px,transparent 3px 6px)"></i>handed off</span><span><i style="background:color-mix(in srgb,var(--muted) 30%,transparent)"></i>being built</span></div></div>';
+}
+function renderTaskMap() {
+  if (!S.tasks) return;
+  if (S.tasks.error) { $("tmap").innerHTML = '<div class="error">Couldn\'t read docs/TASKS.md: ' + esc(S.tasks.error) + "</div>"; return; }
+  const st = taskStates();
+  const tile = (t) => {
+    const s = STATE[st[t.id]?.rank || 0];
+    return '<div class="task ' + s + (t.core ? "" : " later") + '" title="' + esc(t.id + " " + t.title + "\nDone when: " + t.doneWhen) + '"><span class="id">' + t.id + '</span><span class="tt">' + esc(t.title) + '</span><span class="st">' + STATE_LABEL[s] + "</span></div>";
+  };
+  $("tmap").innerHTML = '<div class="tmap">' + ["ROLE-1", "ROLE-2", "ROLE-3", "ROLE-4"].map((r) => {
+    const mine = S.tasks.tasks.filter((t) => t.role === r), core = mine.filter((t) => t.core), later = mine.filter((t) => !t.core);
+    const p = progress(core, st);
+    return '<div class="tcol" style="--c:' + color(r) + '"><h3>' + label(r) + " <span>" + esc(ROLES[r].job) + " · " + p.merged + "/" + p.total + " core merged</span></h3>" +
+      core.map(tile).join("") + (later.length ? '<div class="divider">After core</div>' + later.map(tile).join("") : "") + "</div>";
+  }).join("") + "</div>";
+}
+function renderTimeline() {
+  const el = $("tl");
+  if (!S.msgs.length) return;
+  // One lane per role; x runs from the first message to now.
+  const lanes = ["ROLE-1", "ROLE-2", "ROLE-3", "ROLE-4", "TOOLS", "HUMAN"];
+  const W = 1200, L = 110, R = 16, top = 26, gap = 30, H = top + gap * lanes.length;
+  const t0 = new Date(S.msgs[0].t).getTime(), t1 = Date.now();
+  const x = (t) => L + ((new Date(t).getTime() - t0) / Math.max(1, t1 - t0)) * (W - L - R);
+  const y = (r) => top + gap * lanes.indexOf(r) + gap / 2;
+  let svg = "";
+  // Hour gridlines with local-time labels.
+  for (let h = Math.ceil(t0 / 3600e3) * 3600e3; h <= t1; h += 3600e3) {
+    svg += '<line class="hour" x1="' + x(h) + '" x2="' + x(h) + '" y1="' + (top - 8) + '" y2="' + H + '"/><text x="' + x(h) + '" y="' + (top - 12) + '" text-anchor="middle">' + new Date(h).toLocaleTimeString([], { hour: "numeric" }) + "</text>";
+  }
+  for (const r of lanes) {
+    svg += '<line class="lane" x1="' + L + '" x2="' + (W - R) + '" y1="' + y(r) + '" y2="' + y(r) + '"/><text x="8" y="' + (y(r) + 4) + '" style="fill:' + color(r) + '">' + esc(label(r)) + "</text>";
+  }
+  // Commits: small ticks just under each role's lane.
+  for (const c of S.commits?.commits || []) {
+    const r = commitRole(c);
+    if (!r || new Date(c.date) < t0) continue;
+    svg += '<line x1="' + x(c.date) + '" x2="' + x(c.date) + '" y1="' + (y(r) + 6) + '" y2="' + (y(r) + 12) + '" stroke="' + color(r) + '" stroke-width="1.5" opacity=".7"><title>' + esc(c.subject) + "</title></line>";
+  }
+  // Messages: dots, bigger for handoffs and merges.
+  for (const m of S.msgs) {
+    if (!lanes.includes(m.from)) continue;
+    const big = m.type === "MERGED" || m.type === "HANDOFF", ring = m.type === "MERGED";
+    svg += '<circle cx="' + x(m.t) + '" cy="' + y(m.from) + '" r="' + (big ? 5.5 : 3.2) + '" fill="' + (ring ? "var(--panel)" : color(m.from)) + '" stroke="' + color(m.from) + '" stroke-width="' + (ring ? 2.5 : 0) + '" opacity="' + (big ? 1 : 0.75) + '"><title>' + esc(clock(m.t) + " · " + m.type + " · " + m.summary) + "</title></circle>";
+  }
+  svg += '<line class="now" x1="' + x(t1) + '" x2="' + x(t1) + '" y1="' + (top - 8) + '" y2="' + H + '"/>';
+  el.setAttribute("viewBox", "0 0 " + W + " " + (H + 6));
+  el.innerHTML = svg;
+}
+
+// ---------- Load and render ----------
+function renderAll() {
+  renderUrgent(); renderMission(); renderTaskMap(); renderTimeline(); renderHero(); renderRoles(); renderLife(); renderSide(); renderMap(); renderTypes(); renderFeed();
+  renderTrails(); renderPeople(); renderCommits(); renderBrain(); renderGraph();
+  $("n-channel").textContent = S.msgs.length || "";
+  $("n-trails").textContent = S.trails?.trails?.length || "";
+  $("n-prov").textContent = S.commits?.commits ? S.commits.commits.filter((c) => c.checkpoints.length).length : "";
+  $("n-mem").textContent = S.brain?.memories || "";
+}
+async function getJson(path) {
+  const r = await fetch(path, { cache: "no-store" });
+  const j = await r.json();
+  if (!r.ok || j.error) throw new Error(j.error || r.statusText);
+  return j;
+}
+async function loadChannel() {
+  try {
+    const j = await getJson("/api/messages");
+    S.msgs = j.messages; S.urgentIssue = j.urgentIssue;
+    const sg = j.messages.filter((m) => m.from === "HUMAN" && /^(STOP|GO)\b/.test(m.summary)).at(-1);
+    const stopped = sg && /^STOP/.test(sg.summary);
+    $("state").textContent = stopped ? "STOPPED" : "GO";
+    $("state").className = "state " + (stopped ? "stop" : "go");
+    $("dot").className = "dot";
+    $("updated").textContent = "live · updated " + clock(new Date());
+    delete S.errors.channel;
+  } catch (e) {
+    $("dot").className = "dot err"; $("updated").textContent = "offline";
+    S.errors.channel = "Can't read the agent channel: " + e.message + ". Check gh auth status; this page retries by itself.";
+  }
+  $("err").innerHTML = Object.values(S.errors).map((e) => '<div class="error">' + esc(e) + "</div>").join("");
+  renderAll();
+  S.first = false;
+  S.msgs.forEach((m) => S.seen.add(m.id));
+}
+async function loadSource(key, path) {
+  try { S[key] = await getJson(path); } catch (e) { S[key] = { error: e.message }; }
+  renderAll();
+}
+function loadEntire() {
+  loadSource("tasks", "/api/tasks");
+  loadSource("trails", "/api/trails");
+  loadSource("commits", "/api/commits");
+  loadSource("brain", "/api/brain");
+  loadSource("graph", "/api/graph");
+}
+
+// ---------- Tabs and clicks ----------
+function showTab() {
+  const t = (location.hash || "#overview").slice(1).split("/")[0];
+  const known = ["overview", "channel", "trails", "provenance", "memory"].includes(t) ? t : "overview";
+  document.querySelectorAll("section[data-tab]").forEach((s) => s.classList.toggle("on", s.dataset.tab === known));
+  document.querySelectorAll("nav a").forEach((a) => a.classList.toggle("on", a.dataset.t === known));
+}
+window.addEventListener("hashchange", () => { showTab(); window.scrollTo({ top: 0 }); });
+document.addEventListener("click", async (e) => {
+  const role = e.target.closest("[data-role]"), type = e.target.closest("[data-type]"), more = e.target.closest(".more");
+  const goto = e.target.closest("[data-goto]"), cf = e.target.closest("[data-cf]"), cp = e.target.closest("[data-cp]");
+  if (role) { S.role = S.role === role.dataset.role ? null : role.dataset.role; if (location.hash !== "#channel") location.hash = "#channel"; renderAll(); }
+  if (type) { const t = type.dataset.type; if (!t) S.types.clear(); else S.types.has(t) ? S.types.delete(t) : S.types.add(t); renderAll(); }
+  if (more) { const id = Number(more.dataset.id); S.open.has(id) ? S.open.delete(id) : S.open.add(id); renderFeed(); }
+  if (goto) { e.preventDefault(); location.hash = "#trails"; setTimeout(() => document.getElementById("trail-" + goto.dataset.goto)?.scrollIntoView({ behavior: "smooth", block: "start" }), 50); }
+  if (cf) { S.cf = cf.dataset.cf; document.querySelectorAll("[data-cf]").forEach((b) => b.classList.toggle("on", b === cf)); renderCommits(); }
+  if (cp) {
+    const id = cp.dataset.cp;
+    if (S.cpOpen.has(id)) { S.cpOpen.delete(id); renderCommits(); return; }
+    S.cpOpen.set(id, null); renderCommits();
+    try { S.cpOpen.set(id, await getJson("/api/checkpoint/" + id)); } catch (err) { S.cpOpen.set(id, { error: err.message }); }
+    renderCommits();
+  }
+});
+$("q").addEventListener("input", (e) => { S.q = e.target.value; renderFeed(); });
+showTab();
+loadChannel();
+loadEntire();
+setInterval(loadChannel, 10000);
+setInterval(loadEntire, 60000);
+setInterval(renderMission, 30000); // keep the countdown ticking between loads
+</script>
+</body>
+</html>

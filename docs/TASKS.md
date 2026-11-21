@@ -4,13 +4,15 @@ Four people, all coding. Each role's tasks are in order. Do the **core** tasks f
 
 The pitch, video and Devpost are done **together at the end** (Sunday 6 to 8:30 AM), not by one role.
 
+Check the active claims in the agent channel before taking a role or task, then give your agent its loop prompt (`agents/role-<n>.md`). This file is the task plan; [CURRENT.md](CURRENT.md) shows merged behavior.
+
 Open a Trail for each task when you start it (`entire trail create --title "..."` on a branch named `<role>/<task>`), or a GitHub "Claim a task" issue if you're not on Entire yet.
 
 ---
 
 ## Task 0: setup, before roles start
 
-The **contract** (`lib/contract/`): shared types for the 12 buttons, the guard, the safety check, `AgentDriver`, `Store`, events, the record, rule cards and lanes, plus **fakes** with Sam's data so every role can build against them right away. It's generated once as setup (Trail #1) and isn't any role's job. Changes after that go through a contract-change issue.
+The **contract** (`lib/contract/`): shared types for the 12 buttons, the guard, the safety check, `AgentDriver`, `Store`, events, the record, rule cards and lanes, plus **fakes** with Sam's data. Task 0 is merged. Later changes follow the lock review and hammer gate, then Role 4 announces the interface change with a DECISION. A contract-change issue is optional.
 
 ## Nobody waits
 
@@ -47,7 +49,7 @@ The **contract** (`lib/contract/`): shared types for the 12 buttons, the guard, 
 | 2.2 | **Demo clock, reset and daily reminder check:** reset reseeds and sets Tuesday 10 AM. The daily check starts Sam's outbound call. | Reset then "run daily check" rings Sam's phone | 2.1, 4.2 |
 | 2.3 | **Console Today view** (`app/console/today`): lane totals, Review lane first, an item's detail (rule that sent it, side effect, promises checked, signals, transcript, the AI's own view labelled), Approve and Deny | Sam's refill shows in Review with everything, and Approve updates his phone | 2.1, Task 0 |
 | 2.4 | **Auth0 sign-in and roles:** `pharmacist` and `reviewer`. The approve endpoint takes the approver from the token. | Only a signed-in pharmacist can approve, and their name lands in the record | 2.1 |
-| 2.5 | **Check Auth0's phone approval on the free plan** (by Saturday 10 AM). If it works, wire it to the same approve path. | The pharmacist's phone buzzes and approves, or we've confirmed the console button is the path | 2.4 |
+| 2.5 | ~~Check Auth0's phone approval on the free plan~~ **Done, decided:** no phone push; approval is the Approve button on the Today page | Decided Saturday morning (see `docs/DECISIONS.md`) | 2.4 |
 | 2.6 | **Hosting:** Vultr server, automatic https, domain. Both phones can open it and use the microphone. | A phone on the hall's network uses its microphone on our https address | 2.1 |
 | **After core** | | | |
 | 2.7 | Postgres store on Tiger Data, behind the same `Store` interface | Swapping stores changes one line, and every test passes on both | 4.2 |

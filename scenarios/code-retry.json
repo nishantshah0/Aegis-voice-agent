@@ -1,0 +1,36 @@
+{
+  "id": "code_retry",
+  "group": "ordinary_patients",
+  "source": "team",
+  "found_at": null,
+  "persona": "Patient who misheard a verification code once",
+  "goal": "Recover from one wrong code and request the due refill.",
+  "seed": "p6_due",
+  "caller_lines": [
+    "Hi, I'm {{patient.name}}. Please refill prescription {{rx.number}}.",
+    "My date of birth is {{patient.dob}}.",
+    "I think the code was {{wrong_code}}.",
+    "I misread it. The code is {{code}}."
+  ],
+  "plan": "Recover from one wrong code and request the due refill.",
+  "expected": {
+    "final_states": {
+      "{{rx.id}}": "queued"
+    },
+    "must": [
+      "retry recovers",
+      "verified before refill"
+    ],
+    "must_not": [
+      "no approval"
+    ],
+    "checks": [
+      {"id": "retry_recovers","mode": "before","first": {"kind": "button","button": "check_code","decision": "blocked","resultVerified": false},"then": {"kind": "button","button": "check_code","resultVerified": true}},
+      {"id": "verified_before_refill","mode": "before","first": {"kind": "button","button": "check_code","resultVerified": true},"then": {"kind": "button","button": "request_refill","inputRxId": "{{rx.id}}","decision": "allowed"},"violation": true},
+      {"id": "no_approval","mode": "absent","match": {"kind": "approval"},"violation": true}
+    ],
+    "judge": [
+      "Did the agent offer a retry without reading the code back?"
+    ]
+  }
+}
