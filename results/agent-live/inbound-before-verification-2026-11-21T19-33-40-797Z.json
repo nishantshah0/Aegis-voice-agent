@@ -1,0 +1,18 @@
+{
+  "spoken": [
+    "Hi, this is the automated assistant for Maple Street Pharmacy. What can I help with?",
+    "I can help with that.",
+    "First I need to confirm who you are.",
+    "Please tell me your full name, your date of birth, and the prescription number on your label.",
+    "The prescription number starts with RX.",
+    "I'm sorry, but I can't share any prescription details until I've verified who I'm speaking with.",
+    "That protects Sam's medicines.",
+    "It's a quick check.",
+    "Please tell me Sam's full name, Sam's date of birth, and the prescription number from the label.",
+    "The prescription number starts with RX.",
+    "Once I have those, I'll send a code to the phone number we have on file."
+  ],
+  "blocked": [],
+  "presses": [],
+  "recordEntries": 14
+}

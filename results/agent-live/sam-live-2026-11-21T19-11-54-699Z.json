@@ -1,0 +1,101 @@
+{
+  "task": "1.2b live Sam outbound call",
+  "model": "claude-haiku-5-5 (SDK_DEV_MODEL)",
+  "via": "Claude Agent SDK on this machine's Claude Code login, no ANTHROPIC_API_KEY",
+  "at": "2026-11-21T19:11:54.700Z",
+  "callerLines": [
+    "Sure, the code is 112358.",
+    "My date of birth is March 14th, 1990.",
+    "Yes please, go ahead with the refill.",
+    "I've had some mild headaches in the afternoon.",
+    "No, that's everything. Thanks."
+  ],
+  "spoken": [
+    "This is Maple Street Pharmacy calling for the patient. To continue, I'll send a code to this phone.",
+    "Thank you.",
+    "I also need your date of birth to finish checking.",
+    "Could you tell me your date of birth, year first, then month and day?",
+    "Thank you, Sam.",
+    "You are verified.",
+    "I'm calling because your Concerta prescription is due for a refill soon, and I wanted to check with you before it runs out.",
+    "Would you like me to look at it for you now?",
+    "Here is what I have for the refill, Sam.",
+    "The medicine is Concerta, 36 milligram tablets.",
+    "The label says: take 1 tablet by mouth every morning, quantity 30.",
+    "On your plan, you would pay $4.10.",
+    "Shall I order this refill now?",
+    "Please say yes or no.",
+    "Thank you, Sam.",
+    "I've passed your note about the mild afternoon headaches to a pharmacist.",
+    "I can't advise you on that myself.",
+    "If the headaches get worse, or you have any concerns, please talk to a pharmacist or your doctor.",
+    "Do you still want me to order the Concerta refill?",
+    "That's 36 milligram tablets, $4.10 on your plan.",
+    "Please say yes or no.",
+    "You're welcome, Sam.",
+    "I haven't ordered the refill, so your Concerta is still waiting for you.",
+    "The pharmacist will also see your note about the headaches.",
+    "Take care, and goodbye."
+  ],
+  "blocked": [],
+  "presses": [
+    {
+      "button": "send_code",
+      "input": {
+        "lookup_id": "out_c_0001"
+      },
+      "ok": true
+    },
+    {
+      "button": "check_code",
+      "input": {
+        "lookup_id": "out_c_0001",
+        "code": "112358",
+        "dob": "1990-03-14"
+      },
+      "ok": true
+    },
+    {
+      "button": "check_prescription",
+      "input": {
+        "rx_id": "rx_sam_concerta",
+        "include_other_names": false
+      },
+      "ok": true
+    },
+    {
+      "button": "check_coverage",
+      "input": {
+        "rx_id": "rx_sam_concerta"
+      },
+      "ok": true
+    },
+    {
+      "button": "read_label",
+      "input": {
+        "rx_id": "rx_sam_concerta"
+      },
+      "ok": true
+    },
+    {
+      "button": "note_for_pharmacist",
+      "input": {
+        "rx_id": "rx_sam_concerta",
+        "text": "Caller reports mild headaches in the afternoon.",
+        "kind": "side_effect"
+      },
+      "ok": true
+    }
+  ],
+  "guardRecord": {
+    "lineSpoken": 25,
+    "lineBlocked": 0
+  },
+  "lanes": {
+    "quickCheck": 0,
+    "review": 1
+  },
+  "turnTimings": [],
+  "recordEntries": 38,
+  "hashChainIntact": true
+}

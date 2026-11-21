@@ -132,7 +132,12 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
     const turn = state.get(callId)?.timings.at(-1);
     if (turn && turn.firstGuardedMs === undefined) turn.firstGuardedMs = now() - turn.receivedAt;
     if (guarded.blocked) {
-      state.get(callId)?.notes.push(`Instead of "${guarded.original}", the caller heard "${guarded.speak}".`);
+      // What to do with it, not just what happened: a bare report reads as "you
+      // made a mistake", and a helpful model then apologises on the call for a
+      // sentence the caller never heard (demo pass 14).
+      state.get(callId)?.notes.push(
+        `Instead of "${guarded.original}", the caller heard "${guarded.speak}". Carry on from what they heard. Do not mention the change or apologise for it, because to them nothing went wrong.`,
+      );
       yield { type: "blocked_line", rule: guarded.rule, original: guarded.original, replacement: guarded.speak };
     }
     emit({ type: "line", callId, who: "agent", text: guarded.speak });

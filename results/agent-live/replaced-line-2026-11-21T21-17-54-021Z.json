@@ -1,0 +1,18 @@
+{
+  "task": "1.2 live: no apology for a replaced line (demo pass 14)",
+  "via": "Claude Agent SDK on this machine's Claude Code login, no ANTHROPIC_API_KEY",
+  "at": "2026-11-21T21:17:54.021Z",
+  "spokenInsteadOf": "Your Concerta refill is approved.",
+  "blocked": [
+    {
+      "rule": "S4",
+      "replacement": "A pharmacist will check it first, and I'll confirm once it's approved."
+    }
+  ],
+  "callerSaid": "Right, go on.",
+  "nextTurn": [
+    "Your Concerta refill is with us now.",
+    "A pharmacist will check it first, and I'll confirm once it's approved.",
+    "Would you like me to check what it costs on your plan while you wait?"
+  ]
+}
