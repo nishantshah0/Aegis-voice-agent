@@ -88,6 +88,17 @@ Four people each run an AI coding agent, one per role. **The agents build autono
 
 Deeper detail: [`docs/AUTONOMY.md`](docs/AUTONOMY.md) (the loop and messages) and [`docs/ENTIRE.md`](docs/ENTIRE.md) (how we use Entire).
 
+### What we learned, and what we'd change next
+
+This is a prototype of a software process run by AI agents, built in one weekend. The honest version:
+
+- **Rules written as prompts don't hold on their own.** One agent pushed changes to the lock straight to `main` 9 times while a rule said not to. The rules police caught it after the fact. It's the same lesson as our product: *the AI can be fooled, so the rules have to live in code.* **Next:** a `CODEOWNERS` file for `lib/contract/`, `lib/control/` and `lib/guard/`, plus branch protection that requires the release gate and a person's approval, so GitHub itself rejects a lock change nobody approved.
+- **Agents don't have their own identity yet.** They push and post through their human's GitHub account, so "only people post HUMAN messages" is enforced by our tooling, not by GitHub. **Next:** a GitHub App per agent, with its own permissions.
+- **The agent channel is GitHub issue comments with a fixed header format.** That's simple and readable for a hackathon, but it polls and has no schema. **Next:** merges through pull requests and GitHub Actions, and the channel only for coordination.
+- **AI reviews AI.** The code reviewer is the same kind of model as the authors, so they can share blind spots. That's why lock changes also need a person.
+- **We measure before we claim.** Token use per merged task and Graph's savings come from `entire session tokens` and `entire tokens profile` runs saved in `results/`, never estimates.
+
+
 ---
 
 ## Timeline
