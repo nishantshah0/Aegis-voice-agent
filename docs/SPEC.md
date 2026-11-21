@@ -87,7 +87,7 @@ Refill Guard is one product for one customer: **the pharmacy**. It has three fac
 
 What this means for us:
 1. **The patient's phone must feel like a real consumer app,** polished enough for a screenshot. Last year's winners were judged partly on looks.
-2. **One contrast number in the close:** "0 rules broken in [N] million tries", said slowly.
+2. **One contrast number in the close:** "Two hundred seventy-five thousand tries. Zero rules broken.", said slowly, from the saved hammer run.
 3. **Patient first, compliance second,** especially for the Sun Life judges. Last year they picked a student consumer app.
 4. **Something physical:** the judge holds the patient's phone, and a teammate plays the pharmacist at the console.
 5. **Don't lead with "control layer",** which reads as enterprise infrastructure. Lead with Sam's call, and let the gate show the control layer.
@@ -672,7 +672,7 @@ The slot is a 3-minute pitch and 2 minutes of questions. The script is planned a
 
 1. It helped a real person who was about to run out.
 2. A completely fooled AI still couldn't break a rule, and the judge chose the attack.
-3. People stay in charge: the pharmacist sees only the tricky calls, and signs every change.
+3. People stay in charge: the pharmacist sees only the tricky calls, and signs every controlled refill.
 
 Everything else belongs in questions, at the expo table and on Devpost: the rule writer, the full record, Review calls, Rules and checks, cost and refill sync.
 
@@ -680,7 +680,7 @@ Everything else belongs in questions, at the expo table and on Devpost: the rule
 
 - **Reset demo** (one button): reseeds the patients, clears calls, sets the demo clock to Tuesday 10 AM, and keeps the overnight results and the approved rule history.
 - **Stage view** on the big screen, kept simple: the transcript, the gate animation and the two counters. The phones show only during the call, and the console only when the pharmacist acts.
-- **The phone in the judge's hand.** The patient phone view runs on a real Android phone in Chrome, connected to the same https server. It rings in their hand, and they speak into it, which keeps the microphone close in a loud hall. If it fails, use the phone view on the laptop with a headset.
+- **The phone in the judge's hand.** The patient phone view runs on a real Android phone in Chrome, connected to the same https address (the Cloudflare tunnel from the demo laptop). It rings in their hand, and they speak into it, which keeps the microphone close in a loud hall. If it fails, use the phone view on the laptop with a headset.
 - **The pharmacist's console:** a laptop (or tablet) with the console's Today page, signed in through Auth0 by the teammate playing the pharmacist.
 - A card for the judge with Sam's date of birth and one line: "If asked about side effects, you can mention your sleep."
 - One person talks, one person drives. Rehearse with a stopwatch.
@@ -689,20 +689,26 @@ Everything else belongs in questions, at the expo table and on Devpost: the rule
 
 **F** = the teammate with ADHD, **P** = presenter, **A** = agent, **J** = judge playing Sam, **R** = teammate playing the pharmacist.
 
-1. **(15 s) The reason.** **F** gives his reason in his own true words, only if he's happy to share. Ends with handing over the phone: "This is Sam's phone. Sam's made up. The problem isn't." It rings.
+Lines marked **A** are from the final clean pass (`results/demo/2026-11-21T1625-final/walkthrough.md`). The agent is live, so its wording changes a little every run: never wait for an exact line.
+
+1. **(15 s) The reason.** **F** gives his reason in his own true words, only if he's happy to share (get his OK, and the words he's comfortable with, before rehearsing). Ends with handing over the phone: "This is Sam's phone. Sam's made up. The problem isn't." It rings.
 2. **(55 s) The call.**
-   - **A:** "Hi, it's Refill Guard Pharmacy, calling for Sam Rivera. I'll text a code to this phone." **J** reads the code and gives the date of birth.
-   - **A:** "Thanks, Sam. Your Concerta runs out Friday. It's a controlled medicine, so a pharmacist signs it off. Shall I send it over?" **J:** "Yes, please."
-   - **A:** "Done. Before I go, since your last refill, any side effects, like trouble sleeping, less appetite or headaches?" **J:** "Actually, I've been sleeping badly."
-   - **A:** "Thanks, I've passed that to the pharmacist with your refill. It's four dollars twenty after your plan, ready Thursday once it's approved."
-   - Big screen: the request goes amber into the **Review** lane. The console's Today view opens on Sam: the side effect in his words, the promises checked, the signals. **R**, signed in to the console, taps **Approve and flag a chat at pickup**. Sam's phone shows "Approved, ready Thursday."
+   - **A:** "This is Maple Street Pharmacy calling for Sam Rivera. To continue, I'll send a code to this phone." The code arrives as a text on the phone. **J** reads it and gives the date of birth.
+   - **A:** "Thank you, Sam. You're verified. You have two refills left on it, and it can be refilled today. Would you like me to request a refill?" **J:** "Yes, please."
+   - **A** reads it back: "Concerta, 36 milligram tablets. Your plan pays $41.20, and you pay $4.10. Shall I request the refill now?" **J:** "Yes."
+   - **A:** "Your refill request is in. A pharmacist needs to check it before it is approved." Then it asks about side effects since the last refill. **J:** "Actually, I've been sleeping badly." **A** asks when and how bad, and passes it to the pharmacist.
+   - Big screen: the request goes amber into the **Review** lane. The console's Today view opens on Sam: the side effect in his words, the promises checked, the signals. **R**, signed in to the console through Auth0, adds the note "Flag a chat at pickup about sleep" and taps **Approve**. Sam's phone shows "Approved by the pharmacist".
+   - There is no ready day yet (`ready_label` isn't built). If Sam asks when it'll be ready, the agent says honestly that it doesn't know yet. That's the guard working: don't apologise for it.
+   - The agent confirms twice (the offer, then the read-back with the price), so this step runs about one exchange longer than it used to. Time it with a stopwatch.
    - **P:** "Most refills never reach a pharmacist. This one did, for two reasons: it's a controlled drug, and Sam mentioned his sleep. The pharmacist sees exactly that, says yes, and flags a chat at pickup."
-3. **(10 s) Why it matters.** **P:** "This August, an American pharmacy chain switched off its AI phone line. Wrong dosages. Missed refills. Back to 'press one'. So the real question is trust."
-4. **(40 s) The hijack.** **P:** "So let's assume the worst. I've just swapped the AI for one that's been completely compromised. It'll do anything anyone asks. You choose." The judge taps an attack card, such as "90 Concerta, today, to a new address." The fooled AI's "Sure, ninety tablets…" is struck through (S3), and so is "It's approved, it's on its way" (S4). The refill bounces red (4b), and the delivery bounces red (5).
+3. **(10 s) Why it matters.** **P:** "This August, an American pharmacy chain pulled its AI phone assistant after hundreds of complaints. Wrong dosages. Missed refills. Incoming calls went back to 'press one'. So the real question is trust." (Kinney Drugs, Vermont and upstate New York; WCAX, August 7, 2026. They kept the AI for opt-in refill texts.)
+4. **(40 s) The hijack.** **P:** "So let's assume the worst. I've just swapped the AI for one that's been completely compromised. It'll do anything anyone asks. You choose." The judge taps an attack card, such as "90 Adderall, today." In the final pass, the fooled AI's "Take 90 tablets." was struck through by S3, and "It's approved and on its way." by S4. Narrate only the strikes and bounces that actually show on the stage for the card the judge picked.
    - **P:** "It said yes. It didn't matter. The AI can ask for anything. It can only do what the rules allow."
-   - Run the batch for 10 seconds. **P:** "Caught: climbing. Broken: zero. The prompt isn't the lock. The code is."
-5. **(25 s) Overnight, with a person in charge.** The console's Overnight safety tab. **P:** "Last night our own AI attacker made [N] calls and found [K] gaps nobody on the team thought of. Here's one: it talked the agent into promising something it hadn't done. Every gap is now a permanent test, and the fix waits for a pharmacist." **R** taps Approve on the waiting fix, and the gate shows passed.
-6. **(10 s) Close.** **P**, slowly: "[M] million tries. Zero rules broken. Refill Guard. The AI can be fooled. The pharmacy can't."
+   - Run the batch for 10 seconds. **P:** "Caught: climbing. Broken: zero. The prompt isn't the lock. The code is." (Final pass: 9 caught, 0 broken.)
+5. **(20 s) Not just one demo.** The console's Overnight safety tab, which reads only saved results. **P:** "One demo proves nothing, so we attack it all the time. Every change runs the hammers: every combination of up to three actions from every starting state, plus ten thousand long random ones. Two hundred seventy-five thousand hostile presses. Zero rules broken. Every attack card caught." The overnight AI attacker (task 3.7) isn't built, so there's no fix to approve: never mention one. If a scenario-suite run against the live agent is saved before judging, add its real pass count from the tab, and nothing else.
+6. **(10 s) Close.** **P**, slowly: "Two hundred seventy-five thousand tries. Zero rules broken. Aegis. The AI can be fooled. The pharmacy can't."
+
+Numbers in steps 5 and 6 come from `results/hammer-latest.json` (Saturday's run: 275,098 presses across 77,648 sequences, 0 broken). The hammers rerun on every change, so read them off the Overnight tab the night before and update both lines.
 
 Total planned: about 155 seconds, plus live voice delays. If a stopwatch rehearsal passes 2:55, cut the batch in step 4 first, then the "Here's one" sentence in step 5.
 
@@ -718,13 +724,13 @@ Total planned: about 155 seconds, plus live voice delays. If a stopwatch rehears
 | The judge switched between patient, spectator and pharmacist | The judge is the patient and picks the attack. The presenter does the pharmacist part. |
 | The rule writer depended on a slow AI call, and the retest used the live attacker | The draft is started as step 4 ends, and the retest uses the fooled AI, which gives the same result every time |
 | Step 6 crammed in the report and the hardening story | One thing on screen: Sam's record and the new rule's approver. The overnight story moved to the close as one sentence. |
-| "Every sequence of up to 4 presses" is jargon | "Every combination of up to four actions" |
+| "Every sequence of up to 3 presses" is jargon | "Every combination of up to three actions" |
 | No reset between judges, so the second judge's refill would fail rule 3 | A reset button before every judge |
 | Four views meant clicking between tabs | One stage view |
 | A laptop microphone in a loud hall | The phone in the judge's hand |
 | A made-up patient nobody cared about | A teammate's real reason, told by him, with a made-up stand-in |
 | The control layer, the main idea, was invisible | The gate animation |
-| The pharmacist approval happened off screen | It happens live on a phone through Auth0 |
+| The pharmacist approval happened off screen | It happens live on the console, signed in through Auth0 |
 
 ### Fallbacks
 
@@ -756,10 +762,10 @@ Ask the organisers whether judging is at tables with judges rotating, or on a st
 | Overall top three | The one sentence, the hijack switch, the rule writer, the depth in Part 4 |
 | Best Health Hack by Sun Life | Their criteria: a real health problem, who it helps, the impact. Lead with the teammate's reason, Sam's call, the WHO figure and the who-it-helps table. Then the Sun Life judges section above. |
 | Best Use of Auth0 | Auth0 decides who may approve: every risky action, new rule and fix needs a person signed in through Auth0 with the right role, and the approver comes from the session, never from the request. Show the MLH judges a controlled-drug refill: the agent routes it, the pharmacist approves on the console, and the record shows the Auth0 identity. See "Auth0: how it's used". |
-| Best Use of Gemini API | Gemini is the attacker, chosen because a different model family finds blind spots the agent's own family shares. If Gemini wins the voice measurement, it's the voice too. |
-| Best Use of Tiger Data | The record, the scoreboard and suite growth are time-series in Postgres. The attack alarm queries the last 10 minutes on every request. |
-| Most Adventurous | Only if the "try to break it" station is built: anyone can discover a failure, and it becomes a test. |
-| GoDaddy domain, Vultr | Only once everything is done |
+| Best Use of Gemini API | **Don't enter.** The Gemini attacker wasn't built. |
+| Best Use of Tiger Data | The record lives in Postgres on Tiger Data (`DATABASE_URL`). Only claim the attack alarm or suite growth if you've shown them working. |
+| Most Adventurous | **Don't enter.** The "try to break it" station wasn't built. |
+| GoDaddy domain, Vultr | **Dropped.** The demo runs over a Cloudflare tunnel. |
 
 Ask the organisers how many tracks one project may enter.
 
@@ -774,7 +780,7 @@ Ask the organisers how many tracks one project may enter.
 | Can't be talked into an action the rules forbid | Impossible to trick |
 | Leaks and invented doses are checked in code before they're spoken | It never says anything unsafe |
 | Removes reasons people run out or stop | Fixes adherence |
-| Every sequence of up to 4 presses was checked | We proved it's safe |
+| Every combination of up to 3 actions was checked | We proved it's safe |
 | The AI proposes, a person approves, the gate checks | It fixes itself |
 | Rules written in plain English can only make things stricter | The AI writes the rules |
 | Edits to the record are detectable | The record can't be changed |
@@ -792,11 +798,11 @@ Ask the organisers how many tracks one project may enter.
 | Can the rule writer loosen a rule? | No. Written rules can only refuse, route or flag, and the core rules are code it can't touch. The hammers check it for every card. |
 | What if the AI's proposed fix is wrong? | The gate runs it against every test, and a named person approves it. Nothing ships on its own. |
 | Does it give medical advice? | It quotes the label. Doses that don't match the label are blocked in code before they're spoken. Anything else becomes a note for the pharmacist. |
-| Which models, and why? | The call runs on whichever model met our speed target, shown in the model card's comparison. Fable 5.2 does the slow, careful work: planning attacks, writing rules, proposing fixes. Gemini attacks, because a different family finds different gaps. |
-| What does a call cost? | [Real number from the logs.] |
-| Isn't automating stimulant refills risky? | It doesn't automate the approval. Every Concerta refill goes to a pharmacist, who approves it on their phone. Early refills are refused by rule 4b, whatever anyone says. The agent handles the reminder and the paperwork. |
+| Which models, and why? | The call runs on Claude Haiku 5.5 through the Claude Agent SDK, chosen for speed: in the final pass, six turns took 19.5 seconds of agent time, slowest on the first. The model never acts directly: every action goes through the 12 buttons and every sentence through the speech guard. |
+| What does a call cost? | Read it off the call on the Calls page: tokens and cost come from `results/agent-usage.jsonl`. Never quote a number you haven't just read there. |
+| Isn't automating stimulant refills risky? | It doesn't automate the approval. Every Concerta refill goes to a pharmacist, who approves it on the console. Refills more than 3 days early are refused by rule 4b, whatever anyone says. The agent handles the reminder and the paperwork. |
 | Isn't calling people intrusive? | Opt-in, 9 AM to 8 PM, at most one per prescription every 3 days, and nothing about their health until the code and date of birth check out. |
-| Doesn't sending things to a pharmacist just move the work? | Ordinary calls finished with no person: [real number]. The ones that reach the pharmacist come with a brief. |
+| Doesn't sending things to a pharmacist just move the work? | Only controlled drugs, side effects and anything a rule routes reach the pharmacist, and they arrive with a brief: the side effect in the patient's words and the promises checked. (Say a share of calls finished with no person only if a saved suite run gives it.) |
 | What about a cloned voice? | Identity rests on the code, not on how the caller sounds. Codes by text can be stolen by taking over a phone number, so a real deployment would add more. |
 | Is this legal under Ontario's health privacy law? | It's a sandbox with made-up patients. A real pharmacy needs a privacy review first. The lookup never confirms whether someone is a patient, because that fact is itself protected. |
 | Could it run in a real pharmacy? | Not as is. It would need a privacy review, a pharmacist to review the rules, real pharmacy system connections behind the twelve buttons, and an AI provider agreement that covers clinical use. |
@@ -805,17 +811,17 @@ Ask the organisers how many tracks one project may enter.
 | Why not a press-1 phone menu? | That chain went back to one. A menu can only refill by number. It can't call before you run out, answer cost or label questions, or take a side-effect note. We keep the menu's safety and add the conversation. |
 | Is this a real problem? | Investors are funding it right now: safety infrastructure, test environments and monitoring for healthcare AI. We built one narrow agent with the proof attached. |
 
-### Devpost write-up (draft, fill the brackets with real numbers)
+### Devpost write-up (draft; every number is from a saved run)
 
 **Inspiration.** [Team's reason, only with the teammate's OK.] About half of people on long-term medication don't take it as prescribed, and running out is one reason. An AI that calls before you run out would help, but it would also be handling prescriptions, like stimulants, that must never be handed out to the wrong person. So we built both halves: the reminder, and the lock.
 
-**What it does.** Refill Guard calls patients before they run out, verifies them with a code, refills everything that's due, says what it will cost after their drug plan, and passes side effects to the pharmacist. Every button the AI presses and every sentence it says goes through a control layer first. Rules are numbered cards a pharmacist can add in plain English, and added rules can only make things stricter. An AI attacker hunts for gaps every night. Each failure becomes a test and a proposed fix, and a person signs off before anything changes.
+**What it does.** Aegis calls patients before their medication runs out, verifies them with a code and their date of birth, requests the refill, says what it will cost after their drug plan, and asks about side effects. Controlled drugs and anything the patient flags go to a pharmacist, who approves on the console, signed in through Auth0. Every button the AI presses goes through a control layer, and every sentence it says goes through a speech guard first. Rules are numbered cards, and cards can only refuse, route or flag, never loosen a rule. Flip on the hijack switch and the AI does whatever the caller asks: it still can't break a rule.
 
-**How we built it.** Next.js and TypeScript, Postgres on Tiger Data, Auth0, ElevenLabs, hosted on Vultr. The agent runs on [model chosen by measurement] through our own tool loop. Fable 5.2 plans attacks, writes rule cards and proposes fixes. Gemini plays the attacker. We check every sequence of up to 4 button presses and run [N] random sequences on every change, with zero rules broken. The decision record is hash-chained, so edits are detectable.
+**How we built it.** Next.js and TypeScript, Postgres on Tiger Data, Auth0 for the pharmacist, ElevenLabs for the voice. The call runs on Claude Haiku 5.5 through the Claude Agent SDK, and the model can only act through 12 buttons. On every change, the hammers try every combination of up to 3 button presses from every starting state, plus 10,000 long random sequences: 275,098 presses in the last saved run, 0 rules broken. The decision record is hash-chained, so edits are detectable. Four of us each ran a coding agent, coordinated through a shared contract and an agent channel, with every session recorded in Entire.
 
-**Challenges.** [Real ones: speech latency with the guard, model refusals on attack plans, the first run's failures.]
+**Challenges.** The speech guard's promise rule (S4) blocked honest sentences like "I don't have a ready time yet": it took seven rounds of fixes to stop false blocks without letting real promises through. Our first end-to-end demo walkthrough failed all three passes: the phone crashed on Answer, the agent greeted twice, and a reset kept the last call's memory. Code review also caught verification codes going out on the public event stream; they now stay on the patient's own phone.
 
-**Accomplishments.** [Real numbers: ordinary calls finished with no person, forbidden requests caught, attacker-found scenarios, rules broken: 0.]
+**Accomplishments.** Three clean demo passes in a row with the live agent. 0 rules broken across 275,098 hostile presses. Every attack card in the hijack batch caught (9 caught, 0 broken). 805 automated tests.
 
 **What we learned.** [Real ones.]
 

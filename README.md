@@ -51,7 +51,9 @@ flowchart LR
 
 ## The numbers
 
-From the last hammer run, [`results/hammer-latest.json`](results/hammer-latest.json): **0 rules broken** across **60,518** hostile press sequences (**250,038** presses, **329,465** rule checks). Every sequence of up to 3 presses from every starting state, plus 10,000 long random sequences. Real runs only: no number in this README or the pitch is estimated.
+From the last hammer run, [`results/hammer-latest.json`](results/hammer-latest.json): **0 rules broken** across **77,648** hostile press sequences (**275,098** presses, **379,902** rule checks). Every sequence of up to 3 presses from every starting state, plus 10,000 long random sequences. Real runs only: no number in this README or the pitch is estimated.
+
+The live agent so far, from [`results/tokens-latest.json`](results/tokens-latest.json) (`node scripts/tokens.ts` sums [`results/agent-usage.jsonl`](results/agent-usage.jsonl)): **41** agent turns on `claude-haiku-5-5`, **72** model calls, **997,770** input tokens (**747,728** of them cache reads) and **10,442** output tokens, **$0.53** as reported by the Agent SDK.
 
 ## Quick start
 
@@ -93,7 +95,7 @@ Overall · Best Health Hack by Sun Life · Best Use of Auth0 · Best Use of Vult
 | **1 · Voice and agent** | **5.5 of 6 built** (all 6 merged; 1.5 part 2 merged, 1.6's real median needs a live run) | 1.1 prompt and fixed lines, 1.2 typed agent loop plus 1.2b the Agent SDK model, 1.3 outbound call and side effects, 1.4 phone page, 1.5 part 1 voice without keys, 1.6 timing marks, 1.8 interrupt and silence (after core), the phone Answer crash fix (Trail #37) | 1.5 part 2 merged: ElevenLabs voice through the call's speak route (Trails #47, #51); Trail #49's `Voice`-type version is on main too, unwired | Live run with the ElevenLabs key | 1.6's real median and 1.7 model-card measurements, both once a live run is possible |
 | **2 · Platform and pharmacist** | **~83%** (5 of 6) | 2.1-2.5, 2.7 Postgres store live on Tiger Data, 2.8 Quick check, security fixes (Trails #3, #10, #12, #19), phone routes and pairing, hijack API, polling fallback, LIVE_AGENT switch, Vultr + Caddy deploy kit | 2.9 dashboards: Upcoming (Trail #44) and Calls (Trail #50); speech route (Trail #47) | Waiting on review | 2.6: run hosting/README.md once the Vultr and GoDaddy codes are in |
 | **3 · Red team and evals** | **~80%** (4 of 5) | 3.1 first 10 scenarios, 3.2 hijack agent, 3.3 scenario runner, 3.4 hijack batch | Fixes for review findings on Trail #11 (Trail #17) | Review fixes | 3.5 all 28 scenarios, 3 runs each |
-| **4 · The lock and integrator** | **~95%** (5 of 6, plus ongoing integration) | Task 0 contract, 4.2 store and seed, 4.3 control layer, 4.4 speech guard, 4.5 hammers (0 rules broken), 4.6 stage view, 4.7 Sam's call end to end | – | 4.7 gating and merging handoffs | 4.10 `entire why` export, 4.9 token measurement |
+| **4 · The lock and integrator** | **~95%** (5 of 6, plus ongoing integration) | Task 0 contract, 4.2 store and seed, 4.3 control layer, 4.4 speech guard, 4.5 hammers (0 rules broken), 4.6 stage view and hijack screen, 4.7 Sam's call end to end, 4.9 token measurement | – | 4.7 gating and merging handoffs | 4.10 `entire why` export |
 
 **Review:** a code reviewer agent posts findings on each Trail and holds merges until they're fixed. Open now: Trail #12 (3 high), #10 (3 high), #3 (1 high), #11 (1 high, 1 medium), #6 (1 low).
 
