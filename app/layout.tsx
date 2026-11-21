@@ -15,6 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  // Absolute link-preview URLs on the hosted server (APP_BASE_URL is already set for Auth0).
+  metadataBase: process.env.APP_BASE_URL ? new URL(process.env.APP_BASE_URL) : undefined,
   // Pages set their own full title ("Stage · Aegis"), so there is no template.
   title: "Aegis · The AI can be fooled. The pharmacy can't.",
   description:
