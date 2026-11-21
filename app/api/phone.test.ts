@@ -10,6 +10,8 @@ import { POST as answer } from "./call/[id]/answer/route";
 import { POST as end } from "./call/[id]/end/route";
 import { GET as callCode } from "./call/[id]/code/route";
 import { POST as runDailyCheck } from "./outbound/run-daily-check/route";
+import { POST as pair } from "./phone/pair/route";
+import { GET as claim } from "./phone/claim/route";
 
 vi.mock("next/server", async (importOriginal) => ({
   ...(await importOriginal<typeof import("next/server")>()),
@@ -21,12 +23,27 @@ vi.mock("@/lib/auth/session", async (importOriginal) => ({
   getApprover: async () => session.approver,
 }));
 
-const req = (method: string, body?: unknown, token?: string) =>
+const req = (method: string, body?: unknown, token?: string, device?: string) =>
   new Request("http://test.local/api", {
     method,
-    headers: { "Content-Type": "application/json", ...(token ? { "x-phone-token": token } : {}) },
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { "x-phone-token": token } : {}),
+      ...(device ? { cookie: device } : {}),
+    },
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
+
+/** Staff pair a device to a patient; the phone opens the link and keeps the cookie it sets. */
+async function pairDevice(patientId: string): Promise<string> {
+  const before = session.approver;
+  session.approver = { id: "auth0|test-pharmacist", name: "Test Pharmacist", role: "pharmacist" };
+  const { url } = (await (await pair(req("POST", { patientId }))).json()) as { url: string };
+  session.approver = before;
+  const res = await claim(new Request(`http://test.local${url}`));
+  const setCookie = res.headers.get("set-cookie") ?? "";
+  return setCookie.split(";")[0];
+}
 const params = (id: string) => ({ params: Promise.resolve({ id }) });
 type Session = { callId: string; phoneToken: string };
 
@@ -55,14 +72,18 @@ describe("the per-call phone token", () => {
 });
 
 describe("POST /api/call/:id/answer", () => {
-  it("answers Sam's ringing call once, handing that phone its token", async () => {
+  it("answers Sam's ringing call only from Sam's paired device, once, handing it the call token (Trail #19)", async () => {
     const callId = await samRinging();
-    const first = await answer(req("POST"), params(callId));
+    expect((await answer(req("POST"), params(callId))).status).toBe(401);
+    const grace = await pairDevice(IDS.p5);
+    expect((await answer(req("POST", undefined, undefined, grace), params(callId))).status).toBe(403);
+    const sam = await pairDevice(IDS.sam);
+    const first = await answer(req("POST", undefined, undefined, sam), params(callId));
     expect(first.status).toBe(200);
     const body = (await first.json()) as Session & { events: AgentEvent[] };
     expect(body.phoneToken).toMatch(/^[A-Za-z0-9_-]{32,}$/);
     expect(Array.isArray(body.events)).toBe(true);
-    expect((await answer(req("POST"), params(callId))).status).toBe(409);
+    expect((await answer(req("POST", undefined, undefined, sam), params(callId))).status).toBe(409);
   });
 
   it("answers 404 for a call that doesn't exist", async () => {
@@ -92,7 +113,8 @@ describe("POST /api/call/:id/answer", () => {
 describe("GET /api/call/:id/code with the phone token", () => {
   it("gives the code to the call's own phone and nobody else", async () => {
     const callId = await samRinging();
-    const { phoneToken } = (await (await answer(req("POST"), params(callId))).json()) as Session;
+    const device = await pairDevice(IDS.sam);
+    const { phoneToken } = (await (await answer(req("POST", undefined, undefined, device), params(callId))).json()) as Session;
     await getControl().press(callId, "send_code", { lookup_id: `out_${callId}` });
     expect(await (await callCode(req("GET", undefined, phoneToken), params(callId))).json()).toEqual({
       code: await getControl().codeFor(callId),

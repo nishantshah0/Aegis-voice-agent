@@ -115,7 +115,7 @@ describe("Sam's refill, approved on the console", () => {
     const lookupId = `out_${callId}`;
     await control.press(callId, "send_code", { lookup_id: lookupId });
     const code = (await control.codeFor(callId))!;
-    expect(await control.press(callId, "check_code", { lookup_id: lookupId, code })).toMatchObject({ ok: true });
+    expect(await control.press(callId, "check_code", { lookup_id: lookupId, code , dob: "1990-03-14" })).toMatchObject({ ok: true });
     expect(await control.press(callId, "request_refill", { rx_id: IDS.samConcerta })).toMatchObject({ ok: true, lane: "quick_check" });
 
     const [item] = await getStore().queue("quick_check");

@@ -6,6 +6,7 @@ import { AUTH_ROUTES } from "@/lib/auth/auth0";
 import { itemDetail, laneTotals } from "./detail";
 import { EventFeed } from "./EventFeed";
 import { LaneTotals } from "./LaneTotals";
+import { PairPhone } from "./PairPhone";
 import { QueueList } from "./QueueList";
 
 const LANE_ORDER: Record<QueueItem["lane"], number> = { review: 0, quick_check: 1, automatic: 2 };
@@ -45,6 +46,7 @@ export async function Queue() {
   return (
     <>
       <QueueList totals={totals} waiting={waitingDetails} decided={decidedDetails} canDecide={approver.role === "pharmacist"} signedIn />
+      <PairPhone patients={(await store.listPatients()).map((p) => ({ id: p.id, name: `${p.firstName} ${p.lastName}` }))} />
       <details className="mt-8">
         <summary className="cursor-pointer text-sm text-neutral-500">Live event feed (for the team)</summary>
         <EventFeed />

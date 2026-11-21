@@ -43,7 +43,8 @@ describe("forAudience", () => {
     expect(forAudience(blocked, pub)).toEqual({ ...blocked, original: "" });
     expect(forAudience(press, pub)).toEqual(press);
     expect(forAudience(score, pub)).toEqual(score);
-    expect(forAudience(ring, pub)).toEqual(ring);
+    // The public ring carries no call id (Trail #19): only the paired device can answer.
+    expect(forAudience(ring, pub)).toEqual({ ...ring, callId: "" });
     const redacted = forAudience(queue, pub) as Extract<StreamEvent, { type: "queue" }>;
     expect(redacted.item).toMatchObject({ id: "q_1", lane: "review", status: "open", kind: "refill" });
     expect(JSON.stringify(redacted)).not.toMatch(/Sleeping badly|p_sam|rx_sam|Routine/);

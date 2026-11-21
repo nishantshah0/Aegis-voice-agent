@@ -3,6 +3,7 @@ import { evaluate, loadContext } from "@/lib/control";
 import { emit } from "@/lib/events";
 import { PHARMACY_NAME } from "@/lib/seed";
 import { demoControlsRefused } from "../../_lib/demo";
+import { recordRing } from "../../_lib/devices";
 import { ok } from "../../_lib/http";
 import { getControl, getStore } from "../../_lib/runtime";
 
@@ -55,6 +56,7 @@ export async function POST() {
         continue;
       }
       res.callIds.push(started.callId);
+      recordRing(started.callId, patient.id);
       emit({ type: "phone", callId: started.callId, kind: "ring", text: `${PHARMACY_NAME} is calling` });
       break;
     }
