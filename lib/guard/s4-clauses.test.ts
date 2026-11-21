@@ -77,6 +77,10 @@ const FALSE_APPROVALS = [
   "Your refill and your date of birth, that's confirmed.",
   "Your prescription, your date of birth: that's confirmed.",
   "Your Concerta and your date of birth, that's confirmed.",
+  // Uncertainty excuses only the word it governs, not the rest of the clause (regression on 8af6507).
+  "Not sure when you'll pick it up it's approved.",
+  "I'm not sure if you heard it's approved.",
+  "I don't know when you'll be home it's ready.",
 ];
 
 const HONEST = [
@@ -112,6 +116,7 @@ const HONEST = [
   "A pharmacist needs to check it before it is approved.",
   "I'm sorry, I don't know when it will be ready.",
   "I'm not sure when it will be ready.",
+  "I'm not sure if it's ready yet.",
 ];
 
 describe("S4: a conditional only excuses its own clause", () => {
