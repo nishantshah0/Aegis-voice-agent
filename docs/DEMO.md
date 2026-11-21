@@ -1,0 +1,43 @@
+# Demo checklist (SPEC Part 8)
+
+Kept by the demo tie-in agent. One row per step of the 3-minute script, walked in the browser against `main`, from **Reset demo**. Done means the whole table passes 3 times in a row on the same `main` commit.
+
+Legend: ✅ works · ⚠️ works with a fallback · ❌ broken (owner fixing it)
+
+## Last pass
+
+- `main` commit: 6defae8, plus `demo/nav` (not merged yet)
+- When: 2026-11-21, about 07:50 EST. Screenshots: `results/demo/2026-11-21T0751/walkthrough.md`
+- How: `npm run dev -p 3001` with `DEMO_CONTROLS=on`, typed box, no `ANTHROPIC_API_KEY`, so the fake driver
+- Clean passes in a row: **0 of 3**
+
+## Steps
+
+| # | Step | Status | What happened | Owner and request |
+|---|---|---|---|---|
+| 1a | Reset demo | ✅ | Console → Reset demo: "Demo clock: 11/24/2026, 10:00 AM" | |
+| 1b | Sign in to the console as the test pharmacist | ❌ | Auth0 "Callback URL mismatch": only `localhost:3000` is allowed, and port 3000 is held by another dev server | Nishant: add `http://localhost:3001/api/auth/callback` (and logout `http://localhost:3001`) in the Auth0 app, or free port 3000 |
+| 1c | Pair Sam's phone (new: needed since Trail #19) | ❌ | Needs sign-in. An unpaired phone gets the ring with no call id, and Answer posts to `/api/call/answer`, a 404 | Blocked on 1b |
+| 2a | Daily check rings Sam's phone | ✅ | "Daily check: ringing 2 patients"; `/phone` shows "Maple Street Pharmacy is calling" | Check: should only Sam ring? |
+| 2b | Answer, code and dob | ❌ | Phone page crashes on Answer: "useEffect must not return anything besides a function", then "destroy is not a function". `app/phone/Phone.tsx:294` returns `scrollIntoView()`'s Promise (Chrome 156) | ROLE-1, URGENT 1.4 |
+| 2c | "Yes, please", side effect, price and ready day | ❌ | No live agent: with no `ANTHROPIC_API_KEY`, `app/api/_lib/runtime.ts:40` uses the contract's fake, which answers every line "One moment." Nothing on main runs the Agent SDK or reads `LIVE_AGENT` | ROLE-1 URGENT 1.2 (Agent SDK model), ROLE-2 URGENT 2.x (switch on `LIVE_AGENT=1`) |
+| 2d | Review lane, console shows the side effect, Approve | ❌ | Not reached (2b, 2c, 1b). With a scripted model the same flow passes: `scripts/integration` and `app/api/demo.test.ts`, 8/8 | Blocked |
+| 3a | Swap in the compromised agent; the judge picks an attack card | ❌ | `/stage` has no control. The batch starts only with `POST /api/arena/hijack`, and it always runs all 4 cards | ROLE-4, URGENT 4.6 (stage cards); the route then needs a `cardId` (Role 2) |
+| 3b | One attempt struck through (S3, S4), refill and delivery bounce | ⚠️ | S3 and S4 rows show, but only the replacement: the public stage gets `original: ""` (`lib/events/audience.ts`), so "Sure, ninety tablets…" isn't visible. Delivery shows amber "to a pharmacist · rule 5", not red | ROLE-4, in the same request |
+| 3c | 10-second batch, Caught and Broken counters | ✅ | Caught 9, Broken 0, Stopped 8, 4 cards in about 20 s. Results in `results/hijack/<run>/` | |
+| 4 | Overnight safety tab, approve the waiting fix | ❌ | `/console/overnight` 404 (also `/console/review`, `/console/rules`). Tasks 3.7 and 3.8 are after core | ROLE-3, URGENT 3.8. Fallback below |
+| 5 | Close: the record, the counters | ⚠️ | Stage counters ✅. Sam's record needs sign-in (`/api/calls/:id/record` 401 signed out). The "[M] million tries" number isn't on any screen; the last real hammer run is 129,100 + 120,938 presses, 0 broken (`results/hammer-latest.json`, 11:14 UTC) | Use the real hammer count, never a made-up one |
+| — | Glue: `/` linked nowhere, `/console` 404 | fixed | Home links Stage, Phone and Console; `/console` redirects to Today | `demo/nav`, HANDOFF to ROLE-4 |
+
+## Set-up order (as main works today)
+
+1. Start the server with `DEMO_CONTROLS=on` only on the demo laptop.
+2. Console: sign in, **Reset demo**, then **Pair a patient's phone** (Sam) and open the link on the phone within 10 minutes.
+3. Phone: `/phone` on the paired phone. Stage: `/stage` on the big screen.
+4. Console: **Run daily check**. Sam's phone rings.
+
+## Fallbacks in use
+
+- Voice: the typed box under the talk button (voice waits on https, task 2.6).
+- Hijack: start the batch with `POST /api/arena/hijack` (needs `DEMO_CONTROLS=on` or a signed-in pharmacist) until the stage has its cards.
+- Overnight: say the real hammer count and "found no gaps overnight" with the real attack count. Never invent a finding.
