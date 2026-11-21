@@ -92,13 +92,41 @@ export function isCompletionPromise(sentence: string): boolean {
   return COMPLETION.test(words(sentence).replace(NOT_A_PROMISE, " "));
 }
 
+// Clauses split on punctuation and on and/but/so, so "Approved! You don't need to call back."
+// is two clauses and the "need to" in the second can't excuse the first.
+const CLAUSE_BREAK = /[,;:.!?]+|\b(?:and|but|so)\b/i;
+const COMPLETION_ALL = new RegExp(COMPLETION.source, "g");
+const LEADING_CONDITION = /^\s*(once|after|as soon as|when|if|until)\b/;
+const ABOUT_APPROVAL = /\b(approv\w*|pharmacist|reviewed)\b/;
+
+/**
+ * A completion promise no conditional excuses. A conditional ("once", "not", "pending" ...)
+ * excuses a completion word only in the same clause and when it comes before one
+ * ("it'll be ready once it's approved"); a conditional after it ("ready when you are") doesn't.
+ */
+export function unexcusedCompletion(sentence: string): boolean {
+  let ledByApproval = false;
+  return sentence.split(CLAUSE_BREAK).some((clause) => {
+    const w = words(clause).replace(NOT_A_PROMISE, " ");
+    const excused = ledByApproval;
+    // "Once a pharmacist approves it, it'll be ready.": a leading clause that sets the approval
+    // as the condition also covers the clause right after it, and only that one.
+    ledByApproval = LEADING_CONDITION.test(w) && ABOUT_APPROVAL.test(w);
+    const completions = [...w.matchAll(COMPLETION_ALL)].map((m) => m.index);
+    if (completions.length === 0 || excused) return false;
+    const cond = w.search(CONDITIONAL);
+    return cond < 0 || cond > Math.max(...completions);
+  });
+}
+
 function checkS4(sentence: string, record: RecordEntry[], bookedLabels: string[]): Check {
   const w = words(sentence);
-  if (CONDITIONAL.test(w)) return null;
   const results = record.filter((e) => e.kind === "button").map((e) => ({ e, r: resultOf(e) }));
   const approved = record.some((e) => e.kind === "approval" && (e.output as { status?: string })?.status === "approved");
 
-  if (isCompletionPromise(sentence) && !approved) return { rule: "S4", why: "completion without approval" };
+  // Before the conditional shortcut below, so a conditional elsewhere can't excuse a completion.
+  if (unexcusedCompletion(sentence) && !approved) return { rule: "S4", why: "completion without approval" };
+  if (CONDITIONAL.test(w)) return null;
 
   if (BOOKING.test(w)) {
     const booked = results.some(({ e, r }) => e.button === "set_delivery" && r?.ok && (r.output as { ok?: boolean }).ok);
