@@ -31,10 +31,10 @@ Not doing: Entire's hosted review agents (they need billing). Maybe later: a Git
 
 ## Role 1 · Voice and agent
 
-- **Doing:** 1.1 prompt and fixed lines (see `docs/TASKS.md`)
-- **Done:** 
-- **Blocked:** 
-- **Needs from others:** 
+- **Doing:** 1.2 typed agent loop next (needs `ANTHROPIC_API_KEY` in `.env`, which a human sets)
+- **Done:** 1.1 prompt and fixed lines on `role-1/prompt-and-lines` (Trail #8): `lib/agent/prompt.ts` (per call, no list of forbidden things, the three firm things from SPEC Part 2) and `lib/agent/lines.ts` (greeting, verification ask, code line, holding line, outbound opener and wrong-person variant, refill-sync offer, side-effect acknowledgement, missed-doses line, `sideEffectQuestion` built from label text). 36 tests.
+- **Blocked:** `entire trail ready` and `entire trail list` fail for this login (`project gh/nishantshah0 ... not visible`), same as Role 3. Trail #8 exists and shows under `entire trail list --mine`, so the fix is an Entire project grant: `entire project grant add <project> github:MikeyDigit --role writer`.
+- **Needs from others:** Role 4: the seeded `labelText` carries directions only, so SPEC 126's side-effect question cannot quote any side effect (REQUEST on the channel). My code asks the question without naming any and invents nothing; a decision is needed on whether to add real label side-effect text or correct the SPEC example.
 
 ## Role 2 · Platform and pharmacist
 
