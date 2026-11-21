@@ -4,3 +4,14 @@
 node_modules/
 .next/
 .DS_Store
+
+# Local planning drafts (contain private details, never push)
+planning/
+
+# Next.js and tooling
+/.next/
+/out/
+/coverage
+*.tsbuildinfo
+next-env.d.ts
+*.pem

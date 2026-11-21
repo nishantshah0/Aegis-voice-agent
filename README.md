@@ -6,7 +6,7 @@ An AI phone line for pharmacies. It calls patients before their medication runs 
 
 **The line judges should repeat:** *The AI can be fooled. The pharmacy can't.*
 
-Full plan: [`docs/SPEC.md`](docs/SPEC.md). If this README and the spec disagree, the spec wins.
+Full plan: [`docs/SPEC.md`](docs/SPEC.md). How the parts fit: [`docs/DESIGN.md`](docs/DESIGN.md). If this README and the spec disagree, the spec wins.
 
 ---
 
@@ -14,13 +14,15 @@ Full plan: [`docs/SPEC.md`](docs/SPEC.md). If this README and the spec disagree,
 
 | Person | Owns | First task (before sleep) | Done when |
 |---|---|---|---|
-| **1 · Voice and agent** | Speech in (Chrome), speech out (ElevenLabs), the prompt, the agent loop on Claude, wiring the 12 buttons and the speech guard into the call, the outbound call, the side-effect question, timing every turn | A typed chat that calls the 12 buttons through the control layer | Sam's Concerta refill works typed, start to finish, three times in a row |
-| **2 · Platform** | Next.js app setup, Postgres on Tiger Data, Auth0 (sign-in, roles, phone approvals), the event stream, the demo clock and reset, hosting on Vultr with https, the domain | App skeleton deployed with https, and Auth0 sign-in working | Both phones can open the app over https and use the microphone |
-| **3 · Red team and evals** | The 28 scenarios, scoring from the record, the Gemini attacker, the Fable 5.2 attack planner, the AI judge, hand labelling, the overnight run and the fix loop, the numbers | The scenario file format and the first 10 scenarios with expected outcomes | All 28 scenarios run and score, and the attacker finds at least one real gap overnight |
-| **4 · Design and pitch** | The phone view, the stage view with the gate animation, the pharmacy console (Today, Review calls, Rules and checks, Overnight safety), Devpost, the video, rehearsals, the Sun Life visit | The stage view and console layout, with fake data | The demo runs twice in a row with no extra clicks, and looks finished |
-| **Claude** (on Nishant's laptop) | The interface file for the 12 buttons, seed data, the control layer, rule cards and engine, the speech guard (S1 to S4), triage lanes, the decision record, both hammers, the release gate | The interface file, so everyone builds against the same shapes | The hammers report 0 rules broken, and every rule has tests |
+| **1 · Voice and agent** | The agent loop on Claude, the prompt, the outbound call, the side-effect question, voice in (Chrome) and out (ElevenLabs), turn timing. Calls the guard and safety check, doesn't write them. | A typed agent loop that presses the 12 buttons through the contract's fake | Sam's Concerta refill works typed, start to finish, three times in a row |
+| **2 · Platform** | App shell and API routes, the event stream, the demo clock, reset and daily reminder check, the approve endpoint, Auth0 (sign-in, roles, phone approvals), the Postgres store, hosting on Vultr with https, the domain | App deployed over https with Auth0 sign-in, and check whether Auth0's phone approval works on the free plan | Both phones open the app over https and use the microphone, and a pharmacist approval lands in the record |
+| **3 · Red team and evals** | **The scripted hijack agent**, the scenario runner and scoring, the 28 scenarios. After the core: the Gemini attacker, the Fable planner, the judge, the overnight run, the fix loop, cited briefs, the Review calls lab. | The hijack agent and the scenario file format, with the first 10 scenarios | The hijack demo blocks every attack card, and all 28 scenarios run and score |
+| **4 · Design and pitch** | The phone view, the stage view with the gate animation, the pharmacy console (Today first), the rule writer's screen later, Devpost, the video, rehearsals, the Sun Life visit | Phone, stage and console Today, driven by fake events | The demo runs twice in a row with no extra clicks, and looks finished |
+| **Claude** (on Nishant's laptop) | The contract (shared types and fakes), the control layer, rule cards and engine, triage lanes, the speech guard (S1 to S4) and safety keywords, the in-memory store, seed data, both hammers, the release gate | The contract with fakes, so everyone can start now | The hammers report 0 rules broken, and every rule has tests |
 
-**Rule for everyone:** the interface file (`lib/control/contract.ts`) is shared. Don't change it without telling the team.
+**Everyone's AI tool reads [`AGENTS.md`](AGENTS.md) first.** Who owns which folder, and how the pieces connect, is in [`docs/DESIGN.md`](docs/DESIGN.md). Progress and requests go in [`docs/STATUS.md`](docs/STATUS.md). Decisions go in [`docs/DECISIONS.md`](docs/DECISIONS.md).
+
+**The contract (`lib/contract/`) is shared.** Don't change it directly. Propose changes in `docs/STATUS.md`.
 
 ---
 
@@ -76,7 +78,10 @@ Four people and about 30 hours won't finish everything in the spec. **A team tha
 ```
 /app            pages: phone, stage, console
 /app/api        API routes and the event stream
-/lib/control    contract.ts, buttons, rules, cards, engine, speech guard, safety, record, triage
+/lib/contract   shared types and fakes (the 12 buttons, guard, events, store, agent driver)
+/lib/control    buttons, rules, cards, engine, triage
+/lib/guard      speech guard S1 to S4, safety keywords
+/lib/store      in-memory store first, Postgres later
 /lib/agent      agent loop, prompt, hijack, outbound, voice
 /lib/arena      scenarios, planner, caller, judge, scoring, fix loop
 /scripts        hammers, release gate, overnight run, seed

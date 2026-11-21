@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Agent collaboration
 
 These rules apply across the repository. Use the ownership table in `README.md` to route work and `docs/SPEC.md` for product requirements.
@@ -17,3 +18,55 @@ These rules apply across the repository. Use the ownership table in `README.md` 
 
 - Report the branch and commit when available, changed files, checks run and their results, and any conflicts or follow-up work. Mark the claim ready for integration or release it when work stops.
 - The coordinating agent integrates changes in dependency order, checks the combined diff, and runs the relevant checks after integration. Resolve overlapping changes with the affected owners before merging.
+=======
+# Rules for AI coding agents on Refill Guard
+
+Read this first, every session. It applies to every AI tool the team uses: Claude Code, Cursor, Codex, Copilot and others.
+
+## Before you write code
+
+1. `git pull`.
+2. Read `docs/STATUS.md`. Find your person's section, and check whether anyone needs something from you.
+3. Read `docs/DESIGN.md`, sections 2 and 3. Know which folder you own and which interfaces you touch.
+4. Read the types in `lib/contract/`. Build against them, never against another person's code.
+5. Read `docs/DECISIONS.md`, so you don't undo something the team already decided.
+
+## While you work
+
+- **Only edit folders your person owns** (`docs/DESIGN.md` section 2). If you need a change somewhere else, don't make it. Add a request under that person's "Needs from others" in `docs/STATUS.md`, or open a GitHub issue, and use the fake from `lib/contract/` meanwhile.
+- **Never change `lib/contract/` on your own.** Propose the change in `docs/STATUS.md` under "Contract change requests". Claude applies agreed changes and tells everyone.
+- **Never change a test and the code it tests in the same step.**
+- **The lock is sacred.** Nothing may let the AI act except through the 12 buttons and the control layer, or speak except through `guardSentence`. Don't add shortcuts, even "just for the demo".
+- **Keys only in `.env`,** which is git-ignored. Never paste a key into code, a test, a doc or a commit.
+- **Made-up patients only.** Phone numbers use 555-01xx. No real people's details anywhere.
+- **No invented numbers.** Anything shown as a result must come from a real run in `results/`.
+- Keep functions small and code plain. No new frameworks without a decision in `docs/DECISIONS.md`.
+
+## Before you finish
+
+1. Run `npm run typecheck` and `npm test`. Don't say something works until both pass.
+2. If you touched the control layer, run `npm run hammer` too. It must report 0 rules broken.
+3. Update your section in `docs/STATUS.md`: Doing, Done, Blocked, Needs from others.
+4. Commit small, with a clear message, then pull and push. Don't push a broken build to `main`.
+5. If you made a decision others should know about, add one line to `docs/DECISIONS.md`.
+
+## Owners
+
+| Person | Owns |
+|---|---|
+| 1 · Voice and agent | `lib/agent/` (except `hijack.ts`), `lib/voice/`, the phone page's audio |
+| 2 · Platform | `app/api/`, `lib/events/`, `lib/auth/`, `lib/store/postgres.ts`, hosting |
+| 3 · Red team and evals | `lib/agent/hijack.ts`, `lib/arena/`, `scenarios/` |
+| 4 · Design and pitch | `app/` pages (phone, stage, console), styles, `docs/pitch/` |
+| Claude | `lib/contract/`, `lib/control/`, `lib/guard/`, `lib/store/memory.ts`, `lib/seed/`, `scripts/` |
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+## This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->
+>>>>>>> f4b956c (Add design doc, role audit, agent coordination files, and Next.js app scaffold)
