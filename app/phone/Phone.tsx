@@ -125,7 +125,7 @@ export function Phone() {
   }
 
   return (
-    <div className="theme-dark relative mx-auto flex h-[100dvh] w-full max-w-[24rem] flex-col overflow-hidden bg-canvas text-ink sm:h-[50rem] sm:rounded-[3rem] sm:border sm:border-line-strong sm:shadow-[0_40px_100px_-40px_rgb(0_0_0/0.7),0_0_0_10px_#050605]">
+    <div className="theme-dark relative mx-auto flex h-[100dvh] w-full max-w-[24rem] flex-col overflow-hidden bg-canvas text-ink sm:h-[50rem] sm:rounded-[3rem] sm:border sm:border-line-strong sm:shadow-[0_40px_100px_-40px_rgb(0_0_0/0.7),0_0_0_10px_#000]">
       <StatusBar state={state} />
       {state.message && state.mode === "in_call" && <CodeMessage message={state.message} code={state.code} />}
       <div className="flex min-h-0 flex-1 flex-col">
