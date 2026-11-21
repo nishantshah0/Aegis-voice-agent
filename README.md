@@ -51,7 +51,7 @@ flowchart LR
 
 ## The numbers
 
-From the last hammer run, [`results/hammer-latest.json`](results/hammer-latest.json): **0 rules broken** across **60,518** hostile press sequences (**250,038** presses, **329,465** rule checks). Every sequence of up to 3 presses from every starting state, plus 10,000 long random sequences. Real runs only: no number in this README or the pitch is estimated.
+From the last hammer run, [`results/hammer-latest.json`](results/hammer-latest.json): **0 rules broken** across **77,648** hostile press sequences (**275,098** presses, **379,902** rule checks). Every sequence of up to 3 presses from every starting state, plus 10,000 long random sequences. Real runs only: no number in this README or the pitch is estimated.
 
 ## Quick start
 
