@@ -15,10 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: {
-    default: "Refill Guard · The AI can be fooled. The pharmacy can't.",
-    template: "%s · Refill Guard",
-  },
+  // Pages set their own full title ("Stage · Refill Guard"), so there is no template.
+  title: "Refill Guard · The AI can be fooled. The pharmacy can't.",
   description:
     "An AI phone line for pharmacies. It calls patients before their medication runs out, handles refills, and sends only the tricky calls to a pharmacist. Every action goes through rules in code.",
   applicationName: "Refill Guard",
