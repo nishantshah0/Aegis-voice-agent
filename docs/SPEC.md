@@ -566,6 +566,8 @@ Each prescription has: drug, drug class, strength, days supplied, last fill, ref
 
 ### Who owns what
 
+> **Superseded.** Roles were re-split into four build roles with no design and pitch role. The current split is in the README and `docs/DESIGN.md`. The table below is kept for history.
+
 | Person | Owns |
 |---|---|
 | 1. Voice and agent | Speech in and out, the prompt, the agent loop, wiring the buttons and the speech guard into the call, the outbound flow, measuring time to first word |

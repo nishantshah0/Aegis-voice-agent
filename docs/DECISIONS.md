@@ -4,8 +4,9 @@ One line each, newest first. If you're an AI agent, don't undo anything here wit
 
 | When | Decision | Why |
 |---|---|---|
+| Sat early | Four build roles, no separate design and pitch role. Screens go to whoever produces their data. The pitch is everyone's. | The team doesn't need a dedicated design role, and every role then owns a visible piece |
+| Sat early | Agents coordinate on GitHub: claim issues, contract-change issues, pull-request handoffs, and a release-gate workflow. Discord or Slack can mirror it later. | It's where the code is, every agent can use `gh`, no bot needed, and it shows on the repo |
 | Sat early | Each agent works on a task branch and hands off; Claude on Nishant's laptop is the coordinating agent and integrates into `main` | From the team's AGENTS.md: disjoint scopes, no broken `main` |
-| Sat early | The repo files are the channel for AI agents: `AGENTS.md`, `lib/contract/`, `docs/STATUS.md`, this file, GitHub issues. No custom agent-to-agent messaging. | Every AI tool can read and write files. Anything more is build time taken from the product. |
 | Sat early | Each folder has one owner (`docs/DESIGN.md` section 2) | Stops two people's AI tools overwriting each other |
 | Sat early | In-memory store first, Postgres later behind the same interface | Nobody waits on the database |
 | Sat early | One `AgentDriver` interface for real, hijacked and scenario calls | "Everything is a call." The hijack proof must use the real path. |

@@ -2,7 +2,9 @@
 
 Read this first, every session. It applies to every AI tool the team uses: Claude Code, Cursor, Codex, Copilot and others. Product requirements are in `docs/SPEC.md`. Who owns what and how the parts connect is in `docs/DESIGN.md` and the ownership table at the bottom of this file.
 
-**Coordinating agent:** Claude on Nishant's laptop, which integrates branches into `main`. If the team picks someone else, record it in `docs/DECISIONS.md`.
+**Coordinating agent:** Role 4's agent (Claude on Nishant's laptop), which integrates branches into `main`. If the team picks someone else, record it in `docs/DECISIONS.md`.
+
+**Where agents coordinate:** on GitHub. Claim work with the "Claim a task" issue template, propose contract changes with the "Contract change request" template, and hand off with a pull request using the template. Use the `gh` command if you're an AI agent. The "Release gate" workflow runs on every push and pull request.
 
 ## Before you write code
 
@@ -17,13 +19,13 @@ Read this first, every session. It applies to every AI tool the team uses: Claud
 
 ### Claim work before editing
 
-- In the task thread or issue (a GitHub issue, or your section of `docs/STATUS.md`), record the task, owner, branch, files or directories you expect to change, and any dependencies. The coordinating agent assigns disjoint scopes and keeps claims current. Check active claims before editing and update yours before expanding scope.
+- In a GitHub issue opened with the "Claim a task" template (and a line in your section of `docs/STATUS.md`), record the task, owner, branch, files or directories you expect to change, and any dependencies. The coordinating agent assigns disjoint scopes and keeps claims current. Check active claims before editing and update yours before expanding scope.
 - Give each parallel agent a task branch and a separate Git worktree when available. In a shared checkout, confirm file ownership with the coordinating agent and avoid branch switches while others are working. Assign one editor at a time to each shared file.
 - Check `git status --short` before editing. If a file is claimed or contains unexpected edits, coordinate with its owner before touching it. Continue with independent work while that is resolved.
 
 ### Protect shared work
 
-- Coordinate changes to `lib/contract/`, database schemas and migrations, dependency manifests and lockfiles, and CI or deployment configuration. Agree on an editor and notify affected agents of any interface changes before editing. Propose contract changes in `docs/STATUS.md` under "Contract change requests".
+- Coordinate changes to `lib/contract/`, database schemas and migrations, dependency manifests and lockfiles, and CI or deployment configuration. Agree on an editor and notify affected agents of any interface changes before editing. Propose contract changes with the "Contract change request" issue template.
 - Preserve existing user and agent changes. Avoid destructive Git commands, force pushes, and history rewrites without explicit authorization. Keep commits scoped to your task and stage files by name in shared checkouts.
 
 ### Hand off and integrate
@@ -46,18 +48,17 @@ Read this first, every session. It applies to every AI tool the team uses: Claud
 1. Run `npm run typecheck`, `npm test` and `npm run lint`. Don't say something works until they pass.
 2. If you touched the control layer or the guard, run `npm run hammer` too. It must report 0 rules broken.
 3. Update your section in `docs/STATUS.md`: Doing, Done, Blocked, Needs from others.
-4. Commit small, with a clear message, on your task branch, and push the branch. Hand off as described above. Never push a broken build to `main`.
+4. Commit small, with a clear message, on your task branch, push the branch, and open a pull request using the template. Never push a broken build to `main`.
 5. If you made a decision others should know about, add one line to `docs/DECISIONS.md`.
 
 ## Owners
 
-| Person | Owns |
+| Role | Owns |
 |---|---|
-| 1 · Voice and agent | `lib/agent/` (except `hijack.ts`), `lib/voice/`, the phone page's audio |
-| 2 · Platform | `app/api/`, `lib/events/`, `lib/auth/`, `lib/store/postgres.ts`, hosting |
-| 3 · Red team and evals | `lib/agent/hijack.ts`, `lib/arena/`, `scenarios/` |
-| 4 · Design and pitch | `app/` pages (phone, stage, console), styles, `docs/pitch/` |
-| Claude (coordinating agent) | `lib/contract/`, `lib/control/`, `lib/guard/`, `lib/store/memory.ts`, `lib/seed/`, `scripts/` |
+| 1 · Voice and agent | `lib/agent/` (except `hijack.ts`), `lib/voice/`, `app/phone/` |
+| 2 · Platform and pharmacist | `app/api/`, `lib/events/`, `lib/auth/`, `lib/store/postgres.ts`, `app/console/today/`, hosting |
+| 3 · Red team and evals | `lib/agent/hijack.ts`, `lib/arena/`, `scenarios/`, `app/console/review/`, `app/console/rules/`, `app/console/overnight/` |
+| 4 · Control layer (coordinating agent) | `lib/contract/`, `lib/control/`, `lib/guard/`, `lib/store/memory.ts`, `lib/seed/`, `scripts/`, `app/stage/`, `.github/` |
 
 <!-- BEGIN:nextjs-agent-rules -->
 

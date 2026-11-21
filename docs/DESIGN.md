@@ -33,23 +33,24 @@ Three things never change, whoever is coding:
 
 | Part | Folder | Owner | Pure code or uses AI? |
 |---|---|---|---|
-| Contract (shared types) | `lib/contract/` | Claude, changes need team agreement | Types only |
-| Control layer: buttons, rules, cards, engine, triage | `lib/control/` | Claude | Pure code, no AI, no network |
-| Speech guard (S1 to S4) and safety keyword check | `lib/guard/` | Claude | Pure code. Person 1 adds the optional Haiku checks behind the same function. |
-| Store | `lib/store/` | Claude writes the in-memory version, Person 2 writes the Postgres version | Pure code |
-| Seed data | `lib/seed/` | Claude | Data |
-| Agent loop, prompt, outbound call, side-effect question | `lib/agent/` | Person 1 | Uses Claude |
-| Voice in and out, turn timing | `app/(phone)/`, `lib/voice/` | Person 1 | Chrome speech, ElevenLabs |
-| App shell, API routes, event stream, clock and reset | `app/api/`, `lib/events/` | Person 2 | Plain code |
-| Auth0: sign-in, roles, phone approvals | `lib/auth/` | Person 2 | Auth0 |
-| Hosting, https, domain | infrastructure | Person 2 | |
-| Hijack agent (scripted, fully fooled) | `lib/agent/hijack.ts` | Person 3 | Pure code |
-| Scenarios, runner, scoring | `lib/arena/`, `scenarios/` | Person 3 | Runner is code, callers use AI |
-| Attacker, judge, planner, fix loop | `lib/arena/` | Person 3 | Gemini, Claude, Fable 5.2 |
-| Hammers and release gate | `scripts/` | Claude | Pure code |
-| Phone view, stage view, gate animation | `app/(phone)/`, `app/stage/` | Person 4 | UI |
-| Pharmacy console | `app/console/` | Person 4 | UI |
-| Pitch, Devpost, video | `docs/pitch/` | Person 4, whole team rehearses | |
+| Contract (shared types) | `lib/contract/` | Role 4, changes need a contract-change issue | Types only |
+| Control layer: buttons, rules, cards, engine, triage | `lib/control/` | Role 4 | Pure code, no AI, no network |
+| Speech guard (S1 to S4) and safety keyword check | `lib/guard/` | Role 4 | Pure code. Role 1 adds the optional Haiku checks behind the same function. |
+| Store | `lib/store/` | Role 4 writes the in-memory version, Role 2 the Postgres version | Pure code |
+| Seed data | `lib/seed/` | Role 4 | Data |
+| Agent loop, prompt, outbound call, side-effect question | `lib/agent/` | Role 1 | Uses Claude |
+| Voice in and out, turn timing, the patient phone page | `app/phone/`, `lib/voice/` | Role 1 | Chrome speech, ElevenLabs |
+| App shell, API routes, event stream, clock and reset | `app/api/`, `lib/events/` | Role 2 | Plain code |
+| Auth0: sign-in, roles, phone approvals | `lib/auth/` | Role 2 | Auth0 |
+| Hosting, https, domain | infrastructure | Role 2 | |
+| Hijack agent (scripted, fully fooled) | `lib/agent/hijack.ts` | Role 3 | Pure code |
+| Scenarios, runner, scoring | `lib/arena/`, `scenarios/` | Role 3 | Runner is code, callers use AI |
+| Attacker, judge, planner, fix loop | `lib/arena/` | Role 3 | Gemini, Claude, Fable 5.2 |
+| Hammers and release gate | `scripts/`, `.github/workflows/` | Role 4 | Pure code |
+| Stage view and gate animation | `app/stage/` | Role 4 | UI driven by events |
+| Pharmacy console: Today view and approvals | `app/console/today/` | Role 2 | UI |
+| Pharmacy console: Review calls, Rules and checks, Overnight safety | `app/console/{review,rules,overnight}/` | Role 3 | UI |
+| Demo script and reset flow | `docs/pitch/` | Role 4. Numbers from Role 3. Everyone rehearses. | |
 
 ---
 
@@ -65,7 +66,7 @@ press(callId: CallId, button: ButtonName, input: unknown): Promise<ButtonResult>
 // Never throws to the agent. Every press writes a record entry.
 ```
 
-- Used by: the agent loop (Person 1), the hijack agent and scenario runner (Person 3), the hammers (Claude).
+- Used by: the agent loop (Role 1), the hijack agent and scenario runner (Role 3), the hammers (Claude).
 - The 12 button names and their input and output shapes are in `lib/contract/buttons.ts`, matching SPEC Part 3.
 
 ### 3.2 Speech guard (agent → guard → voice)
@@ -75,7 +76,7 @@ guardSentence(callId: CallId, sentence: string): GuardResult
 // GuardResult = { speak: string, blocked: false } | { speak: replacement, blocked: true, rule: "S1"|"S2"|"S3"|"S4" }
 ```
 
-- Person 1 splits the model's streamed text into sentences and calls this **once per sentence, before speech**. Only `speak` goes to ElevenLabs.
+- Role 1 splits the model's streamed text into sentences and calls this **once per sentence, before speech**. Only `speak` goes to ElevenLabs.
 - The guard reads the call's state and record from the store, which is how S4 knows what's been approved.
 
 ### 3.3 Safety check (caller line → agent)
@@ -85,7 +86,7 @@ checkCallerLine(callId: CallId, line: string): SafetyResult
 // SafetyResult = { action: "continue" } | { action: "emergency" | "crisis" | "handover", script: string }
 ```
 
-- Person 1 calls it on every caller line before the model sees it. The keyword part is Claude's. The optional Haiku check is Person 1's, behind the same function.
+- Role 1 calls it on every caller line before the model sees it. The keyword part is Claude's. The optional Haiku check is Role 1's, behind the same function.
 
 ### 3.4 Agent driver (anything that runs a call)
 
@@ -97,7 +98,7 @@ interface AgentDriver {
 }
 ```
 
-- Two implementations: the real Claude agent (Person 1) and the scripted hijack agent (Person 3).
+- Two implementations: the real Claude agent (Role 1) and the scripted hijack agent (Role 3).
 - The scenario runner, the attacker and the phone page all talk to `AgentDriver`, so they work with either agent.
 
 ### 3.5 Store (everyone → data)
@@ -113,7 +114,7 @@ interface Store {
 }
 ```
 
-- **Claude ships the in-memory store first**, so nothing waits on the database. Person 2 adds the Postgres version behind the same interface later. Swapping is one line.
+- **Claude ships the in-memory store first**, so nothing waits on the database. Role 2 adds the Postgres version behind the same interface later. Swapping is one line.
 
 ### 3.6 Event stream (server → pages)
 
@@ -128,7 +129,7 @@ type StreamEvent =
   | { type: "clock", now: string }
 ```
 
-- Person 2 runs the stream at `/api/events`. Everyone emits through `emit(event)`. Person 4's pages only listen.
+- Role 2 runs the stream at `/api/events`. Everyone emits through `emit(event)`. Role 4's pages only listen.
 - The gate animation is driven purely by `press` and `blocked_line` events.
 
 ### 3.7 Approvals (console or phone → store)
@@ -137,10 +138,10 @@ type StreamEvent =
 POST /api/queue/:id/decide   { decision, note? }   // Auth0 session required, role "pharmacist"
 ```
 
-- Person 2 checks the Auth0 session and role, then calls `store.decide`, with the approver taken from the token.
+- Role 2 checks the Auth0 session and role, then calls `store.decide`, with the approver taken from the token.
 - When Auth0's phone approval works, the phone path calls the same `store.decide`. When it doesn't, the console button is the fallback. Same record either way.
 
-### 3.8 Scenarios (Person 3 → runner)
+### 3.8 Scenarios (Role 3 → runner)
 
 - One JSON file per scenario in `scenarios/`, using the format in SPEC Part 4. The runner replays caller lines through `AgentDriver` and scores **only from the record**.
 
@@ -155,7 +156,7 @@ contract ──▶ control layer + in-memory store ──▶ typed agent loop �
    └──▶ (fakes let everyone start now)
 ```
 
-- **Nobody waits:** the contract exports fakes, so Persons 1, 3 and 4 can start before the control layer is finished.
+- **Nobody waits:** the contract exports fakes, so Roles 1, 2 and 3 can start before the control layer is finished.
 - **The noon checkpoint** (a typed refill working three times in a row) needs the contract, control layer, store, agent loop and the approve endpoint.
 - **Postgres, Auth0's phone approval, voice and hosting** are off the critical path. Each has a fallback: the in-memory store, the console button, typed input, and a tunnel.
 
@@ -167,17 +168,19 @@ Checked against the spec, the critical path and the demo. These are the problems
 
 | # | Problem | Fix |
 |---|---|---|
-| 1 | **The hijack switch had no owner** in the README, even though it's the demo's best moment | Person 3 owns the scripted hijack agent and the attack cards' behaviour. Person 4 owns how the cards look. |
-| 2 | **Person 3 had nothing on the critical path early**, since the attacker and overnight run come after the core | Person 3's first job is now the hijack agent and the scenario runner, both core. The attacker comes after. |
-| 3 | **Person 1 was overloaded:** voice, agent, outbound, side effects, guard wiring and timing | The guard and safety checks are now Claude's code behind two functions, so Person 1 only calls them. The outbound trigger (daily check) moves to Person 2's clock. |
-| 4 | **Person 2's Auth0 phone approval is the riskiest unknown** and sat in the middle of the plan | It's moved off the critical path behind the approve endpoint. The console button is the default, and the phone path replaces it when it works. Check the free plan by Saturday 10 AM. |
+| 1 | **The hijack switch had no owner** in the README, even though it's the demo's best moment | Role 3 owns the scripted hijack agent and the attack cards' behaviour. Role 4 owns how the cards look. |
+| 2 | **Role 3 had nothing on the critical path early**, since the attacker and overnight run come after the core | Role 3's first job is now the hijack agent and the scenario runner, both core. The attacker comes after. |
+| 3 | **Role 1 was overloaded:** voice, agent, outbound, side effects, guard wiring and timing | The guard and safety checks are now Claude's code behind two functions, so Role 1 only calls them. The outbound trigger (daily check) moves to Role 2's clock. |
+| 4 | **Role 2's Auth0 phone approval is the riskiest unknown** and sat in the middle of the plan | It's moved off the critical path behind the approve endpoint. The console button is the default, and the phone path replaces it when it works. Check the free plan by Saturday 10 AM. |
 | 5 | **Everyone needed the database before they could start** | Claude ships an in-memory store first. Postgres comes later behind the same interface. |
 | 6 | **The event stream had no agreed shape,** so the stage view would have broken whenever someone added an event | The event types are in the contract (3.6), and nobody adds a type without updating it. |
-| 7 | **Post-core items were unowned:** cited briefs, rule writer, Review calls lab | Cited briefs and the Review calls lab go to Person 3 (both use AI judging). The rule writer is Claude's engine plus Person 4's UI. All are after the core. |
-| 8 | **Nobody owned rehearsal and the pitch on the day** beyond Person 4 | Person 4 runs rehearsals. Everyone presents their part. The friend opens, and the presenter is decided by Saturday 6 PM. |
+| 7 | **Post-core items were unowned:** cited briefs, rule writer, Review calls lab | Cited briefs and the Review calls lab go to Role 3 (both use AI judging). The rule writer is Claude's engine plus Role 4's UI. All are after the core. |
+| 8 | **Nobody owned rehearsal and the pitch on the day** beyond Role 4 | Role 4 runs rehearsals. Everyone presents their part. The friend opens, and the presenter is decided by Saturday 6 PM. |
 | 9 | **Two people could edit the same files** (agent loop and hijack, console and API) | Each folder in section 2 has exactly one owner. Cross-folder changes go through a request (see `AGENTS.md`). |
 
-**Load after the fixes (core hours):** Person 1, agent loop and voice. Person 2, app shell, API, events, Auth0, hosting. Person 3, hijack agent, scenario runner, first scenarios. Person 4, phone, stage, gate, console Today. Claude, contract, control layer, guard, store, seed, hammers. Every person has one critical-path item, and no one has two.
+**Load after the fixes (core hours):** Role 1, agent loop, voice and the phone page. Role 2, app shell, API, events, Auth0, hosting and the console's Today view. Role 3, hijack agent, scenario runner and first scenarios. Role 4 (Nishant with Claude), contract, control layer, guard, store, seed, hammers and the stage view. Every role has one critical-path item, and no one has two.
+
+**Update:** there's no separate design and pitch role. Its screens were split by who produces the data behind them: the phone page to Role 1, the console's Today view to Role 2, the other console tabs to Role 3, and the stage view to Role 4. The pitch is everyone's.
 
 ---
 
@@ -197,11 +200,15 @@ Checked against the spec, the critical path and the demo. These are the problems
 
 ## 7. How the AI coding agents coordinate
 
-See `AGENTS.md`. In short, **the repo is the shared channel**:
-- `AGENTS.md`: rules every AI tool reads first
-- `lib/contract/`: the shapes everyone builds against
-- `docs/STATUS.md`: what each person is doing, has done, and needs
-- `docs/DECISIONS.md`: decisions, so nobody's agent undoes them
-- GitHub issues for requests between people
+**On GitHub, in the open, so it shows on the repo.** See `AGENTS.md` and the README's "How we build".
 
-Humans talk in the team chat. Agents talk through those files.
+| Step | Where | What it does |
+|---|---|---|
+| Claim | Issue, "Claim a task" template, `claimed` label | Role, branch and files, so scopes never overlap |
+| Build | One task branch per claim | One owner per folder |
+| Contract change | Issue, "Contract change request" template | Nobody edits `lib/contract/` directly |
+| Handoff | Pull request with the handoff template | What changed, checks run, "the lock still holds" |
+| Gate | GitHub Actions, "Release gate" | Typecheck, lint, tests, hammers and build on every push and pull request |
+| Memory | `docs/STATUS.md`, `docs/DECISIONS.md` | What each role is doing and what's been decided |
+
+**Why GitHub, not Discord:** it's where the code already is, every AI tool can use it through the `gh` command, it needs no bot or server, and anyone who opens the repo sees the whole history of humans and agents working together. Discord or Slack can mirror it later with a webhook, as a nice-to-have.

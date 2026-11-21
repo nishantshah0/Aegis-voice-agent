@@ -1,0 +1,42 @@
+name: Claim a task
+description: Claim work before editing, so agents get disjoint scopes
+title: "[claim] "
+labels: ["claimed"]
+body:
+  - type: dropdown
+    id: role
+    attributes:
+      label: Role
+      options:
+        - 1 · Voice and agent
+        - 2 · Platform and pharmacist
+        - 3 · Red team and evals
+        - 4 · Control layer
+    validations:
+      required: true
+  - type: input
+    id: branch
+    attributes:
+      label: Branch
+      placeholder: agent/outbound-call
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Files and folders you expect to change
+    validations:
+      required: true
+  - type: textarea
+    id: deps
+    attributes:
+      label: Depends on
+      description: Other claims, contract pieces or people you need first
+  - type: dropdown
+    id: worker
+    attributes:
+      label: Who's doing it
+      options:
+        - Human
+        - AI agent
+        - Both

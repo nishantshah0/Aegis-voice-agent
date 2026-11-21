@@ -1,0 +1,23 @@
+name: Contract change request
+description: Propose a change to lib/contract/ (never edit it directly)
+title: "[contract] "
+labels: ["contract-change"]
+body:
+  - type: textarea
+    id: change
+    attributes:
+      label: The change
+      description: Which type or signature, and what it should become
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why it's needed
+    validations:
+      required: true
+  - type: textarea
+    id: affects
+    attributes:
+      label: Who it affects
+      description: Which roles build against this part
