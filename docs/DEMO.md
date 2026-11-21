@@ -4,6 +4,14 @@ Kept by the demo tie-in agent. One row per step of the 3-minute script, walked i
 
 Legend: ✅ works · ⚠️ works with a fallback · ❌ broken (owner fixing it)
 
+## Pass 5 (about 14:00 EST, main 0675448: Trail #27 S4 change and the Tiger Data store)
+
+Not clean (0 of 3). Same results as pass 4 except:
+- Store is now Postgres on Tiger Data (`DATABASE_URL`). Everything works on it, but it's slower: `say` turns 16.7, 12.9, 7.2, 5.4 and 5.4 s; the phone's median turn is 4.7 s (2.65 s on the memory store in pass 4). Reset 2.5 s. REQUEST to ROLE-2 (2.7).
+- S4 still blocks "A pharmacist needs to check it before it is approved." and "I'm sorry, I don't know when it will be ready." No ready day is said. URGENT to ROLE-4 (review fixer covering).
+- Opener still shows twice (ROLE-1, URGENT 1.3, no reply yet).
+- Approve ✅, phone "Approved by the pharmacist" ✅, hijack batch 9 caught / 0 broken ✅ (still started from the API: no stage control), `/console/overnight` 404 (Trail #46 building it).
+
 ## Last pass (pass 4: first run-through with the live agent)
 
 - Code: main ef144a5 plus `role-2/live-agent` (Trail #41) and `role-1/agent-sdk-live-fixes` (Trail #43). Both have merged since, in main f2e6eb0
