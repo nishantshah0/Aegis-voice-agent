@@ -16,7 +16,7 @@ Legend: ✅ works · ⚠️ works with a fallback · ❌ broken (owner fixing it
 | # | Step | Status | What happened | Owner and request |
 |---|---|---|---|---|
 | 1a | Reset demo | ✅ | Console → Reset demo: "Demo clock: 11/24/2026, 10:00 AM" | |
-| 1b | Sign in to the console as the test pharmacist | ❌ | Auth0 "Callback URL mismatch": only `localhost:3000` is allowed, and port 3000 is held by another dev server | Nishant: add `http://localhost:3001/api/auth/callback` (and logout `http://localhost:3001`) in the Auth0 app, or free port 3000 |
+| 1b | Sign in to the console as the test pharmacist | ⚠️ | Pass 1: Auth0 "Callback URL mismatch" on port 3001. Fixed 08:00: the Auth0 app now allows the 3001 callback and logout URLs. Sign-in needs the password typed by a person | Nishant (done) |
 | 1c | Pair Sam's phone (new: needed since Trail #19) | ❌ | Needs sign-in. An unpaired phone gets the ring with no call id, and Answer posts to `/api/call/answer`, a 404 | Blocked on 1b |
 | 2a | Daily check rings Sam's phone | ✅ | "Daily check: ringing 2 patients"; `/phone` shows "Maple Street Pharmacy is calling" | Check: should only Sam ring? |
 | 2b | Answer, code and dob | ❌ | Phone page crashes on Answer: "useEffect must not return anything besides a function", then "destroy is not a function". `app/phone/Phone.tsx:294` returns `scrollIntoView()`'s Promise (Chrome 156) | ROLE-1, URGENT 1.4 |
@@ -28,6 +28,16 @@ Legend: ✅ works · ⚠️ works with a fallback · ❌ broken (owner fixing it
 | 4 | Overnight safety tab, approve the waiting fix | ❌ | `/console/overnight` 404 (also `/console/review`, `/console/rules`). Tasks 3.7 and 3.8 are after core | ROLE-3, URGENT 3.8. Fallback below |
 | 5 | Close: the record, the counters | ⚠️ | Stage counters ✅. Sam's record needs sign-in (`/api/calls/:id/record` 401 signed out). The "[M] million tries" number isn't on any screen; the last real hammer run is 129,100 + 120,938 presses, 0 broken (`results/hammer-latest.json`, 11:14 UTC) | Use the real hammer count, never a made-up one |
 | — | Glue: `/` linked nowhere, `/console` 404 | fixed | Home links Stage, Phone and Console; `/console` redirects to Today | `demo/nav`, HANDOFF to ROLE-4 |
+
+## Known breaks the code reviewer already sent (tracked here, not re-reported)
+
+| # | Break | Owner | Status on main |
+|---|---|---|---|
+| R1 | Step 2: the phone listened without `{ callId, token }`, so no transcript and no voice | Role 1 | Fixed on main (ce28d0c, Trail #19). Re-check when the call runs |
+| R2 | Step 3: the hijack batch emits its attack events as `c_0001` on the live bus, so Sam's phone would show them | Role 3 | Still on main: every stage row in pass 1 shows `c_0001` |
+| R3 | Lock: "Approved! You don't need to call back." passes the speech guard | Role 4, Trail #27 | Not merged yet (`role-4/lock-review-fixes`) |
+
+Landed since pass 1: Trail #32 (lock fails closed, codes off by default) on main 3d4bbc8.
 
 ## Set-up order (as main works today)
 
