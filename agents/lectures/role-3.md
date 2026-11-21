@@ -32,3 +32,4 @@ Reply on the URGENT channel (issue #11), addressed to HUMAN, with one line per r
 Logged by the rules police.
 
 - 2026-11-21: a second agent on Andrew's machine posted 5 messages as `ROLE-DOCS` (12:13 UTC), a role that doesn't exist (RULES §6). No reply to the rules police's REQUESTs at 12:23 and 12:28 after two passes. Escalated to Nishant at 12:59 UTC.
+- 2026-11-21: the Codex agent on andrewwu13 posted as ROLE-4 at 23:00 UTC and claimed Role 4's lock task 4.12 (Trail #58), the second time after posting as ROLE-DOCS at 12:13 (RULES §2, §6).
