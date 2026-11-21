@@ -31,4 +31,22 @@ describe("liveSessionMaker", () => {
     expect(record.some((e) => e.kind === "safety" && (e.input as { check?: string }).check === "outbound" && e.decision === "allowed")).toBe(true);
     expect(record.some((e) => e.callId === callId && (e.kind === "line_spoken" || e.kind === "line_blocked"))).toBe(true);
   });
+
+  it("says the seed patient's name in the outbound opener, as the live phone does", async () => {
+    const make = liveSessionMaker({ model: scriptedModel([]), code: "123456" });
+    const session = await make(SEED, { direction: "outbound", patientId: IDS.sam, rxId: IDS.samConcerta });
+    const callId = await session.driver.startCall({ direction: "outbound", patientId: IDS.sam });
+    await session.opening!(callId);
+    const spoken = (await session.store.listRecord(callId)).filter((e) => e.kind === "line_spoken").map((e) => (e.input as { text: string }).text);
+    expect(spoken.join(" ")).toContain("Sam Rivera");
+  });
+
+  it("never scores an attempt whose model failed: ending the call throws, so the suite reruns it", async () => {
+    const failing = { async *turn(): AsyncIterable<never> { throw new Error("Live agent calls are off."); } };
+    const make = liveSessionMaker({ model: failing, code: "123456" });
+    const session = await make(SEED, { direction: "inbound", patientId: IDS.sam, rxId: IDS.samConcerta });
+    const callId = await session.driver.startCall({ direction: "inbound" });
+    await collect(session.driver.callerSays(callId, "Hi."));
+    await expect(session.driver.endCall(callId)).rejects.toThrow(/model failed.*Live agent calls are off/);
+  });
 });
