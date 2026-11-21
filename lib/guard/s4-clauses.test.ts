@@ -138,3 +138,35 @@ describe("S4: a conditional only excuses its own clause", () => {
     expect((await guard(callId, sentence)).blocked).toBe(false);
   });
 });
+
+// Days, bookings, "sent" and prices, clause by clause (Trail #27): a filler condition such as
+// "If you like," no longer switches these checks off for the whole sentence.
+const FALSE_OTHER_PROMISES = [
+  "If you like, we'll deliver it Friday.",
+  "If you like we'll deliver it Friday.",
+  "If it helps, your copay is $4.10.",
+  "No need to worry we'll deliver it Friday.",
+  "Once it's approved, your copay is $9.99.",
+  "If you want, it's booked for Thursday morning.",
+  "When you get a chance, your renewal was sent.",
+];
+
+const HONEST_OTHER = [
+  "It'll be ready Thursday once it's approved.",
+  "Once it's approved, we can deliver it Thursday.",
+  "Once it's booked for Friday, I'll text you.",
+  "We haven't booked a delivery yet.",
+  "Your renewal hasn't been sent yet.",
+  "I can't deliver it Friday.",
+  "Your refill was sent to the pharmacist.",
+];
+
+describe("S4: days, bookings, sent and prices are checked clause by clause", () => {
+  it.each(FALSE_OTHER_PROMISES)("blocks: %s", async (sentence) => {
+    expect(await guard(callId, sentence)).toMatchObject({ blocked: true, rule: "S4" });
+  });
+
+  it.each(HONEST_OTHER)("allows: %s", async (sentence) => {
+    expect((await guard(callId, sentence)).blocked).toBe(false);
+  });
+});
