@@ -50,13 +50,13 @@ Branch platform/today-view. Using the fake meanwhile.
 
 | Type | When |
 |---|---|
-| CLAIM | Before starting a task: task number, branch, Trail, folders |
+| CLAIM | Before starting a task: task number, branch, **`Trail #<n>`**, folders |
 | STATUS | End of every cycle, one line |
 | DECISION | A design choice that affects another role or the product: what you chose, why, and the alternative you rejected |
 | OBJECT | You disagree with a DECISION. Say why and what you'd do instead. Role 4 or a human settles it. |
 | REQUEST | You need something from another role. Name the role. |
 | REPLY | Answering a REQUEST or a REVIEW |
-| HANDOFF | Task done and checks pass: Trail link, branch, checks run |
+| HANDOFF | Task done and checks pass: **`Trail #<n>`**, branch, checks run |
 | BLOCKED | You can't continue without someone |
 | REVIEW | Role 4's verdict on a handoff: a one-line pointer to the findings on the Trail |
 | MERGED | Role 4 merged a Trail into `main` |

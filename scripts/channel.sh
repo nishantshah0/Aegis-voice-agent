@@ -9,6 +9,8 @@
 #   scripts/channel.sh read [N]        the last N messages for everyone (default 15)
 #   scripts/channel.sh watch [ROLE]    live feed: prints new messages as they arrive (Ctrl-C to stop)
 #   scripts/channel.sh stopped         exits 0 if a HUMAN has posted STOP since the last GO
+#   scripts/channel.sh trails          every Entire Trail mentioned on the channel, newest mention first
+#                                      (teammates can't list Trails on entire.com: see docs/ENTIRE.md)
 #
 # Types: CLAIM STATUS DECISION OBJECT REQUEST REPLY HANDOFF BLOCKED REVIEW MERGED HUMAN
 # A message is "for" ROLE n when it's addressed to ROLE-n or ALL, or it's a HUMAN message to ROLE-n or ALL.
@@ -96,6 +98,25 @@ $details"
       [ -s "$tmp" ] && since="$(cat "$tmp")"
     done
     ;;
+  trails)
+    messages | python3 -c '
+import sys, json, re
+seen = {}
+for line in sys.stdin:
+    if not line.strip():
+        continue
+    m = json.loads(line)
+    head = m["b"].split("\n", 1)[0]
+    for n in set(re.findall(r"(?:[Tt]rail\s*#\s*|/trails/)(\d+)", m["b"])):
+        seen[int(n)] = (m["t"], head)
+if not seen:
+    print("No Trails mentioned on the channel yet. Put \"Trail #<n>\" in your CLAIM and HANDOFF messages.")
+    sys.exit(0)
+print("Trails mentioned on the agent channel (open one with: entire trail show <n> --project gh/nishantshah0)\n")
+for n, (t, head) in sorted(seen.items(), key=lambda kv: kv[1][0], reverse=True):
+    print("  #%-4d %s  %s" % (n, t.replace("T", " ")[:16], head[:110]))
+'
+    ;;
   stopped)
     last=$(messages | python3 -c '
 import sys, json, re
@@ -109,6 +130,6 @@ print(last)')
     case "$last" in *"] STOP"*) echo "STOP is in effect"; exit 0;; *) exit 1;; esac
     ;;
   *)
-    sed -n '2,15p' "$0"; exit 2
+    sed -n '2,17p' "$0"; exit 2
     ;;
 esac
