@@ -138,6 +138,8 @@ const GOVERNED_ALL_TEST = new RegExp(`\\b${GOVERNED}`);
 // "once it's booked for Friday": a booking that hasn't happened yet, said as the condition.
 const BOOKING_CONDITION = /\b(?:once|after|when|if|as soon as) (?:its|it is|it s|its been|your \w+ is|your \w+ s|we ve|weve) (?:booked|scheduled)\b/;
 const BOOKING_CONDITION_LEAD = new RegExp(`^ ${BOOKING_CONDITION.source.replace("\\b", "")}`);
+// "If those details match, I've sent a code to the phone on file.": the code goes out only on a match.
+const MATCH_CONDITION_LEAD = /^ (?:if|once|when) (?:those |the |your |all )?(?:details|that|everything|it|they) (?:match|matches|checks out|check out)\b/;
 
 /** A negation within the four words before position `at` ("we can't deliver it Friday"). */
 function negatedNear(w: string, at: number): boolean {
@@ -220,11 +222,14 @@ function checkS4(sentence: string, record: RecordEntry[], bookedLabels: string[]
   // off. A clause is excused only by a governed condition in it or leading it, or a negation
   // right before the word ("haven't booked", "can't deliver it Friday"). Prices never are.
   let ledByCondition = false;
+  let ledByMatch = false;
   for (const raw of sentence.split(CLAUSE_BREAK)) {
     const cw = words(raw);
     const governed = GOVERNED_ALL_TEST.test(cw) || BOOKING_CONDITION.test(cw);
     const excused = governed || ledByCondition;
+    const codeAfterMatch = ledByMatch;
     ledByCondition = GOVERNED_LEAD.test(cw) || BOOKING_CONDITION_LEAD.test(cw);
+    ledByMatch = MATCH_CONDITION_LEAD.test(cw);
 
     for (const price of raw.match(PRICE) ?? []) {
       if (!prices.some((p) => norm(p) === norm(price))) return { rule: "S4", why: `price ${price} not from check_coverage` };
@@ -240,7 +245,9 @@ function checkS4(sentence: string, record: RecordEntry[], bookedLabels: string[]
     }
 
     const sent = cw.match(SENT);
-    if (sent && !negatedNear(cw, sent.index ?? 0)) {
+    // "If those details match, I've sent a code": only a code, only after a matching condition.
+    const codeOnly = codeAfterMatch && / code /.test(cw) && !/ (?:renewal|refill) /.test(cw);
+    if (sent && !negatedNear(cw, sent.index ?? 0) && !codeOnly) {
       // The promise must match its own button: a sent code doesn't back "renewal requested".
       const about = ["renewal", "refill", "code"].filter((k) => cw.includes(` ${k} `));
       const needs = about.length > 0 ? about : ["any"];
