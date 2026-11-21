@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import type { Approver } from "@/lib/contract";
 import { resetBusForTests } from "@/lib/events/bus";
 import { resetRuntimeForTests } from "@/app/api/_lib/runtime";
-import { Upcoming } from "./Upcoming";
+import { Upcoming } from "./UpcomingView";
 
 vi.mock("next/server", async (importOriginal) => ({
   ...(await importOriginal<typeof import("next/server")>()),
