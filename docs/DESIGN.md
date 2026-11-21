@@ -68,25 +68,27 @@ press(callId: CallId, button: ButtonName, input: unknown): Promise<ButtonResult>
 
 - Used by: the agent loop (Role 1), the hijack agent and scenario runner (Role 3), the hammers (Role 4).
 - The 12 button names and their input and output shapes are in `lib/contract/buttons.ts`, matching SPEC Part 3.
+- Built by `createControl({ store, emit })` in `lib/control`, which also gives `startInboundCall()`, `startOutboundCall(patientId, rxId)` (the only way to ring a patient, rule 7), `checkOutbound` and `codeFor(callId)`. A button's record entry stores `output: { result, internal }`; score from `output.result`.
+- Verification codes never go on the event stream (it has no sign-in). The phone page gets its call's code from the server, which reads `control.codeFor(callId)`.
 
 ### 3.2 Speech guard (agent → guard → voice)
 
 ```ts
-guardSentence(callId: CallId, sentence: string): GuardResult
+guardSentence(callId: CallId, sentence: string): Promise<GuardResult>
 // GuardResult = { speak: string, blocked: false } | { speak: replacement, blocked: true, rule: "S1"|"S2"|"S3"|"S4" }
 ```
 
 - Role 1 splits the model's streamed text into sentences and calls this **once per sentence, before speech**. Only `speak` goes to ElevenLabs.
-- The guard reads the call's state and record from the store, which is how S4 knows what's been approved.
+- The guard reads the call's state and record from the store, which is how S4 knows what's been approved. It writes every sentence to the record (`line_spoken` or `line_blocked`). Built by `createSpeechGuard({ store, emit })` in `lib/guard`.
 
 ### 3.3 Safety check (caller line → agent)
 
 ```ts
-checkCallerLine(callId: CallId, line: string): SafetyResult
+checkCallerLine(callId: CallId, line: string): Promise<SafetyResult>
 // SafetyResult = { action: "continue" } | { action: "emergency" | "crisis" | "handover", script: string }
 ```
 
-- Role 1 calls it on every caller line before the model sees it. The keyword part is Claude's. The optional Haiku check is Role 1's, behind the same function.
+- Role 1 calls it on every caller line before the model sees it. It records the line (`caller_line`), which is how S1 and S2 know what the caller has said. The keyword part is `createSafetyCheck({ store, emit })` in `lib/guard`. The optional Haiku check is Role 1's, behind the same function.
 
 ### 3.4 Agent driver (anything that runs a call)
 
@@ -104,17 +106,19 @@ interface AgentDriver {
 ### 3.5 Store (everyone → data)
 
 ```ts
-interface Store {
-  getPatient, getPrescriptions, getCall, saveCall,
-  appendRecord(entry: RecordEntryInput): RecordEntry   // adds the hash chain
-  listRecord(callId?): RecordEntry[]
-  queue(lane?: Lane): QueueItem[]
-  decide(itemId, decision: "approve" | "deny", approver: Approver, note?: string): QueueItem
-  reset(seed: Seed): void
+interface Store {   // every method is async, so Postgres is a one-line swap
+  now, setNow, getPatient, listPatients, getPrescriptions, getPrescription,
+  listSlots, listOrders, saveOrder, listCards, policy, getCall, saveCall,
+  appendRecord(entry: RecordEntryInput): Promise<RecordEntry>   // adds the hash chain
+  listRecord(callId?): Promise<RecordEntry[]>
+  addQueueItem(item): Promise<QueueItem>
+  queue(lane?: Lane): Promise<QueueItem[]>
+  decide(itemId, decision: "approve" | "deny", approver: Approver, note?: string): Promise<QueueItem>
+  reset(seed: Seed): Promise<void>
 }
 ```
 
-- **Claude ships the in-memory store first**, so nothing waits on the database. Role 2 adds the Postgres version behind the same interface later. Swapping is one line.
+- **The in-memory store (`lib/store/memory.ts`, `getStore()`) ships first**, so nothing waits on the database. The full interface is in `lib/contract/store.ts`. Role 2 adds the Postgres version behind the same interface later. Swapping is one line.
 
 ### 3.6 Event stream (server → pages)
 

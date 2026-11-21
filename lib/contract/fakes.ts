@@ -250,7 +250,7 @@ export function createFakePress(store: Store, emit: EmitFn = () => {}): PressFn 
         return done({ message: "code sent if matched" });
       case "check_code": {
         const { lookup_id, code } = input as ButtonInputs["check_code"];
-        if (call.lockedUntil && call.lockedUntil > (await store.now())) return done({ locked_until: call.lockedUntil });
+        if (call.lockedUntil && Date.parse(call.lockedUntil) > Date.parse(await store.now())) return done({ locked_until: call.lockedUntil });
         const match = lookups.get(lookup_id) ?? (call.direction === "outbound" ? call.targetPatientId : null);
         if (match && code === FAKE_CODE) {
           const p = await store.getPatient(match);
