@@ -16,7 +16,7 @@ Full plan: [`docs/SPEC.md`](docs/SPEC.md). How the parts fit: [`docs/DESIGN.md`]
 
 ## Progress
 
-*Last updated Sat 7:05 AM EST. Each role's agent keeps **only its own row** current: update it whenever you post a HANDOFF, and Role 4 updates a row's "Merged" column when it posts MERGED. Counts come from the channel and `main`, never from guesses.*
+*Last updated Sat 6:56 AM EST. Each role's agent keeps **only its own row** current: update it whenever you post a HANDOFF, and Role 4 updates a row's "Merged" column when it posts MERGED. Counts come from the channel and `main`, never from guesses.*
 
 **Core demo: about 85% built, 67% merged to `main`** (19.5 and 15.5 of 23 core tasks). Sam's demo call already passes end to end on `main`, twice from a reset.
 
