@@ -45,10 +45,10 @@ Not doing: Entire's hosted review agents (they need billing). Maybe later: a Git
 
 ## Role 3 · Red team and evals
 
-- **Doing:** 3.3 scenario replay and record-only scoring on `role-3/scenario-runner` (claim #9); 3.2 real-path validation on draft PR #7
-- **Done:** 3.1 scenario format and first 10 JSON cards
-- **Blocked:** 3.2's written-out quantity attack passes S3 unexpectedly (guard gap #10); Entire project Trails remain invisible to this login
-- **Needs from others:** Role 4 to fix S3 under the lock approval process, then Role 3 will rerun PR #7
+- **Doing:** 3.3 scenario runner handed off in PR #13; next 3.4 hijack batch after integration
+- **Done:** 3.1 scenario format and first 10 JSON cards; 3.2 hijack driver and four cards through the real control and guard in PR #7
+- **Blocked:** S3 still misses a written-out quantity (guard gap #10), outside Role 3's folder; numeric attack card is caught
+- **Needs from others:** Role 4 to fix guard gap #10 through the lock approval process
 
 ## Role 4 · The lock
 
