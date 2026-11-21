@@ -1,6 +1,5 @@
 import { Suspense } from "react";
-import { PageHeader, PageShell } from "@/components/ui";
-import { ConsoleTabs } from "../ConsoleTabs";
+import { ConsoleNav, PageHeader, PageShell } from "@/components/ui";
 import { SignInBar } from "../today/SignInBar";
 import { Calls } from "./CallsView";
 
@@ -16,10 +15,9 @@ export default function CallsPage() {
         </Suspense>
       }
     >
-      <ConsoleTabs current="calls" />
-      <div className="mt-6">
-        <PageHeader title="Calls" description="What the voice agent did, from the record: every press, every blocked line, every word." />
-      </div>
+      <ConsoleNav current="calls" />
+      <div className="mt-8" />
+      <PageHeader title="Calls" description="What the voice agent did, from the record: every press, every blocked line, every word." />
       <Suspense fallback={<p className="mt-6 text-sm text-ink-3">Loading…</p>}>
         <Calls />
       </Suspense>
