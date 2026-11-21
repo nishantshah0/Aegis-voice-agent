@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { ConsoleTabs } from "../ConsoleTabs";
 import { DemoControls } from "./DemoControls";
 import { Queue } from "./Queue";
 import { SignInBar } from "./SignInBar";
@@ -14,6 +15,9 @@ export default function TodayPage() {
           <SignInBar />
         </Suspense>
       </header>
+      <div className="mt-4">
+        <ConsoleTabs current="today" />
+      </div>
       <DemoControls />
       <Suspense fallback={<p className="mt-6 text-sm text-neutral-500">Loading the queue…</p>}>
         <Queue />
