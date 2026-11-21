@@ -3,6 +3,7 @@
 Entire captures every AI agent session, links it to the commit it produced, maps the codebase for agents, and remembers the team's decisions. We use all four of its core features. This is also our entry for **[MLH] Best Use of Entire**.
 
 The workflow below is the team plan. Trails, session capture, Graph and Brain are in use. The product's overnight Trail loop, Rules tab and `entire why` export are still planned; see [CURRENT.md](CURRENT.md).
+Current coding branch merges follow [RULES.md](RULES.md), section 3.
 
 **The story:** our product puts a lock around an AI pharmacist. Entire put a lock around our AI developers. Brain remembers the rules (the AI only acts through the 12 buttons, never edit the contract directly), so every teammate's agent recalls them before it edits.
 

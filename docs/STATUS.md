@@ -40,14 +40,14 @@ Role 1 runs from Nishant's machine from 1.2 on (MikeyDigit did 1.1).
 
 - **Doing:** integration and review of lock changes; check the channel before merging.
 - **Done on `main`:** contract, in-memory store and seed, control layer, speech guard, Stage view and hammers. The saved run at 11:14 UTC checked 50,518 exhaustive sequences and 10,000 seeded random sequences with 0 broken rules ([result](../results/hammer-latest.json)).
-- **Blocked:** new lock changes require code review and a HUMAN ok before merge.
-- **Needs from others:** code reviewer and human to review the outstanding lock changes.
+- **Blocked:** none reported; new lock changes still need code review and 0 broken rules in the hammer gate.
+- **Needs from others:** code reviewer to review the outstanding lock changes.
 
 ---
 
 ## Contract change requests
 
-Use the "Contract change request" issue template on GitHub. Don't edit `lib/contract/` directly.
+Role 4 edits the contract on a task branch after review and a passing hammer gate, then announces the interface change with a DECISION. A "Contract change request" issue is optional.
 
 ## Open questions for humans
 

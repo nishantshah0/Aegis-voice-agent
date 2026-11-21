@@ -33,7 +33,7 @@ Three things never change, whoever is coding:
 
 | Part | Folder | Owner | Pure code or uses AI? |
 |---|---|---|---|
-| Contract (shared types and fakes) | `lib/contract/` | Set up once as task 0. Changes need a contract-change issue, merged by Role 4. | Types only |
+| Contract (shared types and fakes) | `lib/contract/` | Role 4 merges reviewed changes and announces them with a DECISION. A contract-change issue is optional. | Types and fakes |
 | Control layer: buttons, rules, cards, engine, triage | `lib/control/` | Role 4 | Pure code, no AI, no network |
 | Speech guard (S1 to S4) and safety keyword check | `lib/guard/` | Role 4 | Pure code. Role 1 adds the optional Haiku checks behind the same function. |
 | Store | `lib/store/` | Role 4 writes the in-memory version, Role 2 the Postgres version | Pure code |
@@ -210,7 +210,7 @@ Checked against the spec, the critical path and the demo. These are the problems
 |---|---|---|
 | Claim | Entire Trail and CLAIM on issue #1; a claim issue may record cross-role scope | Role, branch and files, so scopes never overlap |
 | Build | One task branch per claim | One owner per folder |
-| Contract change | Issue, "Contract change request" template | Nobody edits `lib/contract/` directly |
+| Contract change | Role 4 branch, Trail, review, hammer gate and DECISION; issue optional | Every role learns about interface changes |
 | Handoff | Entire Trail and channel HANDOFF; pull request when requested or using GitHub review | What changed, checks run, and who needs to review |
 | Gate | GitHub Actions, "Release gate" | Typecheck, lint, tests, hammers and build on pull requests and pushes to `main` |
 | Memory | `docs/STATUS.md`, `docs/DECISIONS.md` | What each role is doing and what's been decided |

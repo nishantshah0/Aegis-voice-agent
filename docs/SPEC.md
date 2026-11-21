@@ -867,7 +867,7 @@ Ask the organisers how many tracks one project may enter.
 
 | When | Change | Agreed by |
 |---|---|---|
-| Sat 11:45 AM | Clarified planned versus merged behavior, route status and the Rules and checks approval location. No product rule changed. | Documentation audit; role verification requested |
+| Sat morning | Clarified planned versus merged behavior, route status and the Rules and checks approval location. No product rule changed. | Documentation audit; role verification requested |
 | Sat ~5:15 AM | No phone push. Approvals happen on the console's Today page, signed in through Auth0; the approver comes from the session. CIBA isn't on Auth0's Free plan. Earlier rows that mention Guardian push are history. | Nishant |
 | Sat 2:30 AM | Locked | _team_ |
 | Sat ~8 AM | Fixed contradictions: rule 4b allows a controlled refill up to 3 days early (Sam's call no longer ends refused); outbound calls start 3 days before run-out and only when rules 3 and 4b pass; S1 allows the scripted opener to say the patient's name; Sam's seed data pinned (refill 1 of 2, filled 27 days ago); the typed-refill done-when ends at the pharmacist's approval. Scope cut to a core demo first. | _team_ |
