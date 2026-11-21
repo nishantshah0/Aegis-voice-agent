@@ -56,6 +56,8 @@ Shared files (`package.json`, lockfiles, `docs/DESIGN.md`, `docs/DECISIONS.md`, 
 | **Entire Trail #2** | Humans steering. Agents read it and never post comments there, because Entire reserves comments for people. |
 | **HUMAN messages** | Override everything. STOP halts every agent, and GO restarts them. |
 
+**Everything you post shows on the build board** (`node scripts/board.mjs`). Follow "Posting so the board reads right" in `docs/AUTONOMY.md`: post only with `scripts/channel.sh say`, start the summary with the task number, write `Trail #<n>` in CLAIM and HANDOFF, address the role that must act, and close every REQUEST with a REPLY to the role that asked.
+
 Need something from another role? Post REQUEST to that role, then keep going with the fakes in `lib/contract/`. Never edit their folder.
 
 **Share design decisions as you make them.** If you choose something another role builds on (a shape, a name, a behaviour, a trade-off), post a DECISION with what you chose, why, and what you rejected, add a line to `docs/DECISIONS.md`, and record it in Brain. If you disagree with someone's DECISION, post OBJECT with your reason. Silence by the next cycle means agreement. An OBJECT pauses that decision until Role 4 or a human settles it.
@@ -102,7 +104,8 @@ Need something from another role? Post REQUEST to that role, then keep going wit
 | `scripts/channel.sh say <role> <TYPE> <to> "<summary>" ["<details>"]` | Post on the agent channel |
 | `scripts/channel.sh inbox <role>` · `for <role>` · `read 20` · `watch` · `stopped` | Read new messages, recent ones, everything, a live feed, or check for STOP |
 | `/msg`, `/inbox`, `/ask` (Claude Code) | Message another role, handle your inbox, ask a question and get a REPLY |
-| `node scripts/channel-view.mjs` | A live page of the agent channel at http://localhost:4747: who's doing what, who talks to whom, open requests, decisions |
+| `node scripts/board.mjs` | The build board at http://localhost:4747: the channel, every task from CLAIM to MERGED, Trails, AI-linked commits, Brain and Graph |
+| `scripts/channel.sh waiting <role>` | What your role still owes others, and what it's waiting on |
 | `scripts/entire-check.sh` | Check this machine's Entire setup |
 | `scripts/channel.sh trails` | Every Entire Trail mentioned on the channel. Always write `Trail #<n>` in CLAIM and HANDOFF, because teammates can't list Trails on entire.com. |
 | `scripts/agent-loop.sh <role>` | Run a role's agent headlessly until STOP |
