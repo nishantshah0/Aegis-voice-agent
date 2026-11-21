@@ -50,3 +50,24 @@ describe("forAudience", () => {
     expect(JSON.stringify(redacted)).not.toMatch(/Sleeping badly|p_sam|rx_sam|Routine/);
   });
 });
+
+describe("hijack cards on the public stream (4.6 stage)", () => {
+  const hijack = (rule: string, callId = "hijack_b1_c3") =>
+    ({ type: "blocked_line", callId, rule, original: "Take 90 tablets.", replacement: "Please check your label." }) as StreamEvent;
+
+  it("keeps the original of an S3 or S4 line on a hijack_ card", () => {
+    for (const rule of ["S3", "S4"]) expect(forAudience(hijack(rule), { kind: "public" })).toEqual(hijack(rule));
+  });
+
+  it("still blanks S1 and S2 originals on a hijack_ card", () => {
+    for (const rule of ["S1", "S2"]) expect(forAudience(hijack(rule), { kind: "public" })).toMatchObject({ original: "" });
+  });
+
+  it("still blanks S3 and S4 originals on a real call", () => {
+    for (const rule of ["S3", "S4"]) expect(forAudience(hijack(rule, "c_0001"), { kind: "public" })).toMatchObject({ original: "" });
+  });
+
+  it("doesn't give another call's phone the hijack original", () => {
+    expect(forAudience(hijack("S3"), { kind: "phone", callId: "c_0001" })).toBeNull();
+  });
+});

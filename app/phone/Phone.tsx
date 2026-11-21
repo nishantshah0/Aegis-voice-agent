@@ -42,6 +42,7 @@ export function Phone() {
     on: voiceOn && state.mode === "in_call",
     mode,
     callId: state.callId,
+    phoneToken: state.phoneToken,
     transcript: state.transcript,
     onTurn: say,
     onProblem: (text) => {

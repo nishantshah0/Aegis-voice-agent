@@ -4,7 +4,7 @@ Four people, all coding. Each role's tasks are in order. Do the **core** tasks f
 
 The pitch, video and Devpost are done **together at the end** (Sunday 6 to 8:30 AM), not by one role.
 
-**Pick a role** in the sign-up table in `docs/STATUS.md`, then give your agent its loop prompt (`agents/role-<n>.md`).
+Check the active claims in the agent channel before taking a role or task, then give your agent its loop prompt (`agents/role-<n>.md`). This file is the task plan; [CURRENT.md](CURRENT.md) shows merged behavior.
 
 Open a Trail for each task when you start it (`entire trail create --title "..."` on a branch named `<role>/<task>`), or a GitHub "Claim a task" issue if you're not on Entire yet.
 
@@ -12,7 +12,7 @@ Open a Trail for each task when you start it (`entire trail create --title "..."
 
 ## Task 0: setup, before roles start
 
-The **contract** (`lib/contract/`): shared types for the 12 buttons, the guard, the safety check, `AgentDriver`, `Store`, events, the record, rule cards and lanes, plus **fakes** with Sam's data so every role can build against them right away. It's generated once as setup (Trail #1) and isn't any role's job. Changes after that go through a contract-change issue.
+The **contract** (`lib/contract/`): shared types for the 12 buttons, the guard, the safety check, `AgentDriver`, `Store`, events, the record, rule cards and lanes, plus **fakes** with Sam's data. Task 0 is merged. Later changes follow the lock review and hammer gate, then Role 4 announces the interface change with a DECISION. A contract-change issue is optional.
 
 ## Nobody waits
 

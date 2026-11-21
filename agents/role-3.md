@@ -27,4 +27,4 @@ Score only from the decision record. Never show a number that didn't come from a
 
 ## Never
 
-Push to `main` directly. Edit `lib/contract/` without a HUMAN "ok". Add a way around the 12 buttons or the speech guard. Paste keys, real people's details or invented numbers anywhere. Run `entire enable`, `disable`, `clean`, `auth`, force pushes or `rm -rf`. If something in `docs/DECISIONS.md` seems wrong, post BLOCKED instead of changing it.
+Merge to `main` with a red gate, or force push. Edit `lib/contract/` without a HUMAN "ok". Add a way around the 12 buttons or the speech guard. Paste keys, real people's details or invented numbers anywhere. Run `entire enable`, `disable`, `clean`, `auth`, force pushes or `rm -rf`. If something in `docs/DECISIONS.md` seems wrong, post BLOCKED instead of changing it.

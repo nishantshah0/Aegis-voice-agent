@@ -1,7 +1,14 @@
 // 2.7: the Store (DESIGN 3.5) on Postgres. Same behaviour as lib/store/memory.ts, checked by
 // lib/store/postgres.test.ts against both stores. Documents are JSONB rows; the record is a
-// hash chain appended inside a transaction that locks one meta row, so seq and prevHash stay
-// right with several writers. Server-only.
+// hash chain: each entry is inserted only if the newest entry in the table is still the one it
+// links to, so seq and prevHash stay right with several writers. Server-only.
+//
+// Speed (Role 0's demo timing, Trail #54): a round trip to Tiger Cloud is about 40 ms, so the
+// store keeps them few. The seed tables (patients, prescriptions, slots, cards, policy), which
+// only reset() writes, and the clock are cached in the process and written through; the newest
+// record entry is cached too, and checked by the insert itself. Run one server per database: a
+// second server's reset or clock change isn't seen here until this one resets (its record
+// appends stay safe either way, because the insert checks the chain head).
 //
 // The server uses it when DATABASE_URL is set (app/api/_lib/runtime.ts):
 //   createPostgresStore(fromPgPool(new Pool(poolConfig(DATABASE_URL, ca))))
@@ -73,21 +80,33 @@ const TABLES = ["rg_meta", "rg_patients", "rg_prescriptions", "rg_slots", "rg_ca
 
 const json = (value: unknown) => JSON.stringify(value);
 
+/** One insert per table: each row is an element of a JSON array, kept in order as `pos`. */
+const insertAll = (table: string, withPatient: boolean) =>
+  withPatient
+    ? `insert into ${table} select x->>'id', x->>'patientId', (o - 1)::int, x from jsonb_array_elements($1::jsonb) with ordinality as t(x, o)`
+    : `insert into ${table} select x->>'id', (o - 1)::int, x from jsonb_array_elements($1::jsonb) with ordinality as t(x, o)`;
+
 async function loadSeed(q: Query, seed: Seed): Promise<void> {
-  for (const table of TABLES) await q(`delete from ${table}`);
+  await q(`truncate ${TABLES.join(", ")}`);
   await q(`insert into rg_meta (id, now, policy, counters) values (1, $1, $2::jsonb, '{}'::jsonb)`, [seed.now, json(seed.policy)]);
-  for (const [pos, p] of seed.patients.entries()) await q(`insert into rg_patients values ($1, $2, $3::jsonb)`, [p.id, pos, json(p)]);
-  for (const [pos, rx] of seed.prescriptions.entries()) {
-    await q(`insert into rg_prescriptions values ($1, $2, $3, $4::jsonb)`, [rx.id, rx.patientId, pos, json(rx)]);
-  }
-  for (const [pos, s] of seed.slots.entries()) await q(`insert into rg_slots values ($1, $2, $3::jsonb)`, [s.id, pos, json(s)]);
-  for (const [pos, c] of seed.cards.entries()) await q(`insert into rg_cards values ($1, $2, $3::jsonb)`, [c.id, pos, json(c)]);
-  for (const [pos, o] of seed.orders.entries()) await q(`insert into rg_orders values ($1, $2, $3, $4::jsonb)`, [o.id, o.patientId, pos, json(o)]);
+  await q(insertAll("rg_patients", false), [json(seed.patients)]);
+  await q(insertAll("rg_prescriptions", true), [json(seed.prescriptions)]);
+  await q(insertAll("rg_slots", false), [json(seed.slots)]);
+  await q(insertAll("rg_cards", false), [json(seed.cards)]);
+  await q(insertAll("rg_orders", true), [json(seed.orders)]);
 }
 
 // ---------- The store ----------
 
 type Doc<T> = { doc: T };
+type Head = { seq: number; hash: string };
+type Fixed = Pick<Seed, "patients" | "prescriptions" | "slots" | "cards" | "policy">;
+
+/** Thrown when the newest record entry isn't the one this process thought: reload it and retry. */
+class StaleHead extends Error {}
+const isStale = (error: unknown) => error instanceof StaleHead || (error as { code?: string })?.code === "23505";
+
+const copy = <T>(value: T): T => structuredClone(value);
 
 export function createPostgresStore(db: SqlDb, seed: Seed = SEED): Store {
   // Tables are created, and the seed loaded into an empty database, on first use (never at
@@ -95,9 +114,13 @@ export function createPostgresStore(db: SqlDb, seed: Seed = SEED): Store {
   let ready: Promise<void> | undefined;
   const ensureReady = () =>
     (ready ??= (async () => {
-      for (const statement of SCHEMA) await db.query(statement);
-      const { rows } = await db.query<{ n: number }>(`select count(*)::int as n from rg_meta`);
-      if (rows[0].n === 0) await db.transaction((q) => loadSeed(q, seed));
+      const { rows } = await db.query<{ n: number }>(
+        `select count(*)::int as n from pg_tables where schemaname = current_schema() and tablename = any($1::text[])`,
+        [TABLES],
+      );
+      if (rows[0].n < TABLES.length) for (const statement of SCHEMA) await db.query(statement);
+      const meta = await db.query<{ n: number }>(`select count(*)::int as n from rg_meta`);
+      if (meta.rows[0].n === 0) await db.transaction((q) => loadSeed(q, seed));
     })().catch((error) => {
       ready = undefined;
       throw error;
@@ -113,21 +136,78 @@ export function createPostgresStore(db: SqlDb, seed: Seed = SEED): Store {
   const docs = async <T>(text: string, params?: unknown[]) => (await q<Doc<T>>(text, params)).rows.map((r) => r.doc);
   const first = async <T>(text: string, params?: unknown[]) => (await docs<T>(text, params))[0];
 
-  async function appendWith(query: Query, input: RecordEntryInput): Promise<RecordEntry> {
-    const meta = (await query<{ now: string }>(`select now from rg_meta where id = 1 for update`)).rows[0];
-    const last = (await query<{ seq: number; hash: string }>(`select seq, doc->>'hash' as hash from rg_record order by seq desc limit 1`)).rows[0];
-    const seq = (last?.seq ?? 0) + 1;
-    const body: Omit<RecordEntry, "hash"> = {
-      ...input,
-      id: `e_${String(seq).padStart(6, "0")}`,
-      seq,
-      at: meta.now,
-      prevHash: last?.hash ?? GENESIS_HASH,
-    };
+  // ----- Process caches, dropped on reset -----
+  let fixed: Promise<Fixed> | undefined;
+  let clock: Promise<string> | undefined;
+  let head: Head | undefined;
+  const forget = () => {
+    fixed = undefined;
+    clock = undefined;
+    head = undefined;
+  };
+  const loadFixed = () =>
+    (fixed ??= (async () => {
+      const { rows } = await q<{ patients: Seed["patients"]; prescriptions: Seed["prescriptions"]; slots: Seed["slots"]; cards: Seed["cards"]; policy: Seed["policy"] }>(
+        `select (select coalesce(jsonb_agg(doc order by pos), '[]') from rg_patients) as patients,
+                (select coalesce(jsonb_agg(doc order by pos), '[]') from rg_prescriptions) as prescriptions,
+                (select coalesce(jsonb_agg(doc order by pos), '[]') from rg_slots) as slots,
+                (select coalesce(jsonb_agg(doc order by pos), '[]') from rg_cards) as cards,
+                (select policy from rg_meta where id = 1) as policy`,
+      );
+      return rows[0];
+    })().catch((error) => {
+      fixed = undefined;
+      throw error;
+    }));
+  const readClock = () =>
+    (clock ??= q<{ now: string }>(`select now from rg_meta where id = 1`)
+      .then((r) => r.rows[0].now)
+      .catch((error) => {
+        clock = undefined;
+        throw error;
+      }));
+
+  // Appends from this process go one at a time, so they never race each other for a seq.
+  let appending: Promise<unknown> = Promise.resolve();
+  const oneAtATime = <T>(fn: () => Promise<T>): Promise<T> => {
+    const run = appending.then(fn, fn);
+    appending = run.catch(() => undefined);
+    return run;
+  };
+
+  const readHead = async (query: Query): Promise<Head> => {
+    const last = (await query<Head>(`select seq, doc->>'hash' as hash from rg_record order by seq desc limit 1`)).rows[0];
+    return last ?? { seq: 0, hash: GENESIS_HASH };
+  };
+
+  /** Insert the next entry in one round trip, only if `from` is still the newest entry. */
+  async function insertEntry(query: Query, input: RecordEntryInput, from: Head, at: string): Promise<RecordEntry> {
+    const seq = from.seq + 1;
+    const body: Omit<RecordEntry, "hash"> = { ...input, id: `e_${String(seq).padStart(6, "0")}`, seq, at, prevHash: from.hash };
     const entry: RecordEntry = { ...body, hash: hashEntry(body) };
-    await query(`insert into rg_record values ($1, $2, $3::jsonb)`, [seq, entry.callId ?? null, json(entry)]);
+    const { rows } = await query<{ seq: number }>(
+      `insert into rg_record select $1::int, $2::text, $3::jsonb
+       where coalesce((select doc->>'hash' from rg_record order by seq desc limit 1), $4) = $5
+       returning seq`,
+      [seq, entry.callId ?? null, json(entry), GENESIS_HASH, from.hash],
+    );
+    if (rows.length === 0) throw new StaleHead();
+    head = { seq, hash: entry.hash };
     return JSON.parse(json(entry));
   }
+
+  /** Runs `attempt` with this process's idea of the chain head, reloading it once if it was stale. */
+  const withHead = <T>(attempt: (from: Head) => Promise<T>): Promise<T> =>
+    oneAtATime(async () => {
+      for (let tries = 0; ; tries++) {
+        try {
+          return await attempt(head ?? (head = await readHead(q)));
+        } catch (error) {
+          head = undefined;
+          if (!isStale(error) || tries >= 2) throw error;
+        }
+      }
+    });
 
   async function lockedItem(query: Query, itemId: string): Promise<QueueItem> {
     const row = (await query<Doc<QueueItem>>(`select doc from rg_queue where id = $1 for update`, [itemId])).rows[0];
@@ -140,19 +220,29 @@ export function createPostgresStore(db: SqlDb, seed: Seed = SEED): Store {
     query(`update rg_queue set lane = $2, doc = $3::jsonb where id = $1`, [item.id, item.lane, json(item)]);
 
   const store: Store = {
-    async now() {
-      return (await q<{ now: string }>(`select now from rg_meta where id = 1`)).rows[0].now;
-    },
+    now: readClock,
     async setNow(now) {
       if (Number.isNaN(Date.parse(now))) throw new Error(`not a time: ${now}`);
+      clock = undefined;
       await q(`update rg_meta set now = $1 where id = 1`, [now]);
+      clock = Promise.resolve(now);
     },
 
-    getPatient: (id) => first(`select doc from rg_patients where id = $1`, [id]),
-    listPatients: () => docs(`select doc from rg_patients order by pos`),
-    getPrescriptions: (patientId) => docs(`select doc from rg_prescriptions where patient_id = $1 order by pos`, [patientId]),
-    getPrescription: (rxId) => first(`select doc from rg_prescriptions where id = $1`, [rxId]),
-    listSlots: () => docs(`select doc from rg_slots order by pos`),
+    async getPatient(id) {
+      return copy((await loadFixed()).patients.find((p) => p.id === id));
+    },
+    async listPatients() {
+      return copy((await loadFixed()).patients);
+    },
+    async getPrescriptions(patientId) {
+      return copy((await loadFixed()).prescriptions.filter((rx) => rx.patientId === patientId));
+    },
+    async getPrescription(rxId) {
+      return copy((await loadFixed()).prescriptions.find((rx) => rx.id === rxId));
+    },
+    async listSlots() {
+      return copy((await loadFixed()).slots);
+    },
     listOrders: (patientId) =>
       docs(`select doc from rg_orders where $1::text is null or patient_id = $1 order by pos`, [patientId ?? null]),
     async saveOrder(order: Order) {
@@ -163,9 +253,11 @@ export function createPostgresStore(db: SqlDb, seed: Seed = SEED): Store {
       );
       return JSON.parse(json(order));
     },
-    listCards: () => docs(`select doc from rg_cards order by pos`),
+    async listCards() {
+      return copy((await loadFixed()).cards);
+    },
     async policy() {
-      return (await q<{ policy: Seed["policy"] }>(`select policy from rg_meta where id = 1`)).rows[0].policy;
+      return copy((await loadFixed()).policy);
     },
 
     getCall: (id) => first(`select doc from rg_calls where id = $1`, [id]),
@@ -174,18 +266,28 @@ export function createPostgresStore(db: SqlDb, seed: Seed = SEED): Store {
       return JSON.parse(json(call));
     },
 
-    appendRecord: (input) => tx((query) => appendWith(query, input)),
+    appendRecord: async (input) => {
+      const at = await readClock();
+      return withHead((from) => insertEntry(q, input, from, at));
+    },
     listRecord: (callId) => docs(`select doc from rg_record where $1::text is null or call_id = $1 order by seq`, [callId ?? null]),
 
-    addQueueItem: (item) =>
-      tx(async (query) => {
-        const meta = (await query<{ now: string; counters: Record<string, number> }>(`select now, counters from rg_meta where id = 1 for update`)).rows[0];
-        const n = (meta.counters.q ?? 0) + 1;
-        await query(`update rg_meta set counters = $1::jsonb where id = 1`, [json({ ...meta.counters, q: n })]);
-        const full: QueueItem = { ...item, id: `q_${String(n).padStart(6, "0")}`, status: "open", createdAt: meta.now };
-        await query(`insert into rg_queue values ($1, $2, $3, $4::jsonb)`, [full.id, n, full.lane, json(full)]);
-        return JSON.parse(json(full));
-      }),
+    // One statement: bump the counter and insert the item, atomically.
+    async addQueueItem(item) {
+      const { rows } = await q<Doc<QueueItem>>(
+        `with m as (
+           update rg_meta set counters = jsonb_set(counters, '{q}', to_jsonb(coalesce((counters->>'q')::int, 0) + 1))
+           where id = 1 returning (counters->>'q')::int as n, now
+         )
+         insert into rg_queue
+         select 'q_' || lpad(m.n::text, 6, '0'), m.n, $2::text,
+                $1::jsonb || jsonb_build_object('id', 'q_' || lpad(m.n::text, 6, '0'), 'status', 'open', 'createdAt', m.now)
+         from m
+         returning doc`,
+        [json(item), item.lane],
+      );
+      return rows[0].doc;
+    },
     queue: (lane) => docs(`select doc from rg_queue where $1::text is null or lane = $1 order by pos`, [lane ?? null]),
     updateQueueItem: (itemId, patch) =>
       tx(async (query) => {
@@ -196,33 +298,47 @@ export function createPostgresStore(db: SqlDb, seed: Seed = SEED): Store {
         await saveItem(query, item);
         return JSON.parse(json(item));
       }),
-    decide: (itemId, decision, approver: Approver, note) =>
-      tx(async (query) => {
-        const item = await lockedItem(query, itemId);
-        const now = (await query<{ now: string }>(`select now from rg_meta where id = 1`)).rows[0].now;
-        item.status = decision === "approve" ? "approved" : "denied";
-        item.decidedBy = approver;
-        item.decidedAt = now;
-        if (note !== undefined) item.decisionNote = note;
-        await saveItem(query, item);
-        if (item.orderId) {
-          const order = (await query<Doc<Order>>(`select doc from rg_orders where id = $1 for update`, [item.orderId])).rows[0];
-          if (order) await query(`update rg_orders set doc = $2::jsonb where id = $1`, [item.orderId, json({ ...order.doc, state: item.status })]);
-        }
-        await appendWith(query, {
-          callId: item.callId,
-          actor: approver.role,
-          kind: "approval",
-          input: { itemId, decision, note, approver },
-          output: { status: item.status, orderId: item.orderId },
-          ruleIds: item.ruleIds,
-          decision: "allowed",
-          lane: item.lane,
-        });
-        return JSON.parse(json(item));
-      }),
+    // The decision and its record entry commit together; a stale chain head rolls both back and
+    // the whole decision is tried again.
+    decide: async (itemId, decision, approver: Approver, note) => {
+      const now = await readClock();
+      return withHead((from) =>
+        tx(async (query) => {
+          const item = await lockedItem(query, itemId);
+          item.status = decision === "approve" ? "approved" : "denied";
+          item.decidedBy = approver;
+          item.decidedAt = now;
+          if (note !== undefined) item.decisionNote = note;
+          await saveItem(query, item);
+          if (item.orderId) {
+            await query(`update rg_orders set doc = jsonb_set(doc, '{state}', to_jsonb($2::text)) where id = $1`, [item.orderId, item.status]);
+          }
+          await insertEntry(
+            query,
+            {
+              callId: item.callId,
+              actor: approver.role,
+              kind: "approval",
+              input: { itemId, decision, note, approver },
+              output: { status: item.status, orderId: item.orderId },
+              ruleIds: item.ruleIds,
+              decision: "allowed",
+              lane: item.lane,
+            },
+            from,
+            now,
+          );
+          return JSON.parse(json(item));
+        }),
+      );
+    },
 
-    reset: (next) => tx((query) => loadSeed(query, next)),
+    reset: (next) =>
+      oneAtATime(async () => {
+        forget();
+        await tx((query) => loadSeed(query, next));
+        forget();
+      }),
   };
   return store;
 }

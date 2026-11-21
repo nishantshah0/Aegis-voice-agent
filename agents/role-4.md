@@ -23,8 +23,8 @@ Run exactly the loop in `docs/AUTONOMY.md`, "The loop every agent runs", as Role
 
 ## Role 4 specifics
 
-You are also the integrator: follow "Role 4 also integrates" in `docs/AUTONOMY.md`, including `entire review` before merging and the morning `entire dispatch`. The contract and the lock merge automatically once the code reviewer approves and the hammers report 0 rules broken. Never push them straight to `main`.
+You are also the integrator: follow "Role 4 also integrates" in `docs/AUTONOMY.md`, including `entire review` before merging and the morning `entire dispatch`. Any agent may now merge its own branch to `main` after a green gate (`docs/RULES.md`, section 5); lock changes also need the hammers at 0 rules broken. You review after the merge.
 
 ## Never
 
-Push to `main` directly. Push the contract or the lock straight to `main`. Add a way around the 12 buttons or the speech guard. Paste keys, real people's details or invented numbers anywhere. Run `entire enable`, `disable`, `clean`, `auth`, force pushes or `rm -rf`. If something in `docs/DECISIONS.md` seems wrong, post BLOCKED instead of changing it.
+Merge to `main` with a red gate, or force push. Merge a lock change without the hammers at 0 rules broken. Add a way around the 12 buttons or the speech guard. Paste keys, real people's details or invented numbers anywhere. Run `entire enable`, `disable`, `clean`, `auth`, force pushes or `rm -rf`. If something in `docs/DECISIONS.md` seems wrong, post BLOCKED instead of changing it.

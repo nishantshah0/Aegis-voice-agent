@@ -105,3 +105,9 @@ export function describePass(p: Pass): string {
   const rules = p.ruleIds.length > 0 ? ` · rule ${p.ruleIds.join(", ")}` : "";
   return `${p.label.replace(/_/g, " ")} → ${DECISION_WORDS[p.decision]}${rules}`;
 }
+
+/** Hijack batches tag hijack_<n>_<card>, stage picks hijack_pick_<n>_<attack> (Trail #14). */
+export const isHijack = (p: Pass): boolean => p.callId.startsWith("hijack_");
+
+/** The newest attempt by a hijacked AI, for the big gate. Never a live call's press. */
+export const latestHijack = (s: StageState): Pass | undefined => s.passes.find(isHijack);

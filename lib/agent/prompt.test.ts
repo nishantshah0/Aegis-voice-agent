@@ -101,6 +101,16 @@ describe("the prompt sets the tone SPEC Part 2 asks for", () => {
     expect(prompt).toMatch(/no lists, headings or formatting/i);
   });
 
+  it("saves completion words for after the button says so", () => {
+    // Channel note to Role 1 after the Trail #27 S4 round: a live "Done." before
+    // an approval is replaced by the guard and sends the refill to Review. The
+    // prompt gives the conditional form instead, so the honest line is the
+    // natural one to say.
+    expect(inbound).toMatch(/already happened/i);
+    expect(inbound).toMatch(/once a button has come back saying so/i);
+    expect(inbound).toMatch(/a pharmacist will approve it, then it's ready/i);
+  });
+
   it("makes the buttons the only way it acts", () => {
     expect(inbound).toMatch(/buttons are how you act/i);
     expect(inbound).toMatch(/one button at a time/i);

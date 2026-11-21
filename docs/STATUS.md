@@ -8,7 +8,7 @@ Write your name and your AI tool next to one role, then tell your agent the role
 
 | Role | Taken by | AI tool | First task |
 |---|---|---|---|
-| 1 · Voice and agent | | | 1.1 prompt and fixed lines |
+| 1 · Voice and agent | Michael (MikeyDigit), with Nishant from 1.2 | Claude Code | 1.1 prompt and fixed lines |
 | 2 · Platform and pharmacist | Nishant | Claude Code | 2.1 API skeleton and event stream |
 | 3 · Red team and evals | | | 3.1 scenario format and first 10 scenarios |
 | 4 · The lock, and integrator | | | 4.2 store and seed, right after task 0 |
@@ -33,17 +33,19 @@ Not doing: Entire's hosted review agents (they need billing). Maybe later: a Git
 
 Role 1 runs from Nishant's machine from 1.2 on (MikeyDigit did 1.1).
 
-- **Doing:** 1.8 handed off (Trail #21, branch `role-1/interrupt-silence`, stacked on 1.6's Trail #20). 1.5 part 2 (ElevenLabs out, pre-recorded fixed lines) waits on the ElevenLabs key and 2.6 hosting; 1.6's real median waits on a live model run.
+- **Doing:** 1.5 part 2 handed off (Trail #49, branch `role-1/elevenlabs-voice`): `createElevenLabsVoice` behind the same `Voice` type, fixed lines pre-recorded once a session, Chrome's voice as the fallback, and `createVoiceOut` to pick between them. 2.6 hosting is merged, so the only thing left for a better voice is the ElevenLabs key; the client and its tests need no key and make no network call. Also in that Trail: the prompt now saves "done", "sent", "approved" and "ready" for after a button returns (channel note to Role 1 after the Trail #27 S4 round). 1.6's real median still waits on a live model run.
 - **Done:** 1.1 prompt and fixed lines (Trail #8). 1.2 typed agent loop: `createAgentDriver` in `lib/agent/driver.ts` (an `AgentDriver`: every caller line through `checkCallerLine` first, streamed text split into sentences and each through `guardSentence`, every tool call a `control.press`, refusals and runaway turns handed over through `escalate`), the 12 buttons as strict tools (`tools.ts`), the sentence splitter, the Claude adapter (`anthropic.ts`, `claude-sonnet-5-5`, automatic tool choice, server-side fallback on refusal), and a scripted model for tests. Sam's typed call passes on the real lock and on the fakes. 1.3: `driver.opening` (fixed greeting, or outbound opener then `send_code`), `driver.joinCall` for the daily check's calls, the side-effect question after a refill (`read_label`, then `sideEffectQuestion`), and the answer as a `note_for_pharmacist` side-effect note in Review. Trail #8's 3 review findings fixed (wrong-person line, refill-sync wording, every fixed line tested on the real guard). 1.4: `/phone` (ring and Answer, code text, transcript with blocked lines struck through and labelled, typed box, status), a pure reducer in `app/phone/state.ts` fed only by `/api/events`. 1.5 part 1: `lib/voice` (numbers as words after the guard, end of turn after 600 ms of silence, Chrome speech in with the mic off while the agent speaks, hold-to-talk, Chrome voice out) and a voice bar on the phone. 1.6: `driver.turnTimings(callId)` (first model text and first guarded sentence per caller line) and the phone's median turn time against the 1.2 s target. 1.8: tap to interrupt, and `driver.checkIn` ("Are you still there? Take your time.") after 8 s of silence.
 - **Blocked:** a live call needs `ANTHROPIC_API_KEY` in the server's `.env` (a human sets it). Tests need no key.
-- **Needs from others:** Role 4: ok for `@anthropic-ai/sdk` in `package.json`; a way for the model to get a prescription's `rx_id` on an inbound call (no button returns one); the label side-effect question from 1.1; S4 blocks SPEC's own outbound line "runs out Friday"; a side-effect note after the refill leaves the refill in Quick check (SPEC says Review). Role 2: wire `createAgentDriver` into `app/api/_lib/runtime.ts`, and add `POST /api/call/:id/answer`, `GET /api/call/:id/code`, `POST /api/call/:id/end` for the phone (REQUEST on the channel).
+- **Needs from others:** Role 2: a TTS proxy route holding the ElevenLabs key — `POST /api/voice/clip {"text"}` → audio bytes, non-200 falls back to Chrome (REQUEST on the channel; `app/api/` is Role 2's folder, so 1.5 part 2 cannot finish without it).
+  Role 4: still open — the label side-effect question from 1.1 (every seeded `labelText` holds directions only, so nothing can be quoted).
+  Four earlier asks are now resolved on `main`, checked before striking them: `@anthropic-ai/sdk` is in `package.json` (1.12.0); `lookup_patient` returns `prescriptions: { rx_id, drug }[]`, so an inbound call has an `rx_id`; S4 computes the real run-out weekday (`runOutDay` in `lib/guard/speech.ts`), so SPEC's "runs out Friday" passes; and a side-effect note puts the refill in Review (`lib/control/engine.test.ts`).
 
 ## Role 2 · Platform and pharmacist
 
-- **Doing:** 2.8 handed off (Trail #12, branch `role-2/quick-check`, stacked on #10, #9, #7). Waiting on merges and on the humans for hosting (2.6) and the database (2.7).
-- **Done:** 2.1 and the contract switch (merged). 2.5 decided: no phone push. 2.4 Auth0 sign-in and Approve/Deny (Trail #7). 2.2 demo reset and daily check (Trail #9). 2.3 Today view (Trail #10). 2.8 one-tap Quick check, and `GET /api/calls/:id/record` (Trail #12).
-- **Blocked:** 2.6 hosting and 2.7 Postgres: parked by Nishant until the accounts are sorted.
-- **Needs from others:** Role 1: the real AgentDriver for `app/api/_lib/runtime.ts`. Role 4: merge #7, #9, #10, #12 in order; answer the triage REQUEST about Sam's refill lane.
+- **Doing:** waiting on merges: Trail #44 (2.9a Upcoming), #50 (2.9b Calls, after #44), #47 (voice route), #53 (S3/S4 originals on hijack cards for the stage), #54 (2.7 Tiger Data round trips: reset 2.3-4.4 s to 0.5 s, Sam's call store time 3.9 s to 1.5 s).
+- **Done:** 2.1 API and events. 2.2 demo reset and daily check. 2.3 Today. 2.4 Auth0 sign-in and Approve/Deny. 2.5 decided: no phone push. 2.6 deploy kit (Vultr + Caddy). 2.7 Postgres store on Tiger Data. 2.8 Quick check and the call record route.
+- **Blocked:** 2.6 going live needs the Vultr server and the domain from a human. ElevenLabs needs a rotated key and ELEVENLABS_VOICE_ID in `.env`.
+- **Needs from others:** Role 4: merge #44 before #50, then #47, #53, #54. Role 1: send the phone token from createClipFetcher to `/api/call/:id/speak`.
 
 ## Role 3 · Red team and evals
 
@@ -55,6 +57,7 @@ Role 1 runs from Nishant's machine from 1.2 on (MikeyDigit did 1.1).
 ## Role 4 · The lock
 
 - **Doing:** integration (4.7) while 4.3 to 4.5 wait on a HUMAN ok; then 4.6 stage view
+- **Done (covering, Trail #45):** 4.6 hijack screen on `/stage` (`role-4/hijack-screen`): four attack cards, a "Make it try…" box, a slow gate with rule chips, and Run batch. One picked attack runs through the real lock on its own store (`POST /stage/attack`, tagged `hijack_pick_<n>_<attack>`), and its record is saved under `results/hijack/pick-*/`.
 - **Done:** 4.5 hammers on `role-4/hammers`: depth 3 (40,878 sequences) and 10,000 random, 0 rules broken (results/hammer-latest.json). 4.4 guard on `role-4/guard` (waits on a HUMAN ok): `lib/guard`, 39 tests. 4.3 control layer on `role-4/control` (waits on a HUMAN ok): `lib/control`, 77 tests. 4.2 in-memory store (`lib/store/memory.ts`, `getStore()`, sha256 hash chain, `findBrokenLink`) and seed (`lib/seed`, 8 patients, `IDS`). Task 0 contract (`lib/contract/`). Task 0 setup: README, `docs/SPEC.md`, `docs/DESIGN.md`, `AGENTS.md`, the Next.js app, the GitHub coordination setup (issue templates, pull request template, release gate workflow), Entire (capture, Graph, Brain seeded with our rules, `docs/ENTIRE.md`)
 - **Blocked:** Entire Trails aren't visible from PS12007, so no Trails for Role 4 yet
 - **Needs from others:** everyone: install Entire and run `entire login` (see `docs/ENTIRE.md`). Entire's repo onboarding, Trails and shared Brain are already set up.

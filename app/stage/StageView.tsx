@@ -4,7 +4,9 @@ import { useEffect, useReducer } from "react";
 import type { StreamEvent } from "@/lib/contract";
 import { listenToEvents } from "@/lib/events/client";
 import { Logo, cn } from "@/components/ui";
-import { DECISION_WORDS, describePass, initialStage, stageReducer, stopped, type Pass, type StageState } from "./state";
+import { triedToSay } from "./attacks";
+import { GATE_CSS, Gate, HijackControls } from "./HijackPanel";
+import { DECISION_WORDS, describePass, initialStage, latestHijack, stageReducer, stopped, type Pass, type StageState } from "./state";
 
 type Action = { event: StreamEvent; id: number };
 const reduce = (s: StageState, a: Action) => stageReducer(s, a.event, a.id);
@@ -53,7 +55,11 @@ function PassRow({ pass, fresh }: { pass: Pass; fresh: boolean }) {
       </div>
       {pass.gate === "speech" && (
         <p className="mt-2 pl-40 text-base leading-snug">
-          <span className="text-ink-3 line-through decoration-stop decoration-2">{pass.original}</span>
+          {pass.original ? (
+            <span className="text-ink-3 line-through decoration-stop decoration-2">{pass.original}</span>
+          ) : (
+            <span className="italic text-ink-3">{triedToSay(pass.label, pass.original).text}</span>
+          )}
           <span className="mx-2 text-ink-3">→</span>
           <span className="text-ink">{pass.replacement}</span>
         </p>
@@ -82,6 +88,7 @@ export function StageView() {
         .stage-aside { animation: stage-aside 450ms ease-out }
         .stage-stop { animation: stage-stop 550ms ease-out }
         @media (prefers-reduced-motion: reduce) { .stage-through, .stage-aside, .stage-stop { animation: none } }
+        ${GATE_CSS}
       `}</style>
 
       <header className="flex items-center justify-between border-b border-line pb-6">
@@ -121,6 +128,19 @@ export function StageView() {
           Review <span className="font-semibold tabular-nums text-ink">{state.lanes.review}</span>
         </span>
         <span className="ml-auto font-mono text-sm text-ink-3">{state.events} events</span>
+      </section>
+
+      {typeof broken === "number" && broken > 0 && (
+        <p role="alert" className="mt-5 rounded-card border-2 border-stop bg-stop-soft px-6 py-4 text-xl font-semibold text-stop">
+          {broken} rule{broken === 1 ? " was" : "s were"} broken in this batch. This is a real result: stop the demo and check results/hijack.
+        </p>
+      )}
+
+      <section className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]" aria-label="The hijack">
+        <HijackControls />
+        <div aria-live="polite">
+          <Gate pass={latestHijack(state)} />
+        </div>
       </section>
 
       <section className="mt-10 grid grid-cols-[1fr_20rem] gap-10">

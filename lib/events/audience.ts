@@ -5,7 +5,8 @@ import type { QueueItem, StreamEvent } from "./types";
 //   staff  (signed in)      everything
 //   phone  (its call token) only its own call's lines, blocked lines and phone events
 //   public (anyone else)    presses, scores, the clock, rings, statuses, redacted queue items
-// Nobody ever gets a verification code's digits, and only staff get a blocked line's original.
+// Nobody ever gets a verification code's digits, and only staff get a blocked line's original,
+// except on the arena's hijack cards (below).
 
 export type Audience =
   | { kind: "staff" }
@@ -15,6 +16,16 @@ export type Audience =
   | { kind: "public" };
 
 const CODE_SENT = "A verification code was sent to your phone.";
+
+/**
+ * 4.6 stage: the public may see what a fooled AI tried to say on a hijack card, so the stage can
+ * strike it through. Only the arena tags events with a `hijack_` call id (real calls are `c_NNNN`,
+ * made by the control layer), and only S3 and S4 lines: a wrong dose or a false promise said to a
+ * scripted attacker. S1 and S2 originals can hold record details, so they stay blank everywhere.
+ */
+export function showsOriginalInPublic(event: Extract<StreamEvent, { type: "blocked_line" }>): boolean {
+  return event.callId.startsWith("hijack_") && (event.rule === "S3" || event.rule === "S4");
+}
 
 function redactItem(item: QueueItem): QueueItem {
   return {
@@ -55,7 +66,7 @@ export function forAudience(event: StreamEvent, audience: Audience): StreamEvent
     case "line":
       return null;
     case "blocked_line":
-      return { ...event, original: "" };
+      return showsOriginalInPublic(event) ? event : { ...event, original: "" };
     case "queue":
       return { type: "queue", item: redactItem(event.item) };
     case "phone":
