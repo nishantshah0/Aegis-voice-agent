@@ -32,7 +32,7 @@ export function EventFeed() {
         <button
           type="button"
           onClick={sendClockEvent}
-          className="rounded border border-neutral-300 px-3 py-1.5 text-sm hover:bg-neutral-100"
+          className="rounded border border-neutral-400 px-3 py-1.5 text-sm hover:opacity-75"
         >
           Set demo clock to now
         </button>
