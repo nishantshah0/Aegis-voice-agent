@@ -44,6 +44,12 @@ const FALSE_APPROVALS = [
   "Nothing is pending it's approved.",
   "When I checked it was approved.",
   "After all that it's approved.",
+  // Past tense, double negatives and tautologies (second re-review).
+  "After the pharmacist approved it, it's ready.",
+  "When the pharmacist approved it, it was delivered.",
+  "Once the pharmacist approved it, it shipped and it's on its way.",
+  "There's no way it isn't approved.",
+  "It's approved when it's approved.",
 ];
 
 const HONEST = [
@@ -60,6 +66,8 @@ const HONEST = [
   "It won't be ready until a pharmacist approves it.",
   "As soon as your refill is approved, I'll text you.",
   "Once it's approved it's ready for pickup.",
+  "After it's been approved, it'll be on its way.",
+  "It'll be filled once the pharmacist approves it.",
 ];
 
 describe("S4: a conditional only excuses its own clause", () => {
