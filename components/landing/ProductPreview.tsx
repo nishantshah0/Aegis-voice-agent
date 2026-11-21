@@ -15,7 +15,7 @@ function Bubble({ who, children }: { who: "agent" | "caller"; children: React.Re
 
 function CallCard() {
   return (
-    <div className="theme-dark w-[19rem] overflow-hidden rounded-[2rem] border border-line bg-canvas text-ink shadow-[0_30px_80px_-30px_rgb(0_0_0/0.55)]">
+    <div className="theme-dark w-[19rem] max-w-full overflow-hidden rounded-[2rem] border border-line bg-canvas text-ink shadow-[0_30px_80px_-30px_rgb(0_0_0/0.55)]">
       <div className="flex items-center justify-between px-5 pt-5">
         <div>
           <p className="text-[13px] font-semibold">Maple Street Pharmacy</p>
@@ -41,7 +41,7 @@ function CallCard() {
 
 function ReviewCard() {
   return (
-    <div className="w-[26rem] max-w-full rounded-card border border-line bg-surface p-5 shadow-card">
+    <div className="w-full sm:w-[26rem] rounded-card border border-line bg-surface p-5 shadow-card">
       <div className="flex items-center justify-between">
         <p className="text-sm font-semibold tracking-[-0.01em]">Waiting for a pharmacist</p>
         <span className="font-mono text-[11px] text-ink-3">Today</span>
@@ -78,10 +78,10 @@ function ReviewCard() {
 export function ProductPreview() {
   return (
     <div className="relative mx-auto flex w-full max-w-[34rem] flex-col items-center gap-5 sm:block sm:h-[32rem]" aria-label="The patient's call screen and the pharmacist's Review lane" role="img">
-      <div className="sm:absolute sm:right-0 sm:top-0 rg-rise rg-rise-2">
+      <div className="w-full sm:absolute sm:right-0 sm:top-0 sm:w-auto rg-rise rg-rise-2">
         <ReviewCard />
       </div>
-      <div className="sm:absolute sm:bottom-0 sm:left-0 rg-rise rg-rise-3">
+      <div className="flex w-full justify-center sm:absolute sm:bottom-0 sm:left-0 sm:block sm:w-auto rg-rise rg-rise-3">
         <CallCard />
       </div>
     </div>
