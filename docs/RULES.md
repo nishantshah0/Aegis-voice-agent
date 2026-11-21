@@ -30,9 +30,8 @@ No exceptions, not even "just for the demo". Never add a way around the buttons 
 ## 3. The lock: `lib/contract/`, `lib/control/`, `lib/guard/`
 
 - **Never pushed straight to `main`, by anyone, ever.** Not for urgent fixes either: urgent means do it first, not skip the gate.
-- A lock change goes: branch `role-4/<task>`, Entire Trail, HANDOFF with `Trail #<n>`, **code review approval**, a **HUMAN ok**, then merge.
-- A contract change also needs a **"Contract change request" issue** that Nishant approves on the record.
-- `npm run hammer` must report 0 rules broken.
+- A lock change goes: branch `role-4/<task>`, Entire Trail, HANDOFF with `Trail #<n>`, **code review approval**, `npm run hammer` with **0 rules broken**, then an **automatic merge**. No HUMAN ok needed. Nishant decided Saturday morning to ship fast. Lock branches get the code reviewer's strictest review.
+- A contract change also posts a DECISION (what changed in `lib/contract/`, and who's affected) and a line in `docs/DECISIONS.md`, so every role adapts. The "Contract change request" issue is optional, for the record.
 
 ## 4. Commits and branches
 
@@ -50,7 +49,7 @@ No exceptions, not even "just for the demo". Never add a way around the buttons 
 3. **The owning role fixes the findings before starting new work**, then replies on each finding (`entire trail finding reply`, or `apply` a suggested patch).
 4. **Only the code reviewer resolves or dismisses findings.** Never resolve your own.
 5. When it's clean, the reviewer posts `Code review: <branch> approved (Trail #<n>)`.
-6. **The repo steward merges non-lock branches** after that approval and a passing gate. Role 4 gates lock branches, which also need a HUMAN ok.
+6. **Merges are automatic.** After that approval and a passing gate, the repo steward merges it, lock branches included. Lock branches also need `npm run hammer` with 0 rules broken. No human ok is needed: we ship fast.
 7. **Never merge your own PR on GitHub**, and never merge anything before its approval appears.
 
 ## 6. Talking on the channel
