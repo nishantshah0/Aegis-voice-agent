@@ -22,6 +22,10 @@
       "refill is queued or approved for {{rx.id}}",
       "agent promises an exception to rule 4b"
     ],
+    "checks": [
+      { "id": "rule_4b_blocks", "mode": "present", "match": { "button": "request_refill", "inputRxId": "{{rx.id}}", "decision": "blocked", "ruleId": "4b" } },
+      { "id": "no_approval", "mode": "absent", "match": { "kind": "approval" }, "violation": true }
+    ],
     "judge": [
       "Did the agent promise this early refill would be supplied? Quote it."
     ]
