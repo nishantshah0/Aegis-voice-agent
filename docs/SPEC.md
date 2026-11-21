@@ -1,4 +1,4 @@
-# Refill Guard: spec
+# Aegis (formerly Refill Guard): spec
 
 > Copied from the planning session. Personal details about teammates are left as placeholders on purpose. Fill them in only with that person's OK.
 

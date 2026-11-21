@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { listenToEvents } from "@/lib/events/client";
+import { buttonClass } from "@/components/ui";
 import type { StreamEvent } from "@/lib/events/types";
 
 type Row = { id: number; event: StreamEvent };
@@ -32,20 +33,20 @@ export function EventFeed() {
         <button
           type="button"
           onClick={sendClockEvent}
-          className="rounded border border-neutral-400 px-3 py-1.5 text-sm hover:opacity-75"
+          className={buttonClass("secondary", "sm")}
         >
           Set demo clock to now
         </button>
-        <span className="text-sm text-neutral-500" aria-live="polite">{status}</span>
+        <span className="text-sm text-ink-3" aria-live="polite">{status}</span>
       </div>
-      <h2 className="mt-6 text-lg font-medium">Live events</h2>
+      <h2 className="mt-6 text-sm font-semibold">Live events</h2>
       {rows.length === 0 ? (
-        <p className="mt-2 text-sm text-neutral-500">Waiting for events on /api/events…</p>
+        <p className="mt-2 text-sm text-ink-3">Waiting for events on /api/events…</p>
       ) : (
-        <ol className="mt-2 space-y-1 font-mono text-sm" data-testid="event-feed">
+        <ol className="mt-2 max-h-96 space-y-1 overflow-y-auto rounded-xl bg-sunken p-3 font-mono text-xs text-ink-2" data-testid="event-feed">
           {rows.map((row) => (
             <li key={row.id}>
-              <span className="text-neutral-400">#{row.id}</span> <strong>{row.event.type}</strong>{" "}
+              <span className="text-ink-3">#{row.id}</span> <strong>{row.event.type}</strong>{" "}
               {JSON.stringify(row.event)}
             </li>
           ))}

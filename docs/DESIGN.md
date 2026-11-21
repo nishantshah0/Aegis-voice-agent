@@ -1,4 +1,4 @@
-# Refill Guard: design
+# Aegis (formerly Refill Guard): design
 
 How the system is split into parts, who owns each part, and exactly where the parts meet. `docs/SPEC.md` says *what* to build. This file says *how the pieces fit*, so four people and their AI tools can build in parallel without breaking each other.
 
