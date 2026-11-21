@@ -8,7 +8,7 @@ import { GET as getClock, POST as setClock } from "./clock/route";
 import { POST as startCall } from "./call/start/route";
 import { POST as say } from "./call/[id]/say/route";
 import { POST as decide } from "./queue/[id]/decide/route";
-import { POST as reset } from "./demo/reset/route";
+import { GET as gateLatest } from "./gate/latest/route";
 
 // connection() only works inside a real Next request; outside one it throws.
 vi.mock("next/server", async (importOriginal) => ({
@@ -45,6 +45,7 @@ const params = (id: string) => ({ params: Promise.resolve({ id }) });
 
 describe("/api/clock", () => {
   it("sets the store's clock, keeps the offset, and emits a clock event", async () => {
+    session.approver = REVIEWER;
     const got: Delivered[] = [];
     subscribe((d) => got.push(d));
     const res = await setClock(post({ now: "2026-01-06T10:00:00-05:00" }));
@@ -54,7 +55,12 @@ describe("/api/clock", () => {
     expect(await (await getClock()).json()).toEqual({ now: "2026-01-06T10:00:00-05:00" });
   });
 
+  it("refuses to move the clock for someone not signed in (unless demo controls are on)", async () => {
+    expect((await setClock(post({ now: "2026-01-06T10:00:00-05:00" }))).status).toBe(401);
+  });
+
   it("rejects a missing or bad time", async () => {
+    session.approver = REVIEWER;
     expect((await setClock(post({ now: "not a date" }))).status).toBe(400);
     expect((await setClock(post({}))).status).toBe(400);
     expect((await setClock(post("not json"))).status).toBe(400);
@@ -77,10 +83,12 @@ describe("calls", () => {
     expect(Array.isArray(body.events)).toBe(true);
   });
 
-  it("rejects a bad direction, an unknown call and an empty line", async () => {
+  it("rejects a bad direction, an outbound start, an unknown call and an empty line", async () => {
     expect((await startCall(post({ direction: "sideways" }))).status).toBe(400);
+    // Outbound calls only start from the daily check, through rule 7.
+    expect((await startCall(post({ direction: "outbound", patientId: "p_sam" }))).status).toBe(400);
     expect((await say(post({ text: "hi" }), params("call_missing"))).status).toBe(404);
-    const { callId } = (await (await startCall(post({ direction: "outbound" }))).json()) as CallStartResponse;
+    const { callId } = (await (await startCall(post({ direction: "inbound" }))).json()) as CallStartResponse;
     expect((await say(post({ text: "   " }), params(callId))).status).toBe(400);
   });
 });
@@ -136,8 +144,8 @@ describe("POST /api/queue/:id/decide", () => {
 
 describe("endpoints for later tasks", () => {
   it("say which task builds them", async () => {
-    const res = await reset();
+    const res = await gateLatest();
     expect(res.status).toBe(501);
-    expect((await res.json()).error).toMatch(/task 2\.2/);
+    expect((await res.json()).error).toMatch(/Role 4/);
   });
 });
