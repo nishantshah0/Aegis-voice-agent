@@ -28,7 +28,7 @@ const PRICE = /\$\s?\d+(?:\.\d{2})?/g;
 type Check = { rule: SpeechRule; why: string } | null;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-const RUN_OUT = /(runs out|run out|running out|will run out|is due|are due|last until|lasts until|will last)/;
+const RUN_OUT = /\b(runs out|run out|running out|will run out|is due|are due|last until|lasts until|will last)\b/;
 
 /** The weekday (lowercase, pharmacy time) a supply runs out: last fill + days supplied. */
 export function runOutDay(lastFill: string, daysSupplied: number, timeZone = "America/Toronto"): string {
