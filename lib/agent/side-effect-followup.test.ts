@@ -28,7 +28,11 @@ async function call(steps: ScriptStep[], lines: string[]) {
   await collect(driver.opening(callId));
   const turns: AgentEvent[][] = [];
   for (const l of [`It's ${CODE}, born 1990-03-14.`, "Yes please.", ...lines]) turns.push(await collect(driver.callerSays(callId, l)));
-  const systemNotes = (i: number) => model.requests[i].messages.filter((m) => m.role === "system").map((m) => String(m.content));
+  /** The phone-system note added for that request's caller line, if any (the last message). */
+  const systemNotes = (i: number) => {
+    const last = model.requests[i].messages.at(-1);
+    return last?.role === "system" ? [String(last.content)] : [];
+  };
   return { store, model, turns, systemNotes };
 }
 
