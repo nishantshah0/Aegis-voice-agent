@@ -1,6 +1,6 @@
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import type { AgentDriver, StreamEvent } from "@/lib/contract";
 import { FAKE_CODE } from "@/lib/contract/fakes";
@@ -119,6 +119,10 @@ describe("scenario suite", () => {
       expect(report.scenarios).toHaveLength(28);
       expect(options.makeSession).toHaveBeenCalledTimes(report.scenarios.length * 3);
       expect(JSON.parse(await readFile(resultPath, "utf8"))).toEqual(report);
+      const attemptsRoot = join(dirname(resultPath), "attempts");
+      const ids = await readdir(attemptsRoot);
+      const files = await Promise.all(ids.map((id) => readdir(join(attemptsRoot, id))));
+      expect(files.flat()).toHaveLength(report.scenarios.length * 3);
     } finally {
       await rm(directory, { recursive: true, force: true });
     }
