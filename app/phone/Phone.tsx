@@ -8,6 +8,7 @@ import { TURN_TARGET_MS, createPhoneTiming } from "@/lib/voice/timing";
 import { phoneApi } from "./api";
 import { RULE_LABEL, initialPhone, phoneListener, phoneReducer, type PhoneState, type TranscriptItem } from "./state";
 import { useVoice } from "./useVoice";
+import { Mark } from "@/components/ui";
 
 // The patient's phone (task 1.4). Everything on screen comes from /api/events;
 // the buttons only start things on the server.
@@ -124,7 +125,7 @@ export function Phone() {
   }
 
   return (
-    <div className="mx-auto flex h-[44rem] w-full max-w-sm flex-col overflow-hidden rounded-[2.5rem] border-8 border-neutral-900 bg-white shadow-xl dark:bg-neutral-950">
+    <div className="theme-dark relative mx-auto flex h-[100dvh] w-full max-w-[24rem] flex-col overflow-hidden bg-canvas text-ink sm:h-[50rem] sm:rounded-[3rem] sm:border sm:border-line-strong sm:shadow-[0_40px_100px_-40px_rgb(0_0_0/0.7),0_0_0_10px_#050605]">
       <StatusBar state={state} />
       {state.message && state.mode === "in_call" && <CodeMessage message={state.message} code={state.code} />}
       <div className="flex min-h-0 flex-1 flex-col">
@@ -146,7 +147,7 @@ export function Phone() {
               onHoldUp={voice.holdUp}
               onInterrupt={voice.interrupt}
             />
-            <form onSubmit={send} className="flex gap-2 border-t border-neutral-200 p-3 dark:border-neutral-800">
+            <form onSubmit={send} className="flex items-center gap-2 px-4 pb-3 pt-2">
               <label htmlFor="say" className="sr-only">
                 What you say
               </label>
@@ -156,21 +157,30 @@ export function Phone() {
                 onChange={(e) => setDraft(e.target.value)}
                 placeholder="Type what you'd say…"
                 autoComplete="off"
-                className="min-w-0 flex-1 rounded-full border border-neutral-300 px-4 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+                className="h-11 min-w-0 flex-1 rounded-full border border-line bg-surface px-4 text-[15px] text-ink placeholder:text-ink-3 focus:border-accent focus:outline-none"
               />
-              <button type="submit" disabled={busy || !draft.trim()} className="rounded-full bg-blue-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-40">
+              <button type="submit" disabled={busy || !draft.trim()} className="h-11 cursor-pointer rounded-full bg-accent px-5 text-sm font-semibold text-ink-inverse transition-opacity disabled:opacity-35">
                 Send
               </button>
             </form>
-            <button type="button" onClick={hangUp} className="mx-auto mb-4 rounded-full bg-red-600 px-6 py-2 text-sm font-medium text-white">
-              Hang up
-            </button>
+            <div className="flex justify-center pb-6 pt-2">
+              <button
+                type="button"
+                onClick={hangUp}
+                className="flex cursor-pointer flex-col items-center gap-1.5 text-xs font-medium text-ink-2 transition-transform active:scale-95"
+              >
+                <span className="flex size-16 items-center justify-center rounded-full bg-[#ff3b30] text-white" aria-hidden>
+                  <PhoneIcon className="size-7 rotate-[135deg]" />
+                </span>
+                Hang up
+              </button>
+            </div>
           </>
         )}
       </div>
       <TurnTime medianMs={medianMs} />
       {state.problem && (
-        <p role="alert" className="bg-amber-100 px-4 py-2 text-center text-sm text-amber-900">
+        <p role="alert" className="bg-quick-soft px-4 py-2.5 text-center text-sm text-quick">
           {state.problem}
         </p>
       )}
@@ -192,25 +202,30 @@ type VoiceBarProps = {
 
 export function VoiceBar({ on, mode, hearing, speaking, onToggle, onMode, onHoldDown, onHoldUp, onInterrupt }: VoiceBarProps) {
   return (
-    <div className="border-t border-neutral-200 px-3 pt-2 text-sm dark:border-neutral-800">
+    <div className="px-4 pt-3 text-sm">
       <div className="flex items-center justify-between gap-2">
-        <button type="button" aria-pressed={on} onClick={onToggle} className={`rounded-full px-3 py-1 ${on ? "bg-green-600 text-white" : "border border-neutral-300 dark:border-neutral-700"}`}>
+        <button
+          type="button"
+          aria-pressed={on}
+          onClick={onToggle}
+          className={`inline-flex h-9 cursor-pointer items-center gap-2 rounded-full px-4 font-medium transition-colors ${on ? "bg-accent text-ink-inverse" : "border border-line-strong text-ink hover:border-ink-3"}`}
+        >
           {on ? "Voice on" : "Use voice"}
         </button>
         {on && (
-          <label className="flex items-center gap-1 text-xs text-neutral-600 dark:text-neutral-400">
-            <input type="checkbox" checked={mode === "hold"} onChange={(e) => onMode(e.target.checked ? "hold" : "open")} />
+          <label className="flex cursor-pointer items-center gap-2 text-xs text-ink-2">
+            <input type="checkbox" className="size-4 accent-[var(--rg-accent)]" checked={mode === "hold"} onChange={(e) => onMode(e.target.checked ? "hold" : "open")} />
             Hold to talk
           </label>
         )}
       </div>
       {on && (
-        <p aria-live="polite" className="mt-1 min-h-5 text-xs text-neutral-500">
+        <p aria-live="polite" className="mt-2 min-h-5 text-xs text-ink-3">
           {speaking ? "Pharmacy speaking…" : hearing ? `Hearing: ${hearing}` : mode === "hold" ? "Hold the button and talk." : "Listening…"}
         </p>
       )}
       {on && speaking && onInterrupt && (
-        <button type="button" onClick={onInterrupt} className="mt-1 w-full rounded-xl bg-amber-500 py-4 text-base font-semibold text-white">
+        <button type="button" onClick={onInterrupt} className="mt-2 w-full cursor-pointer rounded-2xl bg-quick py-4 text-base font-semibold text-ink-inverse">
           Tap to interrupt
         </button>
       )}
@@ -221,7 +236,7 @@ export function VoiceBar({ on, mode, hearing, speaking, onToggle, onMode, onHold
           onPointerUp={onHoldUp}
           onPointerLeave={onHoldUp}
           disabled={speaking}
-          className="mt-1 w-full select-none rounded-xl bg-blue-600 py-3 font-medium text-white disabled:opacity-40"
+          className="mt-2 w-full cursor-pointer select-none rounded-2xl bg-accent py-3.5 font-semibold text-ink-inverse active:scale-[0.99] disabled:opacity-40"
         >
           Hold to talk
         </button>
@@ -235,7 +250,7 @@ export function TurnTime({ medianMs }: { medianMs?: number }) {
   if (medianMs === undefined) return null;
   const fast = medianMs <= TURN_TARGET_MS;
   return (
-    <p data-testid="turn-time" className={`px-4 pb-2 text-center text-xs ${fast ? "text-green-700" : "text-amber-700"}`}>
+    <p data-testid="turn-time" className={`mx-auto mb-3 w-fit rounded-full bg-[#f3f3ef] px-3 py-1 text-center font-mono text-[11px] ${fast ? "text-green-700" : "text-amber-700"}`}>
       Median turn {(medianMs / 1000).toFixed(2)} s (target {(TURN_TARGET_MS / 1000).toFixed(1)} s)
     </p>
   );
@@ -244,10 +259,16 @@ export function TurnTime({ medianMs }: { medianMs?: number }) {
 function StatusBar({ state }: { state: PhoneState }) {
   const label = state.mode === "in_call" ? "On a call" : state.mode === "ringing" ? "Incoming call" : state.mode === "dialling" ? "Calling…" : "Phone";
   return (
-    <div className="border-b border-neutral-200 px-5 pb-2 pt-4 dark:border-neutral-800">
-      <p className="text-xs text-neutral-500">{label}</p>
+    <div className="px-5 pb-2 pt-5">
+      <div className="flex items-center justify-between">
+        <p className="flex items-center gap-2 text-[13px] font-medium text-ink-2">
+          {state.mode === "in_call" && <span className="size-2 rounded-full bg-accent" aria-hidden />}
+          {label}
+        </p>
+        <Mark className="size-4 opacity-80" />
+      </div>
       {state.status && (
-        <p data-testid="phone-status" aria-live="polite" className="mt-1 rounded-lg bg-green-100 px-3 py-1.5 text-sm font-medium text-green-900">
+        <p data-testid="phone-status" aria-live="polite" className="mt-3 rounded-2xl bg-accent-soft px-4 py-2.5 text-sm font-semibold text-accent">
           {state.status}
         </p>
       )}
@@ -257,21 +278,51 @@ function StatusBar({ state }: { state: PhoneState }) {
 
 function CodeMessage({ message, code }: { message: string; code?: string }) {
   return (
-    <div data-testid="phone-code" aria-live="polite" className="mx-3 mt-3 rounded-xl bg-neutral-100 px-4 py-3 text-sm dark:bg-neutral-800">
-      <p className="text-xs font-medium text-neutral-500">Message · Pharmacy</p>
-      <p className="mt-1">{message}</p>
-      {code && !message.includes(code) && <p className="mt-1 font-mono text-2xl tracking-widest">{code}</p>}
+    <div data-testid="phone-code" aria-live="polite" className="mx-4 mt-2 rounded-2xl border border-line bg-surface px-4 py-3 text-sm shadow-card">
+      <p className="text-xs font-medium text-ink-3">Message · Pharmacy</p>
+      <p className="mt-1 text-ink">{message}</p>
+      {code && !message.includes(code) && <p className="mt-1.5 font-mono text-3xl font-semibold tracking-[0.3em] text-ink">{code}</p>}
     </div>
+  );
+}
+
+function Avatar({ ringing = false }: { ringing?: boolean }) {
+  return (
+    <span className={`flex size-24 items-center justify-center rounded-full bg-surface ${ringing ? "rg-ring" : ""}`} aria-hidden>
+      <Mark className="size-12" />
+    </span>
+  );
+}
+
+function PhoneIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} aria-hidden>
+      <path
+        fill="currentColor"
+        d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.6a1 1 0 0 1-.25 1l-2.22 2.2Z"
+      />
+    </svg>
   );
 }
 
 function Ringing({ text, onAnswer, busy }: { text?: string; onAnswer: () => void; busy: boolean }) {
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-8 p-6 text-center">
-      <p className="text-2xl font-semibold" aria-live="assertive">
-        {text ?? "Incoming call"}
-      </p>
-      <button type="button" onClick={onAnswer} disabled={busy} className="h-20 w-20 animate-pulse rounded-full bg-green-600 text-base font-semibold text-white disabled:opacity-40">
+    <div className="flex flex-1 flex-col items-center justify-between px-6 pb-14 pt-16 text-center">
+      <div className="flex flex-col items-center gap-6">
+        <Avatar ringing />
+        <p className="text-[1.75rem] font-semibold leading-tight tracking-[-0.02em]" aria-live="assertive">
+          {text ?? "Incoming call"}
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={onAnswer}
+        disabled={busy}
+        className="flex cursor-pointer flex-col items-center gap-2 text-sm font-medium text-ink-2 transition-transform active:scale-95 disabled:opacity-40"
+      >
+        <span className="flex size-20 items-center justify-center rounded-full bg-[#30d158] text-white" aria-hidden>
+          <PhoneIcon className="size-9" />
+        </span>
         Answer
       </button>
     </div>
@@ -280,9 +331,15 @@ function Ringing({ text, onAnswer, busy }: { text?: string; onAnswer: () => void
 
 function Idle({ ended, onDial, busy }: { ended: boolean; onDial: () => void; busy: boolean }) {
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-4 p-6 text-center">
-      <p className="text-neutral-500">{ended ? "Call ended." : "Waiting for the pharmacy to call."}</p>
-      <button type="button" onClick={onDial} disabled={busy} className="rounded-full border border-neutral-300 px-5 py-2 text-sm dark:border-neutral-700">
+    <div className="flex flex-1 flex-col items-center justify-center gap-6 p-6 text-center">
+      <Avatar />
+      <p className="text-lg text-ink-2">{ended ? "Call ended." : "Waiting for the pharmacy to call."}</p>
+      <button
+        type="button"
+        onClick={onDial}
+        disabled={busy}
+        className="h-11 cursor-pointer rounded-full border border-line-strong px-6 text-sm font-medium text-ink transition-colors hover:border-ink-3 disabled:opacity-40"
+      >
         Call the pharmacy
       </button>
     </div>
@@ -293,23 +350,23 @@ export function Transcript({ items }: { items: TranscriptItem[] }) {
   const end = useRef<HTMLLIElement>(null);
   useEffect(() => end.current?.scrollIntoView?.({ block: "end" }), [items.length]);
   return (
-    <ol aria-live="polite" data-testid="phone-transcript" className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-3 text-sm">
+    <ol aria-live="polite" data-testid="phone-transcript" className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-4 py-3 text-[15px] leading-snug">
       {items.map((item, i) =>
         item.kind === "line" ? (
           <li
             key={i}
             className={
               item.who === "caller"
-                ? "max-w-[80%] self-end rounded-2xl rounded-br-sm bg-blue-600 px-3 py-2 text-white"
-                : "max-w-[80%] self-start rounded-2xl rounded-bl-sm bg-neutral-100 px-3 py-2 dark:bg-neutral-800"
+                ? "max-w-[82%] self-end rounded-[1.25rem] rounded-br-md bg-accent px-3.5 py-2 text-ink-inverse"
+                : "max-w-[82%] self-start rounded-[1.25rem] rounded-bl-md bg-sunken px-3.5 py-2 text-ink"
             }
           >
             {item.text}
           </li>
         ) : (
-          <li key={i} className="max-w-[80%] self-start px-1 text-xs text-red-700 dark:text-red-400">
+          <li key={i} className="max-w-[82%] self-start px-1 text-[13px] text-ink-3">
             <span className="line-through">{item.original}</span>
-            <span className="ml-1 font-medium">Stopped by {RULE_LABEL[item.rule]}</span>
+            <span className="mt-0.5 block font-medium text-stop">Stopped by {RULE_LABEL[item.rule]}</span>
           </li>
         ),
       )}

@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { Mark } from "@/components/ui";
 import { Phone } from "./Phone";
 
 export const metadata = { title: "Phone · Refill Guard" };
@@ -6,7 +8,10 @@ export const metadata = { title: "Phone · Refill Guard" };
 // the conversation and the refill's status. Driven only by /api/events.
 export default function PhonePage() {
   return (
-    <main className="min-h-screen bg-neutral-100 p-6 dark:bg-neutral-900">
+    <main className="theme-dark flex min-h-screen flex-col items-center justify-center bg-canvas sm:gap-6 sm:py-10">
+      <Link href="/" className="hidden items-center gap-2 rounded-md text-sm text-ink-3 hover:text-ink sm:flex">
+        <Mark className="size-4" /> Refill Guard · patient phone
+      </Link>
       <Phone />
     </main>
   );
