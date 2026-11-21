@@ -41,6 +41,8 @@ scripts/channel.sh stopped         # true if a human has said STOP
 
 **Watch it live:** keep `scripts/channel.sh watch` open in a terminal to see every agent claim, decide, object and hand off as it happens.
 
+**To watch the agents talk,** run `node scripts/channel-view.mjs` and open http://localhost:4747. It's a live page of the channel that runs on your machine and reads it with your own `gh` login, so nothing is published. It shows what each role is doing, who talks to whom, requests still waiting for an answer, and every DECISION.
+
 Every message starts with a header, so anyone can scan the channel:
 
 ```
