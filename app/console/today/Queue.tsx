@@ -22,8 +22,8 @@ export async function Queue() {
     return (
       <>
         <LaneTotals totals={totals} />
-        <p className="mt-6 text-sm text-neutral-600">
-          <a href={AUTH_ROUTES.login} className="underline">
+        <p className="mt-6 rounded-card border border-dashed border-line-strong px-5 py-6 text-center text-sm text-ink-2">
+          <a href={AUTH_ROUTES.login} className="font-medium text-accent underline-offset-4 hover:underline">
             Sign in
           </a>{" "}
           as a pharmacist or reviewer to see what&apos;s waiting.
@@ -47,8 +47,8 @@ export async function Queue() {
     <>
       <QueueList totals={totals} waiting={waitingDetails} decided={decidedDetails} canDecide={approver.role === "pharmacist"} signedIn />
       <PairPhone patients={(await store.listPatients()).map((p) => ({ id: p.id, name: `${p.firstName} ${p.lastName}` }))} />
-      <details className="mt-8">
-        <summary className="cursor-pointer text-sm text-neutral-500">Live event feed (for the team)</summary>
+      <details className="mt-10 border-t border-line pt-4">
+        <summary className="cursor-pointer text-sm text-ink-3 hover:text-ink">Live event feed (for the team)</summary>
         <EventFeed />
       </details>
     </>
