@@ -4,6 +4,12 @@ Kept by the demo tie-in agent. One row per step of the 3-minute script, walked i
 
 Legend: ✅ works · ⚠️ works with a fallback · ❌ broken (owner fixing it)
 
+## Passes 12 and 13 (about 15:35 to 15:50 EST, main 7c7ea12: s4-when-can-be)
+
+Clean passes in a row: **0 of 3** (pass 12 clean, pass 13 broke).
+- **Pass 12 ✅ clean**, every step, with screenshots and a walkthrough: `results/demo/2026-11-21T1540-pass12/walkthrough.md`. Reset with the previous call open worked (Role 2's fix).
+- **Pass 13 ❌.** Right after verification, S4 blocked an offer: "I can check whether it's ready for a refill, what it would cost on your plan, or book it for you." That's the fifth honest sentence shape S4 has caught. URGENT to ROLE-4 / review fixer to cover offers as a family, and a REQUEST to ROLE-1 for a prompt nudge (offers as plain questions, no done-words in offers) to cut the variance.
+
 ## Passes 10 and 11 (about 15:05 to 15:25 EST, main a0edd62: S4 ready-time family and reset-fresh-calls)
 
 Clean passes in a row: **0 of 3** (pass 10 clean, pass 11 broke).
