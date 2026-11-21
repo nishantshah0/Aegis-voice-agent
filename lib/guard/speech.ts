@@ -16,9 +16,23 @@ const REPLACEMENT: Record<SpeechRule, string> = { ...GUARD_REPLACEMENTS, S4: S4_
 const CONDITIONAL = /\b(once|after|if|when|until|as soon as|pending|waiting|needs to|need to|will need|pharmacist will|not|isnt|hasnt|havent|wont|cant|cannot)\b/;
 const COMPLETION =
   /\b(approved|ready|sorted|on its way|on the way|delivered|filled|signed off|confirmed|complete|completed|done|all set|good to go|processed|shipped|sent out|went out|dispatched|picked up|cleared|okayed|okd)\b/;
-// The only completion words that aren't promises: they're about the caller or the past
-// ("whenever you're ready", "last filled 27 days ago"), and are dropped before the check.
-const NOT_A_PROMISE = /\b(you|youre|you are|are you|were|we are|im|i am|whenever youre|when youre) ready\b|\blast filled\b/g;
+// The only completion words that aren't promises: they're about the caller, the past, an identity
+// check or the agent itself ("whenever you're ready", "last filled 27 days ago", "your identity
+// is confirmed", "are you done?"), and are dropped before the check. "You're all set." and
+// "Your refill is confirmed." stay promises.
+const NOT_A_PROMISE = new RegExp(
+  [
+    "\\b(?:you|youre|you are|are you|were|we are|im|i am|whenever youre|when youre) ready\\b",
+    "\\blast filled\\b",
+    // Identity checks, not the order: "Your identity is confirmed.", "that's confirmed: your date of birth matches".
+    "\\b(?:identity|date of birth|dob|details|code|thats|that) (?:is |are |s |has been |have been |was )?confirmed\\b",
+    // Questions to the caller, and the agent's own state: "Are you done?", "I'm all set to help."
+    "\\bare you (?:all )?(?:done|all set|set)\\b",
+    "\\bdone with\\b",
+    "\\b(?:im|i am) (?:all set|done)\\b",
+  ].join("|"),
+  "g",
+);
 const BOOKING = /\b(booked|scheduled)\b/;
 const SENT = /\b(sent|requested|submitted)\b/;
 const DAYS = /\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/g;
