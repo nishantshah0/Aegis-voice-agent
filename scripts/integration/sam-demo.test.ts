@@ -39,7 +39,7 @@ async function samsCall() {
   expect(await control.codeFor(callId)).toBe(CODE);
 
   expect((await safety(callId, `Sure, the code is ${CODE}.`)).action).toBe("continue");
-  const verified = await control.press(callId, "check_code", { lookup_id: lookupId, code: CODE });
+  const verified = await control.press(callId, "check_code", { lookup_id: lookupId, code: CODE, dob: "1990-03-14" });
   expect(verified).toMatchObject({ ok: true, output: { verified: true, patient_first_name: "Sam" } });
 
   // The refill: rule 4 sends a controlled drug to Quick check; 3 and 4b pass at 27 days.
