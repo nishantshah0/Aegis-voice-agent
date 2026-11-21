@@ -37,10 +37,10 @@ async function replay(query = ""): Promise<{ status: number; text: string }> {
   const decoder = new TextDecoder();
   let text = "";
   const until = Date.now() + 100;
-  while (Date.now() < until && !text.includes('"caught":1')) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    text += decoder.decode(value);
+  while (Date.now() < until) {
+    const next = await Promise.race([reader.read(), new Promise<null>((r) => setTimeout(() => r(null), until - Date.now()))]);
+    if (next === null || next.done) break;
+    text += decoder.decode(next.value);
   }
   abort.abort();
   return { status: res.status, text };
