@@ -134,16 +134,17 @@ const GOVERNED_LEAD = new RegExp(`^ ${NOT_BEFORE}`);
 const NEGATION = "(?:no|not|nothing|never|nobody|none|isnt|hasnt|havent|wont|cant|cannot|arent|wasnt|werent|dont|doesnt)";
 const NEGATED_BEFORE = new RegExp(`\\b(?:not|isnt|hasnt|havent|wont|cant|cannot|arent|wasnt|werent|never) (?:yet )?(?:be |been )?$`);
 const ANY_NEGATION = new RegExp(`\\b${NEGATION}\\b`);
-const GOVERNED_ALL_TEST = new RegExp(`\\b${GOVERNED}`);
 // "once it's booked for Friday": a booking that hasn't happened yet, said as the condition.
 const BOOKING_CONDITION = /\b(?:once|after|when|if|as soon as) (?:its|it is|it s|its been|your \w+ is|your \w+ s|we ve|weve) (?:booked|scheduled)\b/;
-const BOOKING_CONDITION_LEAD = new RegExp(`^ ${BOOKING_CONDITION.source.replace("\\b", "")}`);
 // "If those details match, I've sent a code to the phone on file.": the code goes out only on a match.
 const MATCH_CONDITION_LEAD = /^ (?:if|once|when) (?:those |the |your |all )?(?:details|that|everything|it|they) (?:match|matches|checks out|check out)\b/;
 
-/** A negation within the four words before position `at` ("we can't deliver it Friday"). */
+// Reassurance, not negation: "Don't worry, it's booked." still promises the booking.
+const FILLER = /\b(?:dont worry|do not worry|no worries|no problem|not to worry|never mind|no rush|no need to worry)\b/g;
+
+/** A negation that governs the word: within the three words before `at` ("can't deliver it Friday"), after filler is removed. */
 function negatedNear(w: string, at: number): boolean {
-  const before = w.slice(0, at).trim().split(" ").slice(-4).join(" ");
+  const before = w.slice(0, at).replace(FILLER, " ").trim().split(/ +/).slice(-3).join(" ");
   return ANY_NEGATION.test(` ${before} `);
 }
 const MODAL_BEFORE = /\b(?:will|can|should|would|could|itll|itd) be $/;
@@ -219,16 +220,15 @@ function checkS4(sentence: string, record: RecordEntry[], bookedLabels: string[]
   const norm = (p: string) => Number(p.replace(/[^\d.]/g, "")).toFixed(2);
 
   // Clause by clause (Trail #27): a filler condition ("If you like, ...") never switches these
-  // off. A clause is excused only by a governed condition in it or leading it, or a negation
-  // right before the word ("haven't booked", "can't deliver it Friday"). Prices never are.
-  let ledByCondition = false;
+  // off. A clause is excused only by a booking said as the condition, or a negation that governs
+  // the word ("haven't booked", "can't deliver it Friday"). Prices never are.
   let ledByMatch = false;
   for (const raw of sentence.split(CLAUSE_BREAK)) {
     const cw = words(raw);
-    const governed = GOVERNED_ALL_TEST.test(cw) || BOOKING_CONDITION.test(cw);
-    const excused = governed || ledByCondition;
+    // Only a booking said as the condition ("once it's booked for Friday") excuses its own clause.
+    // An approval condition never backs a day or a booking: those need set_delivery or a run-out day.
+    const excused = BOOKING_CONDITION.test(cw);
     const codeAfterMatch = ledByMatch;
-    ledByCondition = GOVERNED_LEAD.test(cw) || BOOKING_CONDITION_LEAD.test(cw);
     ledByMatch = MATCH_CONDITION_LEAD.test(cw);
 
     for (const price of raw.match(PRICE) ?? []) {
