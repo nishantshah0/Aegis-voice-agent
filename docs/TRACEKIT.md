@@ -17,6 +17,14 @@ Completion events contain an `argsDigest` commitment, not the pharmacy result, p
 
 The application integration does not provision a witness or claim that a run is independently witnessed. Configure a customer or public witness only when it is operated by an independent party on a separately administered host; a same-host cosigner is not independent. Witnesses receive checkpoints, not pharmacy results. Pin the independently supplied verification trust configuration out of band, export a run bundle, and verify it with the Tracekit verifier before treating it as independently witnessed.
 
+## Optional Solana public anchor
+
+Solana is only an optional, asynchronous public anchor for already-batched Tracekit Merkle checkpoints. Anchor a checkpoint only after Tracekit has signed it and the independent witness has cosigned it. The chain is not part of the refill path: no API, control rule, retry, or spoken status reads an on-chain value, and an unavailable RPC or failed transaction must never block or change a refill decision.
+
+Publish only the batched Merkle root (and the minimum tree-size/version metadata needed to verify the checkpoint). Keep patient, order, prescription, call, tool-argument, and leaf data off-chain. A transaction signature/ledger position is the public timestamp evidence; do not include patient or order identifiers in memos, account seeds, program accounts, or logs. Solana transactions and instruction data are public, so the root is a commitment for later verification, not encryption. Batch before anchoring to reduce per-action timing disclosure. See Solana's [transaction model](https://solana.com/docs/core/transactions).
+
+This branch does not include a Solana program, RPC publisher, wallet, or transaction submission. Add that as a separate opt-in checkpoint-export worker once the Tracekit checkpoint feed, program or memo format, RPC provider, and key custody are selected. It must consume only signed, witnessed batch checkpoints and fail independently of the live app.
+
 ## Failure behavior
 
 - Signer unavailable or decision failure: record a local blocked safety entry and do not execute the button or pharmacist decision.
