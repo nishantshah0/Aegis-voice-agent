@@ -5,6 +5,7 @@ import { scoreScenario, type ScenarioExpected, type ScenarioScore } from "./scor
 export type Scenario = {
   id: string;
   seed: "sam_due" | "p4_controlled_early" | "p7_two_addresses";
+  direction?: "inbound" | "outbound";
   caller_lines: string[];
   expected: ScenarioExpected;
 };
@@ -17,7 +18,9 @@ export type ScenarioRun = {
   score: ScenarioScore;
 };
 
-export type ScenarioSession = { store: Store; driver: AgentDriver };
+export type ScenarioTarget = { direction: "inbound" | "outbound"; patientId: string; rxId: string };
+
+export type ScenarioSession = { store: Store; driver: AgentDriver; opening?: (callId: CallId) => Promise<void> };
 
 const targets: Record<Scenario["seed"], { patientId: string; rxId: string }> = {
   sam_due: { patientId: IDS.sam, rxId: IDS.samConcerta },
@@ -55,7 +58,7 @@ export async function runScenario(options: {
   scenario: Scenario;
   seed: Seed;
   code: string;
-  makeSession: (seed: Seed) => Promise<ScenarioSession>;
+  makeSession: (seed: Seed, target: ScenarioTarget) => Promise<ScenarioSession>;
   saveResult: (result: ScenarioRun) => Promise<void>;
   emit?: EmitFn;
 }): Promise<ScenarioRun> {
@@ -63,23 +66,39 @@ export async function runScenario(options: {
   const tokens = scenarioTokens(scenario, seed, code);
   const resolve = (text: string) => resolveScenarioText(text, tokens);
   const callerLines = scenario.caller_lines.map(resolve);
-  const { store, driver } = await makeSession(seed);
-  const callId = await driver.startCall({ direction: "inbound" });
+  const direction = scenario.direction ?? "inbound";
+  const target = { ...targets[scenario.seed], direction };
+  const { store, driver, opening } = await makeSession(seed, target);
+  const callId = await driver.startCall({ direction, ...(direction === "outbound" ? { patientId: target.patientId } : {}) });
+  if (direction === "outbound") {
+    if (!opening) throw new Error("outbound scenario needs a guarded opener");
+    await opening(callId);
+  }
 
-  for (const line of callerLines) {
+  const callerLineChecks: { id: string; passed: boolean; violation: true }[] = [];
+  for (const [index, line] of callerLines.entries()) {
     const before = await store.listRecord(callId);
     for await (const event of driver.callerSays(callId, line)) {
       void event;
     }
     const after = await store.listRecord(callId);
-    if (!after.slice(before.length).some((entry) => entry.kind === "caller_line")) {
-      await store.appendRecord({ callId, actor: "caller", kind: "caller_line", input: { text: line }, decision: "allowed" });
-    }
+    const passed = after.slice(before.length).some((entry) =>
+      entry.kind === "caller_line" && entry.actor === "caller" &&
+      (entry.input as { text?: string } | undefined)?.text === line,
+    );
+    callerLineChecks.push({ id: `caller_line_recorded:${index + 1}`, passed, violation: true });
   }
 
   await driver.endCall(callId);
   const record = await store.listRecord(callId);
-  const score = scoreScenario(scenario.expected, record, resolve);
+  const scored = scoreScenario(scenario.expected, record, resolve);
+  const checks = [...scored.checks, ...callerLineChecks];
+  const score = {
+    ...scored,
+    checks,
+    automatedPassed: checks.every((check) => check.passed),
+    broken: scored.broken + callerLineChecks.filter((check) => !check.passed).length,
+  };
   const result = { scenarioId: scenario.id, callId, callerLines, record, score };
   await saveResult(result);
   emit?.({ type: "score", caught: score.caught, broken: score.broken });
