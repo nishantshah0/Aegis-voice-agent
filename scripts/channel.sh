@@ -22,6 +22,16 @@ ISSUE="${AGENT_CHANNEL_ISSUE:-1}"
 TYPES="CLAIM STATUS DECISION OBJECT REQUEST REPLY HANDOFF BLOCKED REVIEW MERGED HUMAN"
 STATE_DIR="$(git rev-parse --git-dir 2>/dev/null || echo .git)/agent-channel"
 
+# A Python that really runs. On Windows, "python3" can be the Microsoft Store stub.
+PY=""
+for candidate in python3 python py; do
+  if command -v "$candidate" >/dev/null 2>&1 && "$candidate" -c "import sys" >/dev/null 2>&1; then
+    PY="$candidate"
+    break
+  fi
+done
+[ -n "$PY" ] || { echo "channel.sh needs Python 3 on PATH" >&2; exit 1; }
+
 # All messages as JSON lines: {"t": time, "u": login, "b": body}
 messages() {
   gh api "repos/$REPO/issues/$ISSUE/comments?per_page=100" --paginate \
@@ -30,7 +40,7 @@ messages() {
 
 # Filter and print messages. Args: role ("" for everyone), since (ISO time or ""), last-n (0 = all)
 show() {
-  python3 -c '
+  "$PY" -c '
 import sys, json
 role, since, n = sys.argv[1], sys.argv[2], int(sys.argv[3])
 out = []
@@ -99,7 +109,7 @@ $details"
     done
     ;;
   trails)
-    messages | python3 -c '
+    messages | "$PY" -c '
 import sys, json, re
 seen = {}
 for line in sys.stdin:
@@ -118,7 +128,7 @@ for n, (t, head) in sorted(seen.items(), key=lambda kv: kv[1][0], reverse=True):
 '
     ;;
   stopped)
-    last=$(messages | python3 -c '
+    last=$(messages | "$PY" -c '
 import sys, json, re
 last = ""
 for line in sys.stdin:
