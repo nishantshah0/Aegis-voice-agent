@@ -1,18 +1,86 @@
-# Refill Guard
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="public/brand/logo-dark.svg">
+    <img src="public/brand/logo.svg" alt="Aegis" height="56">
+  </picture>
+</p>
 
-[![Release gate](https://github.com/nishantshah0/namereserve/actions/workflows/ci.yml/badge.svg)](https://github.com/nishantshah0/namereserve/actions/workflows/ci.yml)
+<h3 align="center">The AI can be fooled. The pharmacy can't.</h3>
 
-**Hack Western 13 · submissions close Sunday, November 22, 9:00 AM Eastern**
+<p align="center">
+  An AI phone line for pharmacies. Aegis calls patients before their medication runs out, handles the refill, and sends only the tricky calls to a pharmacist. Every action the AI tries passes through rules written in code.
+</p>
 
-An AI phone line for pharmacies. It calls patients before their medication runs out and handles their refills. A pharmacist approves only the tricky calls, from their console. Every action and word the AI tries goes through rules in code, so even a fooled AI can't break them, and an AI attacker tests it every night.
+<p align="center">
+  <a href="https://github.com/nishantshah0/namereserve/actions/workflows/ci.yml"><img src="https://github.com/nishantshah0/namereserve/actions/workflows/ci.yml/badge.svg" alt="Release gate"></a>
+  <img src="https://img.shields.io/badge/rules_broken-0-0A7A4B" alt="0 rules broken">
+  <img src="https://img.shields.io/badge/Next.js-16-0C0F0E" alt="Next.js 16">
+  <img src="https://img.shields.io/badge/TypeScript-strict-0C0F0E" alt="TypeScript">
+  <img src="https://img.shields.io/badge/Claude-agent-0C0F0E" alt="Claude">
+  <img src="https://img.shields.io/badge/license-MIT-0C0F0E" alt="MIT license">
+  <img src="https://img.shields.io/badge/Hack_Western-13-0A7A4B" alt="Hack Western 13">
+</p>
 
-**The line judges should repeat:** *The AI can be fooled. The pharmacy can't.*
+<p align="center"><img src="docs/images/landing.png" alt="The Aegis landing page: the headline, the patient's call screen and the pharmacist's Review lane" width="900"></p>
 
-**Start here:** [`docs/STATUS.md`](docs/STATUS.md) has the role sign-up table and the next steps. Then [`docs/TASKS.md`](docs/TASKS.md) for your role's tasks.
+<p align="center"><sub>Aegis (formerly Refill Guard) · Hack Western 13 · demo data only, no real patients</sub></p>
 
-Full plan: [`docs/SPEC.md`](docs/SPEC.md). How the parts fit: [`docs/DESIGN.md`](docs/DESIGN.md). For product behaviour, the spec wins. For roles, ownership and how we work, this README and `docs/DESIGN.md` win.
+## How it works
+
+1. **It calls before the bottle runs out.** A daily check finds patients who are nearly out and rings them. The AI verifies a code and date of birth, takes the refill and asks about side effects.
+2. **Hard rules live in code, not in the prompt.** The AI can press 12 buttons and nothing else. Every press goes through the control layer and its rule cards (strictest wins), and every sentence through the speech guard (S1 to S4). A fooled AI still hits the same wall.
+3. **A pharmacist sees only the tricky calls.** Each call lands in a lane: Automatic, Quick check or Review. Controlled drugs, side effects and blocked lines wait for a pharmacist, who approves in the console after signing in with Auth0.
+
+```mermaid
+flowchart LR
+  P["Patient's phone"] <-->|voice or text| A["Agent<br/>(Claude)"]
+  A -->|"presses 1 of 12 buttons"| C["Control layer<br/>rule cards, strictest wins"]
+  A -->|"every sentence"| G["Speech guard<br/>S1 to S4"]
+  G -->|"checked line"| P
+  C --> R[("Hash-chained record")]
+  G --> R
+  C -->|"Review / Quick check"| Q["Pharmacist console<br/>Auth0 sign-in"]
+  Q -->|"approve or deny"| R
+  H["Hammers and AI attacker"] -.->|"hostile presses"| C
+```
+
+| | | |
+|---|---|---|
+| <img src="docs/images/phone.png" alt="The patient's phone during a call"> | <img src="docs/images/console.png" alt="The pharmacist console"> | <img src="docs/images/stage.png" alt="The stage: every press at the gate"> |
+| **Patient phone** `/phone` | **Pharmacist console** `/console/today` | **The stage** `/stage` |
+
+## The numbers
+
+From the last hammer run, [`results/hammer-latest.json`](results/hammer-latest.json): **0 rules broken** across **60,518** hostile press sequences (**250,038** presses, **329,465** rule checks). Every sequence of up to 3 presses from every starting state, plus 10,000 long random sequences. Real runs only: no number in this README or the pitch is estimated.
+
+## Quick start
+
+```bash
+npm ci
+cp .env.example .env   # add your own keys; never commit .env
+npm run dev            # http://localhost:3000
+```
+
+Open `/` (the product page), `/phone`, `/console/today` and `/stage` side by side, reset the demo from the console, and run the daily check.
+
+```bash
+npm run typecheck && npm run lint && npm test   # the gate
+npm run hammer                                  # hostile presses against the lock
+```
+
+## The team
+
+Four people at Hack Western 13, each running an AI coding agent that owns one part of the code (voice and agent, platform and pharmacist, red team, the lock), plus helper agents that review, merge and police the rules. How that works is [below](#how-our-agent-system-works). Brand and design system: [`docs/BRAND.md`](docs/BRAND.md). All docs: [`docs/README.md`](docs/README.md).
+
+## Prize tracks
+
+Overall · Best Health Hack by Sun Life · Best Use of Auth0 · Best Use of Vultr · GoDaddy domain · Best Use of Tiger Data · Best Use of Gemini · Best Use of Entire.
 
 ---
+
+## For the team
+
+**Start here:** [`docs/STATUS.md`](docs/STATUS.md) has the role sign-up table and the next steps. Then [`docs/TASKS.md`](docs/TASKS.md) for your role's tasks. Full plan: [`docs/SPEC.md`](docs/SPEC.md). How the parts fit: [`docs/DESIGN.md`](docs/DESIGN.md). For product behaviour, the spec wins. For roles, ownership and how we work, this README and `docs/DESIGN.md` win.
 
 ## Progress
 
@@ -162,12 +230,6 @@ Four people and about 30 hours won't finish everything in the spec. **A team tha
 /scripts        hammers, release gate, overnight run, seed
 /docs           SPEC.md
 ```
-
-## Prize tracks
-
-Overall · Best Health Hack by Sun Life · Best Use of Auth0 · Best Use of Vultr · GoDaddy domain · Best Use of Tiger Data · Best Use of Gemini (if Gemini's role is visible). Ask the organisers how many tracks one project can enter.
-
----
 
 ## Rules for vibe coding this
 

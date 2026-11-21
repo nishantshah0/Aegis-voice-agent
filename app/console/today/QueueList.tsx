@@ -5,13 +5,8 @@ import { useRouter } from "next/navigation";
 import { listenToEvents } from "@/lib/events/client";
 import type { ItemDetail, LaneTotals as Totals } from "./detail";
 import { LaneTotals } from "./LaneTotals";
+import { Badge, LaneBadge, buttonClass } from "@/components/ui";
 
-const LANE_LABEL = { review: "Review", quick_check: "Quick check", automatic: "Automatic" } as const;
-const LANE_STYLE = {
-  review: "bg-amber-200 text-amber-900",
-  quick_check: "bg-amber-100 text-amber-900",
-  automatic: "bg-green-200 text-green-900",
-} as const;
 const SIGNAL_LABEL: Record<string, string> = {
   early: "Early refill",
   new_address: "New address",
@@ -24,18 +19,18 @@ const SIGNAL_LABEL: Record<string, string> = {
 };
 
 function RuleChip({ id }: { id: string }) {
-  return <span className="rounded border border-neutral-400 px-1.5 text-xs">Rule {id}</span>;
+  return <span className="inline-flex items-center rounded-md border border-line-strong bg-surface px-1.5 font-mono text-[11px] leading-5 text-ink-2">Rule {id}</span>;
 }
 
 function Detail({ d }: { d: ItemDetail }) {
   return (
-    <div className="mt-3 space-y-3 text-sm">
+    <div className="mt-4 space-y-4 border-t border-line pt-4 text-sm text-ink-2">
       <div>
-        <h4 className="font-medium">Why it&apos;s here</h4>
-        {d.rules.length === 0 && <p className="text-neutral-500">No rule card: sent here by the signals below.</p>}
+        <h4 className="mb-1.5 text-xs font-medium uppercase tracking-[0.06em] text-ink-3">Why it&apos;s here</h4>
+        {d.rules.length === 0 && <p className="text-ink-3">No rule card: sent here by the signals below.</p>}
         <ul className="mt-1 space-y-1">
           {d.rules.map((r) => (
-            <li key={r.id} className="flex gap-2">
+            <li key={r.id} className="flex items-baseline gap-2">
               <RuleChip id={r.id} /> <span>{r.wording}</span>
             </li>
           ))}
@@ -43,7 +38,7 @@ function Detail({ d }: { d: ItemDetail }) {
       </div>
       {d.sideEffects.length > 0 && (
         <div>
-          <h4 className="font-medium">Side effects the patient reported</h4>
+          <h4 className="mb-1.5 text-xs font-medium uppercase tracking-[0.06em] text-ink-3">Side effects the patient reported</h4>
           <ul className="mt-1 list-disc pl-5">
             {d.sideEffects.map((s) => (
               <li key={s}>&ldquo;{s}&rdquo;</li>
@@ -53,7 +48,7 @@ function Detail({ d }: { d: ItemDetail }) {
       )}
       {d.questions.length > 0 && (
         <div>
-          <h4 className="font-medium">Questions for the pharmacist</h4>
+          <h4 className="mb-1.5 text-xs font-medium uppercase tracking-[0.06em] text-ink-3">Questions for the pharmacist</h4>
           <ul className="mt-1 list-disc pl-5">
             {d.questions.map((q) => (
               <li key={q}>{q}</li>
@@ -62,28 +57,28 @@ function Detail({ d }: { d: ItemDetail }) {
         </div>
       )}
       <div>
-        <h4 className="font-medium">What the patient was told</h4>
-        {d.told.length === 0 && <p className="text-neutral-500">Nothing yet.</p>}
+        <h4 className="mb-1.5 text-xs font-medium uppercase tracking-[0.06em] text-ink-3">What the patient was told</h4>
+        {d.told.length === 0 && <p className="text-ink-3">Nothing yet.</p>}
         <ul className="mt-1 space-y-1">
           {d.told.map((t, i) =>
             t.blocked ? (
               <li key={i}>
-                <span className="text-red-700 line-through">{t.text}</span>{" "}
-                <span className="rounded bg-red-200 px-1.5 text-xs text-red-900">blocked by {t.rule}</span>
-                <span className="block text-neutral-500">Said instead: {t.replacement}</span>
+                <span className="text-stop line-through decoration-stop">{t.text}</span>{" "}
+                <span className="rounded-full bg-stop-soft px-2 py-0.5 text-xs font-medium text-stop">blocked by {t.rule}</span>
+                <span className="mt-0.5 block text-ink-3">Said instead: {t.replacement}</span>
               </li>
             ) : (
               <li key={i}>
-                {t.text} <span className="rounded bg-green-200 px-1.5 text-xs text-green-900">checked</span>
+                <span className="text-ink">{t.text}</span> <span className="rounded-full bg-accent-soft px-2 py-0.5 text-xs font-medium text-accent-ink">checked</span>
               </li>
             ),
           )}
         </ul>
       </div>
       <div>
-        <h4 className="font-medium">Signals checked in code</h4>
+        <h4 className="mb-1.5 text-xs font-medium uppercase tracking-[0.06em] text-ink-3">Signals checked in code</h4>
         {d.signals.length === 0 ? (
-          <p className="text-neutral-500">None.</p>
+          <p className="text-ink-3">None.</p>
         ) : (
           <ul className="mt-1 list-disc pl-5">
             {d.signals.map((s) => (
@@ -93,14 +88,14 @@ function Detail({ d }: { d: ItemDetail }) {
         )}
       </div>
       <details>
-        <summary className="cursor-pointer font-medium">Transcript ({d.transcript.length} lines)</summary>
-        <ol className="mt-1 space-y-1">
+        <summary className="cursor-pointer text-[13px] font-medium text-ink hover:text-accent">Transcript ({d.transcript.length} lines)</summary>
+        <ol className="mt-2 space-y-1 rounded-xl bg-sunken p-3">
           {d.transcript.map((l, i) => (
             <li key={i}>
-              <span className="text-neutral-500">{l.who === "agent" ? "Agent" : "Caller"}:</span>{" "}
+              <span className="text-ink-3">{l.who === "agent" ? "Agent" : "Caller"}:</span>{" "}
               {l.blocked ? (
                 <>
-                  <span className="line-through">{l.text}</span> <span className="text-xs text-red-700">({l.blocked})</span>
+                  <span className="line-through">{l.text}</span> <span className="text-xs text-stop">({l.blocked})</span>
                 </>
               ) : (
                 l.text
@@ -110,9 +105,9 @@ function Detail({ d }: { d: ItemDetail }) {
         </ol>
       </details>
       {d.aiView && (
-        <div className="rounded border border-dashed border-neutral-400 p-2">
-          <h4 className="font-medium">The agent&apos;s own view</h4>
-          <p className="text-xs text-neutral-500">Self-reported by the AI. Shown for context, never used for decisions.</p>
+        <div className="rounded-xl border border-dashed border-line-strong p-3">
+          <h4 className="mb-1.5 text-xs font-medium uppercase tracking-[0.06em] text-ink-3">The agent&apos;s own view</h4>
+          <p className="text-xs text-ink-3">Self-reported by the AI. Shown for context, never used for decisions.</p>
           <p className="mt-1">{d.aiView}</p>
         </div>
       )}
@@ -123,14 +118,14 @@ function Detail({ d }: { d: ItemDetail }) {
 function Summary({ d }: { d: ItemDetail }) {
   return (
     <span className="flex flex-wrap items-center gap-2 text-sm">
-      <span className={`rounded px-1.5 py-0.5 text-xs ${LANE_STYLE[d.lane]}`}>{LANE_LABEL[d.lane]}</span>
-      <strong className="capitalize">{d.kind}</strong>
-      {d.drug && <span>{d.drug}</span>}
-      <span>for {d.patient}</span>
+      <LaneBadge lane={d.lane} />
+      <strong className="font-semibold capitalize text-ink">{d.kind}</strong>
+      {d.drug && <span className="text-ink">{d.drug}</span>}
+      <span className="text-ink-3">for {d.patient}</span>
       {d.rules.map((r) => (
         <RuleChip key={r.id} id={r.id} />
       ))}
-      {d.sideEffects.length > 0 && <span className="text-xs text-amber-800">side effect</span>}
+      {d.sideEffects.length > 0 && <Badge tone="quick">side effect</Badge>}
     </span>
   );
 }
@@ -183,21 +178,21 @@ export function QueueList({
   // render and the note box would lose focus on each keystroke.
   function decideControls(id: string, compact = false) {
     return (
-      <div className={compact ? "flex items-center gap-2" : "mt-3 flex flex-wrap items-center gap-2"}>
+      <div className={compact ? "flex items-center gap-2" : "mt-4 flex flex-wrap items-center gap-2 border-t border-line pt-4"}>
         {!compact && (
           <input
             aria-label="Note for the record"
             placeholder="Note (optional), e.g. chat at pickup"
             value={notes[id] ?? ""}
             onChange={(e) => setNotes((prev) => ({ ...prev, [id]: e.target.value }))}
-            className="min-w-48 flex-1 rounded border border-neutral-300 bg-transparent px-2 py-1 text-sm"
+            className="h-9 min-w-48 flex-1 rounded-full border border-line-strong bg-surface px-4 text-sm placeholder:text-ink-3 focus:border-accent focus:outline-none"
           />
         )}
         <button
           type="button"
           disabled={busy === id}
           onClick={() => decide(id, "approve")}
-          className="rounded bg-green-700 px-3 py-1.5 text-sm text-white hover:opacity-80 disabled:opacity-50"
+          className={buttonClass("approve", "sm")}
         >
           Approve
         </button>
@@ -205,7 +200,7 @@ export function QueueList({
           type="button"
           disabled={busy === id}
           onClick={() => decide(id, "deny")}
-          className="rounded bg-red-700 px-3 py-1.5 text-sm text-white hover:opacity-80 disabled:opacity-50"
+          className={buttonClass("deny", "sm")}
         >
           Deny
         </button>
@@ -217,26 +212,26 @@ export function QueueList({
     <>
       <LaneTotals totals={totals} />
 
-      <section className="mt-6">
-        <h2 className="text-lg font-medium">Waiting for a pharmacist</h2>
-        {!signedIn && <p className="mt-1 text-sm text-neutral-500">Sign in as a pharmacist to approve or deny.</p>}
-        {signedIn && !canDecide && <p className="mt-1 text-sm text-neutral-500">Only a pharmacist can approve or deny.</p>}
+      <section className="mt-10">
+        <h2 className="text-xl font-semibold tracking-[-0.02em]">Waiting for a pharmacist</h2>
+        {!signedIn && <p className="mt-1 text-sm text-ink-3">Sign in as a pharmacist to approve or deny.</p>}
+        {signedIn && !canDecide && <p className="mt-1 text-sm text-ink-3">Only a pharmacist can approve or deny.</p>}
         {error && (
-          <p className="mt-2 text-sm text-red-600" role="alert">
+          <p className="mt-2 text-sm text-stop" role="alert">
             {error}
           </p>
         )}
-        {waiting.length === 0 && <p className="mt-2 text-sm text-neutral-500">Nothing waiting.</p>}
+        {waiting.length === 0 && <p className="mt-3 rounded-card border border-dashed border-line-strong px-5 py-6 text-center text-sm text-ink-3">Nothing waiting.</p>}
       </section>
 
       {review.length > 0 && (
-        <section className="mt-4" data-testid="review">
-          <h3 className="font-medium">Review ({review.length})</h3>
-          <ul className="mt-2 space-y-3" data-testid="queue">
+        <section className="mt-6" data-testid="review">
+          <h3 className="flex items-center gap-2 text-sm font-semibold"><span aria-hidden className="size-2 rounded-full bg-review" />Review ({review.length})</h3>
+          <ul className="mt-3 space-y-3" data-testid="queue">
             {review.map((d, i) => (
-              <li key={d.id} className="rounded border border-neutral-300 p-3">
+              <li key={d.id} className="rounded-card border border-line border-l-4 border-l-review bg-surface p-4 shadow-card">
                 <details open={i === 0}>
-                  <summary className="cursor-pointer">
+                  <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden">
                     <Summary d={d} />
                   </summary>
                   <Detail d={d} />
@@ -249,15 +244,15 @@ export function QueueList({
       )}
 
       {quick.length > 0 && (
-        <section className="mt-4" data-testid="quick-check">
-          <h3 className="font-medium">Quick check ({quick.length})</h3>
-          <p className="text-xs text-neutral-500">Policy-only items with nothing unusual. One tap each; every approval is signed with your sign-in.</p>
-          <ul className="mt-2 divide-y divide-neutral-200 rounded border border-neutral-300">
+        <section className="mt-8" data-testid="quick-check">
+          <h3 className="flex items-center gap-2 text-sm font-semibold"><span aria-hidden className="size-2 rounded-full bg-quick" />Quick check ({quick.length})</h3>
+          <p className="mt-1 text-xs text-ink-3">Policy-only items with nothing unusual. One tap each; every approval is signed with your sign-in.</p>
+          <ul className="mt-3 divide-y divide-line rounded-card border border-line bg-surface shadow-card">
             {quick.map((d) => (
-              <li key={d.id} className="p-2">
+              <li key={d.id} className="px-4 py-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <details>
-                    <summary className="cursor-pointer">
+                    <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden">
                       <Summary d={d} />
                     </summary>
                     <Detail d={d} />
@@ -271,16 +266,16 @@ export function QueueList({
       )}
 
       {decided.length > 0 && (
-        <section className="mt-6">
-          <h2 className="text-lg font-medium">Decided</h2>
+        <section className="mt-10">
+          <h2 className="text-xl font-semibold tracking-[-0.02em]">Decided</h2>
           <ul className="mt-2 space-y-2" data-testid="decided">
             {decided.map((d) => (
-              <li key={d.id} className="rounded border border-neutral-200 p-2 text-sm">
+              <li key={d.id} className="rounded-xl border border-line bg-surface px-4 py-3 text-sm">
                 <Summary d={d} />{" "}
-                <span className={d.status === "approved" ? "text-green-700" : "text-red-700"}>
+                <span className={d.status === "approved" ? "font-medium text-accent" : "font-medium text-stop"}>
                   {d.status} by {d.decidedBy ?? "unknown"}
                 </span>
-                {d.decisionNote && <span className="text-neutral-500"> · {d.decisionNote}</span>}
+                {d.decisionNote && <span className="text-ink-3"> · {d.decisionNote}</span>}
               </li>
             ))}
           </ul>

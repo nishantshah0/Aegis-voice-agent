@@ -14,10 +14,27 @@ export const S4_REPLACEMENT = "A pharmacist will check it first, and I'll confir
 const REPLACEMENT: Record<SpeechRule, string> = { ...GUARD_REPLACEMENTS, S4: S4_REPLACEMENT };
 
 const CONDITIONAL = /\b(once|after|if|when|until|as soon as|pending|waiting|needs to|need to|will need|pharmacist will|not|isnt|hasnt|havent|wont|cant|cannot)\b/;
-const COMPLETION = /\b(approved|ready|sorted|on its way|on the way|delivered|filled)\b/;
-// The only completion words that aren't promises: they're about the caller or the past
-// ("whenever you're ready", "last filled 27 days ago"), and are dropped before the check.
-const NOT_A_PROMISE = /\b(you|youre|you are|are you|were|we are|im|i am|whenever youre|when youre) ready\b|\blast filled\b/g;
+const COMPLETION =
+  /\b(approved|ready|sorted|on its way|on the way|delivered|filled|signed off|confirmed|complete|completed|done|all set|good to go|processed|shipped|sent out|went out|dispatched|picked up|cleared|okayed|okd)\b/;
+// The only completion words that aren't promises: they're about the caller, the past, an identity
+// check or the agent itself ("whenever you're ready", "last filled 27 days ago", "your identity
+// is confirmed", "are you done?"), and are dropped before the check. "You're all set." and
+// "Your refill is confirmed." stay promises.
+const NOT_A_PROMISE = new RegExp(
+  [
+    "\\b(?:you|youre|you are|are you|were|we are|im|i am|whenever youre|when youre) ready\\b",
+    "\\blast filled\\b",
+    // Identity checks, not the order: "Your identity is confirmed.", "that's confirmed: your date of birth matches".
+    "\\b(?:your identity|your date of birth|your dob|your details|your code|that code|the code) (?:is |are |s |has been |have been |was )?confirmed\\b",
+    // Questions to the caller, and the agent's own state: "Are you done?", "I'm all set to help."
+    "\\bare you (?:all )?(?:done|all set|set)\\b",
+    "\\b(?:im|i am) (?:all set|done)\\b",
+    "\\bare you (?:all )?done with\\b",
+    // Saying it doesn't know is not a promise: "I don't know when it will be ready."
+    "\\b(?:i dont know|i do not know|im not sure|i am not sure|not sure) (?:when|if|whether) (?:it|its|itll|it ll|it will|they|theyre|your \\w+)(?: will| is| s| are)?(?: be)? (?:approved|ready|done|filled|confirmed|complete|sorted|delivered)\\b",
+  ].join("|"),
+  "g",
+);
 const BOOKING = /\b(booked|scheduled)\b/;
 const SENT = /\b(sent|requested|submitted)\b/;
 const DAYS = /\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/g;
@@ -105,16 +122,20 @@ const COMPLETION_ALL = new RegExp(COMPLETION.source, "g");
 //   a negation on the word itself, with no other negation before it in the clause: "isn't ready yet"
 // "After the pharmacist approved it" (past), "no way it isn't approved" and "approved when it's
 // approved" excuse nothing.
-const COND = "(?:once|after|if|when|until|as soon as)";
+const COND = "(?:once|after|if|when|until|till|before|as soon as)";
 const SUBJ = "(?:it|they|a pharmacist|your \\w+|the \\w+)";
 const GOVERNED =
-  `${COND} (?:(?:its|theyre) (?:been )?approved|${SUBJ} (?:is|are|gets|get|has been|have been) approved|${SUBJ} (?:approves|approve|signs off|sign off))\\b`;
+  `${COND} (?:(?:its|theyre) (?:been )?approved|${SUBJ} (?:is|are|gets|get|has been|have been) approved|${SUBJ} (?:approves|approve|signs off|sign off|reviews|review|checks|check))\\b`;
 const GOVERNED_ALL = new RegExp(`\\b${GOVERNED}`, "g");
-const GOVERNED_AFTER = new RegExp(`^ (?:\\w+ ){0,2}${GOVERNED}`);
-const GOVERNED_LEAD = new RegExp(`^ ${GOVERNED}`);
+// "before it is approved" covers only its own "approved": it never excuses "ready before it's
+// approved" or the clause after "Before it's approved, ...".
+const NOT_BEFORE = GOVERNED.replace("|before", "");
+const GOVERNED_AFTER = new RegExp(`^ (?:\\w+ ){0,2}${NOT_BEFORE}`);
+const GOVERNED_LEAD = new RegExp(`^ ${NOT_BEFORE}`);
 const NEGATION = "(?:no|not|nothing|never|nobody|none|isnt|hasnt|havent|wont|cant|cannot|arent|wasnt|werent|dont|doesnt)";
 const NEGATED_BEFORE = new RegExp(`\\b(?:not|isnt|hasnt|havent|wont|cant|cannot|arent|wasnt|werent|never) (?:yet )?(?:be |been )?$`);
 const ANY_NEGATION = new RegExp(`\\b${NEGATION}\\b`);
+const MODAL_BEFORE = /\b(?:will|can|should|would|could|itll|itd) be $/;
 
 /** True when a completion word in this clause is said as done, with no governed condition or negation. */
 function promisesCompletion(w: string): boolean {
@@ -126,8 +147,11 @@ function promisesCompletion(w: string): boolean {
     const negation = before.match(NEGATED_BEFORE);
     // "isn't approved yet", but not "no way it isn't approved": no other negation before it.
     if (negation && !ANY_NEGATION.test(before.slice(0, negation.index))) return false;
+    const after = w.slice(at + m[0].length);
+    // "will be approved once the pharmacist signs off": a future or modal approval with its condition.
+    if (m[0] === "approved" && MODAL_BEFORE.test(before)) return !GOVERNED_AFTER.test(after);
     // "ready once it's approved"; never "approved once it's approved".
-    return m[0] === "approved" || !GOVERNED_AFTER.test(w.slice(at + m[0].length));
+    return m[0] === "approved" || !GOVERNED_AFTER.test(after);
   });
 }
 
@@ -136,23 +160,39 @@ function promisesCompletion(w: string): boolean {
  * A clause that opens with the approval condition ("Once a pharmacist approves it ...") covers
  * itself and the clause right after it, and only those.
  */
-export function unexcusedCompletion(sentence: string): boolean {
+// "Thanks, that's confirmed: your date of birth matches." A bare "that's confirmed" is about the
+// caller's identity only when a clause right beside it names it; on its own it's a promise.
+const BARE_CONFIRMED = /^ (?:yes |thanks |ok |okay |great )?(?:thats|that is|that s) confirmed $/;
+const NAMES_IDENTITY = /\b(?:identity|date of birth|dob|birthday|your details|your name|the code|that code|your code)\b/;
+
+const NAMES_ORDER = /\b(?:refills?|prescriptions?|orders?|medications?|medicines?|meds|deliver\w*|pickup|rx)\b/;
+
+/** Drug names come from the store (see createSpeechGuard), so "your Concerta" counts as the order too. */
+export function unexcusedCompletion(sentence: string, drugNames: string[] = []): boolean {
   let ledByApproval = false;
-  return sentence.split(CLAUSE_BREAK).some((clause) => {
-    const w = words(clause).replace(NOT_A_PROMISE, " ").replace(/ +/g, " ");
+  const clauses = sentence.split(CLAUSE_BREAK).map((c) => words(c));
+  const whole = words(sentence);
+  const namesOrder = NAMES_ORDER.test(whole) || drugNames.some((d) => d.trim() && whole.includes(words(d)));
+  return clauses.some((raw, i) => {
+    const beside = [clauses[i - 1], clauses[i + 1]].filter((c): c is string => c !== undefined);
+    if (BARE_CONFIRMED.test(raw) && !namesOrder && beside.some((c) => NAMES_IDENTITY.test(c))) {
+      ledByApproval = false;
+      return false;
+    }
+    const w = raw.replace(NOT_A_PROMISE, " ").replace(/ +/g, " ");
     const excused = ledByApproval || GOVERNED_LEAD.test(w); // "Once it's approved it's ready."
     ledByApproval = GOVERNED_LEAD.test(w);
     return !excused && promisesCompletion(w);
   });
 }
 
-function checkS4(sentence: string, record: RecordEntry[], bookedLabels: string[]): Check {
+function checkS4(sentence: string, record: RecordEntry[], bookedLabels: string[], drugNames: string[] = []): Check {
   const w = words(sentence);
   const results = record.filter((e) => e.kind === "button").map((e) => ({ e, r: resultOf(e) }));
   const approved = record.some((e) => e.kind === "approval" && (e.output as { status?: string })?.status === "approved");
 
   // Before the conditional shortcut below, so a conditional elsewhere can't excuse a completion.
-  if (unexcusedCompletion(sentence) && !approved) return { rule: "S4", why: "completion without approval" };
+  if (unexcusedCompletion(sentence, drugNames) && !approved) return { rule: "S4", why: "completion without approval" };
   if (CONDITIONAL.test(w)) return null;
 
   if (BOOKING.test(w)) {
@@ -217,7 +257,7 @@ export function createSpeechGuard({ store, emit = () => {} }: { store: Store; em
           checkS1(call, sentence, tokens, said, record) ??
           checkS2(call, sentence, tokens, said) ??
           (await checkS3(store, call, sentence)) ??
-          checkS4(sentence, record, bookedLabels);
+          checkS4(sentence, record, bookedLabels, tokens.filter((t) => t.kind === "drug").map((t) => t.text));
 
         if (found?.rule === "S3" && call.lockedPatientId) {
           const item = await store.addQueueItem({
