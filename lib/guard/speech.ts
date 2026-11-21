@@ -14,7 +14,8 @@ export const S4_REPLACEMENT = "A pharmacist will check it first, and I'll confir
 const REPLACEMENT: Record<SpeechRule, string> = { ...GUARD_REPLACEMENTS, S4: S4_REPLACEMENT };
 
 const CONDITIONAL = /\b(once|after|if|when|until|as soon as|pending|waiting|needs to|need to|will need|pharmacist will|not|isnt|hasnt|havent|wont|cant|cannot)\b/;
-const COMPLETION = /\b(approved|ready|sorted|on its way|on the way|delivered|filled)\b/;
+const COMPLETION =
+  /\b(approved|ready|sorted|on its way|on the way|delivered|filled|signed off|confirmed|complete|completed|done|all set|good to go|processed|shipped|sent out|went out|dispatched|picked up|cleared|okayed|okd)\b/;
 // The only completion words that aren't promises: they're about the caller or the past
 // ("whenever you're ready", "last filled 27 days ago"), and are dropped before the check.
 const NOT_A_PROMISE = /\b(you|youre|you are|are you|were|we are|im|i am|whenever youre|when youre) ready\b|\blast filled\b/g;
