@@ -40,10 +40,10 @@ Role 1 runs from Nishant's machine from 1.2 on (MikeyDigit did 1.1).
 
 ## Role 2 · Platform and pharmacist
 
-- **Doing:** 2.8 handed off (Trail #12, branch `role-2/quick-check`, stacked on #10, #9, #7). Waiting on merges and on the humans for hosting (2.6) and the database (2.7).
-- **Done:** 2.1 and the contract switch (merged). 2.5 decided: no phone push. 2.4 Auth0 sign-in and Approve/Deny (Trail #7). 2.2 demo reset and daily check (Trail #9). 2.3 Today view (Trail #10). 2.8 one-tap Quick check, and `GET /api/calls/:id/record` (Trail #12).
-- **Blocked:** 2.6 hosting and 2.7 Postgres: parked by Nishant until the accounts are sorted.
-- **Needs from others:** Role 1: the real AgentDriver for `app/api/_lib/runtime.ts`. Role 4: merge #7, #9, #10, #12 in order; answer the triage REQUEST about Sam's refill lane.
+- **Doing:** waiting on merges: Trail #44 (2.9a Upcoming), #50 (2.9b Calls, after #44), #47 (voice route), #53 (S3/S4 originals on hijack cards for the stage), #54 (2.7 Tiger Data round trips: reset 2.3-4.4 s to 0.5 s, Sam's call store time 3.9 s to 1.5 s).
+- **Done:** 2.1 API and events. 2.2 demo reset and daily check. 2.3 Today. 2.4 Auth0 sign-in and Approve/Deny. 2.5 decided: no phone push. 2.6 deploy kit (Vultr + Caddy). 2.7 Postgres store on Tiger Data. 2.8 Quick check and the call record route.
+- **Blocked:** 2.6 going live needs the Vultr server and the domain from a human. ElevenLabs needs a rotated key and ELEVENLABS_VOICE_ID in `.env`.
+- **Needs from others:** Role 4: merge #44 before #50, then #47, #53, #54. Role 1: send the phone token from createClipFetcher to `/api/call/:id/speak`.
 
 ## Role 3 · Red team and evals
 
