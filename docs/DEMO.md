@@ -4,6 +4,12 @@ Kept by the demo tie-in agent. One row per step of the 3-minute script, walked i
 
 Legend: ✅ works · ⚠️ works with a fallback · ❌ broken (owner fixing it)
 
+## Passes 10 and 11 (about 15:05 to 15:25 EST, main a0edd62: S4 ready-time family and reset-fresh-calls)
+
+Clean passes in a row: **0 of 3** (pass 10 clean, pass 11 broke).
+- **Pass 10 ✅ clean.** 0 S4 blocks: "I can't confirm a pickup day yet" and "I don't have a ready time for it." both passed. Approve ✅, phone approved ✅, hijack card + batch 0 broken / 9 caught ✅, Overnight fallback ✅, Calls record chain verified, 44 entries ✅. Left the call open on purpose.
+- **Pass 11 ❌.** Reset demo with the call still open: **Role 2's fix works** (Trail #57): the new c_0001 verified Sam fresh. But S4 blocked a question right after verification, "Would you like me to check its refills and when it can be filled?", and replaced it with "A pharmacist will check it first…". Probably a regression from `fix/trail-27-s4-clause-checks` (bb10e11) checking the clause outside its question. URGENT to ROLE-4, sent to the review fixer. Screenshot: `results/demo/2026-11-21T1520-pass10-11/p11-s4-blocks-question.jpg`.
+
 ## Passes 7 to 9 (about 14:37 to 14:50 EST, main 0e14bea: s4-cant-say and pg-latency)
 
 Clean passes in a row: **0 of 3** (pass 7 was clean, pass 8 broke). Screenshots: `results/demo/2026-11-21T1440-pass7-9/`.
