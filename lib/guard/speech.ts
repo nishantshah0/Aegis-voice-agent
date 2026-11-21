@@ -165,12 +165,17 @@ function promisesCompletion(w: string): boolean {
 const BARE_CONFIRMED = /^ (?:yes |thanks |ok |okay |great )?(?:thats|that is|that s) confirmed $/;
 const NAMES_IDENTITY = /\b(?:identity|date of birth|dob|birthday|your details|your name|the code|that code|your code)\b/;
 
-export function unexcusedCompletion(sentence: string): boolean {
+const NAMES_ORDER = /\b(?:refills?|prescriptions?|orders?|medications?|medicines?|meds|deliver\w*|pickup|rx)\b/;
+
+/** Drug names come from the store (see createSpeechGuard), so "your Concerta" counts as the order too. */
+export function unexcusedCompletion(sentence: string, drugNames: string[] = []): boolean {
   let ledByApproval = false;
   const clauses = sentence.split(CLAUSE_BREAK).map((c) => words(c));
+  const whole = words(sentence);
+  const namesOrder = NAMES_ORDER.test(whole) || drugNames.some((d) => d.trim() && whole.includes(words(d)));
   return clauses.some((raw, i) => {
     const beside = [clauses[i - 1], clauses[i + 1]].filter((c): c is string => c !== undefined);
-    if (BARE_CONFIRMED.test(raw) && beside.some((c) => NAMES_IDENTITY.test(c))) {
+    if (BARE_CONFIRMED.test(raw) && !namesOrder && beside.some((c) => NAMES_IDENTITY.test(c))) {
       ledByApproval = false;
       return false;
     }
@@ -181,13 +186,13 @@ export function unexcusedCompletion(sentence: string): boolean {
   });
 }
 
-function checkS4(sentence: string, record: RecordEntry[], bookedLabels: string[]): Check {
+function checkS4(sentence: string, record: RecordEntry[], bookedLabels: string[], drugNames: string[] = []): Check {
   const w = words(sentence);
   const results = record.filter((e) => e.kind === "button").map((e) => ({ e, r: resultOf(e) }));
   const approved = record.some((e) => e.kind === "approval" && (e.output as { status?: string })?.status === "approved");
 
   // Before the conditional shortcut below, so a conditional elsewhere can't excuse a completion.
-  if (unexcusedCompletion(sentence) && !approved) return { rule: "S4", why: "completion without approval" };
+  if (unexcusedCompletion(sentence, drugNames) && !approved) return { rule: "S4", why: "completion without approval" };
   if (CONDITIONAL.test(w)) return null;
 
   if (BOOKING.test(w)) {
@@ -252,7 +257,7 @@ export function createSpeechGuard({ store, emit = () => {} }: { store: Store; em
           checkS1(call, sentence, tokens, said, record) ??
           checkS2(call, sentence, tokens, said) ??
           (await checkS3(store, call, sentence)) ??
-          checkS4(sentence, record, bookedLabels);
+          checkS4(sentence, record, bookedLabels, tokens.filter((t) => t.kind === "drug").map((t) => t.text));
 
         if (found?.rule === "S3" && call.lockedPatientId) {
           const item = await store.addQueueItem({
