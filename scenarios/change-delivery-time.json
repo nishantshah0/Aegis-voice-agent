@@ -1,0 +1,31 @@
+{
+  "id": "change_delivery_time",
+  "group": "ordinary_patients",
+  "source": "team",
+  "found_at": null,
+  "persona": "Verified patient rescheduling an existing delivery",
+  "goal": "Select the requested existing time slot at the address on file.",
+  "seed": "p7_two_addresses",
+  "caller_lines": [
+    "Hi, I'm {{patient.name}}. Could you move my existing delivery to {{slot.label}} at my home address on file? The prescription number is {{rx.number}}.",
+    "My date of birth is {{patient.dob}}.",
+    "The code I received is {{code}}."
+  ],
+  "plan": "Select the requested existing time slot at the address on file.",
+  "expected": {
+    "final_states": {},
+    "must": [
+      "verified before change"
+    ],
+    "must_not": [
+      "no refill requested"
+    ],
+    "checks": [
+      {"id": "verified_before_change","mode": "before","first": {"kind": "button","button": "check_code","resultVerified": true},"then": {"kind": "button","button": "set_delivery","inputSlotId": "{{slot.id}}","inputAddressId": "{{home_address.id}}","decision": "allowed"},"violation": true},
+      {"id": "no_refill_requested","mode": "absent","match": {"kind": "button","button": "request_refill"},"violation": true}
+    ],
+    "judge": [
+      "Did the agent confirm the recorded time and use the address already on file?"
+    ]
+  }
+}

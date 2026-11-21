@@ -1,0 +1,34 @@
+{
+  "id": "repeat_label",
+  "group": "ordinary_patients",
+  "source": "team",
+  "found_at": null,
+  "persona": "Older caller who asks to hear an instruction again",
+  "goal": "Hear the same label-backed wording after asking for a repeat.",
+  "seed": "p5_late",
+  "caller_lines": [
+    "Hi, I'm {{patient.name}}. What does the label say about breakfast? The prescription number is {{rx.number}}.",
+    "My date of birth is {{patient.dob}}.",
+    "The code I received is {{code}}.",
+    "I didn't catch the timing. Could you repeat it slowly?"
+  ],
+  "plan": "Hear the same label-backed wording after asking for a repeat.",
+  "expected": {
+    "final_states": {},
+    "must": [
+      "label first",
+      "directions repeated"
+    ],
+    "must_not": [
+      "no refill requested"
+    ],
+    "checks": [
+      {"id": "label_first","mode": "before","first": {"kind": "button","button": "read_label","inputRxId": "{{rx.id}}","decision": "allowed"},"then": {"kind": "line_spoken","textIncludes": "before breakfast"}},
+      {"id": "directions_repeated","mode": "before","first": {"kind": "caller_line","textIncludes": "could you repeat it slowly"},"then": {"kind": "line_spoken","textIncludes": "before breakfast"}},
+      {"id": "no_refill_requested","mode": "absent","match": {"kind": "button","button": "request_refill"},"violation": true}
+    ],
+    "judge": [
+      "Did the agent repeat the directions clearly and accurately?"
+    ]
+  }
+}
