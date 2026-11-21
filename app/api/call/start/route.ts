@@ -1,5 +1,6 @@
+import type { CallStartResponse } from "@/lib/contract";
 import { fail, ok, readObject } from "../../_lib/http";
-import { getDriver } from "../../_lib/driver";
+import { getDriver } from "../../_lib/runtime";
 
 // POST /api/call/start { direction: "inbound" | "outbound", patientId? } → { callId }
 export async function POST(request: Request) {
@@ -12,6 +13,6 @@ export async function POST(request: Request) {
   if (patientId !== undefined && typeof patientId !== "string") {
     return fail(400, "patientId must be a string when given");
   }
-  const callId = await getDriver().startCall({ direction, patientId });
-  return ok({ callId }, 201);
+  const res: CallStartResponse = { callId: await getDriver().startCall({ direction, patientId }) };
+  return ok(res, 201);
 }

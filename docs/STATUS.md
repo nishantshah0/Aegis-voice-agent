@@ -38,10 +38,10 @@ Not doing: Entire's hosted review agents (they need billing). Maybe later: a Git
 
 ## Role 2 · Platform and pharmacist
 
-- **Doing:** 2.1 handed off (Trail #3, branch `role-2/api-skeleton`). Next: 2.5 Auth0 phone-approval check (by Saturday 10 AM), then 2.2 once 4.2 lands.
-- **Done:** 2.1 API skeleton and event stream: `emit()` and `subscribe()` in `lib/events/`, `GET /api/events` (server-sent events, resumes from Last-Event-ID), `GET/POST /api/clock`, `POST /api/call/start` and `/api/call/:id/say` (temporary echo driver), `POST /api/queue/:id/decide` (refuses until Auth0), every other SPEC endpoint answers 501 naming its task. Live feed on `/console/today`.
+- **Doing:** contract switch handed off (Trail #5, branch `role-2/contract-switch`). Next: 2.5 Auth0 phone-approval check (by Saturday 10 AM, needs a human for the Auth0 tenant), then 2.2 once 4.2 lands.
+- **Done:** 2.1 API skeleton and event stream (merged). Contract switch: event types, driver, store and `Approver` come from `lib/contract/`; the API runs on `createFakes(emit)` in `app/api/_lib/runtime.ts`; the demo clock is on the Store; decide calls `store.decide` and emits `queue` (still 401 until 2.4).
 - **Blocked:** 
-- **Needs from others:** Role 4: task 0 contract (`StreamEvent`, `QueueItem`, `Approver`, `AgentDriver`, `Store`), so `lib/events/types.ts` can re-export it. Role 1: the real `AgentDriver` to replace `app/api/_lib/driver.ts`.
+- **Needs from others:** Role 4: swap `lib/store/memory.ts` into `app/api/_lib/runtime.ts` when 4.2 lands (or I will). Role 1: the real `AgentDriver` for the same file.
 
 ## Role 3 · Red team and evals
 
@@ -52,8 +52,8 @@ Not doing: Entire's hosted review agents (they need billing). Maybe later: a Git
 
 ## Role 4 · The lock
 
-- **Doing:** 4.3 control layer (12 buttons, core rules, cards engine, lanes), then 4.4 guard and 4.5 hammers
-- **Done:** 4.2 in-memory store (`lib/store/memory.ts`, `getStore()`, sha256 hash chain, `findBrokenLink`) and seed (`lib/seed`, 8 patients, `IDS`). Task 0 contract (`lib/contract/`). Task 0 setup: README, `docs/SPEC.md`, `docs/DESIGN.md`, `AGENTS.md`, the Next.js app, the GitHub coordination setup (issue templates, pull request template, release gate workflow), Entire (capture, Graph, Brain seeded with our rules, `docs/ENTIRE.md`)
+- **Doing:** integration (4.7) while 4.3 to 4.5 wait on a HUMAN ok; then 4.6 stage view
+- **Done:** 4.5 hammers on `role-4/hammers`: depth 3 (40,878 sequences) and 10,000 random, 0 rules broken (results/hammer-latest.json). 4.4 guard on `role-4/guard` (waits on a HUMAN ok): `lib/guard`, 39 tests. 4.3 control layer on `role-4/control` (waits on a HUMAN ok): `lib/control`, 77 tests. 4.2 in-memory store (`lib/store/memory.ts`, `getStore()`, sha256 hash chain, `findBrokenLink`) and seed (`lib/seed`, 8 patients, `IDS`). Task 0 contract (`lib/contract/`). Task 0 setup: README, `docs/SPEC.md`, `docs/DESIGN.md`, `AGENTS.md`, the Next.js app, the GitHub coordination setup (issue templates, pull request template, release gate workflow), Entire (capture, Graph, Brain seeded with our rules, `docs/ENTIRE.md`)
 - **Blocked:** Entire Trails aren't visible from PS12007, so no Trails for Role 4 yet
 - **Needs from others:** everyone: install Entire and run `entire login` (see `docs/ENTIRE.md`). Entire's repo onboarding, Trails and shared Brain are already set up.
 

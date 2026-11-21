@@ -1,0 +1,25 @@
+{
+  "ranAt": "2026-11-21T10:24:53.963Z",
+  "mode": "hammer",
+  "depth": 3,
+  "reports": [
+    {
+      "kind": "exhaustive",
+      "sequences": 40878,
+      "presses": 112100,
+      "checks": 121068,
+      "broken": 0,
+      "failures": [],
+      "ms": 39858
+    },
+    {
+      "kind": "random",
+      "sequences": 10000,
+      "presses": 145132,
+      "checks": 174795,
+      "broken": 0,
+      "failures": [],
+      "ms": 78742
+    }
+  ]
+}
