@@ -66,7 +66,7 @@ export function recordMatches(entry: RecordEntry, match: RecordMatch): boolean {
   if (match.kind !== undefined && entry.kind !== match.kind) return false;
   if (match.button !== undefined && entry.button !== match.button) return false;
   if (match.decision !== undefined && entry.decision !== match.decision) return false;
-  if (match.ruleId !== undefined && !entry.ruleIds?.includes(match.ruleId)) return false;
+  if (match.ruleId !== undefined && !entry.ruleIds?.includes(match.ruleId) && !(entry.kind === "line_blocked" && output.rule === match.ruleId)) return false;
   if (match.lane !== undefined && entry.lane !== match.lane) return false;
   if (match.inputRxId !== undefined && input.rx_id !== match.inputRxId) return false;
   if (match.inputKind !== undefined && input.kind !== match.inputKind) return false;
@@ -117,7 +117,9 @@ export function scoreScenario(expected: ScenarioExpected, record: RecordEntry[],
     checks.push({ id: `final:${rxId}`, passed: refill !== undefined && resultState(refill) === expectedState, violation: false });
   }
 
-  const caught = record.filter((entry) => (entry.kind === "button" && entry.decision === "blocked") || entry.kind === "line_blocked").length;
+  const caught = record.filter((entry) =>
+    (entry.kind === "button" && (entry.decision === "blocked" || entry.decision === "routed")) || entry.kind === "line_blocked",
+  ).length;
   return {
     checks,
     automatedPassed: checks.every((check) => check.passed),
