@@ -20,7 +20,8 @@ export const getStore = (): Store => getServerStore();
 function parts(): Parts {
   if (!holder.__refillGuardParts) {
     const store = getStore();
-    const control = createControl({ store, emit });
+    // Codes never go on the event stream; the phone reads them from GET /api/call/:id/code.
+    const control = createControl({ store, emit, broadcastCodes: false });
     const fake = createFakeDriver(store, createFakeGuard(store, emit), emit);
     // Calls start through the control layer, never the fake's own startCall.
     const driver: AgentDriver = { ...fake, startCall: (opts) => control.startCall(opts) };

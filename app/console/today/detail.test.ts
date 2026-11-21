@@ -21,7 +21,7 @@ async function samsCall() {
   const { callId, lookupId } = started;
   await guard(callId, "Hi, this is Maple Street Pharmacy calling for Sam.");
   await control.press(callId, "send_code", { lookup_id: lookupId });
-  const code = events.flatMap((e) => (e.type === "phone" && e.kind === "code" ? [e.text.match(/\d{6}/)![0]] : [])).pop()!;
+  const code = (await control.codeFor(callId))!;
   await safety(callId, `The code is ${code}.`);
   await control.press(callId, "check_code", { lookup_id: lookupId, code });
   await control.press(callId, "request_refill", { rx_id: IDS.samConcerta, reason: "Patient sounds confident about the dose" });
