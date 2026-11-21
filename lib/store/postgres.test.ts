@@ -2,7 +2,7 @@
 // against both, on a real Postgres (PGlite, in-process), and Sam's call on the real lock
 // leaves the same hash-chained record in each.
 import { PGlite } from "@electric-sql/pglite";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { Approver, RecordEntry, StreamEvent, Store } from "@/lib/contract";
 import { createControl } from "@/lib/control";
 import { createSafetyCheck, createSpeechGuard } from "@/lib/guard";
@@ -12,15 +12,24 @@ import { createPostgresStore, fromPGlite } from "./postgres";
 
 const pharmacist: Approver = { id: "auth0|test-pharmacist", name: "Test Pharmacist", role: "pharmacist" };
 
+// One in-process Postgres for the file (it takes a few seconds to start); every test
+// resets the store to the seed first.
+let pg: PGlite;
+beforeAll(async () => {
+  pg = new PGlite();
+  await pg.query("select 1");
+}, 60_000);
+
 const factories: Record<string, () => Store> = {
   memory: () => createMemoryStore(SEED),
-  postgres: () => createPostgresStore(fromPGlite(new PGlite()), SEED),
+  postgres: () => createPostgresStore(fromPGlite(pg), SEED),
 };
 
 describe.each(Object.entries(factories))("%s store", (_name, make) => {
   let store: Store;
-  beforeEach(() => {
+  beforeEach(async () => {
     store = make();
+    await store.reset(SEED);
   });
 
   it("serves the seed", async () => {
@@ -131,7 +140,9 @@ async function samsCall(store: Store): Promise<RecordEntry[]> {
 describe("Sam's call on the real lock", () => {
   it("leaves the same intact, hash-chained record in the memory and the Postgres store", async () => {
     const memory = await samsCall(factories.memory());
-    const postgres = await samsCall(factories.postgres());
+    const pgStore = factories.postgres();
+    await pgStore.reset(SEED);
+    const postgres = await samsCall(pgStore);
     expect(findBrokenLink(postgres)).toBeNull();
     expect(postgres.length).toBeGreaterThan(5);
     expect(postgres.map((e) => e.hash)).toEqual(memory.map((e) => e.hash));
