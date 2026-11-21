@@ -22,3 +22,9 @@ main 6defae8 plus demo/nav. Local server on port 3001, `DEMO_CONTROLS=on`, no AP
 | 1. Signed in as the test pharmacist | ✅ Queue, lanes and the Pair panel show | [01c-console-signed-in.jpg](01c-console-signed-in.jpg) |
 | 1. Pair Sam's phone | ✅ The one-time link opens `/phone`; the paired Answer returns 200 | — |
 | 2. Answer | ❌ Same Transcript crash, then "This page couldn't load". The call can't go on until Role 1's one-line fix lands | [02d-phone-dead-after-answer.jpg](02d-phone-dead-after-answer.jpg) |
+
+## Pass 3 (08:15 EST, main + Role 1's crash fix, Trail #37)
+
+| Step | | Screenshot |
+|---|---|---|
+| 2. Answer, then a typed line | ✅ The phone works with the fix. ❌ The agent is still the fake: no opener, no code, "One moment." to everything | [02e-phone-fixed-fake-agent.jpg](02e-phone-fixed-fake-agent.jpg) |

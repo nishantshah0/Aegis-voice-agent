@@ -9,7 +9,7 @@ Legend: ✅ works · ⚠️ works with a fallback · ❌ broken (owner fixing it
 - `main` commit: 63647b2 (pass 2). Pass 1 was 6defae8
 - When: pass 2 at about 08:00 EST, signed in as the test pharmacist. Pass 1 at about 07:50. Screenshots: `results/demo/2026-11-21T0751/walkthrough.md`
 - How: `npm run dev -p 3001` with `DEMO_CONTROLS=on`, typed box, no `ANTHROPIC_API_KEY`, so the fake driver
-- Clean passes in a row: **0 of 3**
+- Clean passes in a row: **0 of 3**. Step 2 waits only on the live agent once Trail #37 merges
 
 ## Steps
 
@@ -28,6 +28,13 @@ Legend: ✅ works · ⚠️ works with a fallback · ❌ broken (owner fixing it
 | 4 | Overnight safety tab, approve the waiting fix | ❌ | `/console/overnight` 404 (also `/console/review`, `/console/rules`). Tasks 3.7 and 3.8 are after core | ROLE-3, URGENT 3.8. Fallback below |
 | 5 | Close: the record, the counters | ⚠️ | Stage counters ✅. Sam's record needs sign-in (`/api/calls/:id/record` 401 signed out). The "[M] million tries" number isn't on any screen; the last real hammer run is 129,100 + 120,938 presses, 0 broken (`results/hammer-latest.json`, 11:14 UTC) | Use the real hammer count, never a made-up one |
 | — | Glue: `/` linked nowhere, `/console` 404 | fixed | Home links Stage, Phone and Console; `/console` redirects to Today | `demo/nav`, HANDOFF to ROLE-4 |
+
+## Pass 3 (about 08:15 EST): main 63647b2 plus `role-1/phone-answer-crash` (Trail #37), pre-merge check
+
+- Reset, sign-in, pairing, daily check, ring ✅.
+- Answer ✅ with Role 1's fix: the call screen opens with the typed box, no crash. Trail #37 is good to merge.
+- Transcript ✅: "Hi, this is Sam" shows, and the reply is the fake's "One moment."
+- Answer returns `events: []`: the fake driver has no opening and sends no code, so the "Refill Guard Pharmacy, calling for Sam Rivera…" opener and the code text never appear. Same root cause as 2c, so the live agent is now the only blocker for step 2.
 
 ## Main session's signed-in pass (about 08:10 EST, same server)
 
