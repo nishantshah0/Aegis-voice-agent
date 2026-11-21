@@ -21,9 +21,21 @@ export function issuePhoneToken(callId: CallId): string | null {
   return token;
 }
 
-/** Forget every token (demo reset reuses call ids). */
+const speechHolder = globalThis as typeof globalThis & { __refillGuardSpeakCounts?: Map<CallId, number> };
+const speechCounts = () => (speechHolder.__refillGuardSpeakCounts ??= new Map());
+
+/** Count one speech request for a call; false once it has used `limit`. */
+export function takeSpeech(callId: CallId, limit: number): boolean {
+  const used = speechCounts().get(callId) ?? 0;
+  if (used >= limit) return false;
+  speechCounts().set(callId, used + 1);
+  return true;
+}
+
+/** Forget every token and speech allowance (demo reset reuses call ids). */
 export function clearPhoneTokens(): void {
   tokens().clear();
+  speechCounts().clear();
 }
 
 export function tokenMatches(callId: CallId, given: string | null): boolean {
