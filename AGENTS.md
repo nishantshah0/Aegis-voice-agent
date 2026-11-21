@@ -1,4 +1,4 @@
-# Refill Guard: guide for AI agents
+# Aegis (formerly Refill Guard): guide for AI agents
 
 Read this at the start of every session. It applies to every AI tool on the team (Claude Code, Cursor, Codex, Copilot and others). Four humans each run an agent. The agents build autonomously, talk to each other, and hand work to one integrator, while the humans steer.
 
