@@ -50,6 +50,16 @@ const FALSE_APPROVALS = [
   "Once the pharmacist approved it, it shipped and it's on its way.",
   "There's no way it isn't approved.",
   "It's approved when it's approved.",
+  // Done-words beyond the first seven (third review).
+  "Your pharmacist signed off on it.",
+  "Your refill is confirmed.",
+  "Your refill is complete.",
+  "It's done.",
+  "You're all set.",
+  "It's good to go.",
+  "It's been processed.",
+  "It shipped.",
+  "It went out this morning.",
 ];
 
 const HONEST = [
@@ -68,6 +78,9 @@ const HONEST = [
   "Once it's approved it's ready for pickup.",
   "After it's been approved, it'll be on its way.",
   "It'll be filled once the pharmacist approves it.",
+  "Once the pharmacist signs off, it'll be ready.",
+  "It isn't done yet.",
+  "It won't ship until a pharmacist approves it.",
 ];
 
 describe("S4: a conditional only excuses its own clause", () => {
@@ -79,7 +92,7 @@ describe("S4: a conditional only excuses its own clause", () => {
     expect((await guard(callId, sentence)).blocked).toBe(false);
   });
 
-  it.each(FALSE_APPROVALS.slice(0, 2))("allows once the pharmacist has approved: %s", async (sentence) => {
+  it.each([...FALSE_APPROVALS.slice(0, 2), "Your refill is confirmed.", "You're all set.", "It's good to go."])("allows once the pharmacist has approved: %s", async (sentence) => {
     const [item] = await store.queue("quick_check");
     await store.decide(item.id, "approve", { id: "u_test", name: "Test Pharmacist", role: "pharmacist" });
     expect((await guard(callId, sentence)).blocked).toBe(false);
