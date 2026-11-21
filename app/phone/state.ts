@@ -29,6 +29,8 @@ export type PhoneState = {
   status?: string;
   /** Something the phone couldn't do, said plainly. */
   problem?: string;
+  /** Opening lines shown from the answer response that the call's stream may still repeat. */
+  echoes?: TranscriptItem[];
 };
 
 export type PhoneAction =
@@ -42,6 +44,17 @@ export type PhoneAction =
   | { type: "hung_up" };
 
 export const initialPhone = (): PhoneState => ({ mode: "idle", transcript: [] });
+
+const sameItem = (a: TranscriptItem | undefined, b: TranscriptItem) => JSON.stringify(a) === JSON.stringify(b);
+
+/** Add one transcript item from the stream, unless it's the stream's copy of an opening line already shown. */
+function addFromStream(state: PhoneState, item: TranscriptItem): PhoneState {
+  const [next, ...rest] = state.echoes ?? [];
+  if (next && sameItem(next, item)) return { ...state, echoes: rest };
+  // Once the caller speaks, the stream is past the opening: nothing more is an echo.
+  const echoes = item.kind === "line" && item.who === "caller" ? undefined : state.echoes;
+  return { ...state, transcript: [...state.transcript, item], echoes };
+}
 
 function onEvent(state: PhoneState, event: StreamEvent): PhoneState {
   if (event.type === "phone" && event.kind === "ring") {
@@ -57,28 +70,37 @@ function onEvent(state: PhoneState, event: StreamEvent): PhoneState {
       if (event.kind === "status") return { ...state, status: event.text };
       return state;
     case "line":
-      return { ...state, transcript: [...state.transcript, { kind: "line", who: event.who, text: event.text }] };
+      return addFromStream(state, { kind: "line", who: event.who, text: event.text });
     case "blocked_line":
-      return {
-        ...state,
-        transcript: [...state.transcript, { kind: "blocked", rule: event.rule, original: event.original, replacement: event.replacement }],
-      };
+      return addFromStream(state, { kind: "blocked", rule: event.rule, original: event.original, replacement: event.replacement });
     default:
       return state;
   }
 }
 
-/** The opening's lines and blocked lines, and the code-sent message if send_code went through. */
+/**
+ * The opening's lines and blocked lines, and the code-sent message if send_code went through.
+ * The call's stream carries the same lines, before or after this: whichever comes second is
+ * dropped, so the opening shows once.
+ */
 function onOpening(state: PhoneState, events: AgentEvent[]): PhoneState {
   let next = state;
+  let seen = 0; // opening items the stream already showed, at the start of the transcript
+  const echoes: TranscriptItem[] = [];
   for (const e of events) {
-    if (e.type === "line") next = { ...next, transcript: [...next.transcript, { kind: "line", who: "agent", text: e.text }] };
-    if (e.type === "blocked_line") {
-      next = { ...next, transcript: [...next.transcript, { kind: "blocked", rule: e.rule, original: e.original, replacement: e.replacement }] };
+    let item: TranscriptItem | undefined;
+    if (e.type === "line") item = { kind: "line", who: "agent", text: e.text };
+    if (e.type === "blocked_line") item = { kind: "blocked", rule: e.rule, original: e.original, replacement: e.replacement };
+    if (item) {
+      if (sameItem(next.transcript[seen], item)) seen++;
+      else {
+        next = { ...next, transcript: [...next.transcript, item] };
+        echoes.push(item);
+      }
     }
     if (e.type === "press" && e.button === "send_code" && e.result.ok) next = { ...next, message: CODE_SENT_MESSAGE, code: undefined };
   }
-  return next;
+  return { ...next, echoes: [...(next.echoes ?? []), ...echoes] };
 }
 
 /**
