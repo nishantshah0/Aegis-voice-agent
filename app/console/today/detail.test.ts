@@ -23,7 +23,7 @@ async function samsCall() {
   await control.press(callId, "send_code", { lookup_id: lookupId });
   const code = events.flatMap((e) => (e.type === "phone" && e.kind === "code" ? [e.text.match(/\d{6}/)![0]] : [])).pop()!;
   await safety(callId, `The code is ${code}.`);
-  await control.press(callId, "check_code", { lookup_id: lookupId, code });
+  await control.press(callId, "check_code", { lookup_id: lookupId, code , dob: "1990-03-14" });
   await control.press(callId, "request_refill", { rx_id: IDS.samConcerta, reason: "Patient sounds confident about the dose" });
   await guard(callId, "Your Concerta refill is approved.");
   await safety(callId, "I've had some mild headaches in the afternoon.");

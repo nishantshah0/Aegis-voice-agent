@@ -118,7 +118,7 @@ describe("Sam's refill, approved on the console", () => {
       .filter((e): e is Extract<StreamEvent, { type: "phone" }> => e.type === "phone" && e.callId === callId && e.kind === "code")
       .map((e) => e.text.match(/\d{6}/)?.[0])
       .pop()!;
-    expect(await control.press(callId, "check_code", { lookup_id: lookupId, code })).toMatchObject({ ok: true });
+    expect(await control.press(callId, "check_code", { lookup_id: lookupId, code , dob: "1990-03-14" })).toMatchObject({ ok: true });
     expect(await control.press(callId, "request_refill", { rx_id: IDS.samConcerta })).toMatchObject({ ok: true, lane: "quick_check" });
 
     const [item] = await getStore().queue("quick_check");
