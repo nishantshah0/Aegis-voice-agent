@@ -50,8 +50,8 @@ describe("runHijackNow", () => {
     subscribe((d) => {
       if (d.event.type !== "score") return;
       scores.push(d.event);
-      const runDirs = readdirSync(dir);
-      savedAtScore.push(runDirs.length === 1 ? readdirSync(join(dir, runDirs[0])).length : 0);
+      const runDirs = readdirSync(join(dir, "hijack"));
+      savedAtScore.push(runDirs.length === 1 ? readdirSync(join(dir, "hijack", runDirs[0])).length : 0);
     });
     const { runDir, runs } = await runHijackNow({ pause: async () => {} });
     expect(runs).toHaveLength(4);
