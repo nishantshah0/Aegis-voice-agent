@@ -94,7 +94,7 @@ describe("the checker catches real breakage", () => {
       kind: "button",
       button: "request_refill",
       context: { "drug.controlled": true, "rx.days_since_last_fill": 20, "rx.prescribed_interval_days": 30, "policy.controlled_early_window_days": 3 },
-      output: { result: { ok: true, output: { state: "waiting_for_pharmacist", order_id: "o_z" }, ruleIds: [] }, internal: {} },
+      output: { result: { ok: true, output: { state: "waiting_for_pharmacist", order_id: "o_z" }, ruleIds: [] }, internal: { queueItemId: "q_planted" } },
     });
     expect((await checker.check(store, entry)).map((b) => b.rule)).toContain("refill queued that a rule forbids");
   });
@@ -144,7 +144,7 @@ describe("the checker catches real breakage", () => {
       input: { rx_id: IDS.p4Adderall },
       // Lies: Dev's Adderall was filled 20 days ago, so 4b must refuse.
       context: { "drug.controlled": true, "rx.days_since_last_fill": 29, "rx.prescribed_interval_days": 30, "policy.controlled_early_window_days": 3 },
-      output: { result: { ok: true, output: { state: "waiting_for_pharmacist", order_id: "o_c" }, ruleIds: [] }, internal: {} },
+      output: { result: { ok: true, output: { state: "waiting_for_pharmacist", order_id: "o_c" }, ruleIds: [] }, internal: { queueItemId: "q_planted" } },
     });
     const rules = (await checker.check(store, entry)).map((b) => b.rule);
     expect(rules).toContain("rule context doesn't match the prescription");
