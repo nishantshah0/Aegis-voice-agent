@@ -138,7 +138,7 @@ export function createMemoryStore(seed: Seed = SEED): Store {
       if (patch.notes !== undefined) item.notes = clone(patch.notes);
       return clone(item);
     },
-    async decide(itemId, decision, approver, note) {
+    async decide(itemId, decision, approver, note, signedRef) {
       const item = s.queue.find((q) => q.id === itemId);
       if (!item) throw new Error(`no queue item ${itemId}`);
       if (item.status !== "open") throw new Error(`queue item ${itemId} is already ${item.status}`);
@@ -154,7 +154,7 @@ export function createMemoryStore(seed: Seed = SEED): Store {
         callId: item.callId,
         actor: approver.role,
         kind: "approval",
-        input: { itemId, decision, note, approver },
+        input: { itemId, decision, note, approver, ...(signedRef ? { tracekit: signedRef } : {}) },
         output: { status: item.status, orderId: item.orderId },
         ruleIds: item.ruleIds,
         decision: "allowed",

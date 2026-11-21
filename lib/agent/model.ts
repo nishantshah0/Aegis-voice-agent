@@ -12,7 +12,7 @@ import type { CallId } from "@/lib/contract";
  * the driver, which goes through control.press and yields the press. Returns what
  * the model sees as the tool result.
  */
-export type PressForModel = (button: string, input: unknown) => Promise<{ content: string; isError: boolean }>;
+export type PressForModel = (button: string, input: unknown, invocationId?: string) => Promise<{ content: string; isError: boolean }>;
 
 export type ModelRequest = {
   callId: CallId;

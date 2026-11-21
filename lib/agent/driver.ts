@@ -13,6 +13,7 @@
 // the control layer and the guard (Role 2 DECISION: whoever produces it emits it).
 
 import type Anthropic from "@anthropic-ai/sdk";
+import { randomUUID } from "node:crypto";
 import type {
   AgentDriver,
   AgentEvent,
@@ -85,6 +86,7 @@ type CallState = {
   /** One entry per caller line: when it arrived, first model text, first guarded sentence. */
   timings: ServerTurnTiming[];
   ended: boolean;
+  nextToolInvocation: number;
 };
 
 export const MAX_STEPS = 8;
@@ -123,6 +125,7 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
       askedSideEffects: new Set(),
       timings: [],
       ended: false,
+      nextToolInvocation: 0,
     });
   }
 
@@ -146,7 +149,7 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
 
   /** A press the driver makes itself, for the fixed parts of the call. Same buttons, same lock. */
   async function* pressFixed<B extends ButtonName>(callId: CallId, button: B, input: ButtonInputs[B]): AsyncGenerator<AgentEvent, ButtonResult<B>> {
-    const result = await press(callId, button, input);
+    const result = await press(callId, button, input, { invocationId: `fixed-${randomUUID()}` });
     yield { type: "press", button, input, result };
     return result;
   }
@@ -166,9 +169,16 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
   }
 
   /** One button press for the model, through the lock. A name that isn't a button never reaches it. */
-  async function pressOne(callId: CallId, name: string, input: unknown, refilled: RxId[]): Promise<{ event?: AgentEvent; content: string; isError: boolean }> {
+  function nextInvocationId(callId: CallId): string {
+    const call = state.get(callId);
+    if (!call) return `tool-${randomUUID()}`;
+    call.nextToolInvocation += 1;
+    return `${callId}-tool-${call.nextToolInvocation}`;
+  }
+
+  async function pressOne(callId: CallId, name: string, input: unknown, refilled: RxId[], invocationId = nextInvocationId(callId)): Promise<{ event?: AgentEvent; content: string; isError: boolean }> {
     if (!isButtonName(name)) return { content: JSON.stringify({ error: "no such button" }), isError: true };
-    const result: ButtonResult = await press(callId, name, input);
+    const result: ButtonResult = await press(callId, name, input, { invocationId });
     const rxId = (input as { rx_id?: unknown })?.rx_id;
     if (name === "note_for_pharmacist" && result.ok && (input as { kind?: unknown })?.kind === "side_effect") {
       // The side effect is recorded: later lines aren't side-effect answers any more.
@@ -185,7 +195,7 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
     const results: ToolResult[] = [];
     for (const block of turn.content) {
       if (block.type !== "tool_use") continue;
-      const pressed = await pressOne(callId, block.name, block.input, refilled);
+      const pressed = await pressOne(callId, block.name, block.input, refilled, `model-${block.id}`);
       if (pressed.event) yield pressed.event;
       results.push({ type: "tool_result", tool_use_id: block.id, is_error: pressed.isError, content: pressed.content });
     }
@@ -296,8 +306,8 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
         let turn: ModelTurn | undefined;
         // Presses made by a model that runs its own tool steps (the Agent SDK), yielded in order.
         const pressed: AgentEvent[] = [];
-        const pressForModel: PressForModel = async (name, input) => {
-          const r = await pressOne(callId, name, input, refilled);
+        const pressForModel: PressForModel = async (name, input, invocationId) => {
+          const r = await pressOne(callId, name, input, refilled, invocationId ?? nextInvocationId(callId));
           if (r.event) pressed.push(r.event);
           return { content: r.content, isError: r.isError };
         };

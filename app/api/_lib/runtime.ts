@@ -4,6 +4,7 @@ import { createFakeDriver, createFakeGuard } from "@/lib/contract/fakes";
 import type { AgentDriver, Store } from "@/lib/contract";
 import { createControl, type Control } from "@/lib/control";
 import { createSafetyCheck, createSpeechGuard } from "@/lib/guard";
+import { createSignedPress, createTracekitRuntime } from "@/lib/audit/signed-press";
 import { emit } from "@/lib/events";
 import { PHARMACY_NAME, SEED } from "@/lib/seed";
 import { existsSync, readFileSync } from "node:fs";
@@ -18,7 +19,7 @@ import { clearPhoneTokens } from "./phone";
 // Driver: see describeAgent() below. The real agent always runs with the real speech guard and
 // safety check; the contract's fake never scores or shows a real result.
 
-type Parts = { control: Control; driver: AgentDriver };
+type Parts = { control: Control; driver: AgentDriver; close?: () => Promise<void> };
 
 const holder = globalThis as typeof globalThis & { __refillGuardParts?: Parts };
 
@@ -49,7 +50,8 @@ function parts(): Parts {
     const store = getStore();
     // Codes never go on the event stream; the phone reads them from GET /api/call/:id/code.
     const control = createControl({ store, emit, broadcastCodes: false });
-    holder.__refillGuardParts = { control, driver: makeDriver(store, control) };
+    const live = makeDriver(store, control);
+    holder.__refillGuardParts = { control, ...live };
   }
   return holder.__refillGuardParts;
 }
@@ -67,24 +69,42 @@ export function describeAgent(): AgentChoice {
   return { kind: "fake" };
 }
 
-function makeDriver(store: Store, control: Control): AgentDriver {
+function makeDriver(store: Store, control: Control): Pick<Parts, "driver" | "close"> {
   const choice = describeAgent();
   console.log(`agent: ${choice.kind}${"model" in choice ? ` (${choice.model})` : ""}`);
   if (choice.kind !== "fake") {
     const model: AgentModel = choice.kind === "claude-api" ? createClaudeModel() : createAgentSdkModel({ model: choice.model });
-    return createAgentDriver({
+    const tracekit = createTracekitRuntime();
+    const signed = createSignedPress({ press: control.press, getRun: tracekit.getRun, store });
+    const driver = createAgentDriver({
       calls: control,
-      press: control.press,
+      press: signed.press,
       guardSentence: createSpeechGuard({ store, emit }),
       checkCallerLine: createSafetyCheck({ store, emit }),
       model,
       pharmacyName: PHARMACY_NAME,
       emit,
     });
+    return {
+      driver: {
+        ...driver,
+        async endCall(callId) {
+          try {
+            await driver.endCall(callId);
+          } finally {
+            await signed.closeCall(callId, "call ended");
+          }
+        },
+      },
+      close: async () => {
+        await signed.close();
+        await tracekit.close();
+      },
+    };
   }
   const fake = createFakeDriver(store, createFakeGuard(store, emit), emit);
   // Calls start through the control layer, never the fake's own startCall.
-  return { ...fake, startCall: (opts) => control.startCall(opts) };
+  return { driver: { ...fake, startCall: (opts) => control.startCall(opts) } };
 }
 
 export const getControl = (): Control => parts().control;
@@ -107,10 +127,12 @@ export async function forgetCalls(): Promise<void> {
     const call = await store.getCall(id);
     if (call && call.state !== "ended") await current.driver.endCall(id).catch(() => {});
   }
+  await current.close?.();
 }
 
 /** Test helper: reseed the store and start fresh parts. */
 export async function resetRuntimeForTests(): Promise<void> {
+  await holder.__refillGuardParts?.close?.();
   if (pgHolder.__refillGuardPg) {
     void pgHolder.__refillGuardPg.pool.end().catch(() => {});
     pgHolder.__refillGuardPg = undefined;

@@ -300,7 +300,7 @@ export function createPostgresStore(db: SqlDb, seed: Seed = SEED): Store {
       }),
     // The decision and its record entry commit together; a stale chain head rolls both back and
     // the whole decision is tried again.
-    decide: async (itemId, decision, approver: Approver, note) => {
+    decide: async (itemId, decision, approver: Approver, note, signedRef) => {
       const now = await readClock();
       return withHead((from) =>
         tx(async (query) => {
@@ -319,7 +319,7 @@ export function createPostgresStore(db: SqlDb, seed: Seed = SEED): Store {
               callId: item.callId,
               actor: approver.role,
               kind: "approval",
-              input: { itemId, decision, note, approver },
+              input: { itemId, decision, note, approver, ...(signedRef ? { tracekit: signedRef } : {}) },
               output: { status: item.status, orderId: item.orderId },
               ruleIds: item.ruleIds,
               decision: "allowed",

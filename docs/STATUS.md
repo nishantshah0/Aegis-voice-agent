@@ -56,11 +56,12 @@ Role 1 runs from Nishant's machine from 1.2 on (MikeyDigit did 1.1).
 
 ## Role 4 · The lock
 
-- **Doing:** integration (4.7) while 4.3 to 4.5 wait on a HUMAN ok; then 4.6 stage view
+- **Doing:** Tracekit v2 signed-action integration on `role-4/signed-handoff` (Trail #58): gate every live model button before `control.press`; sign pharmacist approval decisions and commit references; keep the lock authoritative. Awaiting external signer/witness deployment configuration and branch review.
 - **Done (covering, Trail #45):** 4.6 hijack screen on `/stage` (`role-4/hijack-screen`): four attack cards, a "Make it try…" box, a slow gate with rule chips, and Run batch. One picked attack runs through the real lock on its own store (`POST /stage/attack`, tagged `hijack_pick_<n>_<attack>`), and its record is saved under `results/hijack/pick-*/`.
 - **Done:** 4.5 hammers on `role-4/hammers`: depth 3 (40,878 sequences) and 10,000 random, 0 rules broken (results/hammer-latest.json). 4.4 guard on `role-4/guard` (waits on a HUMAN ok): `lib/guard`, 39 tests. 4.3 control layer on `role-4/control` (waits on a HUMAN ok): `lib/control`, 77 tests. 4.2 in-memory store (`lib/store/memory.ts`, `getStore()`, sha256 hash chain, `findBrokenLink`) and seed (`lib/seed`, 8 patients, `IDS`). Task 0 contract (`lib/contract/`). Task 0 setup: README, `docs/SPEC.md`, `docs/DESIGN.md`, `AGENTS.md`, the Next.js app, the GitHub coordination setup (issue templates, pull request template, release gate workflow), Entire (capture, Graph, Brain seeded with our rules, `docs/ENTIRE.md`)
 - **Blocked:** Entire Trails aren't visible from PS12007, so no Trails for Role 4 yet
-- **Needs from others:** everyone: install Entire and run `entire login` (see `docs/ENTIRE.md`). Entire's repo onboarding, Trails and shared Brain are already set up.
+- **Blocked:** Live signed actions require an approved remote `TRACEKIT_SIGNER` endpoint. Independent witnessing also needs a separately administered witness and out-of-band trust pin; no production credentials or witness have been configured here.
+- **Needs from others:** Deployment owner: provide approved signer and independent witness endpoints/trust configuration through the secret manager, and confirm the signer is authorized to process health-related tool arguments. Do not add secrets or trust pins to this repository.
 
 ---
 

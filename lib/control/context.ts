@@ -2,7 +2,7 @@
 // the store and the record, never from the AI. The context is saved in the record, so a
 // card can be replayed against any past request.
 
-import type { ButtonResult, Call, Patient, Prescription, RecordEntry, RuleContext, Store } from "@/lib/contract";
+import type { ButtonResult, Call, Patient, Prescription, PressContext, RecordEntry, RuleContext, Store } from "@/lib/contract";
 import { DAY_MS, MINUTE_MS, daysBetween, localHour, ms, within } from "./time";
 
 /** What the control layer writes as `output` on a button record entry. */
@@ -18,6 +18,7 @@ export type PressRecordOutput = {
     codeSent?: boolean;
     queueItemId?: string;
     orderId?: string;
+  tracekit?: NonNullable<PressContext["tracekit"]> & { invocationId: string };
   };
 };
 

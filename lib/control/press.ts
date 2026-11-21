@@ -15,6 +15,7 @@ import {
   type Lane,
   type Patient,
   type PressDecision,
+  type PressContext,
   type PressFn,
   type Prescription,
   type QueueItem,
@@ -30,6 +31,7 @@ import { evaluate, type Verdict } from "./engine";
 import { chooseLane, signalsFromCards } from "./lanes";
 import { addMs, fresh as isFresh, isBefore, MINUTE_MS, within } from "./time";
 import { checkInput, normalise, normaliseDob, normaliseRxNumber } from "./validate";
+import { isDeepStrictEqual } from "node:util";
 
 export const MAX_CODE_TRIES = 3;
 export const LOCKOUT_MS = 15 * MINUTE_MS;
@@ -526,13 +528,39 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
 
   const toPressDecision = (d: RecordDecision): PressDecision => (d === "blocked" ? "refused" : d);
 
-  const press: PressFn = async (callId, button, input) => {
-    let handled: Handled;
-    try {
-      handled = await run(await store.getCall(callId), button, input);
-    } catch {
-      handled = blocked("refused");
+  const press: PressFn = async (callId, button, input, pressContext?: PressContext) => {
+    const invocationId = pressContext?.invocationId;
+    if (invocationId) {
+      const prior = (await store.listRecord(callId)).findLast(
+        (entry) => entry.kind === "button" && (entry.output as PressRecordOutput | undefined)?.internal.tracekit?.invocationId === invocationId,
+      );
+      if (prior) {
+        if (prior.button === button && isDeepStrictEqual(prior.input, input)) {
+          return (resultOf(prior) ?? err("refused")) as never;
+        }
+        const rejected = blocked("refused", [], pressContext.tracekit ? { tracekit: { ...pressContext.tracekit, invocationId } } : {});
+        await appendPressRecord(callId, button, input, rejected);
+        return rejected.result as never;
+      }
     }
+
+    let handled: Handled;
+    if (pressContext?.tracekit && pressContext.tracekit.outcome !== "allow") {
+      handled = blocked("refused", [], { tracekit: { ...pressContext.tracekit, invocationId: pressContext.invocationId } });
+    } else {
+      try {
+        handled = await run(await store.getCall(callId), button, input);
+      } catch {
+        handled = blocked("refused");
+      }
+    }
+    if (pressContext?.tracekit?.outcome === "allow") {
+      handled.internal = { ...handled.internal, tracekit: { ...pressContext.tracekit, invocationId: pressContext.invocationId } };
+    }
+    return appendPressRecord(callId, button, input, handled) as never;
+  };
+
+  async function appendPressRecord(callId: CallId, button: ButtonName, input: unknown, handled: Handled): Promise<ButtonResult> {
     const { result, decision, internal = {}, context } = handled;
     const lane = result.ok ? result.lane : undefined;
     try {
@@ -554,8 +582,8 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
       return err("refused") as never;
     }
     emit({ type: "press", callId, button, decision: toPressDecision(decision), ruleIds: result.ruleIds, ...(lane ? { lane } : {}) });
-    return result as never;
-  };
+    return result;
+  }
 
   // ---------- Calls ----------
 

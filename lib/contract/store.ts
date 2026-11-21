@@ -179,6 +179,13 @@ export type QueueItem = {
   createdAt: IsoTime;
 };
 
+/** Non-PHI reference to the externally signed pharmacist decision. */
+export type SignedDecisionRef = {
+  runId: string;
+  decisionId: string;
+  ruleIds?: string[];
+};
+
 // ---------- The store ----------
 
 export interface Store {
@@ -207,7 +214,7 @@ export interface Store {
   /** Change an open item's lane, signals or notes (e.g. a side effect moves a refill to Review). Throws if it isn't open. */
   updateQueueItem(itemId: QueueItemId, patch: Partial<Pick<QueueItem, "lane" | "signals" | "notes">>): Promise<QueueItem>;
   /** Writes an "approval" record entry. The approver comes from the token. */
-  decide(itemId: QueueItemId, decision: "approve" | "deny", approver: Approver, note?: string): Promise<QueueItem>;
+  decide(itemId: QueueItemId, decision: "approve" | "deny", approver: Approver, note?: string, signedRef?: SignedDecisionRef): Promise<QueueItem>;
 
   /** Clears calls, orders made since seed, queue and record, then loads the seed. */
   reset(seed: Seed): Promise<void>;

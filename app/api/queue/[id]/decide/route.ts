@@ -1,5 +1,7 @@
 import { getApprover, hasRole } from "@/lib/auth/session";
-import type { DecideResponse } from "@/lib/contract";
+import type { DecideResponse, QueueItem } from "@/lib/contract";
+import { argsDigest } from "@cygnuxlabs/tracekit/v2";
+import { createTracekitRuntime, type SignerRun } from "@/lib/audit/signed-press";
 import { emit } from "@/lib/events";
 import { fail, ok, readObject } from "../../../_lib/http";
 import { getStore } from "../../../_lib/runtime";
@@ -34,15 +36,53 @@ export async function POST(request: Request, ctx: RouteContext<"/api/queue/[id]/
   if (!existing) return fail(404, "No such queue item");
   if (existing.status !== "open") return fail(409, `Already ${existing.status}`);
 
-  let item;
+  let run: SignerRun | undefined;
+  let toolCallId: string | undefined;
+  let committed = false;
+  const tracekit = createTracekitRuntime();
+  let item: QueueItem;
   try {
-    item = await store.decide(id, decision, approver, note);
+    run = await tracekit.registerRun("aegis-pharmacist-decision", `decision-${crypto.randomUUID()}`);
+    toolCallId = `queue:${id}:${crypto.randomUUID()}`;
+    const policyDecision = await run.decide(toolCallId, "pharmacist_decision", {
+      queue_item: id,
+      order: existing.orderId ?? null,
+      decision,
+      approver_commitment: argsDigest("aegis.approver", { subject: approver.id }),
+    }, { tool_class_hint: "app" });
+    if (policyDecision.unavailable || policyDecision.decision !== "allow" || !policyDecision.decision_id) {
+      await run.complete(toolCallId, "error", { result_digest: argsDigest("aegis.pharmacist.decision", { outcome: "blocked" }) });
+      return fail(403, "The signed policy did not authorize this pharmacist decision");
+    }
+    item = await store.decide(id, decision, approver, note, {
+      runId: run.runId,
+      decisionId: policyDecision.decision_id,
+      ruleIds: Array.isArray(policyDecision.rule_ids) ? policyDecision.rule_ids : [],
+    });
+    committed = true;
+    const completion = await run.complete(toolCallId, "ok", {
+      result_digest: argsDigest("aegis.pharmacist.decision.result", {
+        queue_item: item.id,
+        status: item.status,
+        order: item.orderId ?? null,
+        decision_record: (await store.listRecord(item.callId)).find((entry) => entry.kind === "approval" && (entry.input as { itemId?: string })?.itemId === item.id)?.hash ?? null,
+      }),
+    });
+    if (!completion) return fail(503, "Decision committed, but the signer did not record its result; refresh before retrying");
   } catch (error) {
+    if (committed) return fail(503, "Decision committed, but signing its result failed; refresh the console before retrying");
     // 409 only if another approval of the same item really won the race after the check
     // above; any other store failure is a real error.
     const now = (await store.queue()).find((q) => q.id === id);
-    if (now && now.status !== "open") return fail(409, `Already ${now.status}`);
+    if (now && now.status !== "open") {
+      if (run && toolCallId) await run.complete(toolCallId, "error", { result_digest: argsDigest("aegis.pharmacist.decision.conflict", { queue_item: id, status: now.status }) }).catch(() => null);
+      return fail(409, `Already ${now.status}`);
+    }
+    await tracekit.close().catch(() => undefined);
     throw error;
+  } finally {
+    await run?.close("pharmacist decision complete").catch(() => undefined);
+    await tracekit.close().catch(() => undefined);
   }
   emit({ type: "queue", item });
   // The patient's phone hears the outcome of anything with an order behind it.
