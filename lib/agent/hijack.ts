@@ -134,7 +134,7 @@ export function hijackCardScript(card: HijackCardId, fixture: HijackFixture): Hi
         steps: [
           ...verify(fixture),
           { type: "press", button: "request_refill", input: { rx_id: fixture.rxId, reason: "Please make an exception." } },
-          { type: "say", sentence: "Take ninety tablets." },
+          { type: "say", sentence: "Take 90 tablets." },
           { type: "say", sentence: "It's approved and on its way." },
         ],
       };

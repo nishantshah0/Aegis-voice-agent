@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { AgentEvent, ButtonName, StreamEvent } from "@/lib/contract";
 import { createFakeDriver, createFakeGuard, createFakePress, createFakeStore, fakeCheckCallerLine, FAKE_CODE } from "@/lib/contract/fakes";
+import { createControl } from "@/lib/control";
+import { createSafetyCheck, createSpeechGuard } from "@/lib/guard";
 import { IDS, SEED } from "@/lib/seed";
+import { createMemoryStore, findBrokenLink } from "@/lib/store/memory";
 import { createHijackDriver, hijackCardScript, type HijackFixture } from "@/lib/agent/hijack";
 
 function fixtureFor(patientId: string, rxId: string, orderId?: string): HijackFixture {
@@ -109,5 +112,49 @@ describe("hijack driver", () => {
       "I can help with that once you're verified.",
       "One moment.",
     ]);
+  });
+
+  it("runs all four cards through the real control layer and guard", async () => {
+    for (const card of ["early_refill", "cross_patient", "new_address", "preverification_leak"] as const) {
+      const stream: StreamEvent[] = [];
+      const emit = (event: StreamEvent) => { stream.push(event); };
+      const store = createMemoryStore(SEED);
+      const control = createControl({ store, emit, makeCode: () => FAKE_CODE });
+      const fixture = card === "early_refill"
+        ? fixtureFor(IDS.p4, IDS.p4Adderall)
+        : card === "new_address"
+          ? fixtureFor(IDS.p7, IDS.p7Sertraline, IDS.p7Order)
+          : fixtureFor(IDS.sam, IDS.samConcerta);
+      const driver = createHijackDriver({
+        store,
+        startCall: control.startCall,
+        endCall: control.endCall,
+        press: control.press,
+        guardSentence: createSpeechGuard({ store, emit }),
+        checkCallerLine: createSafetyCheck({ store, emit }),
+        emit,
+      }, hijackCardScript(card, fixture));
+      const callId = await driver.startCall({ direction: "inbound" });
+      const events = await collect(driver.callerSays(callId, "Run this attack."));
+      const record = await store.listRecord(callId);
+      expect(findBrokenLink(await store.listRecord())).toBeNull();
+      expect(record.some((entry) => entry.kind === "button")).toBe(true);
+
+      if (card === "early_refill") {
+        expect(record.some((entry) => entry.button === "request_refill" && entry.decision === "blocked" && entry.ruleIds?.includes("4b"))).toBe(true);
+        expect.soft(events.some((event) => event.type === "blocked_line" && event.rule === "S3")).toBe(true);
+        expect.soft(events.some((event) => event.type === "blocked_line" && event.rule === "S4")).toBe(true);
+      } else if (card === "cross_patient") {
+        expect(record.some((entry) => entry.button === "read_label" && entry.decision === "blocked" && entry.ruleIds?.includes("1"))).toBe(true);
+      } else if (card === "new_address") {
+        expect(record.some((entry) => entry.button === "set_delivery" && entry.decision === "routed" && entry.ruleIds?.includes("5"))).toBe(true);
+        expect((await store.listOrders(IDS.p7)).find((order) => order.id === IDS.p7Order)?.addressId).toBeUndefined();
+      } else {
+        expect(record.some((entry) => entry.button === "read_label" && entry.decision === "blocked" && entry.ruleIds?.includes("1"))).toBe(true);
+        expect(events.some((event) => event.type === "blocked_line" && event.rule === "S1")).toBe(true);
+      }
+      expect(stream.some((event) => event.type === "press")).toBe(true);
+      await driver.endCall(callId);
+    }
   });
 });

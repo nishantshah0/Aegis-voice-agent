@@ -45,10 +45,10 @@ Not doing: Entire's hosted review agents (they need billing). Maybe later: a Git
 
 ## Role 3 · Red team and evals
 
-- **Doing:** 3.2 scripted hijack driver and four attack cards on `role-3/hijack` (claim #5)
-- **Done:** 3.1 scenario format and first 10 JSON cards; replay is task 3.3
-- **Blocked:** Real-control validation waits for tasks 4.3 and 4.4; Entire Trails are not visible to this login, so claim issue #5 tracks the work
-- **Needs from others:** Role 4's real press and guard implementations for the four-card run
+- **Doing:** 3.3 scenario runner handed off in PR #13; next 3.4 hijack batch after integration
+- **Done:** 3.1 scenario format and first 10 JSON cards; 3.2 hijack driver and four cards through the real control and guard in PR #7
+- **Blocked:** S3 still misses a written-out quantity (guard gap #10), outside Role 3's folder; numeric attack card is caught
+- **Needs from others:** Role 4 to fix guard gap #10 through the lock approval process
 
 ## Role 4 · The lock
 
