@@ -41,6 +41,11 @@ export function subscribe(listener: Listener): () => void {
   return () => b.listeners.delete(listener);
 }
 
+/** The id of the newest event sent so far (0 if none). */
+export function lastId(): number {
+  return bus().nextId - 1;
+}
+
 /** Events still in the replay buffer with an id greater than `afterId`. */
 export function eventsSince(afterId: number): Delivered[] {
   return bus().recent.filter((d) => d.id > afterId);

@@ -30,7 +30,11 @@ export function parseLastEventId(value: string | null): number | null {
  * A stream of every emitted event, closed when `signal` aborts.
  * With `afterId`, events still in the replay buffer after that id are sent first.
  */
-export function createEventStream(signal: AbortSignal, afterId: number | null): ReadableStream<Uint8Array> {
+export function createEventStream(
+  signal: AbortSignal,
+  afterId: number | null,
+  shape: (event: StreamEvent) => StreamEvent | null = (event) => (isPublic(event) ? event : null),
+): ReadableStream<Uint8Array> {
   let cleanup = () => {};
 
   return new ReadableStream<Uint8Array>({
@@ -46,12 +50,15 @@ export function createEventStream(signal: AbortSignal, afterId: number | null): 
       const deliver = (d: Delivered) => {
         if (d.id <= lastSent) return;
         lastSent = d.id;
-        if (isPublic(d.event)) send(sseFrame(d));
+        const shaped = shape(d.event);
+        if (shaped) send(sseFrame({ id: d.id, event: shaped }));
       };
 
       // Subscribe before replaying, so nothing emitted in between is lost.
       const unsubscribe = subscribe(deliver);
-      send(`retry: ${RETRY_MS}\n: connected\n\n`);
+      // A named "hello" event proves the stream really flows: some hosts (Cloudflare quick
+      // tunnels) hold SSE back, and pages then fall back to /api/events/poll.
+      send(`retry: ${RETRY_MS}\n: connected\n\nevent: hello\ndata: {}\n\n`);
       if (afterId !== null) eventsSince(afterId).forEach(deliver);
 
       const heartbeat = setInterval(() => send(": ping\n\n"), HEARTBEAT_MS);

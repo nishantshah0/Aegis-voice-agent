@@ -75,3 +75,13 @@ describe("the public stream never carries verification codes (Trail #3)", () => 
     abort.abort();
   });
 });
+
+describe("the hello frame", () => {
+  it("opens every stream with a named hello event, so pages can tell the stream really flows", async () => {
+    const abort = new AbortController();
+    const reader = createEventStream(abort.signal, null).getReader();
+    const text = await readUntil(reader, "event: hello");
+    expect(text).toContain("event: hello\ndata: {}\n\n");
+    abort.abort();
+  });
+});
