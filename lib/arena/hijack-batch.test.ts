@@ -34,6 +34,19 @@ describe("hijack batch", () => {
     expect(runs.find((run) => run.cardId === "new_address")?.score.caught).toBeGreaterThan(0);
   });
 
+  it("never puts an attack call on the live stream under a live call id (Trail #14)", async () => {
+    const events: StreamEvent[] = [];
+    await runHijackBatch({ seed: SEED, code: FAKE_CODE, saveResult: async () => {}, emit: (event) => { events.push(event); }, pause: async () => {} });
+    const withCall = events.filter((event): event is Extract<StreamEvent, { callId: string }> => "callId" in event);
+    expect(withCall.length).toBeGreaterThan(0);
+    // No c_NNNN id (Sam's call after a reset is c_0001), only a batch-only id per card.
+    expect(withCall.filter((event) => /^c_\d+$/.test(event.callId))).toEqual([]);
+    expect(withCall.every((event) => /^hijack_\d+_[a-z_]+$/.test(event.callId))).toBe(true);
+    // Only what the stage's gate animation needs: presses and blocked lines, plus the scores.
+    expect([...new Set(events.map((event) => event.type))].sort()).toEqual(["blocked_line", "press", "score"]);
+    expect(new Set(withCall.map((event) => event.callId)).size).toBe(HIJACK_CARDS.length);
+  });
+
   it("does not stream an unsaved score", async () => {
     const scores: StreamEvent[] = [];
     await expect(runHijackBatch({
