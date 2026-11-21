@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { Button, cn } from "@/components/ui";
-import { exitOf, MAX_ATTACK_TEXT, ruleWords, STAGE_ATTACKS, type Exit } from "./attacks";
+import { exitOf, MAX_ATTACK_TEXT, ruleWords, STAGE_ATTACKS, triedToSay, type Exit } from "./attacks";
 import { DECISION_WORDS, type Pass } from "./state";
 
 // Demo step 4 (SPEC Part 8): the judge picks what a fully fooled AI tries. The panel only
@@ -96,6 +96,15 @@ export function HijackControls() {
   );
 }
 
+function TriedLine({ pass }: { pass: Pass }) {
+  const tried = triedToSay(pass.label, pass.original);
+  return tried.hidden ? (
+    <p className="text-2xl italic text-ink-2">{tried.text}.</p>
+  ) : (
+    <p className="text-ink-3 line-through decoration-stop decoration-[3px]">{tried.text}</p>
+  );
+}
+
 export function Gate({ pass }: { pass: Pass | undefined }) {
   if (!pass) {
     return (
@@ -114,7 +123,7 @@ export function Gate({ pass }: { pass: Pass | undefined }) {
         </div>
         {pass.gate === "speech" ? (
           <div className="mt-4 text-3xl leading-tight">
-            <p className="text-ink-3 line-through decoration-stop decoration-[3px]">{pass.original}</p>
+            <TriedLine pass={pass} />
             <p className="gate-rules mt-3 text-ink">{pass.replacement}</p>
           </div>
         ) : (

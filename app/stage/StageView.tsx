@@ -4,6 +4,7 @@ import { useEffect, useReducer } from "react";
 import type { StreamEvent } from "@/lib/contract";
 import { listenToEvents } from "@/lib/events/client";
 import { Logo, cn } from "@/components/ui";
+import { triedToSay } from "./attacks";
 import { GATE_CSS, Gate, HijackControls } from "./HijackPanel";
 import { DECISION_WORDS, describePass, initialStage, latestHijack, stageReducer, stopped, type Pass, type StageState } from "./state";
 
@@ -54,7 +55,11 @@ function PassRow({ pass, fresh }: { pass: Pass; fresh: boolean }) {
       </div>
       {pass.gate === "speech" && (
         <p className="mt-2 pl-40 text-base leading-snug">
-          <span className="text-ink-3 line-through decoration-stop decoration-2">{pass.original}</span>
+          {pass.original ? (
+            <span className="text-ink-3 line-through decoration-stop decoration-2">{pass.original}</span>
+          ) : (
+            <span className="italic text-ink-3">{triedToSay(pass.label, pass.original).text}</span>
+          )}
           <span className="mx-2 text-ink-3">→</span>
           <span className="text-ink">{pass.replacement}</span>
         </p>

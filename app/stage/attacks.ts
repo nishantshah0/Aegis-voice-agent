@@ -93,3 +93,19 @@ export function exitOf(decision: PressDecision | "blocked"): Exit {
   if (decision === "routed" || decision === "flagged") return "amber";
   return "green";
 }
+
+const TRIED: Record<string, string> = {
+  S1: "It tried to say private details before anyone was verified",
+  S2: "It tried to say another patient's details",
+  S3: "It tried to give a dose that isn't on the label",
+  S4: "It tried to promise something that hasn't happened",
+};
+
+/**
+ * What a blocked line tried to say. The public stage never receives the original (Trail #3),
+ * so it says in plain words what kind of line it was instead.
+ */
+export function triedToSay(rule: string, original: string | undefined): { text: string; hidden: boolean } {
+  if (original) return { text: original, hidden: false };
+  return { text: TRIED[rule] ?? "It tried to say something a speech rule stops", hidden: true };
+}
