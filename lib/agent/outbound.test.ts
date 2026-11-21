@@ -57,12 +57,15 @@ const verifyAndOffer = (lookupId: string): ScriptStep[] => [
 
 describe("1.3: the outbound opening", () => {
   it("says only the opener, then sends the code through send_code", async () => {
-    const { events, model, driver, callId } = await ring([]);
+    const { events, control, model, driver, callId } = await ring([]);
     const evs = await collect(driver.opening(callId));
     expect(lines(evs)).toEqual([outboundOpener(PHARMACY, "Sam Rivera")]);
     expect(blocked(evs)).toHaveLength(0);
     expect(presses(evs).map((p) => [p.button, p.result.ok])).toEqual([["send_code", true]]);
-    expect(events.some((e) => e.type === "phone" && e.kind === "code" && e.text.includes(CODE))).toBe(true);
+    // The code goes to the phone on file, never onto the stream: the stream only says one was sent.
+    expect(events.some((e) => e.type === "phone" && e.kind === "code")).toBe(true);
+    expect(events.some((e) => e.type === "phone" && e.text.includes(CODE))).toBe(false);
+    expect(await control.codeFor(callId)).toBe(CODE);
     expect(model.requests).toHaveLength(0);
   });
 
