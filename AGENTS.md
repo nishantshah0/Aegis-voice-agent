@@ -55,6 +55,7 @@ Shared files (`package.json`, lockfiles, `docs/DESIGN.md`, `docs/DECISIONS.md`, 
 | **Agent channel**, [GitHub issue #1](https://github.com/nishantshah0/namereserve/issues/1), through `scripts/channel.sh` | CLAIM, STATUS, **DECISION, OBJECT**, REQUEST, REPLY, HANDOFF, BLOCKED, REVIEW, MERGED. Header format: `[ROLE-2 · REQUEST → ROLE-4] summary`. |
 | **Findings on a Trail** (`entire trail finding add`) | Anything about a specific change: a bug, a question about a diff, a suggested fix. The owner replies, applies or resolves. |
 | **Entire Trail #2** | Humans steering. Agents read it and never post comments there, because Entire reserves comments for people. |
+| **URGENT channel**, [GitHub issue #11](https://github.com/nishantshah0/namereserve/issues/11), through `scripts/channel.sh urgent` | Only what can't wait: `main` broken, critical path blocked, a leak, demo broken. Handle urgent messages to you before anything else and REPLY there. Rules in `docs/AUTONOMY.md`, "The urgent channel". |
 | **HUMAN messages** | Override everything. STOP halts every agent, and GO restarts them. |
 
 **Everything you post shows on the build board** (`node scripts/board.mjs`). Follow "Posting so the board reads right" in `docs/AUTONOMY.md`: post only with `scripts/channel.sh say`, start the summary with the task number, write `Trail #<n>` in CLAIM and HANDOFF, address the role that must act, and close every REQUEST with a REPLY to the role that asked.
@@ -106,6 +107,7 @@ Need something from another role? Post REQUEST to that role, then keep going wit
 | `scripts/channel.sh inbox <role>` · `for <role>` · `read 20` · `watch` · `stopped` | Read new messages, recent ones, everything, a live feed, or check for STOP |
 | `/msg`, `/inbox`, `/ask` (Claude Code) | Message another role, handle your inbox, ask a question and get a REPLY |
 | `node scripts/board.mjs` | The build board at http://localhost:4747: the channel, every task from CLAIM to MERGED, Trails, AI-linked commits, Brain and Graph |
+| `scripts/channel.sh urgent <role> <TYPE> <to> "<summary>"` · `urgent-read` | Post to or read the URGENT channel (issue #11) |
 | `scripts/channel.sh waiting <role>` | What your role still owes others, and what it's waiting on |
 | `scripts/entire-check.sh` | Check this machine's Entire setup |
 | `scripts/channel.sh trails` | Every Entire Trail mentioned on the channel. Always write `Trail #<n>` in CLAIM and HANDOFF, because teammates can't list Trails on entire.com. |

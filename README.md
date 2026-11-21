@@ -21,7 +21,7 @@ Full plan: [`docs/SPEC.md`](docs/SPEC.md). How the parts fit: [`docs/DESIGN.md`]
 | Role | Owns | First task (before sleep) | Done when |
 |---|---|---|---|
 | **1 · Voice and agent** | The agent loop on Claude, the prompt, the outbound call, the side-effect question, voice in (Chrome) and out (ElevenLabs), turn timing, **the patient phone page**. Calls the guard and safety check, doesn't write them. | A typed agent loop that presses the 12 buttons through the contract's fake | Sam's Concerta refill works typed, start to finish, three times in a row, then by voice on a real phone |
-| **2 · Platform and pharmacist** | App shell and API routes, the event stream, the demo clock, reset and daily reminder check, Auth0 (sign-in, roles, phone approvals), the Postgres store, hosting on Vultr with https, the domain, **the pharmacy console's Today view and approvals** | App deployed over https with Auth0 sign-in, and check whether Auth0's phone approval works on the free plan | A pharmacist approves Sam's refill from the console (or their phone), and it lands in the record |
+| **2 · Platform and pharmacist** | App shell and API routes, the event stream, the demo clock, reset and daily reminder check, Auth0 (sign-in and roles), the Postgres store, hosting on Vultr with https, the domain, **the pharmacy console's Today view and approvals** | App deployed over https with Auth0 sign-in | A pharmacist approves Sam's refill from the console, and it lands in the record |
 | **3 · Red team and evals** | The scripted hijack agent and attack cards, the scenario runner and scoring, the 28 scenarios. After the core: the Gemini attacker, the Fable planner, the judge, the overnight run, the fix loop, cited briefs, and **the console's Review calls, Rules and checks, and Overnight safety tabs** | The hijack agent and the scenario file format, with the first 10 scenarios | Every attack card is blocked, and all 28 scenarios run and score |
 | **4 · The lock** | The control layer behind the 12 buttons, rule cards and the strictest-wins engine, triage lanes, the speech guard (S1 to S4) and safety keywords, the hash-chained record, the in-memory store and seed data, the hammers and release gate, **the stage view with the gate animation** | The in-memory store, seed data and the first rules (core rules 1 and 5, card 4b) | The hammers report 0 rules broken against millions of hostile presses, and the gate animation shows it live |
 
@@ -98,7 +98,7 @@ Four people and about 30 hours won't finish everything in the spec. **A team tha
 | Database | Postgres on Tiger Data |
 | Voice | Chrome speech recognition in, ElevenLabs out (Flash model for live turns) |
 | AI | Claude for the agent, Fable 5.2 for planning attacks and writing rules, Gemini for the attacker |
-| Sign-in and approvals | Auth0 (including Auth0 for AI Agents approvals on the pharmacist's phone) |
+| Sign-in and approvals | Auth0 sign-in and roles; pharmacists approve on the console |
 | Hosting | Vultr server with automatic https, on a GoDaddy Registry domain |
 | Analysis | Optional Python, for charts only |
 
@@ -138,5 +138,4 @@ Overall · Best Health Hack by Sun Life · Best Use of Auth0 · Best Use of Vult
 
 - Our teammate's OK to share his story in the pitch, and in what words
 - How many prize tracks one project can enter
-- Whether Auth0 phone approvals work on the free plan (check by Saturday 10 AM)
 - How judging works: tables or a stage, and how long per team (we've planned 3 minutes plus 2 of questions)

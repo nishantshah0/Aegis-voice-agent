@@ -16,7 +16,7 @@ If this file and the spec disagree on behaviour, the spec wins. If they disagree
       └──── ElevenLabs ◀── SPEECH GUARD (S1–S4) ◀───────────────────┘   │
                                                                          │
  Stage view / Pharmacy console ◀── event stream ◀── everything above    │
- Pharmacist phone (Auth0) ───────────────────────────────────────────────┘
+ Pharmacist console (Auth0 sign-in) ─────────────────────────────────────┘
 
  Hijack switch, scenarios, attacker ──▶ same agent loop interface ──▶ same control layer
 ```
@@ -41,7 +41,7 @@ Three things never change, whoever is coding:
 | Agent loop, prompt, outbound call, side-effect question | `lib/agent/` | Role 1 | Uses Claude |
 | Voice in and out, turn timing, the patient phone page | `app/phone/`, `lib/voice/` | Role 1 | Chrome speech, ElevenLabs |
 | App shell, API routes, event stream, clock and reset | `app/api/`, `lib/events/` | Role 2 | Plain code |
-| Auth0: sign-in, roles, phone approvals | `lib/auth/` | Role 2 | Auth0 |
+| Auth0: sign-in and roles | `lib/auth/` | Role 2 | Auth0 |
 | Hosting, https, domain | infrastructure | Role 2 | |
 | Hijack agent (scripted, fully fooled) | `lib/agent/hijack.ts` | Role 3 | Pure code |
 | Scenarios, runner, scoring | `lib/arena/`, `scenarios/` | Role 3 | Runner is code, callers use AI |
@@ -132,14 +132,14 @@ type StreamEvent =
 - Role 2 runs the stream at `/api/events`. Everyone emits through `emit(event)`. Role 4's pages only listen.
 - The gate animation is driven purely by `press` and `blocked_line` events.
 
-### 3.7 Approvals (console or phone → store)
+### 3.7 Approvals (console → store)
 
 ```ts
 POST /api/queue/:id/decide   { decision, note? }   // Auth0 session required, role "pharmacist"
 ```
 
 - Role 2 checks the Auth0 session and role, then calls `store.decide`, with the approver taken from the token.
-- When Auth0's phone approval works, the phone path calls the same `store.decide`. When it doesn't, the console button is the fallback. Same record either way.
+- There is no phone path: approvals are the Approve and Deny buttons on the console's Today page (task 2.5 decision).
 
 ### 3.8 Scenarios (Role 3 → runner)
 
@@ -158,7 +158,7 @@ contract ──▶ control layer + in-memory store ──▶ typed agent loop �
 
 - **Nobody waits:** the contract exports fakes, so Roles 1, 2 and 3 can start before the control layer is finished.
 - **The noon checkpoint** (a typed refill working three times in a row) needs the contract, control layer, store, agent loop and the approve endpoint.
-- **Postgres, Auth0's phone approval, voice and hosting** are off the critical path. Each has a fallback: the in-memory store, the console button, typed input, and a tunnel.
+- **Postgres, voice and hosting** are off the critical path. Each has a fallback: the in-memory store, typed input, and a tunnel.
 
 ---
 
@@ -171,7 +171,7 @@ Checked against the spec, the critical path and the demo. These are the problems
 | 1 | **The hijack switch had no owner** in the README, even though it's the demo's best moment | Role 3 owns the scripted hijack agent and the attack cards' behaviour. Role 4 owns how the cards look. |
 | 2 | **Role 3 had nothing on the critical path early**, since the attacker and overnight run come after the core | Role 3's first job is now the hijack agent and the scenario runner, both core. The attacker comes after. |
 | 3 | **Role 1 was overloaded:** voice, agent, outbound, side effects, guard wiring and timing | The guard and safety checks are now Claude's code behind two functions, so Role 1 only calls them. The outbound trigger (daily check) moves to Role 2's clock. |
-| 4 | **Role 2's Auth0 phone approval is the riskiest unknown** and sat in the middle of the plan | It's moved off the critical path behind the approve endpoint. The console button is the default, and the phone path replaces it when it works. Check the free plan by Saturday 10 AM. |
+| 4 | **Role 2's Auth0 phone approval is the riskiest unknown** and sat in the middle of the plan | It was moved off the critical path behind the approve endpoint, then dropped: the console button is the approval path (task 2.5). |
 | 5 | **Everyone needed the database before they could start** | Role 4 ships an in-memory store first. Postgres comes later behind the same interface. |
 | 6 | **The event stream had no agreed shape,** so the stage view would have broken whenever someone added an event | The event types are in the contract (3.6), and nobody adds a type without updating it. |
 | 7 | **Post-core items were unowned:** cited briefs, rule writer, Review calls lab | Cited briefs and the Review calls lab go to Role 3 (both use AI judging). The rule writer is Claude's engine plus Role 4's UI. All are after the core. |

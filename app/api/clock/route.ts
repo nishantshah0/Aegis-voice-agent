@@ -1,6 +1,7 @@
 import { connection } from "next/server";
 import type { ClockResponse } from "@/lib/contract";
 import { emit } from "@/lib/events";
+import { demoControlsRefused } from "../_lib/demo";
 import { fail, ok, readObject } from "../_lib/http";
 import { getStore } from "../_lib/runtime";
 
@@ -8,7 +9,7 @@ import { getStore } from "../_lib/runtime";
 // GET /api/clock → { now }. POST /api/clock { now } sets it and sends a "clock"
 // event. The time is kept exactly as given, offset included (e.g. -05:00), so the
 // control layer can work out the pharmacy's local hour.
-// TODO(2.4, finding F3): require a signed-in role or a demo flag to set it.
+// Setting it is a demo control: signed-in pharmacist or reviewer, or DEMO_CONTROLS=on (F3).
 
 export async function GET() {
   await connection();
@@ -19,6 +20,8 @@ export async function GET() {
 const ISO_WITH_ZONE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2})$/;
 
 export async function POST(request: Request) {
+  const refused = await demoControlsRefused();
+  if (refused) return refused;
   const body = await readObject(request);
   const value = typeof body?.now === "string" ? body.now.trim() : "";
   if (!ISO_WITH_ZONE.test(value) || Number.isNaN(Date.parse(value))) {

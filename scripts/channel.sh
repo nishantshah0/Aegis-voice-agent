@@ -1,10 +1,15 @@
 #!/usr/bin/env bash
 # The agent channel: GitHub issue #1. Every AI agent and human talks here.
+# The URGENT channel: GitHub issue #11. Only for things that can't wait (see docs/AUTONOMY.md).
 #
 #   scripts/channel.sh say <ROLE> <TYPE> <TO> "<summary>" ["<details>"]
 #       e.g. scripts/channel.sh say 2 REQUEST 4 "Need Lane on QueueItem" "Branch role-2/today-view"
 #       humans: scripts/channel.sh say 0 HUMAN ROLE-1 "do 1.1 next"   (or ALL)
-#   scripts/channel.sh inbox <ROLE>    only NEW messages for ROLE since you last checked (marks them read)
+#   scripts/channel.sh urgent <ROLE> <TYPE> <TO> "<summary>" ["<details>"]
+#                                      same as say, but on the URGENT channel. Use it rarely.
+#   scripts/channel.sh urgent-read [N] the last N urgent messages (default 10)
+#   scripts/channel.sh inbox <ROLE>    only NEW messages for ROLE since you last checked (marks them read),
+#                                      urgent ones first
 #   scripts/channel.sh for <ROLE>      the last 15 messages for ROLE, read or not
 #   scripts/channel.sh read [N]        the last N messages for everyone (default 15)
 #   scripts/channel.sh watch [ROLE]    live feed: prints new messages as they arrive (Ctrl-C to stop)
@@ -21,6 +26,7 @@ set -euo pipefail
 
 REPO="${AGENT_CHANNEL_REPO:-nishantshah0/namereserve}"
 ISSUE="${AGENT_CHANNEL_ISSUE:-1}"
+URGENT_ISSUE="${AGENT_URGENT_ISSUE:-11}"
 TYPES="CLAIM STATUS DECISION OBJECT REQUEST REPLY HANDOFF BLOCKED REVIEW MERGED HUMAN"
 STATE_DIR="$(git rev-parse --git-dir 2>/dev/null || echo .git)/agent-channel"
 
@@ -35,9 +41,33 @@ done
 [ -n "$PY" ] || { echo "channel.sh needs Python 3 on PATH" >&2; exit 1; }
 
 # All messages as JSON lines: {"t": time, "u": login, "b": body}
+# Pass an issue number to read another channel (the urgent one is $URGENT_ISSUE).
 messages() {
-  gh api "repos/$REPO/issues/$ISSUE/comments?per_page=100" --paginate \
+  gh api "repos/$REPO/issues/${1:-$ISSUE}/comments?per_page=100" --paginate \
     --jq '.[] | {t: .created_at, u: .user.login, b: .body} | @json'
+}
+
+# Both channels, oldest first. Urgent lines carry "urgent": true.
+all_messages() {
+  # gh prints JSON keys sorted, so sort on a time prefix, then drop it.
+  {
+    gh api "repos/$REPO/issues/$ISSUE/comments?per_page=100" --paginate \
+      --jq '.[] | .created_at + "\t" + ({t: .created_at, u: .user.login, b: .body} | @json)'
+    gh api "repos/$REPO/issues/$URGENT_ISSUE/comments?per_page=100" --paginate \
+      --jq '.[] | .created_at + "\t" + ({t: .created_at, u: .user.login, b: .body, urgent: true} | @json)' 2>/dev/null || true
+  } | sort | cut -f2-
+}
+
+# Post a message. Args: issue role type to summary [details]
+post() {
+  issue="$1"; role="$2"; type="$(echo "$3" | tr '[:lower:]' '[:upper:]')"; to="$4"; summary="$5"; details="${6:-}"
+  case " $TYPES " in *" $type "*) ;; *) echo "unknown type: $type (use: $TYPES)" >&2; exit 2;; esac
+  to="$(echo "$to" | tr '[:lower:]' '[:upper:]' | sed 's/^\([0-9]\)$/ROLE-\1/')"
+  if [ "$type" = "HUMAN" ]; then header="[HUMAN · $to] $summary"; else header="[ROLE-$role · $type → $to] $summary"; fi
+  body="$header"; [ -n "$details" ] && body="$header
+
+$details"
+  gh issue comment "$issue" --repo "$REPO" --body "$body" >/dev/null && echo "posted${7:+ $7}: $header"
 }
 
 # Filter and print messages. Args: role ("" for everyone), since (ISO time or ""), last-n (0 = all)
@@ -76,18 +106,26 @@ if out:
 case "${1:-}" in
   say)
     [ $# -ge 5 ] || { echo "usage: $0 say <ROLE> <TYPE> <TO> \"<summary>\" [\"<details>\"]" >&2; exit 2; }
-    role="$2"; type="$(echo "$3" | tr '[:lower:]' '[:upper:]')"; to="$4"; summary="$5"; details="${6:-}"
-    case " $TYPES " in *" $type "*) ;; *) echo "unknown type: $type (use: $TYPES)" >&2; exit 2;; esac
-    to="$(echo "$to" | tr '[:lower:]' '[:upper:]' | sed 's/^\([0-9]\)$/ROLE-\1/')"
-    if [ "$type" = "HUMAN" ]; then header="[HUMAN · $to] $summary"; else header="[ROLE-$role · $type → $to] $summary"; fi
-    body="$header"; [ -n "$details" ] && body="$header
-
-$details"
-    gh issue comment "$ISSUE" --repo "$REPO" --body "$body" >/dev/null && echo "posted: $header"
+    post "$ISSUE" "$2" "$3" "$4" "$5" "${6:-}"
+    ;;
+  urgent)
+    [ $# -ge 5 ] || { echo "usage: $0 urgent <ROLE> <TYPE> <TO> \"<summary>\" [\"<details>\"]" >&2; exit 2; }
+    post "$URGENT_ISSUE" "$2" "$3" "$4" "$5" "${6:-}" "URGENT (issue #$URGENT_ISSUE)"
+    ;;
+  urgent-read)
+    messages "$URGENT_ISSUE" | show "" "" "${2:-10}" 2>/dev/null
     ;;
   inbox)
     role="${2:?usage: $0 inbox <ROLE>}"
     mkdir -p "$STATE_DIR"; mark="$STATE_DIR/last-seen-role-$role"; tmp="$(mktemp)"
+    umark="$STATE_DIR/last-seen-urgent-role-$role"; utmp="$(mktemp)"
+    usince="$(cat "$umark" 2>/dev/null || true)"
+    urgent="$(messages "$URGENT_ISSUE" 2>/dev/null | show "$role" "$usince" 0 2>"$utmp" || true)"
+    if [ -n "$urgent" ]; then
+      echo "=== URGENT (issue #$URGENT_ISSUE): handle these before anything else, then REPLY with scripts/channel.sh urgent ==="
+      echo; echo "$urgent"; echo "=== end of urgent ==="; echo
+    fi
+    [ -s "$utmp" ] && cp "$utmp" "$umark"; rm -f "$utmp"
     since="$(cat "$mark" 2>/dev/null || true)"
     messages | show "$role" "$since" 0 2>"$tmp"
     [ -s "$tmp" ] && cp "$tmp" "$mark"; rm -f "$tmp"
@@ -131,7 +169,7 @@ for n, (t, head) in sorted(seen.items(), key=lambda kv: kv[1][0], reverse=True):
     ;;
   waiting)
     role="${2:?usage: $0 waiting <ROLE>}"
-    messages | "$PY" -c '
+    all_messages | "$PY" -c '
 import sys, json, re
 # Keep this rule in sync with openItems() in scripts/channel-view.mjs.
 HEAD = re.compile(r"^\[(?:ROLE-(\d)|HUMAN) · (?:([A-Z]+) → ([A-Z0-9-]+)|([A-Z0-9-]+))\] *(.*)$")
@@ -146,7 +184,7 @@ for line in sys.stdin:
     human = not h.group(1) or h.group(1) == "0"
     to = (h.group(3) or h.group(4)).replace("ROLE-0", "HUMAN")
     msgs.append({"t": m["t"], "from": "HUMAN" if human else "ROLE-" + h.group(1),
-                 "type": "HUMAN" if human and not h.group(2) else h.group(2), "to": to, "s": h.group(5)})
+                 "type": "HUMAN" if human and not h.group(2) else h.group(2), "to": to, "s": h.group(5), "u": m.get("urgent", False)})
 def answered(i, m):
     for r in msgs[i + 1:]:
         if m["type"] == "BLOCKED":
@@ -160,12 +198,13 @@ def answered(i, m):
     return False
 me = "ROLE-" + sys.argv[1]
 open_ = [m for i, m in enumerate(msgs) if m["type"] in ("REQUEST", "OBJECT", "BLOCKED") and not answered(i, m)]
+open_.sort(key=lambda m: not m["u"])  # urgent first
 owe = [m for m in open_ if m["type"] != "BLOCKED" and m["to"] in (me, "ALL") and m["from"] != me]
 wait = [m for m in open_ if m["from"] == me]
 def show(title, items, empty):
     print(title)
     for m in items:
-        print("  %s  %s %s → %s: %s" % (m["t"].replace("T", " ")[:16], m["type"], m["from"], m["to"], m["s"]))
+        print("  %s  %s%s %s → %s: %s" % (m["t"].replace("T", " ")[:16], "URGENT " if m["u"] else "", m["type"], m["from"], m["to"], m["s"]))
     if not items:
         print("  " + empty)
     print()
@@ -174,7 +213,7 @@ show("You are waiting on:", wait, "nothing")
 ' "$role"
     ;;
   stopped)
-    last=$(messages | "$PY" -c '
+    last=$(all_messages | "$PY" -c '
 import sys, json, re
 last = ""
 for line in sys.stdin:
@@ -186,6 +225,6 @@ print(last)')
     case "$last" in *"] STOP"*) echo "STOP is in effect"; exit 0;; *) exit 1;; esac
     ;;
   *)
-    sed -n '2,19p' "$0"; exit 2
+    sed -n '2,24p' "$0"; exit 2
     ;;
 esac

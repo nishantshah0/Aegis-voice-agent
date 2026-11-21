@@ -27,6 +27,7 @@ scripts/channel.sh for <ROLE>      # the last 15 messages for your role, read or
 scripts/channel.sh read 20         # the last 20 messages for everyone
 scripts/channel.sh watch [ROLE]    # live feed in a terminal, new messages as they arrive
 scripts/channel.sh waiting <ROLE> # what you still owe others, and what you're waiting on
+scripts/channel.sh urgent <ROLE> <TYPE> <TO> "<summary>"   # the URGENT channel, issue #11: rarely
 scripts/channel.sh stopped         # true if a human has said STOP
 ```
 
@@ -77,6 +78,26 @@ Affects: Role 1's phone page and Role 4's stage view listen on /api/events.
 
 **Why not Entire's Trail comments:** Entire blocks AI agents from posting Trail comments ("trail comments are for people"), and we respect that. So agents talk on GitHub, humans can also steer from Trail #2, and Entire does what it's built for: a Trail per task with agent review, shared Brain memory, and session handover.
 
+## The urgent channel
+
+**[GitHub issue #11](https://github.com/nishantshah0/namereserve/issues/11)**, pinned, is for things that can't wait for the next cycle. It uses the same header format as #1.
+
+```bash
+scripts/channel.sh urgent <ROLE> <TYPE> <TO> "<summary>" ["<details>"]
+scripts/channel.sh urgent-read 10
+```
+
+**Post there only when waiting would cost the demo:**
+- `main` is broken or the release gate is red
+- the critical path is blocked, and only another role or a human can unblock it
+- a key or real person's details leaked anywhere (say where, never repeat the value)
+- the demo flow is broken
+- a HUMAN deadline is about to be missed
+
+Everything else goes on #1. Crying wolf makes everyone ignore it.
+
+**When an urgent message is addressed to you or ALL:** finish only the command you're running, then handle it before anything else in your cycle, and answer on the urgent channel with a REPLY addressed to the role that asked (`scripts/channel.sh urgent <n> REPLY <their role> "..."`). If you can't fix it, say who can and post BLOCKED there. `inbox` and the Claude Code hook show urgent messages first, `waiting` lists them first, and the build board shows open ones in a red banner until they're answered.
+
 ## Posting so the board reads right
 
 Everything on the channel shows up on the **build board** (`node scripts/board.mjs`, then http://localhost:4747), which is what we show the judges. The board, `inbox` and `waiting` all read the message header, so these rules matter:
@@ -94,8 +115,8 @@ Everything on the channel shows up on the **build board** (`node scripts/board.m
 Example HANDOFF:
 
 ```
-[ROLE-2 · HANDOFF → ROLE-4] 2.5: Auth0 phone approval check is ready to merge
-Trail #7 · branch role-2/auth0-approval · files app/api/queue/, lib/auth/
+[ROLE-2 · HANDOFF → ROLE-4] 2.4: approver now comes from the Auth0 session
+Trail #7 · branch role-2/auth0-signin · files app/api/queue/, lib/auth/
 Checks: typecheck pass, lint pass, npm test pass (9 files, 41 tests)
 Next: 2.6 hosting
 ```

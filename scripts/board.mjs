@@ -16,6 +16,7 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, "..");
 const REPO = process.env.AGENT_CHANNEL_REPO || "nishantshah0/namereserve";
 const ISSUE = process.env.AGENT_CHANNEL_ISSUE || "1";
+const URGENT_ISSUE = process.env.AGENT_URGENT_ISSUE || "11";
 const PROJECT = process.env.ENTIRE_PROJECT || "gh/" + REPO.split("/")[0];
 const SESSIONS_REPO = process.env.ENTIRE_SESSIONS_REPO || `https://github.com/${REPO}-sessions.git`;
 const PORT = Number(process.argv[2] || process.env.PORT || 4747);
@@ -59,8 +60,11 @@ function parse(c) {
 }
 const channel = () => cached("channel", 8000, async () => {
   const jq = ".[] | {id, t: .created_at, u: .user.login, url: .html_url, body}";
-  const out = await run("gh", ["api", `repos/${REPO}/issues/${ISSUE}/comments?per_page=100`, "--paginate", "--jq", jq]);
-  return { repo: REPO, issue: ISSUE, messages: out.split("\n").filter(Boolean).map((l) => parse(JSON.parse(l))) };
+  const read = async (issue, urgent) => (await run("gh", ["api", `repos/${REPO}/issues/${issue}/comments?per_page=100`, "--paginate", "--jq", jq]).catch((e) => (urgent ? "" : Promise.reject(e))))
+    .split("\n").filter(Boolean).map((l) => ({ ...parse(JSON.parse(l)), urgent }));
+  const [normal, urgent] = await Promise.all([read(ISSUE, false), read(URGENT_ISSUE, true)]);
+  const messages = [...normal, ...urgent].sort((a, b) => (a.t < b.t ? -1 : a.t > b.t ? 1 : 0));
+  return { repo: REPO, issue: ISSUE, urgentIssue: URGENT_ISSUE, messages };
 });
 
 // ---------- Trails and findings ----------

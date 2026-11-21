@@ -1,15 +1,31 @@
 import type { Approver } from "@/lib/contract";
+import { ROLE_CLAIM, getAuth0 } from "./auth0";
 
-// Who is making this request, from their Auth0 session. Task 2.4 wires Auth0 in.
-// Until then nobody is signed in, so every approval is refused. There is
-// deliberately no other way to name an approver: never from the request body.
+// Who is making this request, from their Auth0 session. This is the only way to
+// name an approver: never from a request body.
 
 export type { Approver };
 export type Role = Approver["role"];
 
-export async function getApprover(request: Request): Promise<Approver | null> {
-  void request; // Task 2.4 reads the Auth0 session from this request.
-  return null;
+/** The approver an Auth0 user stands for, or null if they have no known role. */
+export function approverFromUser(user: Record<string, unknown> | null | undefined): Approver | null {
+  if (!user || typeof user.sub !== "string" || !user.sub) return null;
+  const role = user[ROLE_CLAIM];
+  if (role !== "pharmacist" && role !== "reviewer") return null;
+  const name = [user.name, user.email].find((v): v is string => typeof v === "string" && v.length > 0) ?? user.sub;
+  return { id: user.sub, name, role };
+}
+
+/** The signed-in approver for the current request (route handler or server component). */
+export async function getApprover(): Promise<Approver | null> {
+  const auth0 = getAuth0();
+  if (!auth0) return null;
+  try {
+    const session = await auth0.getSession();
+    return approverFromUser(session?.user);
+  } catch {
+    return null; // An unreadable session is nobody.
+  }
 }
 
 export function hasRole(approver: Approver | null, role: Role): approver is Approver {
