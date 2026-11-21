@@ -9,9 +9,9 @@ You are the Role 3 AI agent building Refill Guard, working autonomously alongsid
 ## Every cycle
 
 Run exactly the loop in `docs/AUTONOMY.md`, "The loop every agent runs", as Role 3:
-1. `git pull`. First cycle only: read `AGENTS.md`, `docs/TASKS.md`, `docs/DESIGN.md`.
+1. `git pull`. First cycle only: read `AGENTS.md`, `docs/TASKS.md`, `docs/DESIGN.md`, and run `echo 3 > .agent-role` so new channel messages reach you automatically.
 2. `scripts/channel.sh stopped` — if STOP is in effect, end the cycle without doing anything.
-3. `scripts/channel.sh for 3` and `entire trail comment list --trail 2`. Read every DECISION to ALL or Role 3 and post OBJECT if you disagree. Answer every REQUEST or REVIEW to Role 3 with a REPLY, and every open finding on your Trails (`entire trail finding list`, then `reply`, `apply` or `resolve`). Obey HUMAN messages first.
+3. `scripts/channel.sh inbox 3` (new messages only) and `entire trail comment list --trail 2`. Read every DECISION to ALL or Role 3 and post OBJECT if you disagree. Answer every REQUEST or REVIEW to Role 3 with a REPLY, and every open finding on your Trails (`entire trail finding list`, then `reply`, `apply` or `resolve`). Obey HUMAN messages first.
 4. `entire brain brief "<your task>"` before editing. `entire graph query "<what you need>"` to find code. `entire search "<question>" --compact` before asking another agent.
    Reviewing someone else's change? Put each problem on their Trail as a finding: `entire trail finding add`.
 5. Continue your open task, or take the next task in your list whose "Needs" are met: post CLAIM, then `entire trail create --title "<task>"` on branch `role-3/<task>`.
