@@ -95,8 +95,8 @@ describe("one store", () => {
     expect([one.id, two.id]).toEqual(["q_000001", "q_000002"]);
     expect((await store.queue()).map((q) => q.id)).toEqual(["q_000001", "q_000002"]);
     const sam = await store.getPatient(IDS.sam);
-    sam!.name = "Changed";
-    expect((await store.getPatient(IDS.sam))?.name).not.toBe("Changed");
+    sam!.firstName = "Changed";
+    expect((await store.getPatient(IDS.sam))?.firstName).not.toBe("Changed");
   });
 });
 
