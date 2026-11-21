@@ -4,30 +4,35 @@ Kept by the demo tie-in agent. One row per step of the 3-minute script, walked i
 
 Legend: ✅ works · ⚠️ works with a fallback · ❌ broken (owner fixing it)
 
-## Last pass
+## Last pass (pass 4: first run-through with the live agent)
 
-- `main` commit: 63647b2 (pass 2). Pass 1 was 6defae8
-- When: pass 2 at about 08:00 EST, signed in as the test pharmacist. Pass 1 at about 07:50. Screenshots: `results/demo/2026-11-21T0751/walkthrough.md`
-- How: `npm run dev -p 3001` with `DEMO_CONTROLS=on`, typed box, no `ANTHROPIC_API_KEY`, so the fake driver
-- Clean passes in a row: **0 of 3**. Step 2 waits only on the live agent once Trail #37 merges
+- Code: main ef144a5 plus `role-2/live-agent` (Trail #41) and `role-1/agent-sdk-live-fixes` (Trail #43). Both have merged since, in main f2e6eb0
+- When: 2026-11-21 about 12:30 EST. Screenshots: `results/demo/2026-11-21T1230-live/walkthrough.md`
+- How: `LIVE_AGENT=1 AGENT_SDK_MODEL=claude-haiku-5-5 DEMO_CONTROLS=on next dev -p 3001`, signed in as the test pharmacist, typed box. Agent usage for the call: 5 turns, 11 model calls, 1,739 output tokens
+- Clean passes in a row: **0 of 3**. The script runs through, but steps 3 and 4 have no screen yet
 
 ## Steps
 
-| # | Step | Status | What happened | Owner and request |
+| # | Step | Status | What happened (pass 4) | Owner and request |
 |---|---|---|---|---|
-| 1a | Reset demo | ✅ | Console → Reset demo: "Demo clock: 11/24/2026, 10:00 AM" | |
-| 1b | Sign in to the console as the test pharmacist | ✅ | Pass 2: lands on Today as "Test Pharmacist · pharmacist" with the queue and Pair panel. (Pass 1 failed on the Auth0 callback; Nishant added the 3001 URLs.) | |
-| 1c | Pair Sam's phone (new: needed since Trail #19) | ✅ | Pass 2: Make pairing link → open it in the phone tab → redirects to `/phone`. The paired phone's Answer returns 200 for `c_0001`. Unpaired phones still show an Answer button that 404s | ROLE-1 (low): say "not paired" instead |
-| 2a | Daily check rings Sam's phone | ✅ | "Daily check: ringing 2 patients"; `/phone` shows "Maple Street Pharmacy is calling" | Check: should only Sam ring? |
-| 2b | Answer, code and dob | ❌ | Pass 2, paired: same crash, and under the overlay the page is dead ("This page couldn't load"). Phone page crashes on Answer: "useEffect must not return anything besides a function", then "destroy is not a function". `app/phone/Phone.tsx:294` returns `scrollIntoView()`'s Promise (Chrome 156) | ROLE-1, URGENT 1.4 |
-| 2c | "Yes, please", side effect, price and ready day | ❌ | No live agent: with no `ANTHROPIC_API_KEY`, `app/api/_lib/runtime.ts:40` uses the contract's fake, which answers every line "One moment." Nothing on main runs the Agent SDK or reads `LIVE_AGENT` | ROLE-1 URGENT 1.2 (Agent SDK model; no reply yet). ROLE-2 replied 13:03 UTC: runtime picks it on `LIVE_AGENT=1` once it's on main |
-| 2d | Review lane, console shows the side effect, Approve | ❌ | Not reached (2b, 2c, 1b). With a scripted model the same flow passes: `scripts/integration` and `app/api/demo.test.ts`, 8/8 | Blocked |
-| 3a | Swap in the compromised agent; the judge picks an attack card | ❌ | `/stage` has no control. The batch starts only with `POST /api/arena/hijack`, and it always runs all 4 cards | ROLE-4, URGENT 4.6 (stage cards); the route then needs a `cardId` (Role 2) |
-| 3b | One attempt struck through (S3, S4), refill and delivery bounce | ⚠️ | S3 and S4 rows show, but only the replacement: the public stage gets `original: ""` (`lib/events/audience.ts`), so "Sure, ninety tablets…" isn't visible. Delivery shows amber "to a pharmacist · rule 5", not red | ROLE-4, in the same request |
-| 3c | 10-second batch, Caught and Broken counters | ✅ | Caught 9, Broken 0, Stopped 8, 4 cards in about 20 s. Results in `results/hijack/<run>/` | |
-| 4 | Overnight safety tab, approve the waiting fix | ❌ | `/console/overnight` 404 (also `/console/review`, `/console/rules`). Tasks 3.7 and 3.8 are after core | ROLE-3, URGENT 3.8. Fallback below |
-| 5 | Close: the record, the counters | ⚠️ | Stage counters ✅. Sam's record needs sign-in (`/api/calls/:id/record` 401 signed out). The "[M] million tries" number isn't on any screen; the last real hammer run is 129,100 + 120,938 presses, 0 broken (`results/hammer-latest.json`, 11:14 UTC) | Use the real hammer count, never a made-up one |
-| — | Glue: `/` linked nowhere, `/console` 404 | fixed | Home links Stage, Phone and Console; `/console` redirects to Today | `demo/nav`, HANDOFF to ROLE-4 |
+| 1a | Reset demo | ✅ | Clock 11/24/2026 10:00 AM | |
+| 1b | Sign in to the console | ✅ | "Test Pharmacist · pharmacist" | |
+| 1c | Pair Sam's phone (needed since Trail #19) | ✅ | Pairing link → phone tab → `/phone`. Unpaired phones still show an Answer button that 404s | ROLE-1 (low) |
+| 2a | Daily check rings Sam's phone | ✅ | "Maple Street Pharmacy is calling" | |
+| 2b | Answer, opener, code, date of birth | ✅ ⚠️ | Opener and code text arrive; "Thank you, Sam. You're verified." The opener shows twice on the phone | ROLE-1, URGENT 1.3 (duplicate opener) |
+| 2c | "Yes, please", price | ✅ | Reads the label, "$4.10 on your plan", confirms, routes: "A pharmacist needs to check it before it is approved" | |
+| 2d | Side effect | ✅ | "Actually, I've been sleeping badly." → "Thanks, I've passed that to the pharmacist with your refill." | |
+| 2e | Ready day | ❌ | Never said. Asked when, S4 blocks "I don't know exactly when it will be ready" and an offer to ask the pharmacist: 3 "Stopped by S4" labels in one ordinary call | ROLE-4 URGENT 4.4 (S4 over-blocks), ROLE-1 URGENT 1.3 (say the governed ready day) |
+| 2f | Review lane on the console, Approve with a chat at pickup | ✅ | Review 1: Concerta for S.R., Rule 4, side effect in Sam's words, every line checked or blocked. Approved with the note; record has the Auth0 approver | |
+| 2g | Sam's phone shows the approval | ✅ ⚠️ | "Approved by the pharmacist", with no ready day | Same as 2e |
+| 2h | Stage follows the call | ✅ ⚠️ | Presses and S4 replacements live. Lane counts differ from the console (stage Review 2 and Quick check 1, console Review 1) | ROLE-4 (low) |
+| 3a | Swap in the compromised agent; the judge picks a card | ❌ | Still no control on `/stage`; batch started from `POST /api/arena/hijack` | ROLE-4, URGENT 4.6 |
+| 3b | One attempt struck through, refill and delivery bounce | ✅ ⚠️ | S1, S3, S4 rows with the struck original, rules 1, 4b, 5. Originals show only to a signed-in stage; a public projector gets the replacement only | ROLE-4 decides |
+| 3c | Batch counters | ✅ | Rules broken 0, Attacks caught 9, Stopped 8. Ids are now `hijack_1_…` (Trail #14) | |
+| 4 | Overnight safety tab | ❌ | `/console/overnight` 404 | ROLE-3, URGENT 3.8. Fallback below |
+| 5 | Close: the record, the counters | ⚠️ | `/api/calls/c_0001/record`: 45 hash-chained entries, approval with the Auth0 identity and the note. JSON only, no screen. Real hammer count: 250,038 presses, 0 broken | A record view would help (Role 2 or 3) |
+
+Note: the phone and stage tabs share the signed-in console's cookies in this test, so they see blocked originals. A real phone or projector that isn't signed in sees replacements only.
 
 ## Pass 3 (about 08:15 EST): main 63647b2 plus `role-1/phone-answer-crash` (Trail #37), pre-merge check
 

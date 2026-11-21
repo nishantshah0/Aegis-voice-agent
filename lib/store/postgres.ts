@@ -3,8 +3,8 @@
 // hash chain appended inside a transaction that locks one meta row, so seq and prevHash stay
 // right with several writers. Server-only.
 //
-// Swapping it in is one line in getStore():
-//   createPostgresStore(fromPgPool(new Pool({ connectionString: process.env.DATABASE_URL })))
+// The server uses it when DATABASE_URL is set (app/api/_lib/runtime.ts):
+//   createPostgresStore(fromPgPool(new Pool(poolConfig(DATABASE_URL, ca))))
 
 import type { Approver, Call, Order, QueueItem, RecordEntry, RecordEntryInput, Seed, Store } from "@/lib/contract";
 import { SEED } from "@/lib/seed";
@@ -45,6 +45,17 @@ export function fromPgPool(pool: QueryLike & { connect(): Promise<QueryLike & { 
   };
 }
 
+/**
+ * pg settings for a hosted database (Tiger Data). The server certificate is always verified;
+ * `ca` adds a private CA to trust (Tiger Data's ca.pem from the portal). sslmode is removed
+ * from the URL because pg would let it replace these settings.
+ */
+export function poolConfig(url: string, ca?: string): { connectionString: string; ssl: { rejectUnauthorized: true; ca?: string } } {
+  const parsed = new URL(url);
+  parsed.searchParams.delete("sslmode");
+  return { connectionString: parsed.toString(), ssl: ca ? { rejectUnauthorized: true, ca } : { rejectUnauthorized: true } };
+}
+
 // ---------- Schema and seed ----------
 
 const SCHEMA = [
@@ -79,18 +90,24 @@ async function loadSeed(q: Query, seed: Seed): Promise<void> {
 type Doc<T> = { doc: T };
 
 export function createPostgresStore(db: SqlDb, seed: Seed = SEED): Store {
-  // Tables are created, and the seed loaded into an empty database, before the first call.
-  const ready = (async () => {
-    for (const statement of SCHEMA) await db.query(statement);
-    const { rows } = await db.query<{ n: number }>(`select count(*)::int as n from rg_meta`);
-    if (rows[0].n === 0) await db.transaction((q) => loadSeed(q, seed));
-  })();
+  // Tables are created, and the seed loaded into an empty database, on first use (never at
+  // construction, so creating a store makes no connection). A failed setup is retried next time.
+  let ready: Promise<void> | undefined;
+  const ensureReady = () =>
+    (ready ??= (async () => {
+      for (const statement of SCHEMA) await db.query(statement);
+      const { rows } = await db.query<{ n: number }>(`select count(*)::int as n from rg_meta`);
+      if (rows[0].n === 0) await db.transaction((q) => loadSeed(q, seed));
+    })().catch((error) => {
+      ready = undefined;
+      throw error;
+    }));
   const q: Query = async (text, params) => {
-    await ready;
+    await ensureReady();
     return db.query(text, params);
   };
   const tx = async <T>(fn: (query: Query) => Promise<T>) => {
-    await ready;
+    await ensureReady();
     return db.transaction(fn);
   };
   const docs = async <T>(text: string, params?: unknown[]) => (await q<Doc<T>>(text, params)).rows.map((r) => r.doc);
