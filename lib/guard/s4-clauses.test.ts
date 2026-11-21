@@ -65,6 +65,11 @@ const FALSE_APPROVALS = [
   "We're done with your order.",
   "Your order details are confirmed.",
   "Your refill details have been confirmed.",
+  // A bare "that's confirmed" with nothing about the caller's identity (fifth review).
+  "Yes, that's confirmed.",
+  "That's confirmed.",
+  "That is confirmed.",
+  "That's confirmed, your refill is on its way.",
 ];
 
 const HONEST = [
@@ -95,6 +100,7 @@ const HONEST = [
   "I'm all set to help.",
   "Your refill will be approved once the pharmacist signs off.",
   "It can be approved once the pharmacist reviews it.",
+  "Your date of birth matches, that's confirmed.",
 ];
 
 describe("S4: a conditional only excuses its own clause", () => {
