@@ -3,6 +3,7 @@ import type { AgentDriver, AgentEvent, CallId, Store } from "@/lib/contract";
 import { getApprover } from "@/lib/auth/session";
 import { demoControlsRefused } from "./demo";
 import { fail } from "./http";
+import { forCaller } from "@/lib/events/audience";
 
 // The per-call phone token. The demo phone has no sign-in, so each call gets one
 // unguessable token, issued exactly once: by /api/call/start for an inbound call, or by
@@ -65,7 +66,7 @@ export async function answerCall(driver: JoinableDriver, store: Store, callId: C
     }
   }
   const events: AgentEvent[] = [];
-  if (driver.opening) for await (const event of driver.opening(callId)) events.push(event);
+  if (driver.opening) for await (const event of driver.opening(callId)) events.push(forCaller(event));
   return events;
 }
 
@@ -82,6 +83,6 @@ export async function codeRefused(request: Request, callId: CallId): Promise<Res
 export async function checkInCall(driver: JoinableDriver, callId: CallId): Promise<AgentEvent[] | null> {
   if (!driver.checkIn) return null;
   const events: AgentEvent[] = [];
-  for await (const event of driver.checkIn(callId)) events.push(event);
+  for await (const event of driver.checkIn(callId)) events.push(forCaller(event));
   return events;
 }
