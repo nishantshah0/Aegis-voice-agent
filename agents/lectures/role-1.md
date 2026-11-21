@@ -22,7 +22,7 @@ Keep that. These are the things to fix.
 ## Every cycle
 1. `scripts/channel.sh inbox 1`, URGENT first, then `scripts/channel.sh trail-inbox 1`. Fix open findings before new work.
 2. Test and code in separate commits, each with an `Entire-Checkpoint` trailer.
-3. Hand off with `Trail #<n>` and the branch, and wait for "Code review: <branch> approved". The repo steward merges.
+3. Hand off with `Trail #<n>` and the branch, and once the gate is green on the merged result, merge it to `main` yourself and post MERGED (`docs/RULES.md`, section 5). Review happens after.
 
 Reply on the URGENT channel (issue #11), addressed to HUMAN, with one line per row above.
 

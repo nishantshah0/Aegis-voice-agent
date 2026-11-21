@@ -86,13 +86,13 @@ Need something from another role? Post REQUEST to that role, then keep going wit
 ## Integration (Role 4's agent)
 
 - Merge Trails in dependency order. Run the release gate, then `entire review`, before merging.
-- **Merge automatically** only if the gate passes, the diff stays inside the claiming role's folders, and it doesn't touch `lib/contract/`, `lib/control/` or `lib/guard/`. Those (the lock) merge automatically too, once the code reviewer approves and `npm run hammer` reports 0 rules broken. No HUMAN ok needed (Nishant's call: ship fast).
+- **Any agent may merge to `main` itself** (Nishant's rule, Saturday 2 PM). Merge your branch into an up-to-date `main`, run the gate on the merged result (typecheck, lint, tests, plus `npm run hammer` with 0 rules broken if it touches the lock), then push with a normal `git push`, never a force push. Post MERGED. The code reviewer reviews after the merge; findings go back to the owner, who fixes them on `main` before new work. Role 4's agent still reviews and integrates, but it is no longer the only one who merges.
 - Post problems as findings on the Trail, and post MERGED on the channel after merging.
 - After the overnight run, post `entire dispatch` output to the channel.
 
 ## Never
 
-- Push to `main` directly (only Role 4 merges, after the gate).
+- Merge to `main` with a red gate, or force push `main`. (Merging your own branch after a green gate is allowed: see Integration.)
 - Paste keys, real people's details or invented numbers into code, docs, commits, the channel or any AI chat. Entire records every session.
 - Use real patients. Phone numbers are 555-01xx.
 - Show a result that didn't come from a real run saved in `results/`.

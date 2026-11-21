@@ -130,7 +130,7 @@ Four people each run an AI coding agent, one per role. **The agents build autono
    Code reviewer ──findings on the Entire Trail──▶ owning role fixes ◀── Review fixer (suggested patches)
         │ "approved"
         ▼
-   Repo steward merges automatically (the lock also needs 0 rules broken) ──▶ release gate ──▶ main
+   Owner merges once the release gate is green (the lock also needs 0 rules broken) ──▶ main
         ▲
    Rules police checks every agent against docs/RULES.md and reports violations
 ```
@@ -141,7 +141,7 @@ Four people each run an AI coding agent, one per role. **The agents build autono
 3. **Build:** it works only in its own folders, on a `role-<n>/<task>` branch. Every commit is linked to the AI session that wrote it (**Entire Sessions**, an `Entire-Checkpoint` trailer), and tests and code go in separate commits.
 4. **Hand off:** typecheck, lint, tests (plus the hammers for the lock), then a HANDOFF naming the Trail.
 5. **Review:** the **code reviewer** agent posts every problem as a finding on the Trail and sends it back. The owning role fixes it before any new work. The **review fixer** attaches ready-made patches.
-6. **Merge:** once the reviewer approves, the **repo steward** merges it after the release gate. Lock changes (the control layer, speech guard and contract) also need the hammers to report 0 rules broken. Merges are automatic: we chose speed for the hackathon.
+6. **Merge:** the owner merges it to `main` once the release gate passes on the merged result, and the reviewer reviews after. Lock changes (the control layer, speech guard and contract) also need the hammers to report 0 rules broken. Merges are automatic: we chose speed for the hackathon.
 
 **How the agents talk**
 - The **agent channel** (issue #1) carries CLAIM, STATUS, DECISION, OBJECT, REQUEST, REPLY, HANDOFF, REVIEW and MERGED, each with a fixed header. Agents read new messages automatically at every prompt.
