@@ -18,7 +18,7 @@ export type PhoneState = {
   transcript: TranscriptItem[];
   /** The latest text message: the code arrives as one. */
   message?: string;
-  /** The code's digits, when the message or the code route gave them. */
+  /** The code's digits, from GET /api/call/:id/code (control.codeFor), never from the event stream. */
   code?: string;
   /** The latest status line, e.g. "Approved, ready Thursday". */
   status?: string;
@@ -36,11 +36,6 @@ export type PhoneAction =
 
 export const initialPhone = (): PhoneState => ({ mode: "idle", transcript: [] });
 
-/** Six digits in a row, the way the control layer writes a code. */
-export function codeIn(text: string): string | undefined {
-  return /\b(\d{6})\b/.exec(text)?.[1];
-}
-
 function onEvent(state: PhoneState, event: StreamEvent): PhoneState {
   if (event.type === "phone" && event.kind === "ring") {
     // Ring only when the phone is free: a second ring mid-call is ignored.
@@ -50,7 +45,8 @@ function onEvent(state: PhoneState, event: StreamEvent): PhoneState {
   if (!("callId" in event) || event.callId !== state.callId) return state;
   switch (event.type) {
     case "phone":
-      if (event.kind === "code") return { ...state, message: event.text, code: codeIn(event.text) ?? state.code };
+      // A new code was sent: show the message and fetch the code from the call's own route.
+      if (event.kind === "code") return { ...state, message: event.text, code: undefined };
       if (event.kind === "status") return { ...state, status: event.text };
       return state;
     case "line":
