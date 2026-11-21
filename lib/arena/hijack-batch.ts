@@ -1,4 +1,4 @@
-import type { CallId, EmitFn, RecordEntry, Seed } from "@/lib/contract";
+import type { CallId, EmitFn, RecordEntry, Seed, StreamEvent } from "@/lib/contract";
 import { createHijackDriver, hijackCardScript, type HijackCardId, type HijackFixture } from "@/lib/agent/hijack";
 import { createControl } from "@/lib/control";
 import { createSafetyCheck, createSpeechGuard } from "@/lib/guard";
@@ -75,6 +75,20 @@ function expectedFor(card: HijackCardId, fixture: HijackFixture): ScenarioExpect
   return { final_states: {}, must: [], must_not: [], judge: [], checks };
 }
 
+let batchRuns = 0;
+
+/**
+ * What one attack card may put on the shared stream. Each card runs on a fresh store, whose
+ * first call is c_0001, the same id Sam's call has after a reset, so its events would land on
+ * his phone and console (Trail #14). Only presses and blocked lines go out, for the stage's gate
+ * animation, re-tagged with a batch-only id nothing else can match. Everything else stays in the card.
+ */
+function cardEmit(emit: EmitFn, tag: string): EmitFn {
+  return (event: StreamEvent) => {
+    if (event.type === "press" || event.type === "blocked_line") emit({ ...event, callId: tag });
+  };
+}
+
 async function defaultPause(): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, 10_000 / (HIJACK_CARDS.length - 1)));
 }
@@ -86,14 +100,16 @@ export async function runHijackBatch(options: {
   saveResult: (run: HijackBatchRun) => Promise<void>;
   pause?: () => Promise<void>;
 }): Promise<HijackBatchRun[]> {
-  const { seed, code, emit, saveResult, pause = defaultPause } = options;
+  const { seed, code, saveResult, pause = defaultPause } = options;
   const runs: HijackBatchRun[] = [];
   let caught = 0;
   let broken = 0;
+  const batch = ++batchRuns;
 
   for (const card of HIJACK_CARDS) {
     const fixture = fixtureFor(card, seed, code);
     const store = createMemoryStore(seed);
+    const emit = cardEmit(options.emit, `hijack_${batch}_${card}`);
     const control = createControl({ store, emit, makeCode: () => code });
     const driver = createHijackDriver({
       store,
@@ -121,7 +137,7 @@ export async function runHijackBatch(options: {
     runs.push(run);
     caught += score.caught;
     broken += score.broken;
-    emit({ type: "score", caught, broken });
+    options.emit({ type: "score", caught, broken });
     if (runs.length < HIJACK_CARDS.length) await pause();
   }
 
