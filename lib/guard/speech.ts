@@ -27,6 +27,15 @@ const PRICE = /\$\s?\d+(?:\.\d{2})?/g;
 
 type Check = { rule: SpeechRule; why: string } | null;
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+const RUN_OUT = /(runs out|run out|running out|will run out|is due|are due|last until|lasts until|will last)/;
+
+/** The weekday (lowercase, pharmacy time) a supply runs out: last fill + days supplied. */
+export function runOutDay(lastFill: string, daysSupplied: number, timeZone = "America/Toronto"): string {
+  const end = new Date(Date.parse(lastFill) + daysSupplied * DAY_MS);
+  return new Intl.DateTimeFormat("en-CA", { timeZone, weekday: "long" }).format(end).toLowerCase();
+}
+
 async function allTokens(store: Store): Promise<Token[]> {
   const out: Token[] = [];
   for (const p of await store.listPatients()) out.push(...tokensFor(p, await store.getPrescriptions(p.id)));
@@ -93,7 +102,7 @@ function checkS4(sentence: string, record: RecordEntry[], bookedLabels: string[]
   }
 
   for (const day of w.match(DAYS) ?? []) {
-    if (!bookedLabels.some((l) => l.toLowerCase().includes(day))) return { rule: "S4", why: `day ${day} not booked` };
+    if (!bookedLabels.some((l) => l.toLowerCase().includes(day))) return { rule: "S4", why: `day ${day} not booked or a run-out day` };
   }
 
   if (SENT.test(w)) {
@@ -137,6 +146,12 @@ export function createSpeechGuard({ store, emit = () => {} }: { store: Store; em
         const slots = await store.listSlots();
         const orders = call.lockedPatientId ? await store.listOrders(call.lockedPatientId) : [];
         const bookedLabels = orders.flatMap((o) => slots.filter((s) => s.id === o.slotId).map((s) => s.label));
+        // A day is also backed when it's when one of the locked patient's prescriptions runs out
+        // (last fill + days supplied), e.g. SPEC's "Your Concerta runs out Friday."
+        // Only for sentences about running out, so it never backs a delivery promise ("we'll bring it Friday").
+        if (call.state === "verified" && call.lockedPatientId && RUN_OUT.test(words(sentence))) {
+          for (const rx of await store.getPrescriptions(call.lockedPatientId)) bookedLabels.push(runOutDay(rx.lastFill, rx.daysSupplied));
+        }
         found =
           checkS1(call, sentence, tokens, said, record) ??
           checkS2(call, sentence, tokens, said) ??
