@@ -44,7 +44,16 @@ export type ControlOptions = {
   emit?: EmitFn;
   /** Makes the 6-digit code. Tests pass a fixed one; the default is random. */
   makeCode?: () => string;
+  /**
+   * TRANSITIONAL. When true, the code's digits go out on the shared event stream (old
+   * behaviour). /api/events has no sign-in, so anyone watching it could read the code.
+   * Read it with control.codeFor(callId) instead. This default flips to false once
+   * Role 2's code reads codeFor, then the option goes away.
+   */
+  broadcastCodes?: boolean;
 };
+
+export const CODE_SENT_TEXT = "A verification code was sent to your phone.";
 
 type Handled = {
   result: ButtonResult;
@@ -55,8 +64,10 @@ type Handled = {
 
 const hashCode = (lookupId: string, code: string) => createHash("sha256").update(`${lookupId}:${code}`).digest("hex");
 
-export function createControl({ store, emit = () => {}, makeCode }: ControlOptions) {
+export function createControl({ store, emit = () => {}, makeCode, broadcastCodes = true }: ControlOptions) {
   const newCode = makeCode ?? (() => String(randomInt(0, 1_000_000)).padStart(6, "0"));
+  // Codes in plain text live only here, in memory, never in the record or on the stream.
+  const sentCodes = new Map<CallId, { code: string; hash: string }>();
 
   const ok = <B extends ButtonName>(output: ButtonResult<B> extends infer R ? (R extends { ok: true; output: infer O } ? O : never) : never, ruleIds: RuleId[] = [], lane?: Lane) =>
     ({ ok: true, output, ruleIds, ...(lane ? { lane } : {}) }) as ButtonResult;
@@ -114,8 +125,11 @@ export function createControl({ store, emit = () => {}, makeCode }: ControlOptio
     ).length;
     if (sentThisHour >= MAX_CODES_PER_HOUR) return { lookupId, matched: true, patientId, codeSent: false };
     const code = newCode();
-    emit({ type: "phone", callId: call.id, kind: "code", text: `Your pharmacy verification code is ${code}.` });
-    return { lookupId, matched: true, patientId, codeSent: true, codeHash: hashCode(lookupId, code) };
+    const codeHash = hashCode(lookupId, code);
+    sentCodes.set(call.id, { code, hash: codeHash });
+    const text = broadcastCodes ? `Your pharmacy verification code is ${code}.` : CODE_SENT_TEXT;
+    emit({ type: "phone", callId: call.id, kind: "code", text });
+    return { lookupId, matched: true, patientId, codeSent: true, codeHash };
   }
 
   // ---------- The buttons ----------
@@ -565,7 +579,20 @@ export function createControl({ store, emit = () => {}, makeCode }: ControlOptio
     if (call && call.state !== "ended") await store.saveCall({ ...call, state: "ended", endedAt: await store.now() });
   }
 
-  return { press, startCall, startInboundCall, startOutboundCall, checkOutbound, endCall };
+  /**
+   * The latest code sent on this call, for that call's phone only (the server route that
+   * serves it must check the caller is that phone). Undefined once the code is stale:
+   * a newer code, a reset store, or the code's 10 minutes have passed.
+   */
+  async function codeFor(callId: CallId): Promise<string | undefined> {
+    const sent = sentCodes.get(callId);
+    if (!sent) return undefined;
+    const entry = (await store.listRecord(callId)).filter((e) => internalOf(e)?.codeHash).at(-1);
+    if (!entry || internalOf(entry)?.codeHash !== sent.hash || !within(entry.at, await store.now(), CODE_VALID_MS)) return undefined;
+    return sent.code;
+  }
+
+  return { press, startCall, startInboundCall, startOutboundCall, checkOutbound, endCall, codeFor };
 }
 
 export type Control = ReturnType<typeof createControl>;
