@@ -62,7 +62,7 @@ Four people each run an AI coding agent, one per role. **The agents build autono
    Code reviewer ──findings on the Entire Trail──▶ owning role fixes ◀── Review fixer (suggested patches)
         │ "approved"
         ▼
-   Repo steward merges (Role 4 + a human ok for the lock) ──▶ release gate ──▶ main
+   Repo steward merges automatically (the lock also needs 0 rules broken) ──▶ release gate ──▶ main
         ▲
    Rules police checks every agent against docs/RULES.md and reports violations
 ```
@@ -73,7 +73,7 @@ Four people each run an AI coding agent, one per role. **The agents build autono
 3. **Build:** it works only in its own folders, on a `role-<n>/<task>` branch. Every commit is linked to the AI session that wrote it (**Entire Sessions**, an `Entire-Checkpoint` trailer), and tests and code go in separate commits.
 4. **Hand off:** typecheck, lint, tests (plus the hammers for the lock), then a HANDOFF naming the Trail.
 5. **Review:** the **code reviewer** agent posts every problem as a finding on the Trail and sends it back. The owning role fixes it before any new work. The **review fixer** attaches ready-made patches.
-6. **Merge:** once the reviewer approves, the **repo steward** merges it after the release gate. Lock changes (the control layer, speech guard and contract) also need a human ok.
+6. **Merge:** once the reviewer approves, the **repo steward** merges it after the release gate. Lock changes (the control layer, speech guard and contract) also need the hammers to report 0 rules broken. Merges are automatic: we chose speed for the hackathon.
 
 **How the agents talk**
 - The **agent channel** (issue #1) carries CLAIM, STATUS, DECISION, OBJECT, REQUEST, REPLY, HANDOFF, REVIEW and MERGED, each with a fixed header. Agents read new messages automatically at every prompt.
@@ -95,7 +95,7 @@ This is a prototype of a software process run by AI agents, built in one weekend
 - **Rules written as prompts don't hold on their own.** One agent pushed changes to the lock straight to `main` 9 times while a rule said not to. The rules police caught it after the fact. It's the same lesson as our product: *the AI can be fooled, so the rules have to live in code.* **Next:** a `CODEOWNERS` file for `lib/contract/`, `lib/control/` and `lib/guard/`, plus branch protection that requires the release gate and a person's approval, so GitHub itself rejects a lock change nobody approved.
 - **Agents don't have their own identity yet.** They push and post through their human's GitHub account, so "only people post HUMAN messages" is enforced by our tooling, not by GitHub. **Next:** a GitHub App per agent, with its own permissions.
 - **The agent channel is GitHub issue comments with a fixed header format.** That's simple and readable for a hackathon, but it polls and has no schema. **Next:** merges through pull requests and GitHub Actions, and the channel only for coordination.
-- **AI reviews AI.** The code reviewer is the same kind of model as the authors, so they can share blind spots. That's why lock changes also need a person.
+- **AI reviews AI.** The code reviewer is the same kind of model as the authors, so they can share blind spots. For the hackathon we chose speed: lock changes merge on the reviewer's approval plus the hammers. **Next:** a person's approval for the lock, enforced by GitHub.
 - **We measure before we claim.** Token use per merged task and Graph's savings come from `entire session tokens` and `entire tokens profile` runs saved in `results/`, never estimates.
 
 
