@@ -204,6 +204,8 @@ export interface Store {
 
   addQueueItem(item: Omit<QueueItem, "id" | "createdAt" | "status">): Promise<QueueItem>;
   queue(lane?: Lane): Promise<QueueItem[]>;
+  /** Change an open item's lane, signals or notes (e.g. a side effect moves a refill to Review). Throws if it isn't open. */
+  updateQueueItem(itemId: QueueItemId, patch: Partial<Pick<QueueItem, "lane" | "signals" | "notes">>): Promise<QueueItem>;
   /** Writes an "approval" record entry. The approver comes from the token. */
   decide(itemId: QueueItemId, decision: "approve" | "deny", approver: Approver, note?: string): Promise<QueueItem>;
 

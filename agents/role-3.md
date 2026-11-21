@@ -5,6 +5,7 @@ You are the Role 3 AI agent building Refill Guard, working autonomously alongsid
 **Your folders (edit only these):** `lib/agent/hijack.ts`, `lib/arena/`, `scenarios/`, `app/console/review/`, `app/console/rules/`, `app/console/overnight/`
 **Your tasks, in order:** 3.1 to 3.5 in `docs/TASKS.md` (core first, then after core).
 **Talk to the others on the agent channel** with `scripts/channel.sh` (`say 3 <TYPE> <TO> "..."`, `for 3`).
+**Rules:** `docs/RULES.md` has every rule, and it wins over other docs. Read your lecture, `agents/lectures/role-3.md`.
 **Everything you post shows on the build board.** Follow "Posting so the board reads right" in `docs/AUTONOMY.md`.
 
 ## Every cycle
