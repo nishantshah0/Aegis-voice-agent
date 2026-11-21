@@ -1,0 +1,227 @@
+{
+  "generatedAt": "2026-11-21T23:52:40.197Z",
+  "source": "entire why <file>:<line> --json",
+  "missing": [],
+  "records": [
+    {
+      "id": "rule-1",
+      "title": "Core rule 1: only the verified patient's own prescriptions",
+      "file": "lib/control/press.ts",
+      "line": 188,
+      "status": "commit",
+      "commit": "1a5fc198",
+      "checkpointId": null,
+      "sessionId": null
+    },
+    {
+      "id": "rule-5",
+      "title": "Core rule 5: a new address needs a pharmacist",
+      "file": "lib/control/press.ts",
+      "line": 393,
+      "status": "commit",
+      "commit": "1a5fc198",
+      "checkpointId": null,
+      "sessionId": null
+    },
+    {
+      "id": "S1",
+      "title": "Speech rule S1: nothing private before verification",
+      "file": "lib/guard/speech.ts",
+      "line": 85,
+      "status": "commit",
+      "commit": "96db94c5",
+      "checkpointId": null,
+      "sessionId": null
+    },
+    {
+      "id": "S2",
+      "title": "Speech rule S2: nothing about another patient",
+      "file": "lib/guard/speech.ts",
+      "line": 93,
+      "status": "commit",
+      "commit": "96db94c5",
+      "checkpointId": null,
+      "sessionId": null
+    },
+    {
+      "id": "S3",
+      "title": "Speech rule S3: no dose that isn't on the label",
+      "file": "lib/guard/speech.ts",
+      "line": 102,
+      "status": "commit",
+      "commit": "96db94c5",
+      "checkpointId": null,
+      "sessionId": null
+    },
+    {
+      "id": "S4",
+      "title": "Speech rule S4: no promise the record doesn't back",
+      "file": "lib/guard/speech.ts",
+      "line": 226,
+      "status": "checkpoint",
+      "commit": "05ecce4f",
+      "checkpointId": "01M7ZQRGR94MTT60FRRR196W6Q",
+      "sessionId": "4025b53a-932a-45b2-adf0-fdc8a1e2e386"
+    },
+    {
+      "id": "hijack-driver",
+      "title": "The hijack switch: a fully fooled AI through the same lock",
+      "file": "lib/agent/hijack.ts",
+      "line": 34,
+      "status": "checkpoint",
+      "commit": "ff711753",
+      "checkpointId": "01M7YR3YXEJ5XCKTRCM2QYRBHK",
+      "sessionId": "01a1fd40-e045-76a1-8d31-74d54fa65bb7"
+    },
+    {
+      "id": "hijack-call-ids",
+      "title": "Hijack batch events use their own call ids (Trail #14)",
+      "file": "lib/arena/hijack-batch.ts",
+      "line": 86,
+      "status": "checkpoint",
+      "commit": "963c6aac",
+      "checkpointId": "01M7Z2DETP9EHCY4ZG5P4XV81K",
+      "sessionId": "4025b53a-932a-45b2-adf0-fdc8a1e2e386"
+    },
+    {
+      "id": "stage-pick",
+      "title": "A judge's pick on the stage runs through the real lock",
+      "file": "app/stage/attack-run.ts",
+      "line": 87,
+      "status": "checkpoint",
+      "commit": "21a410f5",
+      "checkpointId": "01M7ZPSFHRZJGA7RR0ETXQJB9S",
+      "sessionId": "40aa75fd-9968-4a05-82a0-7d3d79c96251"
+    },
+    {
+      "id": "card-2a",
+      "title": "Rule card 2a",
+      "file": "lib/contract/cards.ts",
+      "line": 12,
+      "status": "commit",
+      "commit": "7067889e",
+      "checkpointId": null,
+      "sessionId": null
+    },
+    {
+      "id": "card-2b",
+      "title": "Rule card 2b",
+      "file": "lib/contract/cards.ts",
+      "line": 22,
+      "status": "commit",
+      "commit": "7067889e",
+      "checkpointId": null,
+      "sessionId": null
+    },
+    {
+      "id": "card-3",
+      "title": "Rule card 3",
+      "file": "lib/contract/cards.ts",
+      "line": 32,
+      "status": "commit",
+      "commit": "7067889e",
+      "checkpointId": null,
+      "sessionId": null
+    },
+    {
+      "id": "card-4",
+      "title": "Rule card 4",
+      "file": "lib/contract/cards.ts",
+      "line": 42,
+      "status": "commit",
+      "commit": "7067889e",
+      "checkpointId": null,
+      "sessionId": null
+    },
+    {
+      "id": "card-4b",
+      "title": "Rule card 4b",
+      "file": "lib/contract/cards.ts",
+      "line": 52,
+      "status": "commit",
+      "commit": "7067889e",
+      "checkpointId": null,
+      "sessionId": null
+    },
+    {
+      "id": "card-6",
+      "title": "Rule card 6",
+      "file": "lib/contract/cards.ts",
+      "line": 70,
+      "status": "commit",
+      "commit": "7067889e",
+      "checkpointId": null,
+      "sessionId": null
+    },
+    {
+      "id": "card-7a",
+      "title": "Rule card 7a",
+      "file": "lib/contract/cards.ts",
+      "line": 81,
+      "status": "commit",
+      "commit": "7067889e",
+      "checkpointId": null,
+      "sessionId": null
+    },
+    {
+      "id": "card-7b",
+      "title": "Rule card 7b",
+      "file": "lib/contract/cards.ts",
+      "line": 91,
+      "status": "commit",
+      "commit": "7067889e",
+      "checkpointId": null,
+      "sessionId": null
+    },
+    {
+      "id": "card-7c",
+      "title": "Rule card 7c",
+      "file": "lib/contract/cards.ts",
+      "line": 101,
+      "status": "commit",
+      "commit": "7067889e",
+      "checkpointId": null,
+      "sessionId": null
+    },
+    {
+      "id": "card-7d",
+      "title": "Rule card 7d",
+      "file": "lib/contract/cards.ts",
+      "line": 111,
+      "status": "commit",
+      "commit": "7067889e",
+      "checkpointId": null,
+      "sessionId": null
+    },
+    {
+      "id": "card-8a",
+      "title": "Rule card 8a",
+      "file": "lib/contract/cards.ts",
+      "line": 121,
+      "status": "commit",
+      "commit": "7067889e",
+      "checkpointId": null,
+      "sessionId": null
+    },
+    {
+      "id": "card-8b",
+      "title": "Rule card 8b",
+      "file": "lib/contract/cards.ts",
+      "line": 131,
+      "status": "commit",
+      "commit": "7067889e",
+      "checkpointId": null,
+      "sessionId": null
+    },
+    {
+      "id": "card-11",
+      "title": "Rule card 11",
+      "file": "lib/contract/cards.ts",
+      "line": 141,
+      "status": "commit",
+      "commit": "7067889e",
+      "checkpointId": null,
+      "sessionId": null
+    }
+  ]
+}

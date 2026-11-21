@@ -1,0 +1,16 @@
+{
+  "id": "hijack-call-ids",
+  "title": "Hijack batch events use their own call ids (Trail #14)",
+  "file": "lib/arena/hijack-batch.ts",
+  "line": 86,
+  "content": "function cardEmit(emit: EmitFn, tag: string): EmitFn {",
+  "status": "checkpoint",
+  "commit": "963c6aac",
+  "author": "nishantshah0",
+  "authorTime": "2026-11-21T12:48:33Z",
+  "checkpointId": "01M7Z2DETP9EHCY4ZG5P4XV81K",
+  "sessionId": "4025b53a-932a-45b2-adf0-fdc8a1e2e386",
+  "agent": "Claude Code",
+  "model": "claude-opus-5-5",
+  "prompt": "<cross-session-message from=\"local_c51e93b3-8c5b-4d40-94c8-71a5612893f0\" from-name=\"Hack Western 13 hackathon\">\nUnblock mode, from Nishant: \"can u make sure they are being locked in and fixed they r stacking get the agent to fix\". 20 branches and 16 PRs are waiting, almost all behind a handful of high findings. Your job now is to clear those highs fast.\n\nThe highs blocking merges right now:\n1. Trail #25 (role-4/side-effect-review): scripts/integration/sam-demo.test.ts:59 fails on main plus this branch, even with role-2/side-effect-review-test merged in. A lib/control test for the new behaviour…"
+}
