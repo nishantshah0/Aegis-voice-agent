@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { DemoControls } from "./DemoControls";
 import { EventFeed } from "./EventFeed";
 import { Queue } from "./Queue";
 import { SignInBar } from "./SignInBar";
@@ -14,6 +15,7 @@ export default function TodayPage() {
           <SignInBar />
         </Suspense>
       </header>
+      <DemoControls />
       <Suspense fallback={<p className="mt-6 text-sm text-neutral-500">Loading the queue…</p>}>
         <Queue />
       </Suspense>
