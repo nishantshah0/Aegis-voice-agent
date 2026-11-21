@@ -42,9 +42,11 @@ Branch platform/today-view. Using the fake meanwhile.
 | REPLY | Answering a REQUEST or a REVIEW |
 | HANDOFF | Task done and checks pass: Trail link, branch, checks run |
 | BLOCKED | You can't continue without someone |
-| REVIEW | Role 4's verdict on a handoff: what failed, or "merging" |
+| REVIEW | Role 4's verdict on a handoff: a one-line pointer to the findings on the Trail |
 | MERGED | Role 4 merged a Trail into `main` |
 | HUMAN | From a person. Agents obey these first. |
+
+**Code talk lives on Entire.** Anything about a specific change (a bug, a question about a diff, a suggested fix) goes on that change's Trail as a **finding**: `entire trail finding add`. Agents are allowed to post findings, and the owner answers with `entire trail finding reply`, then `resolve` or `apply`. The GitHub channel only carries claims, status, requests, handoffs and STOP.
 
 **Why not Entire's Trail comments:** Entire blocks AI agents from posting Trail comments ("trail comments are for people"), and we respect that. So agents talk on GitHub, humans can also steer from Trail #2, and Entire does what it's built for: a Trail per task with agent review, shared Brain memory, and session handover.
 
@@ -54,8 +56,8 @@ Each cycle, about every 15 minutes:
 
 1. `git pull`. On the first cycle, read `AGENTS.md`, `docs/TASKS.md` and `docs/DESIGN.md`.
 2. `scripts/channel.sh stopped`. If a human said STOP, do nothing and end the cycle.
-3. Read messages for your role (`scripts/channel.sh for <ROLE>`) and human steering on Entire Trail #2 (`entire trail comment list --trail 2`). Answer every REQUEST and REVIEW addressed to you.
-4. Ask Brain before editing: `entire brain brief "<task>"`. Find code with `entire graph query`.
+3. Read messages for your role (`scripts/channel.sh for <ROLE>`) and human steering on Entire Trail #2 (`entire trail comment list --trail 2`). Answer every REQUEST and REVIEW addressed to you, and every open finding on your Trails (`entire trail finding list`).
+4. Ask Brain before editing: `entire brain brief "<task>"`. Find code with `entire graph query`. Before asking another agent, check whether it's already been solved: `entire search "<question>" --compact`.
 5. Continue your open task, or pick the next **core** task in your role whose "Needs" are met. Post CLAIM, then `entire trail create --title "<task>"` on a branch named `role-<n>/<task>`.
 6. Work in small commits, **only in your role's folders**. If you need something from another role, post REQUEST and keep going with the fakes.
 7. When the task is done: `npm run typecheck`, `npm run lint`, `npm test` (and `npm run hammer` if you touched the lock). Push the branch, run `entire trail ready`, and post HANDOFF.
@@ -66,10 +68,12 @@ Each cycle, about every 15 minutes:
 ## Role 4 also integrates
 
 On every cycle, Role 4's agent checks for HANDOFF messages:
-- Check out the branch and run the full release gate.
+- Check out the branch, run the full release gate, then `entire review` (several reviewer agents, then a judge).
+- Post anything wrong as **findings** on that Trail, and a one-line REVIEW pointer on the channel.
 - **Merge automatically** only if the gate passes, the diff stays inside the claiming role's folders, and it doesn't touch `lib/contract/`, `lib/control/` or `lib/guard/`. Then post MERGED.
 - **Wait for a HUMAN "ok"** for anything touching the contract or the lock.
-- If anything fails, post REVIEW to that role with exactly what failed.
+- If anything fails, the findings say exactly what, and the owning agent fixes and re-hands off.
+- **Every morning** after the overnight run, post `entire dispatch` output to the channel as a STATUS to ALL.
 
 ## Guardrails (never, even when autonomous)
 

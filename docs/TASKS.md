@@ -65,8 +65,8 @@ The **contract** (`lib/contract/`): shared types for the 12 buttons, the guard, 
 | 3.5 | **All 28 scenarios**, each run 3 times, counting only those that pass all 3 | Scoreboard numbers from a real run saved in `results/` | 3.3 |
 | **After core** | | | |
 | 3.6 | Gemini attacker and Fable 5.2 planner, failures saved as permanent scenarios | At least one real gap found and saved | 3.5 |
-| 3.7 | Overnight run with a spend cap, fix proposals, approval through the console | One real fix approved and live | 3.6, 2.4 |
-| 3.8 | Console tabs: Review calls (hand labelling), Rules and checks, Overnight safety | Each shows real data | 3.5 |
+| 3.7 | **Overnight run on Entire Trails:** spend cap; every gap the attacker finds becomes a Trail with the failing scenario and a proposed fix, checked by `entire review` and the release gate, approved by a person on Entire, then merged | One real gap found, fixed on a Trail, approved by a person and live | 3.6, 4.7 |
+| 3.8 | Console tabs: Review calls (hand labelling), Rules and checks (with an **`entire why` panel per rule**, read from `results/why/`), Overnight safety (with links to each fix's Trail) | Each shows real data | 3.5, 4.10 |
 | 3.9 | Cited briefs for the pharmacist | No uncited sentence reaches the console in 20 calls | 2.3 |
 
 ## Role 4 · The lock
@@ -82,7 +82,9 @@ The **contract** (`lib/contract/`): shared types for the 12 buttons, the guard, 
 | 4.7 | **Integration:** review and merge Trails in dependency order, keep `main` green | The core demo runs twice in a row from `main` | everything above |
 | **After core** | | | |
 | 4.8 | Rule writer engine (plain English to a rule card, tests, impact preview) | The antibiotic rule goes live after approval | 4.3 |
-| 4.9 | Entire token measurement: three tasks with and without Graph | Real table in `results/entire-tokens.md` | Nothing |
+| 4.9 | **Entire token measurement:** `entire tokens profile --all` on Saturday evening and Sunday morning, plus three tasks with and without Graph compared with `entire session tokens` | Real numbers in `results/entire-tokens.md` | Nothing |
+| 4.10 | **`entire why` export:** a script that saves `entire why --json` for every rule file and card to `results/why/`, rerun before the demo | Every rule in the console shows its prompt, session and approval | 4.3 |
+| 4.11 | **Morning dispatch:** run `entire dispatch` after the overnight run and post it to the agent channel | The dispatch is on the channel, and in the Devpost screenshots | 3.7 |
 
 ---
 

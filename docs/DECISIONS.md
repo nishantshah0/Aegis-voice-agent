@@ -4,6 +4,7 @@ One line each, newest first. If you're an AI agent, don't undo anything here wit
 
 | When | Decision | Why |
 |---|---|---|
+| Sat early | Entire inside the product: the overnight fix loop runs on Entire Trails (`entire review`, the gate, a person's approval), and the Rules tab shows `entire why` for each rule. Agents review each other with Trail findings. Tokens are measured with `entire tokens profile` and `entire session tokens`. Never claim a percentage of AI-written lines. | The best Entire projects make it part of the product, and the prize asks for measured token efficiency |
 | Sat early | Autonomous build: each role's agent runs a loop (`agents/role-<n>.md`) and talks on GitHub issue #1 through `scripts/channel.sh`. Role 4's agent merges after the gate. Contract and lock changes need a HUMAN "ok". Trail #2 on Entire is for human steering. | Entire blocks agents from posting Trail comments, GitHub issues work for every agent, and it shows on the repo |
 | Sat early | Nobody is pre-assigned to a role. The contract with fakes is set up once as task 0, not owned by a role. Role 4 is renamed "The lock". | Nobody gets stuck with setup, and every role builds something visible |
 | Sat early | All four roles write code. The pitch, video and Devpost are done by everyone together on Sunday morning. Tasks per role, in order, are in `docs/TASKS.md`. | Everyone wants to build, and the pitch takes a few hours at the end |

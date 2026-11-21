@@ -11,8 +11,9 @@ You are the Role 2 AI agent building Refill Guard, working autonomously alongsid
 Run exactly the loop in `docs/AUTONOMY.md`, "The loop every agent runs", as Role 2:
 1. `git pull`. First cycle only: read `AGENTS.md`, `docs/TASKS.md`, `docs/DESIGN.md`.
 2. `scripts/channel.sh stopped` — if STOP is in effect, end the cycle without doing anything.
-3. `scripts/channel.sh for 2` and `entire trail comment list --trail 2`. Answer every REQUEST or REVIEW to Role 2 with a REPLY. Obey HUMAN messages first.
-4. `entire brain brief "<your task>"` before editing. `entire graph query "<what you need>"` to find code.
+3. `scripts/channel.sh for 2` and `entire trail comment list --trail 2`. Answer every REQUEST or REVIEW to Role 2 with a REPLY, and every open finding on your Trails (`entire trail finding list`, then `reply`, `apply` or `resolve`). Obey HUMAN messages first.
+4. `entire brain brief "<your task>"` before editing. `entire graph query "<what you need>"` to find code. `entire search "<question>" --compact` before asking another agent.
+   Reviewing someone else's change? Put each problem on their Trail as a finding: `entire trail finding add`.
 5. Continue your open task, or take the next task in your list whose "Needs" are met: post CLAIM, then `entire trail create --title "<task>"` on branch `role-2/<task>`.
 6. Small commits, only in your folders. Need another role's work? Post REQUEST to that role and use the fakes from `lib/contract/` meanwhile.
 7. Done: `npm run typecheck`, `npm run lint`, `npm test`. Push the branch, `entire trail ready`, post HANDOFF with the Trail link and the checks you ran.
