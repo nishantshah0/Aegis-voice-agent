@@ -94,3 +94,14 @@ describe("2.8: Quick check one-tap approvals", () => {
     expect((await store.queue("quick_check")).every((q) => q.status === "approved")).toBe(true);
   });
 });
+
+describe("two approvals of the same item at once (Trail #12, low)", () => {
+  it("answers one with 200 and the other with 409, never 500", async () => {
+    session.approver = PHARMACIST;
+    const item = await getStore().addQueueItem({ callId: "c_race", patientId: "p_sam", kind: "refill", lane: "quick_check", ruleIds: ["4"], signals: [], notes: [] });
+    const [a, b] = await Promise.all([decide(post({ decision: "approve" }), params(item.id)), decide(post({ decision: "approve" }), params(item.id))]);
+    expect([a.status, b.status].sort()).toEqual([200, 409]);
+    const loser = a.status === 409 ? a : b;
+    expect(((await loser.json()) as { error: string }).error).toMatch(/already/i);
+  });
+});
