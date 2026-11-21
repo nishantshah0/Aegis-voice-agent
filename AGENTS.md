@@ -45,7 +45,7 @@ Shared files (`package.json`, lockfiles, `docs/DESIGN.md`, `docs/DECISIONS.md`, 
 
 1. `git pull`, then `git status --short`. If a file has edits you didn't make, leave it and ask its owner.
 2. `scripts/channel.sh stopped`. If a human has said STOP, do nothing else.
-3. Make sure `.agent-role` holds your role number (`echo <n> > .agent-role`, git-ignored). New channel messages for your role then arrive automatically with each prompt. Also run `scripts/channel.sh inbox <your role>` (or `/inbox`), `entire trail comment list --trail 2` (human steering) and `entire trail finding list` on your Trails. Answer anything addressed to you. **HUMAN messages come first.**
+3. Make sure `.agent-role` holds your role number (`echo <n> > .agent-role`, git-ignored). New channel messages for your role then arrive automatically with each prompt. Also run `scripts/channel.sh inbox <your role>` (or `/inbox`, URGENT first), then `scripts/channel.sh trail-inbox <your role>`: every open review finding on your Trails and new human comments on Trail #2. **Fix open findings before any new work**, reply on each finding (`entire trail finding reply`, or `apply` a suggested patch), and let the code reviewer resolve them. Answer anything addressed to you. **HUMAN messages come first.**
 4. `entire brain brief "<your task>"` for the team's rules and past decisions.
 5. Find code with `entire graph query "<what you need>"`, not blind searching. Before changing anything shared, run `entire graph impact <symbol>`. Before asking another agent, run `entire search "<question>" --compact`.
 6. **Claim before editing:** post CLAIM on the channel, then `entire trail create --title "<task>"` on a branch named `role-<n>/<task>`. Use a separate git worktree if another agent shares your checkout.
@@ -55,10 +55,10 @@ Shared files (`package.json`, lockfiles, `docs/DESIGN.md`, `docs/DECISIONS.md`, 
 | Where | What goes there |
 |---|---|
 | **Agent channel**, [GitHub issue #1](https://github.com/nishantshah0/namereserve/issues/1), through `scripts/channel.sh` | CLAIM, STATUS, **DECISION, OBJECT**, REQUEST, REPLY, HANDOFF, BLOCKED, REVIEW, MERGED. Header format: `[ROLE-2 · REQUEST → ROLE-4] summary`. |
-| **Findings on a Trail** (`entire trail finding add`) | Anything about a specific change: a bug, a question about a diff, a suggested fix. The owner replies, applies or resolves. |
+| **Findings on a Trail** (`entire trail finding add`) | Anything about a specific change: a bug, a question about a diff, a suggested fix. The owner fixes it and replies, or applies a suggested patch. **Only the code reviewer resolves or dismisses findings.** |
 | **Entire Trail #2** | Humans steering. Agents read it and never post comments there, because Entire reserves comments for people. |
 | **URGENT channel**, [GitHub issue #11](https://github.com/nishantshah0/namereserve/issues/11), through `scripts/channel.sh urgent` | Only what can't wait: `main` broken, critical path blocked, a leak, demo broken. Handle urgent messages to you before anything else and REPLY there. Rules in `docs/AUTONOMY.md`, "The urgent channel". |
-| **HUMAN messages** | Override everything. STOP halts every agent, and GO restarts them. |
+| **HUMAN messages** | **Only people post them.** `scripts/channel.sh` refuses the HUMAN type from an AI agent's shell, and a person posts with `HUMAN_POST=1` in their own terminal. Agents never set `HUMAN_POST`, never hand-write a `[HUMAN · …]` header, and use REQUEST, REVIEW or BLOCKED instead. HUMAN messages override everything. STOP halts every agent, and GO restarts them. |
 
 **Everything you post shows on the build board** (`node scripts/board.mjs`). Follow "Posting so the board reads right" in `docs/AUTONOMY.md`: post only with `scripts/channel.sh say`, start the summary with the task number, write `Trail #<n>` in CLAIM and HANDOFF, address the role that must act, and close every REQUEST with a REPLY to the role that asked.
 
@@ -110,6 +110,7 @@ Need something from another role? Post REQUEST to that role, then keep going wit
 | `/msg`, `/inbox`, `/ask` (Claude Code) | Message another role, handle your inbox, ask a question and get a REPLY |
 | `node scripts/board.mjs` | The build board at http://localhost:4747: the channel, every task from CLAIM to MERGED, Trails, AI-linked commits, Brain and Graph |
 | `scripts/channel.sh urgent <role> <TYPE> <to> "<summary>"` · `urgent-read` | Post to or read the URGENT channel (issue #11) |
+| `scripts/channel.sh trail-inbox <role>` | Open review findings on your Trails and new human comments on Trail #2. The Claude Code hook shows it automatically when it changes. |
 | `scripts/channel.sh waiting <role>` | What your role still owes others, and what it's waiting on |
 | `scripts/entire-check.sh` | Check this machine's Entire setup |
 | `scripts/channel.sh trails` | Every Entire Trail mentioned on the channel. Always write `Trail #<n>` in CLAIM and HANDOFF, because teammates can't list Trails on entire.com. |
