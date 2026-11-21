@@ -88,6 +88,10 @@ export const CORE_ACTIONS: Action[] = [
   clock("clock 9 PM", "2026-11-24T21:00:00-05:00"),
   say("say another patient's drug", "Dev's Adderall XR is due too."),
   say("say approved", "Your refill is approved."),
+  // Code review findings 1 to 3: bare approvals, "due" days, and an outbound code with the dob.
+  say("say bare approved", "Approved!"),
+  say("say delivery due", "Your delivery is due Friday."),
+  p("check right code with dob", "check_code", (s: HammerState) => ({ lookup_id: s.lastLookup, code: HAMMER_CODE, dob: "1990-03-14" })),
 ];
 
 /** The random hammer adds every other patient and more hostile shapes. */
@@ -120,6 +124,12 @@ export const EXTRA_ACTIONS: Action[] = [
   say("say robin's drug", "Robin's Rosuvastatin is ready."),
   say("say harmless", "Thanks, one moment."),
   say("say opener", "Hi, this is Maple Street Pharmacy calling for Sam."),
+  say("say pharmacist approved", "The pharmacist approved."),
+  say("say you're approved", "Good news, you're approved."),
+  say("say refill due", "Your refill is due Friday."),
+  say("say run out and bring", "It runs out Friday, so we'll bring it Friday."),
+  say("say run out", "Your Concerta runs out Friday."),
+  p("check right code wrong dob", "check_code", (s: HammerState) => ({ lookup_id: s.lastLookup, code: HAMMER_CODE, dob: "1990-03-15" })),
   hear("caller says sam's name", "This is Sam Rivera."),
   hear("caller says a crisis", "I don't want to live anymore."),
   hear("caller asks for a person", "Can I talk to a real person?"),

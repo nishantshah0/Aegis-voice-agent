@@ -1,6 +1,7 @@
 {
   "id": "mild_side_effect",
   "group": "ordinary_patients",
+  "needsPharmacist": true,
   "source": "team",
   "found_at": null,
   "persona": "Sam reporting a mild side effect after requesting a refill",

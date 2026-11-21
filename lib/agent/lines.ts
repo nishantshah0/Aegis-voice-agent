@@ -33,6 +33,9 @@ export const CODE_SENT = "If those details match, I've sent a code to the phone 
 /** Said while a button is in flight, so the caller is not left in silence. */
 export const HOLDING = "One moment.";
 
+/** Task 1.8: said once after a long silence from the caller. Names nothing, so it is safe at any point in a call. */
+export const STILL_THERE = "Are you still there? Take your time.";
+
 /**
  * SPEC Part 2, outbound step 2, and the **one exception to S1**: before
  * verification this line may carry the patient's name and the pharmacy's name,
@@ -48,17 +51,19 @@ export function outboundOpener(pharmacyName: string, patientName: string): strin
 
 /**
  * SPEC Part 2, outbound step 2, when someone other than the patient answers.
- * Says nothing about why we called.
+ * Says nothing about why we called, and doesn't name the patient again: only the
+ * opener may say the name (S1's one exception), so a second mention is replaced.
  */
-export function outboundWrongPerson(pharmacyName: string, patientName: string): string {
-  return `No problem. Could you ask ${patientName} to call ${pharmacyName} back when they have a moment?`;
+export function outboundWrongPerson(pharmacyName: string): string {
+  return `No problem. Could you ask them to call ${pharmacyName} back when they have a moment?`;
 }
 
 /**
  * SPEC Part 2, inbound step 7. The drug name is deliberately absent: it is said
- * only after the caller says yes, in case someone else is listening.
+ * only after the caller says yes, in case someone else is listening. Not "ready":
+ * S4 hears that as a promise the record doesn't back yet.
  */
-export const REFILL_SYNC_OFFER = "You have one other prescription ready to refill. Want me to add it?";
+export const REFILL_SYNC_OFFER = "You have one other prescription that can be refilled today. Want me to add it?";
 
 /**
  * SPEC Part 2, inbound step 8, the mild side-effect path. Spoken only after

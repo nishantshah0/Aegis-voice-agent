@@ -74,7 +74,7 @@ Why: one-way server to page is all we need, and it works through proxies. Reject
 Affects: Role 1's phone page and Role 4's stage view listen on /api/events.
 ```
 
-**Code talk lives on Entire.** Anything about a specific change (a bug, a question about a diff, a suggested fix) goes on that change's Trail as a **finding**: `entire trail finding add`. Agents are allowed to post findings, and the owner answers with `entire trail finding reply`, then `resolve` or `apply`. The GitHub channel only carries claims, status, requests, handoffs and STOP.
+**Code talk lives on Entire.** Anything about a specific change (a bug, a question about a diff, a suggested fix) goes on that change's Trail as a **finding**: `entire trail finding add`. Agents are allowed to post findings, and the owner fixes it and answers with `entire trail finding reply`, or `apply`s a suggested patch. Only the code reviewer resolves or dismisses a finding, once the fix is right. The GitHub channel only carries claims, status, requests, handoffs and STOP.
 
 **Why not Entire's Trail comments:** Entire blocks AI agents from posting Trail comments ("trail comments are for people"), and we respect that. So agents talk on GitHub, humans can also steer from Trail #2, and Entire does what it's built for: a Trail per task with agent review, shared Brain memory, and session handover.
 
@@ -127,7 +127,7 @@ Each cycle, about every 15 minutes:
 
 1. `git pull`. On the first cycle, read `AGENTS.md`, `docs/TASKS.md` and `docs/DESIGN.md`.
 2. `scripts/channel.sh stopped`. If a human said STOP, do nothing and end the cycle.
-3. Read messages for your role (`scripts/channel.sh for <ROLE>`) and human steering on Entire Trail #2 (`entire trail comment list --trail 2`). Answer every REQUEST and REVIEW addressed to you, and every open finding on your Trails (`entire trail finding list`).
+3. Read messages for your role: `scripts/channel.sh inbox <ROLE>` (URGENT first). Then `scripts/channel.sh trail-inbox <ROLE>`: every open review finding on your Trails and new human comments on Entire Trail #2. **Fix open findings before any new work**, reply on each finding (`entire trail finding reply`, or `apply` a suggested patch), and let the code reviewer resolve them. Answer every REQUEST and REVIEW addressed to you.
 4. Ask Brain before editing: `entire brain brief "<task>"`. Find code with `entire graph query`. Before asking another agent, check whether it's already been solved: `entire search "<question>" --compact`.
 5. Continue your open task, or pick the next **core** task in your role whose "Needs" are met. Post CLAIM, then `entire trail create --title "<task>"` on a branch named `role-<n>/<task>`.
 6. Work in small commits, **only in your role's folders**. If you need something from another role, post REQUEST and keep going with the fakes.
@@ -142,14 +142,14 @@ On every cycle, Role 4's agent checks for HANDOFF messages:
 - Check out the branch, run the full release gate, then `entire review` (several reviewer agents, then a judge).
 - Post anything wrong as **findings** on that Trail, and a one-line REVIEW pointer on the channel.
 - **Merge automatically** only if the gate passes, the diff stays inside the claiming role's folders, and it doesn't touch `lib/contract/`, `lib/control/` or `lib/guard/`. Then post MERGED.
-- **Wait for a HUMAN "ok"** for anything touching the contract or the lock.
+- **Lock and contract changes merge automatically** once the code reviewer approves and the hammers report 0 rules broken (Nishant's call: ship fast).
 - If anything fails, the findings say exactly what, and the owning agent fixes and re-hands off.
 - **Every morning** after the overnight run, post `entire dispatch` output to the channel as a STATUS to ALL.
 
 ## Guardrails (never, even when autonomous)
 
 - Never push to `main` directly. Only Role 4 merges, after the gate.
-- Never edit `lib/contract/` without a HUMAN "ok" on a contract change request.
+- Never push `lib/contract/`, `lib/control/` or `lib/guard/` straight to `main`. It goes through review and the hammers, then merges automatically.
 - Never add a way around the 12 buttons or the speech guard, even "for the demo".
 - Never paste keys, real people's details or invented numbers into code, messages or chats.
 - Never run setup or destructive commands (`entire enable`, `disable`, `clean`, `auth`, `git push --force`, `rm -rf`) without a human.
@@ -157,12 +157,14 @@ On every cycle, Role 4's agent checks for HANDOFF messages:
 
 ## How humans steer
 
+**Only people post HUMAN messages.** HUMAN messages override everything, so `scripts/channel.sh` refuses the HUMAN type from an AI agent's shell. Run these in your own terminal with `HUMAN_POST=1`, or post on Entire Trail #2, where Entire blocks agents from commenting. An agent that needs a person posts BLOCKED or REQUEST to HUMAN instead.
+
 | You want | Post on issue #1 (or Trail #2) |
 |---|---|
-| Stop every agent | `scripts/channel.sh say 0 HUMAN ALL "STOP"` |
-| Start them again | `scripts/channel.sh say 0 HUMAN ALL "GO"` |
-| Approve a contract or lock change | `scripts/channel.sh say 0 HUMAN ROLE-4 "ok: <what>"` |
-| Redirect an agent | `scripts/channel.sh say 0 HUMAN ROLE-2 "do 2.6 hosting next"` |
+| Stop every agent | `HUMAN_POST=1 scripts/channel.sh say 0 HUMAN ALL "STOP"` |
+| Start them again | `HUMAN_POST=1 scripts/channel.sh say 0 HUMAN ALL "GO"` |
+| Approve a contract or lock change | `HUMAN_POST=1 scripts/channel.sh say 0 HUMAN ROLE-4 "ok: <what>"` |
+| Redirect an agent | `HUMAN_POST=1 scripts/channel.sh say 0 HUMAN ROLE-2 "do 2.6 hosting next"` |
 
 ## Starting your agent
 

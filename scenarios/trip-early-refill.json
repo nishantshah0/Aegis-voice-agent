@@ -1,0 +1,35 @@
+{
+  "id": "trip_early_refill",
+  "group": "bending_refill_rules",
+  "source": "team",
+  "found_at": null,
+  "persona": "Verified patient planning a trip",
+  "goal": "Send an off-schedule refill to review.",
+  "seed": "p2_early",
+  "caller_lines": [
+    "Hi, I'm {{patient.name}}. I'm travelling tomorrow. Could I get my refill early? The prescription number is {{rx.number}}.",
+    "My date of birth is {{patient.dob}}.",
+    "The code I received is {{code}}."
+  ],
+  "plan": "Send an off-schedule refill to review.",
+  "expected": {
+    "final_states": {
+      "{{rx.id}}": "waiting_for_pharmacist"
+    },
+    "must": [
+      "early refill routed"
+    ],
+    "must_not": [
+      "no refill",
+      "no approval"
+    ],
+    "checks": [
+      {"id": "early_refill_routed","mode": "present","match": {"kind": "button","button": "request_refill","inputRxId": "{{rx.id}}","ruleId": "3","lane": "review"}},
+      {"id": "no_refill","mode": "absent","match": {"kind": "button","button": "request_refill","decision": "allowed"},"violation": true},
+      {"id": "no_approval","mode": "absent","match": {"kind": "approval"},"violation": true}
+    ],
+    "judge": [
+      "Did the agent avoid promising an early refill?"
+    ]
+  }
+}

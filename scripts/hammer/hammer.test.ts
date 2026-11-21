@@ -133,6 +133,55 @@ describe("the checker catches real breakage", () => {
     expect((await checker.check(store, promise)).map((b) => b.rule)).toContain("spoken line promises an approval that didn't happen");
   });
 
+  // Code review finding 4: the spoken-line checks must catch findings 1 and 2 on their own,
+  // without reusing the guard's isCompletionPromise or RUN_OUT.
+  it.each(["Approved!", "Good news, you're approved.", "The pharmacist approved.", "Done, all approved."])(
+    "a bare approval with no approval in the record: %s",
+    async (text) => {
+      const store = createMemoryStore(SEED);
+      const line = await store.appendRecord({ callId: "c_a", actor: "agent", kind: "line_spoken", input: { text }, decision: "allowed" });
+      expect((await checker.check(store, line)).map((b) => b.rule)).toContain("spoken line promises an approval that didn't happen");
+    },
+  );
+
+  it.each(["Your delivery is due Friday.", "Your refill is due Friday.", "It runs out Friday, so we'll bring it Friday.", "It arrives Friday."])(
+    "a delivery day nobody booked: %s",
+    async (text) => {
+      const store = createMemoryStore(SEED);
+      const line = await store.appendRecord({ callId: "c_d", actor: "agent", kind: "line_spoken", input: { text }, decision: "allowed" });
+      expect((await checker.check(store, line)).map((b) => b.rule)).toContain("spoken line promises a delivery day nobody booked");
+    },
+  );
+
+  it("a run-out day is not a delivery promise", async () => {
+    const store = createMemoryStore(SEED);
+    const line = await store.appendRecord({ callId: "c_d", actor: "agent", kind: "line_spoken", input: { text: "Your supply runs out Friday." }, decision: "allowed" });
+    expect((await checker.check(store, line)).map((b) => b.rule)).not.toContain("spoken line promises a delivery day nobody booked");
+  });
+
+  it.each([
+    ["no dob", {}],
+    ["a wrong dob", { dob: "1990-03-15" }],
+  ])("an outbound call verified with %s", async (_label, dob) => {
+    const store = createMemoryStore(SEED);
+    await store.appendRecord({ callId: "c_o", actor: "system", kind: "safety", input: { check: "call_start", direction: "outbound", rx_id: IDS.samConcerta }, decision: "allowed" });
+    const entry = await store.appendRecord({ callId: "c_o", actor: "agent", kind: "button", button: "check_code", input: { lookup_id: "out_c_o", code: HAMMER_CODE, ...dob }, output: { result: { ok: true, output: { verified: true }, ruleIds: [] }, internal: { patientId: IDS.sam } } });
+    expect((await checker.check(store, entry)).map((b) => b.rule)).toContain("outbound call verified without the patient's date of birth");
+  });
+
+  it("an outbound call verified with the code and the right dob is fine", async () => {
+    const store = createMemoryStore(SEED);
+    await store.appendRecord({ callId: "c_o", actor: "system", kind: "safety", input: { check: "call_start", direction: "outbound", rx_id: IDS.samConcerta }, decision: "allowed" });
+    const entry = await store.appendRecord({ callId: "c_o", actor: "agent", kind: "button", button: "check_code", input: { lookup_id: "out_c_o", code: HAMMER_CODE, dob: "1990-03-14" }, output: { result: { ok: true, output: { verified: true }, ruleIds: [] }, internal: { patientId: IDS.sam } } });
+    expect((await checker.check(store, entry)).map((b) => b.rule)).not.toContain("outbound call verified without the patient's date of birth");
+  });
+
+  it("the alphabet says the reviewed sentences and checks an outbound code with a dob", () => {
+    const labels = CORE_ACTIONS.map((a) => a.label);
+    expect(labels).toEqual(expect.arrayContaining(["say bare approved", "say delivery due", "check right code with dob"]));
+    expect(ALL_ACTIONS.map((a) => a.label)).toEqual(expect.arrayContaining(["say pharmacist approved", "say run out and bring", "check right code wrong dob"]));
+  });
+
   it("a recorded rule context that doesn't match the prescription", async () => {
     const store = createMemoryStore(SEED);
     await store.saveCall({ id: "c_c", direction: "inbound", state: "verified", lockedPatientId: IDS.p4, startedAt: SEED.now, failedCodeTries: 0, callerSaid: [] });
