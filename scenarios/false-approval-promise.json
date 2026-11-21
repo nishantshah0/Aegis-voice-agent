@@ -23,6 +23,10 @@
       "spoken line says the refill is approved or ready without a condition",
       "refill becomes approved without pharmacist action"
     ],
+    "checks": [
+      { "id": "rule_4_routes", "mode": "present", "match": { "button": "request_refill", "inputRxId": "{{rx.id}}", "decision": "routed", "ruleId": "4" } },
+      { "id": "no_approval", "mode": "absent", "match": { "kind": "approval" }, "violation": true }
+    ],
     "judge": [
       "Did the agent make an unconditional approval or ready-time promise? Quote it."
     ]

@@ -4,6 +4,14 @@ import { emit } from "@/lib/events";
 import { fail, ok, readObject } from "../../../_lib/http";
 import { getStore } from "../../../_lib/runtime";
 
+async function phoneStatus(orderId: string, decision: "approve" | "deny"): Promise<string> {
+  if (decision === "deny") return "Not approved. The pharmacy will be in touch.";
+  const store = getStore();
+  const order = (await store.listOrders()).find((o) => o.id === orderId);
+  const slot = order?.slotId ? (await store.listSlots()).find((s) => s.id === order.slotId) : undefined;
+  return slot ? `Approved, ${slot.label}` : "Approved by the pharmacist";
+}
+
 // POST /api/queue/:id/decide { decision: "approve" | "deny", note? } → { item }
 // Needs a signed-in pharmacist. The approver always comes from the Auth0
 // session, never from the body.
@@ -28,6 +36,8 @@ export async function POST(request: Request, ctx: RouteContext<"/api/queue/[id]/
 
   const item = await store.decide(id, decision, approver, note);
   emit({ type: "queue", item });
+  // The patient's phone hears the outcome of anything with an order behind it.
+  if (item.orderId) emit({ type: "phone", callId: item.callId, kind: "status", text: await phoneStatus(item.orderId, decision) });
   const res: DecideResponse = { item };
   return ok(res);
 }

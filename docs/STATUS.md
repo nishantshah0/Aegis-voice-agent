@@ -40,17 +40,17 @@ Role 1 runs from Nishant's machine from 1.2 on (MikeyDigit did 1.1).
 
 ## Role 2 · Platform and pharmacist
 
-- **Doing:** 2.2 handed off (Trail #9, branch `role-2/reset-daily-check`, stacked on 2.4's `role-2/auth0-signin`). Next: 2.3 the full Today view, then 2.6 hosting.
-- **Done:** 2.1 and the contract switch (merged). 2.5 decided: no phone push. 2.4 Auth0 sign-in and Approve/Deny (handed off, Trail #7; real Auth0 sign-in checked in a browser). 2.2 demo reset, daily reminder check on rule 7, demo controls.
+- **Doing:** 2.3 handed off (Trail #10, branch `role-2/today-view`, stacked on 2.2's Trail #9 and 2.4's Trail #7). Next: 2.6 hosting.
+- **Done:** 2.1 and the contract switch (merged). 2.5 decided: no phone push. 2.4 Auth0 sign-in and Approve/Deny (Trail #7). 2.2 demo reset and daily check (Trail #9). 2.3 Today view: lane totals, Review first, full item detail, phone status on approve (Trail #10).
 - **Blocked:** 
-- **Needs from others:** Role 1: the real AgentDriver for `app/api/_lib/runtime.ts`, so a live call can press buttons and put Sam's refill in the queue (today only tests do).
+- **Needs from others:** Role 1: the real AgentDriver for `app/api/_lib/runtime.ts`, so a live call can put Sam's refill in the queue (today only tests do). Role 4: see the triage REQUEST about Sam's refill lane.
 
 ## Role 3 · Red team and evals
 
-- **Doing:** 3.2 hijack agent once task 0 lands
-- **Done:** 3.1 scenario format and first 10 JSON cards; replay is task 3.3
-- **Blocked:** task 0 contract has not landed; Entire Trails are not visible to this login, so claim issue #3 tracks the work
-- **Needs from others:** Role 4 to confirm fixture and prescription IDs for Sam, P4 and P7
+- **Doing:** 3.3 scenario runner handed off in PR #13; next 3.4 hijack batch after integration
+- **Done:** 3.1 scenario format and first 10 JSON cards; 3.2 hijack driver and four cards through the real control and guard in PR #7
+- **Blocked:** S3 still misses a written-out quantity (guard gap #10), outside Role 3's folder; numeric attack card is caught
+- **Needs from others:** Role 4 to fix guard gap #10 through the lock approval process
 
 ## Role 4 · The lock
 
