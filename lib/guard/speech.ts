@@ -26,7 +26,11 @@ const PRICE = /\$\s?\d+(?:\.\d{2})?/g;
 type Check = { rule: SpeechRule; why: string } | null;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-const RUN_OUT = /\b(runs out|run out|running out|will run out|is due|are due|last until|lasts until|will last)\b/;
+// Sentences about the supply running out or lasting. Never "due": "your delivery is due Friday"
+// is a delivery promise (code review finding 2).
+const RUN_OUT = /\b(runs out|run out|running out|will run out|last until|lasts until|will last)\b/;
+// A sentence that mentions getting the medication to the caller never gets a run-out day.
+const HANDOVER = /\b(deliver\w*|pick\w* (it |them )?up|pickup|collect\w*|bring\w*|brought|arriv\w*|ship\w*|drop\w* (it |them )?off)\b/;
 
 /** The weekday (lowercase, pharmacy time) a supply runs out: last fill + days supplied. */
 export function runOutDay(lastFill: string, daysSupplied: number, timeZone = "America/Toronto"): string {
@@ -148,8 +152,10 @@ export function createSpeechGuard({ store, emit = () => {} }: { store: Store; em
         const bookedLabels = orders.flatMap((o) => slots.filter((s) => s.id === o.slotId).map((s) => s.label));
         // A day is also backed when it's when one of the locked patient's prescriptions runs out
         // (last fill + days supplied), e.g. SPEC's "Your Concerta runs out Friday."
-        // Only for sentences about running out, so it never backs a delivery promise ("we'll bring it Friday").
-        if (call.state === "verified" && call.lockedPatientId && RUN_OUT.test(words(sentence))) {
+        // Only for sentences about running out that say nothing about delivery, pickup or arrival,
+        // so it never backs a delivery promise ("it runs out Friday, so we'll bring it Friday").
+        const w = words(sentence);
+        if (call.state === "verified" && call.lockedPatientId && RUN_OUT.test(w) && !HANDOVER.test(w)) {
           for (const rx of await store.getPrescriptions(call.lockedPatientId)) bookedLabels.push(runOutDay(rx.lastFill, rx.daysSupplied));
         }
         found =
