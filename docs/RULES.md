@@ -45,11 +45,14 @@ No exceptions, not even "just for the demo". Never add a way around the buttons 
 ## 5. Review and merge
 
 1. Hand off: push the branch, then post `HANDOFF → ROLE-4` with `Trail #<n>`, the branch, the files and each check's result.
-2. **The code reviewer** reviews every handoff. It posts each problem as an **Entire finding** on the Trail, and sends a REQUEST to fix it. Medium and high findings block the merge.
+2. **The code reviewer** reviews every handoff: lock branches before merge, everything else right after. It posts each problem as an **Entire finding** on the Trail, and sends a REQUEST to fix it. Medium and high findings block the merge.
 3. **The owning role fixes the findings before starting new work**, then replies on each finding (`entire trail finding reply`, or `apply` a suggested patch).
 4. **Only the code reviewer resolves or dismisses findings.** Never resolve your own.
 5. When it's clean, the reviewer posts `Code review: <branch> approved (Trail #<n>)`.
-6. **Merges are automatic.** After that approval and a passing gate, the repo steward merges it, lock branches included. Lock branches also need `npm run hammer` with 0 rules broken. No human ok is needed: we ship fast.
+6. **Merges are automatic.** Nishant decided Saturday morning to ship fast, so:
+   - **Non-lock branches** merge as soon as the gate passes (typecheck, lint, tests). The code reviewer reviews them **after** merge. Findings still go back to the owner, who fixes them on `main` before new work.
+   - **Lock branches** (`lib/contract/`, `lib/control/`, `lib/guard/`) merge only after the code reviewer's approval **and** `npm run hammer` with 0 rules broken.
+   - No human ok is needed for either.
 7. **Never merge your own PR on GitHub**, and never merge anything before its approval appears.
 
 ## 6. Talking on the channel

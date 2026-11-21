@@ -174,8 +174,9 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
       .at(-1);
     const codeFresh = sent && isFresh(sent.at, now, CODE_VALID_MS);
     const codeRight = lookup?.patientId && codeFresh && internalOf(sent)?.codeHash === hashCode(input.lookup_id, input.code.trim());
-    // A date of birth, when given (outbound calls confirm it with the code), must match too.
-    let dobRight = true;
+    // An outbound call confirms the date of birth with the code (SPEC Part 2, outbound step 2):
+    // without one, or with a wrong one, it's a failed try. Inbound calls check a dob only when given.
+    let dobRight = current.direction !== "outbound";
     if (codeRight && input.dob !== undefined) {
       const p = await store.getPatient(lookup!.patientId!);
       dobRight = normaliseDob(input.dob) === p?.dob;
