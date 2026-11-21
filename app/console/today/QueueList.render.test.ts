@@ -31,7 +31,7 @@ describe("Today page markup", () => {
     const { callId, lookupId } = started;
     await control.press(callId, "send_code", { lookup_id: lookupId });
     const code = (await control.codeFor(callId))!;
-    await control.press(callId, "check_code", { lookup_id: lookupId, code });
+    await control.press(callId, "check_code", { lookup_id: lookupId, code , dob: "1990-03-14" });
     await control.press(callId, "request_refill", { rx_id: IDS.samConcerta, reason: "Routine refill" });
     await guard(callId, "Your Concerta refill is approved.");
     await safety(callId, "I've been sleeping badly.");

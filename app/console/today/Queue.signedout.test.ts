@@ -30,7 +30,7 @@ beforeEach(async () => {
   if (!started.ok) throw new Error("rule 7 refused Sam");
   const { callId, lookupId } = started;
   await control.press(callId, "send_code", { lookup_id: lookupId });
-  await control.press(callId, "check_code", { lookup_id: lookupId, code: (await control.codeFor(callId))! });
+  await control.press(callId, "check_code", { lookup_id: lookupId, code: (await control.codeFor(callId))! , dob: "1990-03-14" });
   await control.press(callId, "request_refill", { rx_id: IDS.samConcerta });
   await createSpeechGuard({ store, emit })(callId, "Your Concerta refill is approved.");
   await createSafetyCheck({ store, emit })(callId, "I've been sleeping badly.");
