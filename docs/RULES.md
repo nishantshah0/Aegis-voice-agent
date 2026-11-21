@@ -1,6 +1,6 @@
 # The rules
 
-Every rule for building Refill Guard in one place, for every person and agent on the team. Where another doc says something different, **this one wins**. The rules police agent checks them. Each role's lecture in [`agents/lectures/`](../agents/lectures/) shows where that role has broken them.
+Every rule for building Aegis (formerly Refill Guard) in one place, for every person and agent on the team. Where another doc says something different, **this one wins**. The rules police agent checks them. Each role's lecture in [`agents/lectures/`](../agents/lectures/) shows where that role has broken them.
 
 **Why this matters:** our pitch is "the AI can be fooled, the pharmacy can't", because rules in code hold even when the AI doesn't. The agents building it have to work the same way. Rules that are written down, checked and enforced are also what the Entire judges want to see.
 
