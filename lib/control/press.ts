@@ -45,10 +45,9 @@ export type ControlOptions = {
   /** Makes the 6-digit code. Tests pass a fixed one; the default is random. */
   makeCode?: () => string;
   /**
-   * TRANSITIONAL. When true, the code's digits go out on the shared event stream (old
-   * behaviour). /api/events has no sign-in, so anyone watching it could read the code.
-   * Read it with control.codeFor(callId) instead. This default flips to false once
-   * Role 2's code reads codeFor, then the option goes away.
+   * Off by default (fails closed). When true, the code's digits go out on the shared event
+   * stream, which anyone watching could read. Read the code with control.codeFor(callId).
+   * Only a test that asks for the old text turns this on.
    */
   broadcastCodes?: boolean;
 };
@@ -64,7 +63,7 @@ type Handled = {
 
 const hashCode = (lookupId: string, code: string) => createHash("sha256").update(`${lookupId}:${code}`).digest("hex");
 
-export function createControl({ store, emit = () => {}, makeCode, broadcastCodes = true }: ControlOptions) {
+export function createControl({ store, emit = () => {}, makeCode, broadcastCodes = false }: ControlOptions) {
   const newCode = makeCode ?? (() => String(randomInt(0, 1_000_000)).padStart(6, "0"));
   // Codes in plain text live only here, in memory, never in the record or on the stream.
   const sentCodes = new Map<CallId, { code: string; hash: string }>();
