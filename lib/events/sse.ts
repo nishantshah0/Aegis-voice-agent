@@ -51,7 +51,9 @@ export function createEventStream(signal: AbortSignal, afterId: number | null): 
 
       // Subscribe before replaying, so nothing emitted in between is lost.
       const unsubscribe = subscribe(deliver);
-      send(`retry: ${RETRY_MS}\n: connected\n\n`);
+      // A named "hello" event proves the stream really flows: some hosts (Cloudflare quick
+      // tunnels) hold SSE back, and pages then fall back to /api/events/poll.
+      send(`retry: ${RETRY_MS}\n: connected\n\nevent: hello\ndata: {}\n\n`);
       if (afterId !== null) eventsSince(afterId).forEach(deliver);
 
       const heartbeat = setInterval(() => send(": ping\n\n"), HEARTBEAT_MS);
