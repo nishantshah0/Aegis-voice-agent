@@ -64,3 +64,12 @@ describe("1.4: the phone's state, from events", () => {
     expect(play([{ type: "hung_up" }], dialled).mode).toBe("ended");
   });
 });
+
+describe("1.4: the phone keeps its call's token", () => {
+  it("keeps the token from start or answer, and drops it on a new call", () => {
+    const answered = play([{ type: "connected", callId: "c_1" }, { type: "connected", callId: "c_1", phoneToken: "tok_1" }]);
+    expect(answered.phoneToken).toBe("tok_1");
+    expect(play([{ type: "connected", callId: "c_1" }], answered).phoneToken).toBe("tok_1");
+    expect(play([{ type: "dial" }], answered).phoneToken).toBeUndefined();
+  });
+});
