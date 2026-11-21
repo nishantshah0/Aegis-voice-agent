@@ -9,7 +9,7 @@ Write your name and your AI tool next to one role, then tell your agent the role
 | Role | Taken by | AI tool | First task |
 |---|---|---|---|
 | 1 · Voice and agent | | | 1.1 prompt and fixed lines |
-| 2 · Platform and pharmacist | | | 2.1 API skeleton and event stream |
+| 2 · Platform and pharmacist | Nishant | Claude Code | 2.1 API skeleton and event stream |
 | 3 · Red team and evals | | | 3.1 scenario format and first 10 scenarios |
 | 4 · The lock, and integrator | | | 4.2 store and seed, right after task 0 |
 
