@@ -1,12 +1,12 @@
 # Aegis (formerly Refill Guard): design
 
-How the system is split into parts, who owns each part, and exactly where the parts meet. `docs/SPEC.md` says *what* to build. This file says *how the pieces fit*, so four people and their AI tools can build in parallel without breaking each other.
+How the parts fit and who owns them. This is the design target; [CURRENT.md](CURRENT.md) shows what is merged and includes a diagram of the running path. `docs/SPEC.md` says what to build.
 
 If this file and the spec disagree on behaviour, the spec wins. If they disagree on boundaries or interfaces, this file wins, and the spec gets fixed.
 
 ---
 
-## 1. The idea in one picture
+## 1. Planned call path
 
 ```
  Patient phone ──speech──▶ Agent loop (Claude) ──button press──▶ CONTROL LAYER ──▶ Store (record, patients, refills)
@@ -33,7 +33,7 @@ Three things never change, whoever is coding:
 
 | Part | Folder | Owner | Pure code or uses AI? |
 |---|---|---|---|
-| Contract (shared types and fakes) | `lib/contract/` | Set up once as task 0. Changes need a contract-change issue, merged by Role 4. | Types only |
+| Contract (shared types and fakes) | `lib/contract/` | Role 4 merges reviewed changes and announces them with a DECISION. A contract-change issue is optional. | Types and fakes |
 | Control layer: buttons, rules, cards, engine, triage | `lib/control/` | Role 4 | Pure code, no AI, no network |
 | Speech guard (S1 to S4) and safety keyword check | `lib/guard/` | Role 4 | Pure code. Role 1 adds the optional Haiku checks behind the same function. |
 | Store | `lib/store/` | Role 4 writes the in-memory version, Role 2 the Postgres version | Pure code |
@@ -69,7 +69,7 @@ press(callId: CallId, button: ButtonName, input: unknown): Promise<ButtonResult>
 - Used by: the agent loop (Role 1), the hijack agent and scenario runner (Role 3), the hammers (Role 4).
 - The 12 button names and their input and output shapes are in `lib/contract/buttons.ts`, matching SPEC Part 3.
 - Built by `createControl({ store, emit })` in `lib/control`, which also gives `startInboundCall()`, `startOutboundCall(patientId, rxId)` (the only way to ring a patient, rule 7), `checkOutbound` and `codeFor(callId)`. A button's record entry stores `output: { result, internal }`; score from `output.result`.
-- Verification codes never go on the event stream (it has no sign-in). The phone page gets its call's code from the server, which reads `control.codeFor(callId)`.
+- **Current gap:** the API runtime uses the control layer's default `broadcastCodes: true`, so code digits appear in the unauthenticated event stream. Role 2's audience-filtering change is under review. Do not rely on this planned privacy boundary until it merges; see [CURRENT.md](CURRENT.md).
 
 ### 3.2 Speech guard (agent → guard → voice)
 
@@ -100,8 +100,7 @@ interface AgentDriver {
 }
 ```
 
-- Two implementations: the real Claude agent (Role 1) and the scripted hijack agent (Role 3).
-- The scenario runner, the attacker and the phone page all talk to `AgentDriver`, so they work with either agent.
+- The real Claude driver and scripted hijack driver exist. The API runtime still uses the contract's fake driver for caller turns. The scenario and hijack libraries use `AgentDriver`; the phone page and adaptive attacker are planned.
 
 ### 3.5 Store (everyone → data)
 
@@ -112,6 +111,7 @@ interface Store {   // every method is async, so Postgres is a one-line swap
   appendRecord(entry: RecordEntryInput): Promise<RecordEntry>   // adds the hash chain
   listRecord(callId?): Promise<RecordEntry[]>
   addQueueItem(item): Promise<QueueItem>
+  updateQueueItem(itemId, patch): Promise<QueueItem>
   queue(lane?: Lane): Promise<QueueItem[]>
   decide(itemId, decision: "approve" | "deny", approver: Approver, note?: string): Promise<QueueItem>
   reset(seed: Seed): Promise<void>
@@ -133,7 +133,7 @@ type StreamEvent =
   | { type: "clock", now: string }
 ```
 
-- Role 2 runs the stream at `/api/events`. Everyone emits through `emit(event)`. Role 4's pages only listen.
+- Role 2 runs the stream at `/api/events`. Producers emit through `emit(event)`. Stage listens to the stream; Today reads the store on the server and listens for events to refresh. The event bus is separate from the decision record.
 - The gate animation is driven purely by `press` and `blocked_line` events.
 
 ### 3.7 Approvals (console → store)
@@ -147,7 +147,7 @@ POST /api/queue/:id/decide   { decision, note? }   // Auth0 session required, ro
 
 ### 3.8 Scenarios (Role 3 → runner)
 
-- One JSON file per scenario in `scenarios/`, using the format in SPEC Part 4. The runner replays caller lines through `AgentDriver` and scores **only from the record**.
+- One JSON file per scenario in `scenarios/`, using the format in SPEC Part 4. The runner replays caller lines through `AgentDriver`. Policy pass/fail uses the decision record; a planned AI judge separately flags unsafe speech with exact quotes.
 
 ---
 
@@ -160,7 +160,7 @@ contract ──▶ control layer + in-memory store ──▶ typed agent loop �
    └──▶ (fakes let everyone start now)
 ```
 
-- **Nobody waits:** the contract exports fakes, so Roles 1, 2 and 3 can start before the control layer is finished.
+- The contract exports fakes for isolated work. The control layer and in-memory store are now merged.
 - **The noon checkpoint** (a typed refill working three times in a row) needs the contract, control layer, store, agent loop and the approve endpoint.
 - **Postgres, voice and hosting** are off the critical path. Each has a fallback: the in-memory store, typed input, and a tunnel.
 
@@ -195,7 +195,7 @@ Checked against the spec, the critical path and the demo. These are the problems
 | The lock is plain code, not AI | It has to give the same answer every time, and be testable with millions of hostile inputs |
 | One `AgentDriver` interface for real, hijacked and scenario calls | "Everything is a call." The hijack proof only means something if it uses the same path as real calls. |
 | In-memory store first, Postgres second | Nobody blocks on infrastructure. Behaviour is identical. |
-| Events are the only way pages learn anything | Pages stay simple, and the stage view and console can't disagree |
+| Server pages read the store; client views use events to refresh | Today can load current queue state, while Stage shows live events |
 | Triage lanes are chosen in code from rules and signals | The pharmacist's attention depends on facts, not the AI's opinion |
 | The AI's self-reported confidence is shown but never used | Models are often overconfident |
 | Keys only on the server | The repo may go public, and the phones run untrusted browsers |
@@ -208,11 +208,11 @@ Checked against the spec, the critical path and the demo. These are the problems
 
 | Step | Where | What it does |
 |---|---|---|
-| Claim | Issue, "Claim a task" template, `claimed` label | Role, branch and files, so scopes never overlap |
+| Claim | Entire Trail and CLAIM on issue #1; a claim issue may record cross-role scope | Role, branch and files, so scopes never overlap |
 | Build | One task branch per claim | One owner per folder |
-| Contract change | Issue, "Contract change request" template | Nobody edits `lib/contract/` directly |
-| Handoff | Pull request with the handoff template | What changed, checks run, "the lock still holds" |
-| Gate | GitHub Actions, "Release gate" | Typecheck, lint, tests, hammers and build on every push and pull request |
+| Contract change | Role 4 branch, Trail, review, hammer gate and DECISION; issue optional | Every role learns about interface changes |
+| Handoff | Entire Trail and channel HANDOFF; pull request when requested or using GitHub review | What changed, checks run, and who needs to review |
+| Gate | GitHub Actions, "Release gate" | Typecheck, lint, tests, hammers and build on pull requests and pushes to `main` |
 | Memory | `docs/STATUS.md`, `docs/DECISIONS.md` | What each role is doing and what's been decided |
 
 **Why GitHub, not Discord:** it's where the code already is, every AI tool can use it through the `gh` command, it needs no bot or server, and anyone who opens the repo sees the whole history of humans and agents working together. Discord or Slack can mirror it later with a webhook, as a nice-to-have.
