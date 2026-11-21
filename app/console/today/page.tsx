@@ -10,7 +10,6 @@ export default function TodayPage() {
   return (
     <PageShell
       current="/console/today"
-      width="narrow"
       right={
         <Suspense fallback={<span className="text-sm text-ink-3">Checking sign-in…</span>}>
           <SignInBar />

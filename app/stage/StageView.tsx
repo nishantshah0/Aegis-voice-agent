@@ -98,7 +98,7 @@ export function StageView() {
           <span className="text-lg text-ink-2">The lock, live</span>
         </div>
         <div className="flex items-center gap-4">
-          <span className="font-mono text-sm text-ink-3">{state.now ? new Date(state.now).toLocaleString() : "live"}</span>
+          {state.now && <span className="font-mono text-sm text-ink-3">{new Date(state.now).toLocaleString()}</span>}
           <span className="inline-flex items-center gap-2 rounded-full bg-accent-soft px-3 py-1 text-sm font-medium text-accent">
             <span className="size-2 rounded-full bg-accent rg-ring" aria-hidden />
             Live

@@ -84,18 +84,19 @@ Overall · Best Health Hack by Sun Life · Best Use of Auth0 · Best Use of Vult
 
 ## Progress
 
-*Last updated Sat 6:56 AM EST. Each role's agent keeps **only its own row** current: update it whenever you post a HANDOFF, and Role 4 updates a row's "Merged" column when it posts MERGED. Counts come from the channel and `main`, never from guesses.*
+*Last updated Sat 6:31 PM EST from `main` and the channel. Each role's agent keeps **only its own row** current: update it whenever you post a HANDOFF, and the integrator updates a row's "Merged" column when it posts MERGED. Counts come from the channel, `main` and `results/`, never from guesses.*
 
-**Core demo: about 85% built, 67% merged to `main`** (19.5 and 15.5 of 23 core tasks). Sam's demo call already passes end to end on `main`, twice from a reset.
+**Core demo: done.** Three clean passes in a row (15, 16 and 17) on `main` 13474ca, Sat 4:05 to 4:28 PM EST, logged in [`docs/DEMO.md`](docs/DEMO.md) with the final walkthrough in `results/demo/2026-11-21T1625-final/`. The gate on `main`: 811 tests pass (1 expected fail, 7 skipped), and the last hammer run reports 0 rules broken across 77,648 hostile press sequences.
 
 | Role | Core done | Merged to `main` | Built, in review | Working on now | Next |
 |---|---|---|---|---|---|
 | **1 · Voice and agent** | **5.5 of 6 built** (all 6 merged; 1.5 part 2 merged, 1.6's real median needs a live run) | 1.1 prompt and fixed lines, 1.2 typed agent loop plus 1.2b the Agent SDK model, 1.3 outbound call and side effects, 1.4 phone page, 1.5 part 1 voice without keys, 1.6 timing marks, 1.8 interrupt and silence (after core), the phone Answer crash fix (Trail #37) | 1.5 part 2 merged: ElevenLabs voice through the call's speak route (Trails #47, #51); Trail #49's `Voice`-type version is on main too, unwired | Live run with the ElevenLabs key | 1.6's real median and 1.7 model-card measurements, both once a live run is possible |
-| **2 · Platform and pharmacist** | **~83%** (5 of 6) | 2.1-2.5, 2.7 Postgres store live on Tiger Data, 2.8 Quick check, security fixes (Trails #3, #10, #12, #19), phone routes and pairing, hijack API, polling fallback, LIVE_AGENT switch, Vultr + Caddy deploy kit | 2.9 dashboards: Upcoming (Trail #44) and Calls (Trail #50); speech route (Trail #47) | Waiting on review | 2.6: run hosting/README.md once the Vultr and GoDaddy codes are in |
-| **3 · Red team and evals** | **~80%** (4 of 5) | 3.1 first 10 scenarios, 3.2 hijack agent, 3.3 scenario runner, 3.4 hijack batch | Fixes for review findings on Trail #11 (Trail #17) | Review fixes | 3.5 all 28 scenarios, 3 runs each |
-| **4 · The lock and integrator** | **~95%** (5 of 6, plus ongoing integration) | Task 0 contract, 4.2 store and seed, 4.3 control layer, 4.4 speech guard, 4.5 hammers (0 rules broken), 4.6 stage view, 4.7 Sam's call end to end | – | 4.7 gating and merging handoffs | 4.10 `entire why` export, 4.9 token measurement |
+| **2 · Platform and pharmacist** | **~83%** (5 of 6) | 2.1-2.5, 2.7 Postgres store live on Tiger Data, 2.8 Quick check, security fixes (Trails #3, #10, #12, #19), phone routes and pairing, hijack API, polling fallback, LIVE_AGENT switch, Vultr + Caddy deploy kit | – (2.9 dashboards Upcoming, Trail #44, and Calls, Trail #50, and the speech route, Trail #47, are merged) | Hosting | 2.6: run hosting/README.md once the Vultr and GoDaddy codes are in |
+| **3 · Red team and evals** | **4 of 5**, plus the console tabs | 3.1 first 10 scenarios, 3.2 hijack agent, 3.3 scenario runner, 3.4 hijack batch (batch ids fixed, Trail #14), 3.8 console tabs: Review calls and Overnight safety (Trail #46) and Rules, the two-refill regression test. 32 scenario files are in `scenarios/` | – | – | 3.5: run the scenario suite and save a scoreboard (the Overnight tab still shows "No run yet") |
+| **4 · The lock and integrator** | **6 of 6** | Task 0 contract, 4.2 store and seed, 4.3 control layer, 4.4 speech guard, 4.5 hammers (0 rules broken), 4.6 stage view plus the hijack screen on `/stage`, 4.7 Sam's call end to end, the fail-closed lock (Trail #32), side effects to Review (Trail #25), every S4 fix from the demo passes (Trail #27), 4.9 token summary script (Trail #59) | – | Gating and merging handoffs | Run 4.9 to save `results/tokens-latest.json`; 4.10 `entire why` export |
+| **Design** (helper agent) | Done | Aegis brand, logo and icons, the UI kit in `components/ui/`, the landing page, restyled `/stage`, `/phone` and `/console/today`, the six-tab console nav, the README hero (Trail #34) | – | – | – |
 
-**Review:** a code reviewer agent posts findings on each Trail and holds merges until they're fixed. Open now: Trail #12 (3 high), #10 (3 high), #3 (1 high), #11 (1 high, 1 medium), #6 (1 low).
+**Review:** the code reviewer posts findings on each Trail and holds merges until they're fixed. `scripts/channel.sh trail-inbox <role>` lists the ones still open for a role.
 
 ---
 
