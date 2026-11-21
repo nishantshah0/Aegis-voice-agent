@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { buttonClass } from "@/components/ui";
 
 // Reset the demo and run the daily reminder check. The server decides who may
 // (signed-in pharmacist or reviewer, or DEMO_CONTROLS=on on a demo laptop).
@@ -20,12 +21,12 @@ export function DemoControls() {
   }
 
   return (
-    <section className="mt-6 flex flex-wrap items-center gap-3">
+    <section className="mt-6 flex flex-wrap items-center gap-2" aria-label="Demo controls">
       <button
         type="button"
         disabled={busy}
         onClick={() => run("/api/demo/reset", (b) => `Reset. Demo clock: ${new Date(String(b.now)).toLocaleString()}`)}
-        className="rounded border border-neutral-400 px-3 py-1.5 text-sm hover:opacity-75 disabled:opacity-50"
+        className={buttonClass("secondary", "sm")}
       >
         Reset demo
       </button>
@@ -38,11 +39,11 @@ export function DemoControls() {
             return rung === 0 ? "Daily check: nobody to ring right now." : `Daily check: ringing ${rung} patient${rung === 1 ? "" : "s"}.`;
           })
         }
-        className="rounded border border-neutral-400 px-3 py-1.5 text-sm hover:opacity-75 disabled:opacity-50"
+        className={buttonClass("secondary", "sm")}
       >
         Run daily check
       </button>
-      <span className="text-sm text-neutral-500" aria-live="polite">
+      <span className="text-sm text-ink-3" aria-live="polite">
         {status}
       </span>
     </section>
