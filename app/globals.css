@@ -1,26 +1,169 @@
 @import "tailwindcss";
 
+/*
+ * Refill Guard design tokens. Usage rules: docs/BRAND.md.
+ * One accent (Refill green) on warm white or near-black. Lane and status colours are
+ * for badges and small marks only, never for large fills.
+ */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Surfaces */
+  --rg-canvas: #f7f7f4;
+  --rg-surface: #ffffff;
+  --rg-sunken: #efefea;
+  --rg-line: #e3e3dd;
+  --rg-line-strong: #cfcfc7;
+
+  /* Text */
+  --rg-ink: #0c0f0e;
+  --rg-ink-2: #474d4a;
+  --rg-ink-3: #686e6b;
+  --rg-ink-inverse: #ffffff;
+
+  /* The accent: Refill green */
+  --rg-accent: #0a7a4b;
+  --rg-accent-strong: #07623c;
+  --rg-accent-soft: #e4f1ea;
+  --rg-accent-ink: #065232;
+
+  /* Lanes and states (badges, dots, small marks) */
+  --rg-auto: #0a7a4b;
+  --rg-auto-soft: #e4f1ea;
+  --rg-quick: #8a5800;
+  --rg-quick-soft: #f8edd5;
+  --rg-review: #a3360f;
+  --rg-review-soft: #f9e6dd;
+  --rg-stop: #b42318;
+  --rg-stop-soft: #fbe9e7;
+
+  --rg-focus: #0a7a4b;
+  --rg-shadow: 0 1px 2px rgb(12 15 14 / 0.04), 0 8px 24px -12px rgb(12 15 14 / 0.12);
+}
+
+/* Dark surfaces: the stage (projector) and the phone call screen. Opt in with .theme-dark. */
+.theme-dark {
+  --rg-canvas: #0a0b0a;
+  --rg-surface: #131513;
+  --rg-sunken: #1b1e1b;
+  --rg-line: #252925;
+  --rg-line-strong: #343934;
+
+  --rg-ink: #f3f3ef;
+  --rg-ink-2: #b4b9b5;
+  --rg-ink-3: #8b918d;
+  --rg-ink-inverse: #0a0b0a;
+
+  --rg-accent: #3ddc97;
+  --rg-accent-strong: #5ee6aa;
+  --rg-accent-soft: rgb(61 220 151 / 0.12);
+  --rg-accent-ink: #3ddc97;
+
+  --rg-auto: #3ddc97;
+  --rg-auto-soft: rgb(61 220 151 / 0.12);
+  --rg-quick: #f5c451;
+  --rg-quick-soft: rgb(245 196 81 / 0.12);
+  --rg-review: #ff8a5c;
+  --rg-review-soft: rgb(255 138 92 / 0.13);
+  --rg-stop: #ff6b5e;
+  --rg-stop-soft: rgb(255 107 94 / 0.14);
+
+  --rg-focus: #3ddc97;
+  --rg-shadow: 0 1px 0 rgb(255 255 255 / 0.03) inset, 0 12px 32px -16px rgb(0 0 0 / 0.6);
+  color-scheme: dark;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-canvas: var(--rg-canvas);
+  --color-surface: var(--rg-surface);
+  --color-sunken: var(--rg-sunken);
+  --color-line: var(--rg-line);
+  --color-line-strong: var(--rg-line-strong);
+  --color-ink: var(--rg-ink);
+  --color-ink-2: var(--rg-ink-2);
+  --color-ink-3: var(--rg-ink-3);
+  --color-ink-inverse: var(--rg-ink-inverse);
+  --color-accent: var(--rg-accent);
+  --color-accent-strong: var(--rg-accent-strong);
+  --color-accent-soft: var(--rg-accent-soft);
+  --color-accent-ink: var(--rg-accent-ink);
+  --color-auto: var(--rg-auto);
+  --color-auto-soft: var(--rg-auto-soft);
+  --color-quick: var(--rg-quick);
+  --color-quick-soft: var(--rg-quick-soft);
+  --color-review: var(--rg-review);
+  --color-review-soft: var(--rg-review-soft);
+  --color-stop: var(--rg-stop);
+  --color-stop-soft: var(--rg-stop-soft);
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace;
+
+  --shadow-card: var(--rg-shadow);
+  --radius-card: 1rem;
+  --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  background: var(--rg-canvas);
+  color: var(--rg-ink);
+  font-feature-settings: "cv11", "ss01", "ss03";
+  text-rendering: optimizeLegibility;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--rg-canvas);
+  color: var(--rg-ink);
+  font-family: var(--font-sans);
 }
+
+::selection {
+  background: var(--rg-accent-soft);
+  color: var(--rg-ink);
+}
+
+/* One visible focus ring everywhere, for keyboard users only. */
+:focus-visible {
+  outline: 2px solid var(--rg-focus);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Motion: short, eased, and only to show what changed. */
+@keyframes rg-rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes rg-strike {
+  from { background-size: 0% 1.5px; }
+  to { background-size: 100% 1.5px; }
+}
+@keyframes rg-ring {
+  0% { box-shadow: 0 0 0 0 rgb(61 220 151 / 0.45); }
+  70% { box-shadow: 0 0 0 18px rgb(61 220 151 / 0); }
+  100% { box-shadow: 0 0 0 0 rgb(61 220 151 / 0); }
+}
+.rg-rise { animation: rg-rise 520ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.rg-rise-1 { animation-delay: 60ms; }
+.rg-rise-2 { animation-delay: 140ms; }
+.rg-rise-3 { animation-delay: 220ms; }
+.rg-rise-4 { animation-delay: 320ms; }
+/* A struck-through line that draws its strike, for blocked sentences. */
+.rg-strike {
+  background-image: linear-gradient(currentColor, currentColor);
+  background-repeat: no-repeat;
+  background-position: 0 55%;
+  background-size: 100% 1.5px;
+  animation: rg-strike 700ms 900ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.rg-ring { animation: rg-ring 1.6s ease-out infinite; }
