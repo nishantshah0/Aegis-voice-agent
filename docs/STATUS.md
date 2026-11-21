@@ -31,24 +31,24 @@ Not doing: Entire's hosted review agents (they need billing). Maybe later: a Git
 
 ## Role 1 · Voice and agent
 
-- **Doing:** 1.1 prompt and fixed lines (see `docs/TASKS.md`)
-- **Done:** 
-- **Blocked:** 
-- **Needs from others:** 
+- **Doing:** 1.2 typed agent loop next (needs `ANTHROPIC_API_KEY` in `.env`, which a human sets)
+- **Done:** 1.1 prompt and fixed lines on `role-1/prompt-and-lines` (Trail #8): `lib/agent/prompt.ts` (per call, no list of forbidden things, the three firm things from SPEC Part 2) and `lib/agent/lines.ts` (greeting, verification ask, code line, holding line, outbound opener and wrong-person variant, refill-sync offer, side-effect acknowledgement, missed-doses line, `sideEffectQuestion` built from label text). 36 tests.
+- **Blocked:** `entire trail ready` and `entire trail list` fail for this login (`project gh/nishantshah0 ... not visible`), same as Role 3. Trail #8 exists and shows under `entire trail list --mine`, so the fix is an Entire project grant: `entire project grant add <project> github:MikeyDigit --role writer`.
+- **Needs from others:** Role 4: the seeded `labelText` carries directions only, so SPEC 126's side-effect question cannot quote any side effect (REQUEST on the channel). My code asks the question without naming any and invents nothing; a decision is needed on whether to add real label side-effect text or correct the SPEC example.
 
 ## Role 2 · Platform and pharmacist
 
-- **Doing:** 2.2 handed off (Trail #9, branch `role-2/reset-daily-check`, stacked on 2.4's `role-2/auth0-signin`). Next: 2.3 the full Today view, then 2.6 hosting.
-- **Done:** 2.1 and the contract switch (merged). 2.5 decided: no phone push. 2.4 Auth0 sign-in and Approve/Deny (handed off, Trail #7; real Auth0 sign-in checked in a browser). 2.2 demo reset, daily reminder check on rule 7, demo controls.
+- **Doing:** 2.3 handed off (Trail #10, branch `role-2/today-view`, stacked on 2.2's Trail #9 and 2.4's Trail #7). Next: 2.6 hosting.
+- **Done:** 2.1 and the contract switch (merged). 2.5 decided: no phone push. 2.4 Auth0 sign-in and Approve/Deny (Trail #7). 2.2 demo reset and daily check (Trail #9). 2.3 Today view: lane totals, Review first, full item detail, phone status on approve (Trail #10).
 - **Blocked:** 
-- **Needs from others:** Role 1: the real AgentDriver for `app/api/_lib/runtime.ts`, so a live call can press buttons and put Sam's refill in the queue (today only tests do).
+- **Needs from others:** Role 1: the real AgentDriver for `app/api/_lib/runtime.ts`, so a live call can put Sam's refill in the queue (today only tests do). Role 4: see the triage REQUEST about Sam's refill lane.
 
 ## Role 3 · Red team and evals
 
-- **Doing:** 3.2 hijack agent once task 0 lands
-- **Done:** 3.1 scenario format and first 10 JSON cards; replay is task 3.3
-- **Blocked:** task 0 contract has not landed; Entire Trails are not visible to this login, so claim issue #3 tracks the work
-- **Needs from others:** Role 4 to confirm fixture and prescription IDs for Sam, P4 and P7
+- **Doing:** 3.3 scenario runner handed off in PR #13; next 3.4 hijack batch after integration
+- **Done:** 3.1 scenario format and first 10 JSON cards; 3.2 hijack driver and four cards through the real control and guard in PR #7
+- **Blocked:** S3 still misses a written-out quantity (guard gap #10), outside Role 3's folder; numeric attack card is caught
+- **Needs from others:** Role 4 to fix guard gap #10 through the lock approval process
 
 ## Role 4 · The lock
 
