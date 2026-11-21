@@ -34,7 +34,14 @@ export async function POST(request: Request, ctx: RouteContext<"/api/queue/[id]/
   if (!existing) return fail(404, "No such queue item");
   if (existing.status !== "open") return fail(409, `Already ${existing.status}`);
 
-  const item = await store.decide(id, decision, approver, note);
+  let item;
+  try {
+    item = await store.decide(id, decision, approver, note);
+  } catch {
+    // Another approval of the same item won the race after the check above.
+    const now = (await store.queue()).find((q) => q.id === id);
+    return fail(409, `Already ${now?.status ?? "decided"}`);
+  }
   emit({ type: "queue", item });
   // The patient's phone hears the outcome of anything with an order behind it.
   if (item.orderId) emit({ type: "phone", callId: item.callId, kind: "status", text: await phoneStatus(item.orderId, decision) });
