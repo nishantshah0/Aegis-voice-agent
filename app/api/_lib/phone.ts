@@ -22,12 +22,42 @@ export function issuePhoneToken(callId: CallId): string | null {
   return token;
 }
 
+const speechHolder = globalThis as typeof globalThis & { __refillGuardSpeakCounts?: Map<CallId, number> };
+const speechCounts = () => (speechHolder.__refillGuardSpeakCounts ??= new Map());
+
+/** Count one speech request for a call; false once it has used `limit`. */
+export function takeSpeech(callId: CallId, limit: number): boolean {
+  const used = speechCounts().get(callId) ?? 0;
+  if (used >= limit) return false;
+  speechCounts().set(callId, used + 1);
+  return true;
+}
+
+// Every call's speech together, per clock hour, so new calls can't run up the voice bill
+// (Trail #47 finding). Demo reset leaves it alone on purpose.
+const HOUR_MS = 60 * 60 * 1000;
+const budgetHolder = globalThis as typeof globalThis & { __refillGuardSpeakBudget?: { hour: number; chars: number } };
+
+/** Take `chars` from the server's hourly speech budget; false if that would pass `cap`. */
+export function takeSpeechChars(chars: number, cap: number, now = Date.now()): boolean {
+  const hour = Math.floor(now / HOUR_MS);
+  const budget = budgetHolder.__refillGuardSpeakBudget?.hour === hour ? budgetHolder.__refillGuardSpeakBudget : { hour, chars: 0 };
+  if (budget.chars + chars > cap) return false;
+  budgetHolder.__refillGuardSpeakBudget = { hour, chars: budget.chars + chars };
+  return true;
+}
+
+export function resetSpeechBudgetForTests(): void {
+  budgetHolder.__refillGuardSpeakBudget = undefined;
+}
+
 const openedHolder = globalThis as typeof globalThis & { __refillGuardOpened?: Set<CallId> };
 const opened = () => (openedHolder.__refillGuardOpened ??= new Set());
 
-/** Forget every token and played opening (demo reset reuses call ids). */
+/** Forget every token, speech allowance and played opening (demo reset reuses call ids). */
 export function clearPhoneTokens(): void {
   tokens().clear();
+  speechCounts().clear();
   opened().clear();
 }
 

@@ -75,3 +75,30 @@ describe("1.4: the phone keeps its call's token", () => {
     expect(play([{ type: "dial" }], answered).phoneToken).toBeUndefined();
   });
 });
+
+describe("1.4: the opening shows once (demo step 2, URGENT 17:32)", () => {
+  const opener = "This is Maple Street Pharmacy calling for Sam Rivera. To continue, I'll send a code to this phone.";
+  const openingEvents = [{ type: "line" as const, text: opener }];
+  const streamOpener = ev({ type: "line", callId: "c_1", who: "agent", text: opener });
+  const agentLines = (s: PhoneState) => s.transcript.filter((t) => t.kind === "line" && t.who === "agent").length;
+
+  it("when the answer response comes first and the stream repeats it", () => {
+    const s = play([{ type: "connected", callId: "c_1" }, { type: "opening", events: openingEvents }, streamOpener]);
+    expect(agentLines(s)).toBe(1);
+  });
+
+  it("when the stream comes first and the answer response repeats it", () => {
+    const s = play([{ type: "connected", callId: "c_1" }, streamOpener, { type: "opening", events: openingEvents }]);
+    expect(agentLines(s)).toBe(1);
+  });
+
+  it("still shows a line said again later in the call", () => {
+    const s = play([
+      { type: "connected", callId: "c_1" },
+      { type: "opening", events: openingEvents },
+      ev({ type: "line", callId: "c_1", who: "caller", text: "Sorry, say that again?" }),
+      streamOpener,
+    ]);
+    expect(agentLines(s)).toBe(2);
+  });
+});

@@ -33,7 +33,11 @@ export function getStore(): Store {
   if (!url) return getMemoryStore();
   if (pgHolder.__refillGuardPg?.url !== url) {
     const caFile = process.env.DATABASE_CA_FILE ?? (existsSync(TIGER_CA) ? TIGER_CA : undefined);
-    const pool = new Pool({ ...poolConfig(url, caFile ? readFileSync(caFile, "utf8") : undefined), max: 5 });
+    // Connections stay open between turns (a new TLS connection to Tiger Cloud costs ~350 ms,
+    // and pg closes idle ones after 10 s by default). If the server drops an idle one, the pool
+    // discards it and opens another; the error is logged rather than crashing the process.
+    const pool = new Pool({ ...poolConfig(url, caFile ? readFileSync(caFile, "utf8") : undefined), max: 5, idleTimeoutMillis: 0, keepAlive: true });
+    pool.on("error", (error) => console.warn(`store: idle Postgres connection dropped (${error.message})`));
     console.log(`store: Postgres (${new URL(url).hostname}), CA ${caFile ?? "system roots"}`);
     pgHolder.__refillGuardPg = { url, pool, store: createPostgresStore(fromPgPool(pool)) };
   }

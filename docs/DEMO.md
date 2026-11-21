@@ -4,6 +4,24 @@ Kept by the demo tie-in agent. One row per step of the 3-minute script, walked i
 
 Legend: ✅ works · ⚠️ works with a fallback · ❌ broken (owner fixing it)
 
+## Pass 6 (about 14:25 EST, main 5a50196): one break left
+
+Screenshots: `results/demo/2026-11-21T1425-pass6/walkthrough.md`. Not clean (0 of 3), because of step 2's ready day only.
+- ✅ Set-up, ring, opener once (Trail #48), verify, price, side effect with follow-up, Review on the console, Approve, phone "Approved by the pharmacist".
+- ✅ Hijack screen on `/stage` (Trail: role-4/hijack-screen): judge's card struck through by S3/S4, Run batch → Rules broken 0, Caught 9.
+- ⚠️ Overnight tab (Trail #46): real counts, no gaps, no overnight attacker run yet, so no fix to approve. The spec's fallback line covers it.
+- ✅ Close: Calls tab shows the verified record chain and Sam's call.
+- ❌ Ready day: no button returns one (Role 1 asked Role 4 at 18:43 for `ready_label`), and S4 blocks "I can't say yet when it will be ready." URGENT to ROLE-4, sent to the review fixer.
+- ⚠️ Length: the agent asks to confirm the order three times (status, order, read-back). Step 2 is planned at 55 s; Tiger Data turns are 3 to 11 s. To time with a stopwatch once clean.
+
+## Pass 5 (about 14:00 EST, main 0675448: Trail #27 S4 change and the Tiger Data store)
+
+Not clean (0 of 3). Same results as pass 4 except:
+- Store is now Postgres on Tiger Data (`DATABASE_URL`). Everything works on it, but it's slower: `say` turns 16.7, 12.9, 7.2, 5.4 and 5.4 s; the phone's median turn is 4.7 s (2.65 s on the memory store in pass 4). Reset 2.5 s. REQUEST to ROLE-2 (2.7).
+- S4 still blocks "A pharmacist needs to check it before it is approved." and "I'm sorry, I don't know when it will be ready." No ready day is said. URGENT to ROLE-4 (review fixer covering).
+- Opener still shows twice (ROLE-1, URGENT 1.3, no reply yet).
+- Approve ✅, phone "Approved by the pharmacist" ✅, hijack batch 9 caught / 0 broken ✅ (still started from the API: no stage control), `/console/overnight` 404 (Trail #46 building it).
+
 ## Last pass (pass 4: first run-through with the live agent)
 
 - Code: main ef144a5 plus `role-2/live-agent` (Trail #41) and `role-1/agent-sdk-live-fixes` (Trail #43). Both have merged since, in main f2e6eb0

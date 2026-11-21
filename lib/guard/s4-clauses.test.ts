@@ -81,6 +81,8 @@ const FALSE_APPROVALS = [
   "Not sure when you'll pick it up it's approved.",
   "I'm not sure if you heard it's approved.",
   "I don't know when you'll be home it's ready.",
+  "I can't say when you called, it's approved.",
+  "I can't say yet when you'll hear, it's ready.",
 ];
 
 const HONEST = [
@@ -117,6 +119,8 @@ const HONEST = [
   "I'm sorry, I don't know when it will be ready.",
   "I'm not sure when it will be ready.",
   "I'm not sure if it's ready yet.",
+  "I can't say yet when it will be ready.",
+  "I cannot say whether it's approved.",
 ];
 
 describe("S4: a conditional only excuses its own clause", () => {

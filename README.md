@@ -90,7 +90,7 @@ Overall · Best Health Hack by Sun Life · Best Use of Auth0 · Best Use of Vult
 
 | Role | Core done | Merged to `main` | Built, in review | Working on now | Next |
 |---|---|---|---|---|---|
-| **1 · Voice and agent** | **4.5 of 6 built** (2 merged; 1.5 and 1.6 each half done) | 1.1 prompt and fixed lines, 1.2 typed agent loop | 1.3 outbound call and side effects (Trail #15, review findings fixed), 1.4 phone page (#16), 1.5 part 1 voice without keys (#18), 1.6 timing marks (#20), 1.8 interrupt and silence (#21, after core) | Waiting on code review for #15 to #21 | 1.5 part 2 (ElevenLabs) and 1.6's real median, once the keys arrive |
+| **1 · Voice and agent** | **5.5 of 6 built** (all 6 merged; 1.5 part 2 merged, 1.6's real median needs a live run) | 1.1 prompt and fixed lines, 1.2 typed agent loop plus 1.2b the Agent SDK model, 1.3 outbound call and side effects, 1.4 phone page, 1.5 part 1 voice without keys, 1.6 timing marks, 1.8 interrupt and silence (after core), the phone Answer crash fix (Trail #37) | 1.5 part 2 merged: ElevenLabs voice through the call's speak route (Trails #47, #51); Trail #49's `Voice`-type version is on main too, unwired | Live run with the ElevenLabs key | 1.6's real median and 1.7 model-card measurements, both once a live run is possible |
 | **2 · Platform and pharmacist** | **~83%** (5 of 6) | 2.1-2.5, 2.7 Postgres store live on Tiger Data, 2.8 Quick check, security fixes (Trails #3, #10, #12, #19), phone routes and pairing, hijack API, polling fallback, LIVE_AGENT switch, Vultr + Caddy deploy kit | 2.9 dashboards: Upcoming (Trail #44) and Calls (Trail #50); speech route (Trail #47) | Waiting on review | 2.6: run hosting/README.md once the Vultr and GoDaddy codes are in |
 | **3 · Red team and evals** | **~80%** (4 of 5) | 3.1 first 10 scenarios, 3.2 hijack agent, 3.3 scenario runner, 3.4 hijack batch | Fixes for review findings on Trail #11 (Trail #17) | Review fixes | 3.5 all 28 scenarios, 3 runs each |
 | **4 · The lock and integrator** | **~95%** (5 of 6, plus ongoing integration) | Task 0 contract, 4.2 store and seed, 4.3 control layer, 4.4 speech guard, 4.5 hammers (0 rules broken), 4.6 stage view, 4.7 Sam's call end to end | – | 4.7 gating and merging handoffs | 4.10 `entire why` export, 4.9 token measurement |
@@ -130,7 +130,7 @@ Four people each run an AI coding agent, one per role. **The agents build autono
    Code reviewer ──findings on the Entire Trail──▶ owning role fixes ◀── Review fixer (suggested patches)
         │ "approved"
         ▼
-   Repo steward merges automatically (the lock also needs 0 rules broken) ──▶ release gate ──▶ main
+   Owner merges once the release gate is green (the lock also needs 0 rules broken) ──▶ main
         ▲
    Rules police checks every agent against docs/RULES.md and reports violations
 ```
@@ -141,7 +141,7 @@ Four people each run an AI coding agent, one per role. **The agents build autono
 3. **Build:** it works only in its own folders, on a `role-<n>/<task>` branch. Every commit is linked to the AI session that wrote it (**Entire Sessions**, an `Entire-Checkpoint` trailer), and tests and code go in separate commits.
 4. **Hand off:** typecheck, lint, tests (plus the hammers for the lock), then a HANDOFF naming the Trail.
 5. **Review:** the **code reviewer** agent posts every problem as a finding on the Trail and sends it back. The owning role fixes it before any new work. The **review fixer** attaches ready-made patches.
-6. **Merge:** once the reviewer approves, the **repo steward** merges it after the release gate. Lock changes (the control layer, speech guard and contract) also need the hammers to report 0 rules broken. Merges are automatic: we chose speed for the hackathon.
+6. **Merge:** the owner merges it to `main` once the release gate passes on the merged result, and the reviewer reviews after. Lock changes (the control layer, speech guard and contract) also need the hammers to report 0 rules broken. Merges are automatic: we chose speed for the hackathon.
 
 **How the agents talk**
 - The **agent channel** (issue #1) carries CLAIM, STATUS, DECISION, OBJECT, REQUEST, REPLY, HANDOFF, REVIEW and MERGED, each with a fixed header. Agents read new messages automatically at every prompt.
