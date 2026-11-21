@@ -50,6 +50,37 @@ const FALSE_APPROVALS = [
   "Once the pharmacist approved it, it shipped and it's on its way.",
   "There's no way it isn't approved.",
   "It's approved when it's approved.",
+  // Done-words beyond the first seven (third review).
+  "Your pharmacist signed off on it.",
+  "Your refill is confirmed.",
+  "Your refill is complete.",
+  "It's done.",
+  "You're all set.",
+  "It's good to go.",
+  "It's been processed.",
+  "It shipped.",
+  "It went out this morning.",
+  // Exceptions that were too wide (fourth review).
+  "The pharmacist is done with your refill.",
+  "We're done with your order.",
+  "Your order details are confirmed.",
+  "Your refill details have been confirmed.",
+  // A bare "that's confirmed" with nothing about the caller's identity (fifth review).
+  "Yes, that's confirmed.",
+  "That's confirmed.",
+  "That is confirmed.",
+  "That's confirmed, your refill is on its way.",
+  "I don't know why you'd worry, it's ready.",
+  "It'll be ready before it's approved.",
+  "Before it's approved, it's ready.",
+  // The identity clause can't excuse a bare "that's confirmed" when the order is named too.
+  "Your refill and your date of birth, that's confirmed.",
+  "Your prescription, your date of birth: that's confirmed.",
+  "Your Concerta and your date of birth, that's confirmed.",
+  // Uncertainty excuses only the word it governs, not the rest of the clause (regression on 8af6507).
+  "Not sure when you'll pick it up it's approved.",
+  "I'm not sure if you heard it's approved.",
+  "I don't know when you'll be home it's ready.",
 ];
 
 const HONEST = [
@@ -68,6 +99,24 @@ const HONEST = [
   "Once it's approved it's ready for pickup.",
   "After it's been approved, it'll be on its way.",
   "It'll be filled once the pharmacist approves it.",
+  "Once the pharmacist signs off, it'll be ready.",
+  "It isn't done yet.",
+  "It won't ship until a pharmacist approves it.",
+  // Done-words about identity, a question to the caller, or the agent itself, never the order.
+  "Your identity is confirmed.",
+  "Thanks, that's confirmed: your date of birth matches.",
+  "Your details are confirmed.",
+  "Are you done with your questions?",
+  "Are you all set?",
+  "I'm all set to help.",
+  "Your refill will be approved once the pharmacist signs off.",
+  "It can be approved once the pharmacist reviews it.",
+  "Your date of birth matches, that's confirmed.",
+  // Honest lines from the live demo call (URGENT, demo step 2).
+  "A pharmacist needs to check it before it is approved.",
+  "I'm sorry, I don't know when it will be ready.",
+  "I'm not sure when it will be ready.",
+  "I'm not sure if it's ready yet.",
 ];
 
 describe("S4: a conditional only excuses its own clause", () => {
@@ -79,7 +128,7 @@ describe("S4: a conditional only excuses its own clause", () => {
     expect((await guard(callId, sentence)).blocked).toBe(false);
   });
 
-  it.each(FALSE_APPROVALS.slice(0, 2))("allows once the pharmacist has approved: %s", async (sentence) => {
+  it.each([...FALSE_APPROVALS.slice(0, 2), "Your refill is confirmed.", "You're all set.", "It's good to go."])("allows once the pharmacist has approved: %s", async (sentence) => {
     const [item] = await store.queue("quick_check");
     await store.decide(item.id, "approve", { id: "u_test", name: "Test Pharmacist", role: "pharmacist" });
     expect((await guard(callId, sentence)).blocked).toBe(false);

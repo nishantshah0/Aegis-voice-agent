@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { buttonClass } from "@/components/ui";
 
 // Staff pair the demo phone to a patient (Trail #19): pick the patient, then open the
 // one-time link on that phone within 10 minutes. Only that phone can then answer the
@@ -24,14 +25,15 @@ export function PairPhone({ patients }: { patients: { id: string; name: string }
   }
 
   return (
-    <section className="mt-6 rounded border border-neutral-300 p-3 text-sm">
-      <h2 className="font-medium">Pair a patient&apos;s phone</h2>
-      <div className="mt-2 flex flex-wrap items-center gap-2">
+    <section className="mt-10 rounded-card border border-line bg-surface p-5 text-sm shadow-card">
+      <h2 className="font-semibold tracking-[-0.01em]">Pair a patient&apos;s phone</h2>
+      <p className="mt-1 text-ink-3">Only the paired phone can answer that patient&apos;s calls.</p>
+      <div className="mt-4 flex flex-wrap items-center gap-2">
         <select
           aria-label="Patient"
           value={patientId}
           onChange={(e) => setPatientId(e.target.value)}
-          className="rounded border border-neutral-300 bg-transparent px-2 py-1"
+          className="h-8 rounded-full border border-line-strong bg-surface px-3 text-[13px]"
         >
           {patients.map((p) => (
             <option key={p.id} value={p.id}>
@@ -39,17 +41,17 @@ export function PairPhone({ patients }: { patients: { id: string; name: string }
             </option>
           ))}
         </select>
-        <button type="button" onClick={pair} className="rounded border border-neutral-400 px-3 py-1.5 hover:opacity-75">
+        <button type="button" onClick={pair} className={buttonClass("secondary", "sm")}>
           Make pairing link
         </button>
       </div>
       {link && (
-        <p className="mt-2 break-all">
+        <p className="mt-3 break-all rounded-xl bg-sunken p-3 text-ink-2">
           Open this on the patient&apos;s phone within 10 minutes (it works once): <code>{link}</code>
         </p>
       )}
       {error && (
-        <p className="mt-2 text-red-600" role="alert">
+        <p className="mt-3 text-stop" role="alert">
           {error}
         </p>
       )}

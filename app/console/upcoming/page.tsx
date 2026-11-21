@@ -1,6 +1,5 @@
 import { Suspense } from "react";
-import { PageHeader, PageShell } from "@/components/ui";
-import { ConsoleTabs } from "../ConsoleTabs";
+import { ConsoleNav, PageHeader, PageShell } from "@/components/ui";
 import { SignInBar } from "../today/SignInBar";
 import { Upcoming } from "./UpcomingView";
 
@@ -16,10 +15,9 @@ export default function UpcomingPage() {
         </Suspense>
       }
     >
-      <ConsoleTabs current="upcoming" />
-      <div className="mt-6">
-        <PageHeader title="Upcoming" description="Refills due in the next 14 days, and where each would land." />
-      </div>
+      <ConsoleNav current="upcoming" />
+      <div className="mt-8" />
+      <PageHeader title="Upcoming" description="Refills due in the next 14 days, and where each would land." />
       <Suspense fallback={<p className="mt-6 text-sm text-ink-3">Loading…</p>}>
         <Upcoming />
       </Suspense>

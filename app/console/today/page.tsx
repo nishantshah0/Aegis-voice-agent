@@ -1,27 +1,29 @@
 import { Suspense } from "react";
-import { ConsoleTabs } from "../ConsoleTabs";
+import { ConsoleNav, PageHeader, PageShell } from "@/components/ui";
 import { DemoControls } from "./DemoControls";
 import { Queue } from "./Queue";
 import { SignInBar } from "./SignInBar";
 
-export const metadata = { title: "Today · Refill Guard" };
+export const metadata = { title: "Today · Aegis" };
 
 export default function TodayPage() {
   return (
-    <main className="mx-auto max-w-3xl p-10">
-      <header className="flex items-center justify-between gap-4">
-        <h1 className="text-2xl font-semibold">Today</h1>
-        <Suspense fallback={<span className="text-sm text-neutral-500">Checking sign-in…</span>}>
+    <PageShell
+      current="/console/today"
+      width="narrow"
+      right={
+        <Suspense fallback={<span className="text-sm text-ink-3">Checking sign-in…</span>}>
           <SignInBar />
         </Suspense>
-      </header>
-      <div className="mt-4">
-        <ConsoleTabs current="today" />
-      </div>
+      }
+    >
+      <ConsoleNav current="today" />
+      <div className="mt-8" />
+      <PageHeader title="Today" description="What needs a pharmacist, Review first. Everything else went through on its own." />
       <DemoControls />
-      <Suspense fallback={<p className="mt-6 text-sm text-neutral-500">Loading the queue…</p>}>
+      <Suspense fallback={<p className="mt-6 text-sm text-ink-3">Loading the queue…</p>}>
         <Queue />
       </Suspense>
-    </main>
+    </PageShell>
   );
 }

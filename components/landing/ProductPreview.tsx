@@ -41,7 +41,7 @@ function CallCard() {
 
 function ReviewCard() {
   return (
-    <div className="w-full sm:w-[26rem] rounded-card border border-line bg-surface p-5 shadow-card">
+    <div className="theme-light w-full rounded-card border border-line bg-surface p-5 shadow-card sm:w-[26rem]">
       <div className="flex items-center justify-between">
         <p className="text-sm font-semibold tracking-[-0.01em]">Waiting for a pharmacist</p>
         <span className="font-mono text-[11px] text-ink-3">Today</span>
@@ -77,7 +77,7 @@ function ReviewCard() {
 
 export function ProductPreview() {
   return (
-    <div className="relative mx-auto flex w-full max-w-[34rem] flex-col items-center gap-5 sm:block sm:h-[32rem]" aria-label="The patient's call screen and the pharmacist's Review lane" role="img">
+    <div className="relative mx-auto flex w-full max-w-[36rem] flex-col items-center gap-5 sm:block sm:h-[32rem]" aria-label="The patient's call screen and the pharmacist's Review lane" role="img">
       <div className="w-full sm:absolute sm:right-0 sm:top-0 sm:w-auto rg-rise rg-rise-2">
         <ReviewCard />
       </div>
