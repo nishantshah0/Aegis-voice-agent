@@ -38,8 +38,16 @@ const BUTTONS: Record<ButtonName, { description: string; input_schema: Schema }>
     input_schema: schema({ lookup_id: text("The lookup id") }),
   },
   check_code: {
-    description: "Check the code the caller read back. On success the call is verified for that patient.",
-    input_schema: schema({ lookup_id: text("The lookup id"), code: text("The code exactly as the caller said it") }),
+    description:
+      "Check the code the caller read back. On success the call is verified for that patient, and the reply lists their prescriptions with each rx_id.",
+    input_schema: schema(
+      {
+        lookup_id: text("The lookup id"),
+        code: text("The code exactly as the caller said it"),
+        dob: text("The date of birth the caller gave, as YYYY-MM-DD, for example 1990-03-14. Required on outbound calls."),
+      },
+      ["dob"],
+    ),
   },
   check_prescription: {
     description:
