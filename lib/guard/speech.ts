@@ -15,11 +15,9 @@ const REPLACEMENT: Record<SpeechRule, string> = { ...GUARD_REPLACEMENTS, S4: S4_
 
 const CONDITIONAL = /\b(once|after|if|when|until|as soon as|pending|waiting|needs to|need to|will need|pharmacist will|not|isnt|hasnt|havent|wont|cant|cannot)\b/;
 const COMPLETION = /\b(approved|ready|sorted|on its way|on the way|delivered|filled)\b/;
-// A completion word is a promise only when it's about the refill or order. These uses are about
-// the caller or the past ("whenever you're ready", "last filled 27 days ago"), and are dropped first.
+// The only completion words that aren't promises: they're about the caller or the past
+// ("whenever you're ready", "last filled 27 days ago"), and are dropped before the check.
 const NOT_A_PROMISE = /\b(you|youre|you are|are you|were|we are|im|i am|whenever youre|when youre) ready\b|\blast filled\b/g;
-// What a completion promise is about. Drug names are added per call.
-const ORDER_SUBJECT = /\b(refill|refills|prescription|prescriptions|order|orders|medication|medications|medicine|medicines|pills|tablets|capsules|delivery|renewal|it|its|itll|they|theyre|everything|all set)\b/;
 const BOOKING = /\b(booked|scheduled)\b/;
 const SENT = /\b(sent|requested|submitted)\b/;
 const DAYS = /\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/g;
@@ -28,7 +26,11 @@ const PRICE = /\$\s?\d+(?:\.\d{2})?/g;
 type Check = { rule: SpeechRule; why: string } | null;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-const RUN_OUT = /\b(runs out|run out|running out|will run out|is due|are due|last until|lasts until|will last)\b/;
+// Sentences about the supply running out or lasting. Never "due": "your delivery is due Friday"
+// is a delivery promise (code review finding 2).
+const RUN_OUT = /\b(runs out|run out|running out|will run out|last until|lasts until|will last)\b/;
+// A sentence that mentions getting the medication to the caller never gets a run-out day.
+const HANDOVER = /\b(deliver\w*|pick\w* (it |them )?up|pickup|collect\w*|bring\w*|brought|arriv\w*|ship\w*|drop\w* (it |them )?off)\b/;
 
 /** The weekday (lowercase, pharmacy time) a supply runs out: last fill + days supplied. */
 export function runOutDay(lastFill: string, daysSupplied: number, timeZone = "America/Toronto"): string {
@@ -81,20 +83,66 @@ async function checkS3(store: Store, call: Call, sentence: string): Promise<Chec
   return missing.length > 0 ? { rule: "S3", why: missing.join(";") } : null;
 }
 
-/** A completion promise: "approved", "ready" and so on, about the refill or order. */
-export function isCompletionPromise(sentence: string, drugNames: string[]): boolean {
-  const w = words(sentence).replace(NOT_A_PROMISE, " ");
-  if (!COMPLETION.test(w)) return false;
-  return ORDER_SUBJECT.test(w) || drugNames.some((d) => w.includes(words(d)));
+/**
+ * A completion promise: "approved", "ready" and so on. Every completion word counts, with or
+ * without a subject ("Approved!", "you're approved"); only the explicit non-promises in
+ * NOT_A_PROMISE are dropped first. Subjects never narrow the rule (code review finding 1).
+ */
+export function isCompletionPromise(sentence: string): boolean {
+  return COMPLETION.test(words(sentence).replace(NOT_A_PROMISE, " "));
 }
 
-function checkS4(sentence: string, record: RecordEntry[], bookedLabels: string[], drugNames: string[]): Check {
+// Clauses split on punctuation and on and/but/so, so "Approved! You don't need to call back."
+// is two clauses and the "need to" in the second can't excuse the first.
+const CLAUSE_BREAK = /[,;:.!?]+|\b(?:and|but|so)\b/i;
+const COMPLETION_ALL = new RegExp(COMPLETION.source, "g");
+
+// The only forms that excuse a completion word (Trail #27 re-review); everything else blocks.
+//   a condition on the approval: once/after/if/when/until/as soon as + it/they/your x/the x/a pharmacist
+//     + (is/has been ...) + approves/approved/signs off        "once it's approved"
+//   a negation on the word itself: not/isn't/hasn't/won't (yet) (be/been) + the word   "isn't ready yet"
+// A loose condition or negation elsewhere ("Not to worry, it's approved") excuses nothing.
+const GOVERNED =
+  "(?:once|after|if|when|until|as soon as) (?:it|its|they|theyre|a pharmacist|your \\w+|the \\w+) (?:(?:is|are|has|have|gets|get|has been|have been) )?(?:approves|approve|approved|signs off|sign off)\\b";
+const GOVERNED_ALL = new RegExp(`\\b${GOVERNED}`, "g");
+const GOVERNED_AFTER = new RegExp(`^ (?:\\w+ ){0,2}${GOVERNED}`);
+const GOVERNED_LEAD = new RegExp(`^ ${GOVERNED}`);
+const NEGATED_BEFORE = /\b(?:not|isnt|hasnt|havent|wont|cant|cannot|arent|wasnt|werent|never) (?:yet )?(?:be |been )?$/;
+
+/** True when a completion word in this clause is said as done, with no governed condition or negation. */
+function promisesCompletion(w: string): boolean {
+  const governed = [...w.matchAll(GOVERNED_ALL)].map((m) => [m.index, m.index + m[0].length]);
+  return [...w.matchAll(COMPLETION_ALL)].some((m) => {
+    const at = m.index;
+    if (governed.some(([from, to]) => at >= from && at < to)) return false; // "once it's approved"
+    if (NEGATED_BEFORE.test(w.slice(0, at))) return false; // "isn't approved yet"
+    return !GOVERNED_AFTER.test(w.slice(at + m[0].length)); // "ready once it's approved"
+  });
+}
+
+/**
+ * A completion promise ("approved", "ready" ...) that nothing governs, checked clause by clause.
+ * A clause that opens with the approval condition ("Once a pharmacist approves it ...") covers
+ * itself and the clause right after it, and only those.
+ */
+export function unexcusedCompletion(sentence: string): boolean {
+  let ledByApproval = false;
+  return sentence.split(CLAUSE_BREAK).some((clause) => {
+    const w = words(clause).replace(NOT_A_PROMISE, " ").replace(/ +/g, " ");
+    const excused = ledByApproval || GOVERNED_LEAD.test(w); // "Once it's approved it's ready."
+    ledByApproval = GOVERNED_LEAD.test(w);
+    return !excused && promisesCompletion(w);
+  });
+}
+
+function checkS4(sentence: string, record: RecordEntry[], bookedLabels: string[]): Check {
   const w = words(sentence);
-  if (CONDITIONAL.test(w)) return null;
   const results = record.filter((e) => e.kind === "button").map((e) => ({ e, r: resultOf(e) }));
   const approved = record.some((e) => e.kind === "approval" && (e.output as { status?: string })?.status === "approved");
 
-  if (isCompletionPromise(sentence, drugNames) && !approved) return { rule: "S4", why: "completion without approval" };
+  // Before the conditional shortcut below, so a conditional elsewhere can't excuse a completion.
+  if (unexcusedCompletion(sentence) && !approved) return { rule: "S4", why: "completion without approval" };
+  if (CONDITIONAL.test(w)) return null;
 
   if (BOOKING.test(w)) {
     const booked = results.some(({ e, r }) => e.button === "set_delivery" && r?.ok && (r.output as { ok?: boolean }).ok);
@@ -148,15 +196,17 @@ export function createSpeechGuard({ store, emit = () => {} }: { store: Store; em
         const bookedLabels = orders.flatMap((o) => slots.filter((s) => s.id === o.slotId).map((s) => s.label));
         // A day is also backed when it's when one of the locked patient's prescriptions runs out
         // (last fill + days supplied), e.g. SPEC's "Your Concerta runs out Friday."
-        // Only for sentences about running out, so it never backs a delivery promise ("we'll bring it Friday").
-        if (call.state === "verified" && call.lockedPatientId && RUN_OUT.test(words(sentence))) {
+        // Only for sentences about running out that say nothing about delivery, pickup or arrival,
+        // so it never backs a delivery promise ("it runs out Friday, so we'll bring it Friday").
+        const w = words(sentence);
+        if (call.state === "verified" && call.lockedPatientId && RUN_OUT.test(w) && !HANDOVER.test(w)) {
           for (const rx of await store.getPrescriptions(call.lockedPatientId)) bookedLabels.push(runOutDay(rx.lastFill, rx.daysSupplied));
         }
         found =
           checkS1(call, sentence, tokens, said, record) ??
           checkS2(call, sentence, tokens, said) ??
           (await checkS3(store, call, sentence)) ??
-          checkS4(sentence, record, bookedLabels, tokens.filter((t) => t.kind === "drug").map((t) => t.text));
+          checkS4(sentence, record, bookedLabels);
 
         if (found?.rule === "S3" && call.lockedPatientId) {
           const item = await store.addQueueItem({
