@@ -5,7 +5,7 @@ import { createControl, type Control } from "@/lib/control";
 import { createSafetyCheck, createSpeechGuard } from "@/lib/guard";
 import { emit } from "@/lib/events";
 import { PHARMACY_NAME, SEED } from "@/lib/seed";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { Pool } from "pg";
 import { getStore as getMemoryStore } from "@/lib/store/memory";
 import { createPostgresStore, fromPgPool, poolConfig } from "@/lib/store/postgres";
@@ -23,15 +23,18 @@ type Parts = { control: Control; driver: AgentDriver };
 const holder = globalThis as typeof globalThis & { __refillGuardParts?: Parts };
 
 // Store: Postgres on Tiger Data when DATABASE_URL is set (2.7), otherwise Role 4's memory store.
-// DATABASE_CA_FILE can point at Tiger Data's ca.pem; certificates are always verified.
+// Certificates are always verified: against DATABASE_CA_FILE, else certs/tiger-cloud-ca.pem
+// (Timescale's root CA, checked with full hostname verification), else the system roots.
+const TIGER_CA = "certs/tiger-cloud-ca.pem";
 const pgHolder = globalThis as typeof globalThis & { __refillGuardPg?: { url: string; store: Store; pool: Pool } };
 
 export function getStore(): Store {
   const url = process.env.DATABASE_URL;
   if (!url) return getMemoryStore();
   if (pgHolder.__refillGuardPg?.url !== url) {
-    const caFile = process.env.DATABASE_CA_FILE;
+    const caFile = process.env.DATABASE_CA_FILE ?? (existsSync(TIGER_CA) ? TIGER_CA : undefined);
     const pool = new Pool({ ...poolConfig(url, caFile ? readFileSync(caFile, "utf8") : undefined), max: 5 });
+    console.log(`store: Postgres (${new URL(url).hostname}), CA ${caFile ?? "system roots"}`);
     pgHolder.__refillGuardPg = { url, pool, store: createPostgresStore(fromPgPool(pool)) };
   }
   return pgHolder.__refillGuardPg.store;

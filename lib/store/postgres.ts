@@ -90,18 +90,24 @@ async function loadSeed(q: Query, seed: Seed): Promise<void> {
 type Doc<T> = { doc: T };
 
 export function createPostgresStore(db: SqlDb, seed: Seed = SEED): Store {
-  // Tables are created, and the seed loaded into an empty database, before the first call.
-  const ready = (async () => {
-    for (const statement of SCHEMA) await db.query(statement);
-    const { rows } = await db.query<{ n: number }>(`select count(*)::int as n from rg_meta`);
-    if (rows[0].n === 0) await db.transaction((q) => loadSeed(q, seed));
-  })();
+  // Tables are created, and the seed loaded into an empty database, on first use (never at
+  // construction, so creating a store makes no connection). A failed setup is retried next time.
+  let ready: Promise<void> | undefined;
+  const ensureReady = () =>
+    (ready ??= (async () => {
+      for (const statement of SCHEMA) await db.query(statement);
+      const { rows } = await db.query<{ n: number }>(`select count(*)::int as n from rg_meta`);
+      if (rows[0].n === 0) await db.transaction((q) => loadSeed(q, seed));
+    })().catch((error) => {
+      ready = undefined;
+      throw error;
+    }));
   const q: Query = async (text, params) => {
-    await ready;
+    await ensureReady();
     return db.query(text, params);
   };
   const tx = async <T>(fn: (query: Query) => Promise<T>) => {
-    await ready;
+    await ensureReady();
     return db.transaction(fn);
   };
   const docs = async <T>(text: string, params?: unknown[]) => (await q<Doc<T>>(text, params)).rows.map((r) => r.doc);
