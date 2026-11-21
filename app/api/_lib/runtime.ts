@@ -4,6 +4,7 @@ import { createControl, type Control } from "@/lib/control";
 import { emit } from "@/lib/events";
 import { SEED } from "@/lib/seed";
 import { getStore as getServerStore } from "@/lib/store/memory";
+import { clearPhoneTokens } from "./phone";
 
 // The parts the API routes run on, wired once per server.
 // Store: Role 4's in-memory store (4.2), shared with every other part of the server.
@@ -36,5 +37,6 @@ export const getDriver = (): AgentDriver => parts().driver;
 /** Test helper: reseed the store and start fresh parts. */
 export async function resetRuntimeForTests(): Promise<void> {
   await getStore().reset(SEED);
+  clearPhoneTokens();
   holder.__refillGuardParts = undefined;
 }

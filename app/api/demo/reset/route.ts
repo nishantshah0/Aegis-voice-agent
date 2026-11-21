@@ -2,6 +2,7 @@ import type { ResetResponse } from "@/lib/contract";
 import { emit } from "@/lib/events";
 import { SEED } from "@/lib/seed";
 import { demoControlsRefused } from "../../_lib/demo";
+import { clearPhoneTokens } from "../../_lib/phone";
 import { ok } from "../../_lib/http";
 import { getStore } from "../../_lib/runtime";
 
@@ -13,6 +14,7 @@ export async function POST() {
   if (refused) return refused;
   const store = getStore();
   await store.reset(SEED);
+  clearPhoneTokens(); // Call ids start again from c_0001.
   const now = await store.now();
   emit({ type: "clock", now });
   const res: ResetResponse = { now };
