@@ -126,6 +126,17 @@ describe("POST /api/queue/:id/decide", () => {
     expect(got.map((d) => d.event)).toContainEqual({ type: "queue", item: decided });
   });
 
+  it("tells the patient's phone when a refill with an order is approved or denied", async () => {
+    session.approver = PHARMACIST;
+    const store = getStore();
+    const order = await store.saveOrder({ id: "o_test", rxId: "rx_test", patientId: "p_test", state: "waiting_for_pharmacist", createdAt: await store.now() });
+    const item = await store.addQueueItem({ callId: "c_test", patientId: "p_test", orderId: order.id, kind: "refill", lane: "quick_check", ruleIds: ["4"], signals: [], notes: [] });
+    const got: Delivered[] = [];
+    subscribe((d) => got.push(d));
+    await decide(post({ decision: "approve" }), params(item.id));
+    expect(got.map((d) => d.event)).toContainEqual(expect.objectContaining({ type: "phone", callId: "c_test", kind: "status" }));
+  });
+
   it("denies, then refuses to decide the same item twice", async () => {
     session.approver = PHARMACIST;
     const item = await openItem();
