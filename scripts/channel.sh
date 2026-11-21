@@ -179,18 +179,18 @@ for line in sys.stdin:
         continue
     for n in re.findall(r"(?:[Tt]rail\s*#\s*|/trails/)(\d+)", m["b"]):
         owner.setdefault(int(n), "ROLE-" + h.group(1))  # first role to mention a Trail owns it
+import time
+DEADLINE = time.monotonic() + 8          # the hook has 15 s in all, and the channel inbox runs first
 if role == "ROLE-4":
     # Trails no role has named on the channel go to the integrator, so their findings are not lost.
     try:
-        listed = subprocess.run(["entire", "trail", "list", "--project", project, "--json", "--limit", "100"], capture_output=True, text=True, timeout=4)
+        listed = subprocess.run(["entire", "trail", "list", "--project", project, "--json", "--limit", "100"], capture_output=True, text=True, timeout=min(3, max(0.5, DEADLINE - time.monotonic())))
         for t in json.loads(listed.stdout or "{}").get("items") or []:
             owner.setdefault(int(t["number"]), "ROLE-4")
     except Exception:
         pass
 mine = sorted([n for n, r in owner.items() if r == role and n != 2], reverse=True)[:12]
 
-import time
-DEADLINE = time.monotonic() + 8          # the hook has 15 s in all, and the channel inbox runs first
 def entire(*args):
     left = DEADLINE - time.monotonic()
     if left < 0.5:
