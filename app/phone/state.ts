@@ -2,7 +2,10 @@
 // taps. A pure reducer, so it's tested without a browser, and everything the phone
 // shows came from a real event.
 
-import type { SpeechRule, StreamEvent } from "@/lib/contract";
+import type { AgentEvent, SpeechRule, StreamEvent } from "@/lib/contract";
+
+/** What the stream says when a code goes to the phone; the digits come from the code route. */
+export const CODE_SENT_MESSAGE = "A verification code was sent to your phone.";
 
 export type TranscriptItem =
   | { kind: "line"; who: "agent" | "caller"; text: string }
@@ -32,6 +35,8 @@ export type PhoneAction =
   | { type: "event"; event: StreamEvent }
   | { type: "dial" }
   | { type: "connected"; callId: string; phoneToken?: string }
+  /** The opening the answer (or dial) response returned: it ran before the phone's own stream connected. */
+  | { type: "opening"; events: AgentEvent[] }
   | { type: "code"; code: string }
   | { type: "problem"; text: string }
   | { type: "hung_up" };
@@ -63,8 +68,31 @@ function onEvent(state: PhoneState, event: StreamEvent): PhoneState {
   }
 }
 
+/** The opening's lines and blocked lines, and the code-sent message if send_code went through. */
+function onOpening(state: PhoneState, events: AgentEvent[]): PhoneState {
+  let next = state;
+  for (const e of events) {
+    if (e.type === "line") next = { ...next, transcript: [...next.transcript, { kind: "line", who: "agent", text: e.text }] };
+    if (e.type === "blocked_line") {
+      next = { ...next, transcript: [...next.transcript, { kind: "blocked", rule: e.rule, original: e.original, replacement: e.replacement }] };
+    }
+    if (e.type === "press" && e.button === "send_code" && e.result.ok) next = { ...next, message: CODE_SENT_MESSAGE, code: undefined };
+  }
+  return next;
+}
+
+/**
+ * Which stream the phone listens to. In a call with its token: that call's own stream, the only
+ * one that carries its lines (lib/events/audience.ts). Otherwise the plain stream, for rings.
+ */
+export function phoneListener(state: PhoneState): { callId: string; token: string } | undefined {
+  return state.mode === "in_call" && state.callId && state.phoneToken ? { callId: state.callId, token: state.phoneToken } : undefined;
+}
+
 export function phoneReducer(state: PhoneState, action: PhoneAction): PhoneState {
   switch (action.type) {
+    case "opening":
+      return onOpening(state, action.events);
     case "event":
       return onEvent(state, action.event);
     case "dial":

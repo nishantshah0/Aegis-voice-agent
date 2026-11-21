@@ -431,6 +431,31 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
     if (!patient) return blocked("not_verified", ["1"]);
     if (input.rx_id !== undefined && !(await ownRx(call, input.rx_id))) return blocked("not_yours", ["1"], { patientId: patient.id });
     const noteId = `n_${call.id}_${(await store.queue()).length + 1}`;
+    const note = { id: noteId, kind: input.kind, text: input.text };
+
+    // A side effect moves this call's open refill (for that prescription, if named) to Review,
+    // with the note on it (SPEC inbound step 8), instead of leaving it in Quick check.
+    if (input.kind === "side_effect") {
+      const refills = (await store.queue()).filter(
+        (q) => q.status === "open" && q.kind === "refill" && q.callId === call.id && (input.rx_id === undefined || q.rxId === input.rx_id),
+      );
+      for (const q of refills) {
+        const moved = await store.updateQueueItem(q.id, {
+          lane: "review",
+          signals: q.signals.includes("side_effect") ? q.signals : [...q.signals, "side_effect"],
+          notes: [...q.notes, note],
+        });
+        emit({ type: "queue", item: moved });
+      }
+      if (refills.length > 0) {
+        return {
+          result: ok<"note_for_pharmacist">({ note_id: noteId }, [], "review"),
+          decision: "allowed",
+          internal: { patientId: patient.id, rxId: input.rx_id, queueItemId: refills[0].id },
+        };
+      }
+    }
+
     const item = await addItem({
       callId: call.id,
       patientId: patient.id,
@@ -439,7 +464,7 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
       lane: "review",
       ruleIds: [],
       signals: input.kind === "side_effect" ? ["side_effect"] : [],
-      notes: [{ id: noteId, kind: input.kind, text: input.text }],
+      notes: [note],
     });
     return {
       result: ok<"note_for_pharmacist">({ note_id: noteId }, [], "review"),

@@ -1,7 +1,7 @@
 // What the phone asks the server for. Every answer the phone shows comes back on
 // /api/events; these calls only start things.
 
-import type { CallStartResponse } from "@/lib/contract";
+import type { AgentEvent, CallStartResponse } from "@/lib/contract";
 
 export type Result<T> = { ok: true; value: T } | { ok: false; problem: string };
 
@@ -29,7 +29,7 @@ const json = (body: unknown, token?: string): RequestInit => ({
   body: JSON.stringify(body),
 });
 
-type Connected = { callId: string; phoneToken?: string };
+type Connected = { callId: string; phoneToken?: string; events?: AgentEvent[] };
 
 const id = (callId: string) => encodeURIComponent(callId);
 

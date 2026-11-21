@@ -21,9 +21,13 @@ export function issuePhoneToken(callId: CallId): string | null {
   return token;
 }
 
-/** Forget every token (demo reset reuses call ids). */
+const openedHolder = globalThis as typeof globalThis & { __refillGuardOpened?: Set<CallId> };
+const opened = () => (openedHolder.__refillGuardOpened ??= new Set());
+
+/** Forget every token and played opening (demo reset reuses call ids). */
 export function clearPhoneTokens(): void {
   tokens().clear();
+  opened().clear();
 }
 
 export function tokenMatches(callId: CallId, given: string | null): boolean {
@@ -47,8 +51,10 @@ export type JoinableDriver = AgentDriver & {
   checkIn?(callId: CallId): AsyncIterable<AgentEvent>;
 };
 
-/** Hand an answered call to the driver and collect its opening. */
+/** Hand an answered call to the driver and collect its opening, once per call. */
 export async function answerCall(driver: JoinableDriver, store: Store, callId: CallId): Promise<AgentEvent[]> {
+  if (opened().has(callId)) return [];
+  opened().add(callId);
   const call = await store.getCall(callId);
   if (call?.direction === "outbound" && call.targetPatientId && driver.joinCall) {
     const start = (await store.listRecord(callId)).find((e) => (e.input as { check?: string })?.check === "call_start");
