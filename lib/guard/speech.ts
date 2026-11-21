@@ -30,6 +30,8 @@ const NOT_A_PROMISE = new RegExp(
     "\\bare you (?:all )?(?:done|all set|set)\\b",
     "\\b(?:im|i am) (?:all set|done)\\b",
     "\\bare you (?:all )?done with\\b",
+    // Saying it doesn't know is not a promise: "I don't know when it will be ready."
+    "\\b(?:i dont know|i do not know|im not sure|i am not sure|not sure) (?:when|if|whether)\\b[a-z ]*",
   ].join("|"),
   "g",
 );
@@ -120,13 +122,16 @@ const COMPLETION_ALL = new RegExp(COMPLETION.source, "g");
 //   a negation on the word itself, with no other negation before it in the clause: "isn't ready yet"
 // "After the pharmacist approved it" (past), "no way it isn't approved" and "approved when it's
 // approved" excuse nothing.
-const COND = "(?:once|after|if|when|until|as soon as)";
+const COND = "(?:once|after|if|when|until|till|before|as soon as)";
 const SUBJ = "(?:it|they|a pharmacist|your \\w+|the \\w+)";
 const GOVERNED =
   `${COND} (?:(?:its|theyre) (?:been )?approved|${SUBJ} (?:is|are|gets|get|has been|have been) approved|${SUBJ} (?:approves|approve|signs off|sign off|reviews|review|checks|check))\\b`;
 const GOVERNED_ALL = new RegExp(`\\b${GOVERNED}`, "g");
-const GOVERNED_AFTER = new RegExp(`^ (?:\\w+ ){0,2}${GOVERNED}`);
-const GOVERNED_LEAD = new RegExp(`^ ${GOVERNED}`);
+// "before it is approved" covers only its own "approved": it never excuses "ready before it's
+// approved" or the clause after "Before it's approved, ...".
+const NOT_BEFORE = GOVERNED.replace("|before", "");
+const GOVERNED_AFTER = new RegExp(`^ (?:\\w+ ){0,2}${NOT_BEFORE}`);
+const GOVERNED_LEAD = new RegExp(`^ ${NOT_BEFORE}`);
 const NEGATION = "(?:no|not|nothing|never|nobody|none|isnt|hasnt|havent|wont|cant|cannot|arent|wasnt|werent|dont|doesnt)";
 const NEGATED_BEFORE = new RegExp(`\\b(?:not|isnt|hasnt|havent|wont|cant|cannot|arent|wasnt|werent|never) (?:yet )?(?:be |been )?$`);
 const ANY_NEGATION = new RegExp(`\\b${NEGATION}\\b`);
