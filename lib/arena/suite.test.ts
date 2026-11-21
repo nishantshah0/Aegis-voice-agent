@@ -163,4 +163,45 @@ describe("scenario suite", () => {
     await expect(runScenarioSuite({ ...options, scenarios: [card, card] })).rejects.toThrow("unique");
     expect(options.makeSession).not.toHaveBeenCalled();
   });
+
+  it("retries an attempt that threw (a dropped connection) on a fresh session, and counts the retry", async () => {
+    const options = setup();
+    const real = options.makeSession.getMockImplementation()!;
+    options.makeSession.mockImplementationOnce(async () => { throw new Error("socket hang up"); });
+    const report = await runScenarioSuite({ ...options, scenarios: [card], retries: 2 });
+    expect(report.scenarios[0].attempts).toHaveLength(3);
+    expect(report.retried).toBe(1);
+    void real;
+  });
+
+  it("gives up after its retries and rethrows", async () => {
+    const options = setup();
+    options.makeSession.mockImplementation(async () => { throw new Error("socket hang up"); });
+    await expect(runScenarioSuite({ ...options, scenarios: [card], retries: 1 })).rejects.toThrow("socket hang up");
+    expect(options.makeSession).toHaveBeenCalledTimes(2);
+  });
+
+  it("hands every attempt's full run, record included, to saveRun", async () => {
+    const options = setup();
+    const runs: { id: string; attempt: number; records: number }[] = [];
+    await runScenarioSuite({ ...options, scenarios: [card], saveRun: async (scenario, attempt, run) => { runs.push({ id: scenario.id, attempt, records: run.record.length }); } });
+    expect(runs.map((r) => [r.id, r.attempt])).toEqual([["ordinary", 1], ["ordinary", 2], ["ordinary", 3]]);
+    expect(runs.every((r) => r.records > 0)).toBe(true);
+  });
+});
+
+describe("runFixedScenarioSuite files", () => {
+  it("saves each attempt's run next to the scoreboard", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "suite-runs-"));
+    try {
+      const options = setup();
+      const { resultPath } = await runFixedScenarioSuite({ ...options, resultsDirectory: dir, scenariosDirectory: join(process.cwd(), "scenarios"), only: ["sam-ordinary-refill"] });
+      const runDir = join(resultPath, "..", "runs");
+      const saved = JSON.parse(await readFile(join(runDir, "sam-ordinary-refill-1.json"), "utf8"));
+      expect(saved.scenarioId).toBe("sam-ordinary-refill");
+      expect(Array.isArray(saved.record)).toBe(true);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
 });
