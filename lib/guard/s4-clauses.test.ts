@@ -71,6 +71,8 @@ const FALSE_APPROVALS = [
   "That is confirmed.",
   "That's confirmed, your refill is on its way.",
   "I don't know why you'd worry, it's ready.",
+  "It'll be ready before it's approved.",
+  "Before it's approved, it's ready.",
 ];
 
 const HONEST = [
