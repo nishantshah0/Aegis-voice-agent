@@ -156,6 +156,7 @@ describe("1.2b: a failed SDK turn doesn't break the rest of the call", () => {
         throw new Error("interrupted");
       },
       async function* () {
+        yield { type: "text", text: "I'm here." };
         yield result("I'm here.");
       },
     ]);
