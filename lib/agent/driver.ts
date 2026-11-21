@@ -29,6 +29,7 @@ import type {
   StartCallOpts,
 } from "@/lib/contract";
 import { outboundLookupId } from "@/lib/control";
+import type { ServerTurnTiming } from "@/lib/voice/timing";
 import { HOLDING, SIDE_EFFECT_PASSED_ON, inboundGreeting, outboundOpener, sideEffectQuestion } from "./lines";
 import type { AgentModel, ModelTurn } from "./model";
 import { systemPrompt } from "./prompt";
@@ -61,6 +62,8 @@ export type AgentDriverOptions = {
   emit?: EmitFn;
   /** Model turns allowed for one caller line before the agent hands over. */
   maxSteps?: number;
+  /** Clock for turn timing (task 1.6), in ms. Tests pass a fake one. */
+  now?: () => number;
 };
 
 type CallState = {
@@ -76,6 +79,8 @@ type CallState = {
   askedSideEffects: Set<RxId>;
   /** Set right after the side-effect question, so the caller's answer is read as one. */
   awaitingSideEffect?: RxId;
+  /** One entry per caller line: when it arrived, first model text, first guarded sentence. */
+  timings: ServerTurnTiming[];
   ended: boolean;
 };
 
@@ -94,10 +99,12 @@ export type ClaudeAgentDriver = AgentDriver & {
   opening(callId: CallId): AsyncIterable<AgentEvent>;
   /** Speak one fixed line through the guard, and tell the model it was said. */
   speakLine(callId: CallId, line: string): AsyncIterable<AgentEvent>;
+  /** Turn timing for this call (task 1.6): one entry per caller line. */
+  turnTimings(callId: CallId): ServerTurnTiming[];
 };
 
 export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDriver {
-  const { calls, press, guardSentence, checkCallerLine, model, pharmacyName, emit = () => {}, maxSteps = MAX_STEPS } = options;
+  const { calls, press, guardSentence, checkCallerLine, model, pharmacyName, emit = () => {}, maxSteps = MAX_STEPS, now = () => performance.now() } = options;
   const state = new Map<CallId, CallState>();
 
   function track(callId: CallId, opts: DriverStartOpts) {
@@ -109,6 +116,7 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
       callNote: callNote(callId, opts),
       notes: [],
       askedSideEffects: new Set(),
+      timings: [],
       ended: false,
     });
   }
@@ -116,6 +124,8 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
   /** Every word the agent says passes here, and only the guard's `speak` comes out. */
   async function* speak(callId: CallId, sentence: string): AsyncIterable<AgentEvent> {
     const guarded = await guardSentence(callId, sentence);
+    const turn = state.get(callId)?.timings.at(-1);
+    if (turn && turn.firstGuardedMs === undefined) turn.firstGuardedMs = now() - turn.receivedAt;
     if (guarded.blocked) {
       state.get(callId)?.notes.push(`Instead of "${guarded.original}", the caller heard "${guarded.speak}".`);
       yield { type: "blocked_line", rule: guarded.rule, original: guarded.original, replacement: guarded.speak };
@@ -232,6 +242,8 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
         return;
       }
       emit({ type: "line", callId, who: "caller", text });
+      const timing: ServerTurnTiming = { receivedAt: now() };
+      call.timings.push(timing);
 
       const safety = await checkCallerLine(callId, text);
       if (safety.action !== "continue") {
@@ -258,7 +270,8 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
         let turn: ModelTurn | undefined;
         for await (const event of model.turn({ system, messages: call.messages, tools: BUTTON_TOOLS })) {
           if (event.type === "done") turn = event.turn;
-          else for (const sentence of splitter.push(event.text)) yield* speak(callId, sentence);
+          else if (timing.firstModelTextMs === undefined) timing.firstModelTextMs = now() - timing.receivedAt;
+          if (event.type === "text") for (const sentence of splitter.push(event.text)) yield* speak(callId, sentence);
         }
         for (const sentence of splitter.flush()) yield* speak(callId, sentence);
 
@@ -280,6 +293,10 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
       // Too many steps for one line: say so plainly and get a person.
       yield* speak(callId, HOLDING);
       yield* handOver(callId, STUCK_REASON);
+    },
+
+    turnTimings(callId) {
+      return (state.get(callId)?.timings ?? []).map((t) => ({ ...t }));
     },
 
     async endCall(callId) {

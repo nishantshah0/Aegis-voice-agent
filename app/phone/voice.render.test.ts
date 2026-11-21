@@ -30,3 +30,14 @@ describe("1.5: voice on the phone", () => {
     expect(speaking).toMatch(/<button[^>]*disabled=""[^>]*>Hold to talk<\/button>/);
   });
 });
+
+describe("1.6: the median turn on the phone", () => {
+  it("shows nothing until a turn is timed, then the median against the target", async () => {
+    const { TurnTime } = await import("./Phone");
+    expect(renderToStaticMarkup(createElement(TurnTime, {}))).toBe("");
+    const fast = renderToStaticMarkup(createElement(TurnTime, { medianMs: 940 }));
+    expect(fast).toContain("Median turn 0.94 s (target 1.2 s)");
+    expect(fast).toContain("text-green-700");
+    expect(renderToStaticMarkup(createElement(TurnTime, { medianMs: 1600 }))).toContain("text-amber-700");
+  });
+});

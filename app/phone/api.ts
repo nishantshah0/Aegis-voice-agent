@@ -20,18 +20,24 @@ async function call<T>(url: string, init: RequestInit, notWired: string): Promis
   }
 }
 
-const json = (body: unknown): RequestInit => ({
+/** Say, code and end need the call's phone token (Role 2 DECISION: x-phone-token). */
+const tokenHeader = (token?: string): Record<string, string> => (token ? { "x-phone-token": token } : {});
+
+const json = (body: unknown, token?: string): RequestInit => ({
   method: "POST",
-  headers: { "Content-Type": "application/json" },
+  headers: { "Content-Type": "application/json", ...tokenHeader(token) },
   body: JSON.stringify(body),
 });
+
+type Connected = { callId: string; phoneToken?: string };
 
 const id = (callId: string) => encodeURIComponent(callId);
 
 export const phoneApi = {
-  dial: () => call<CallStartResponse>("/api/call/start", json({ direction: "inbound" }), "Calling the pharmacy isn't connected yet."),
-  answer: (callId: string) => call<unknown>(`/api/call/${id(callId)}/answer`, json({}), "Answer isn't connected yet."),
-  say: (callId: string, text: string) => call<unknown>(`/api/call/${id(callId)}/say`, json({ text }), "This call has ended."),
-  code: (callId: string) => call<{ code?: string }>(`/api/call/${id(callId)}/code`, { method: "GET" }, "No code for this call."),
-  end: (callId: string) => call<unknown>(`/api/call/${id(callId)}/end`, json({}), "Hanging up isn't connected yet."),
+  dial: () => call<CallStartResponse & Connected>("/api/call/start", json({ direction: "inbound" }), "Calling the pharmacy isn't connected yet."),
+  answer: (callId: string, token?: string) => call<Connected>(`/api/call/${id(callId)}/answer`, json({}, token), "Answer isn't connected yet."),
+  say: (callId: string, text: string, token?: string) => call<unknown>(`/api/call/${id(callId)}/say`, json({ text }, token), "This call has ended."),
+  code: (callId: string, token?: string) =>
+    call<{ code?: string }>(`/api/call/${id(callId)}/code`, { method: "GET", headers: tokenHeader(token) }, "No code for this call."),
+  end: (callId: string, token?: string) => call<unknown>(`/api/call/${id(callId)}/end`, json({}, token), "Hanging up isn't connected yet."),
 };

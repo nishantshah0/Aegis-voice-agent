@@ -3,6 +3,7 @@
 import { useEffect, useReducer, useRef, useState, type FormEvent } from "react";
 import { listenToEvents } from "@/lib/events/client";
 import type { ListenerMode } from "@/lib/voice/listener";
+import { TURN_TARGET_MS, createPhoneTiming } from "@/lib/voice/timing";
 import { phoneApi } from "./api";
 import { RULE_LABEL, initialPhone, phoneReducer, type PhoneState, type TranscriptItem } from "./state";
 import { useVoice } from "./useVoice";
@@ -15,10 +16,25 @@ export function Phone() {
   const [busy, setBusy] = useState(false);
   const [voiceOn, setVoiceOn] = useState(false);
   const [mode, setMode] = useState<ListenerMode>("open");
+  const timing = useRef(createPhoneTiming());
+  const [medianMs, setMedianMs] = useState<number | undefined>();
+  const mark = (step: "agentLine" | "speechStarted") => {
+    timing.current[step]();
+    setMedianMs(timing.current.medianMs());
+  };
 
   const say = (text: string) => {
-    if (state.callId) void run(() => phoneApi.say(state.callId!, text));
+    if (!state.callId) return;
+    timing.current.callerStopped();
+    void run(() => phoneApi.say(state.callId!, text, state.phoneToken));
   };
+
+  // Turn timing: the first agent line after the caller stopped.
+  const last = state.transcript.at(-1);
+  const lastIsAgentLine = last?.kind === "line" && last.who === "agent";
+  useEffect(() => {
+    if (lastIsAgentLine) mark("agentLine");
+  }, [state.transcript.length, lastIsAgentLine]);
   const voice = useVoice({
     on: voiceOn && state.mode === "in_call",
     mode,
@@ -29,6 +45,7 @@ export function Phone() {
       setVoiceOn(false);
       dispatch({ type: "problem", text });
     },
+    onSpeechStart: () => mark("speechStarted"),
   });
 
   useEffect(() => listenToEvents((event) => dispatch({ type: "event", event })), []);
@@ -37,13 +54,13 @@ export function Phone() {
   useEffect(() => {
     if (!state.callId || !state.message || state.code) return;
     let live = true;
-    phoneApi.code(state.callId).then((r) => {
+    phoneApi.code(state.callId, state.phoneToken).then((r) => {
       if (live && r.ok && r.value.code) dispatch({ type: "code", code: r.value.code });
     });
     return () => {
       live = false;
     };
-  }, [state.callId, state.message, state.code]);
+  }, [state.callId, state.phoneToken, state.message, state.code]);
 
   async function run(step: () => Promise<{ ok: boolean; problem?: string }>) {
     setBusy(true);
@@ -56,7 +73,9 @@ export function Phone() {
     run(async () => {
       const callId = state.callId!;
       dispatch({ type: "connected", callId });
-      return phoneApi.answer(callId);
+      const answered = await phoneApi.answer(callId);
+      if (answered.ok) dispatch({ type: "connected", callId, phoneToken: answered.value.phoneToken });
+      return answered;
     });
 
   const dial = () =>
@@ -64,15 +83,18 @@ export function Phone() {
       dispatch({ type: "dial" });
       const started = await phoneApi.dial();
       if (!started.ok) return started;
-      dispatch({ type: "connected", callId: started.value.callId });
-      return phoneApi.answer(started.value.callId);
+      const { callId, phoneToken } = started.value;
+      dispatch({ type: "connected", callId, phoneToken });
+      // Plays the greeting. The call already has its token from start, so a 409 here only means no greeting.
+      await phoneApi.answer(callId, phoneToken);
+      return { ok: true };
     });
 
   const hangUp = () =>
     run(async () => {
       const callId = state.callId;
       dispatch({ type: "hung_up" });
-      return callId ? phoneApi.end(callId) : { ok: true };
+      return callId ? phoneApi.end(callId, state.phoneToken) : { ok: true };
     });
 
   function send(e: FormEvent) {
@@ -127,6 +149,7 @@ export function Phone() {
           </>
         )}
       </div>
+      <TurnTime medianMs={medianMs} />
       {state.problem && (
         <p role="alert" className="bg-amber-100 px-4 py-2 text-center text-sm text-amber-900">
           {state.problem}
@@ -179,6 +202,17 @@ export function VoiceBar({ on, mode, hearing, speaking, onToggle, onMode, onHold
         </button>
       )}
     </div>
+  );
+}
+
+/** Median time from the caller stopping to the agent's first word (task 1.6). */
+export function TurnTime({ medianMs }: { medianMs?: number }) {
+  if (medianMs === undefined) return null;
+  const fast = medianMs <= TURN_TARGET_MS;
+  return (
+    <p data-testid="turn-time" className={`px-4 pb-2 text-center text-xs ${fast ? "text-green-700" : "text-amber-700"}`}>
+      Median turn {(medianMs / 1000).toFixed(2)} s (target {(TURN_TARGET_MS / 1000).toFixed(1)} s)
+    </p>
   );
 }
 
