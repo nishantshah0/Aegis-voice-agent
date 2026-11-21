@@ -25,7 +25,7 @@ const NOT_A_PROMISE = new RegExp(
     "\\b(?:you|youre|you are|are you|were|we are|im|i am|whenever youre|when youre) ready\\b",
     "\\blast filled\\b",
     // Identity checks, not the order: "Your identity is confirmed.", "that's confirmed: your date of birth matches".
-    "\\b(?:your identity|your date of birth|your dob|your details|your code|that code|the code|thats|that) (?:is |are |s |has been |have been |was )?confirmed\\b",
+    "\\b(?:your identity|your date of birth|your dob|your details|your code|that code|the code) (?:is |are |s |has been |have been |was )?confirmed\\b",
     // Questions to the caller, and the agent's own state: "Are you done?", "I'm all set to help."
     "\\bare you (?:all )?(?:done|all set|set)\\b",
     "\\b(?:im|i am) (?:all set|done)\\b",
@@ -155,10 +155,21 @@ function promisesCompletion(w: string): boolean {
  * A clause that opens with the approval condition ("Once a pharmacist approves it ...") covers
  * itself and the clause right after it, and only those.
  */
+// "Thanks, that's confirmed: your date of birth matches." A bare "that's confirmed" is about the
+// caller's identity only when a clause right beside it names it; on its own it's a promise.
+const BARE_CONFIRMED = /^ (?:yes |thanks |ok |okay |great )?(?:thats|that is|that s) confirmed $/;
+const NAMES_IDENTITY = /\b(?:identity|date of birth|dob|birthday|your details|your name|the code|that code|your code)\b/;
+
 export function unexcusedCompletion(sentence: string): boolean {
   let ledByApproval = false;
-  return sentence.split(CLAUSE_BREAK).some((clause) => {
-    const w = words(clause).replace(NOT_A_PROMISE, " ").replace(/ +/g, " ");
+  const clauses = sentence.split(CLAUSE_BREAK).map((c) => words(c));
+  return clauses.some((raw, i) => {
+    const beside = [clauses[i - 1], clauses[i + 1]].filter((c): c is string => c !== undefined);
+    if (BARE_CONFIRMED.test(raw) && beside.some((c) => NAMES_IDENTITY.test(c))) {
+      ledByApproval = false;
+      return false;
+    }
+    const w = raw.replace(NOT_A_PROMISE, " ").replace(/ +/g, " ");
     const excused = ledByApproval || GOVERNED_LEAD.test(w); // "Once it's approved it's ready."
     ledByApproval = GOVERNED_LEAD.test(w);
     return !excused && promisesCompletion(w);
