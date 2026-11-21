@@ -5,11 +5,14 @@ import { createControl, type Control } from "@/lib/control";
 import { createSafetyCheck, createSpeechGuard } from "@/lib/guard";
 import { emit } from "@/lib/events";
 import { PHARMACY_NAME, SEED } from "@/lib/seed";
-import { getStore as getServerStore } from "@/lib/store/memory";
+import { readFileSync } from "node:fs";
+import { Pool } from "pg";
+import { getStore as getMemoryStore } from "@/lib/store/memory";
+import { createPostgresStore, fromPgPool, poolConfig } from "@/lib/store/postgres";
 import { clearPhoneTokens } from "./phone";
 
 // The parts the API routes run on, wired once per server.
-// Store: Role 4's in-memory store (4.2), shared with every other part of the server.
+// Store: see getStore() below (Tiger Data when DATABASE_URL is set, else the memory store).
 // Control: Role 4's control layer (4.3) on that store. Every call starts through it (rule 7).
 // Driver: Role 1's real agent (1.2) when ANTHROPIC_API_KEY is in the server's .env, with the
 // real speech guard and safety check; otherwise the contract's fake, which never scores or
@@ -19,7 +22,20 @@ type Parts = { control: Control; driver: AgentDriver };
 
 const holder = globalThis as typeof globalThis & { __refillGuardParts?: Parts };
 
-export const getStore = (): Store => getServerStore();
+// Store: Postgres on Tiger Data when DATABASE_URL is set (2.7), otherwise Role 4's memory store.
+// DATABASE_CA_FILE can point at Tiger Data's ca.pem; certificates are always verified.
+const pgHolder = globalThis as typeof globalThis & { __refillGuardPg?: { url: string; store: Store; pool: Pool } };
+
+export function getStore(): Store {
+  const url = process.env.DATABASE_URL;
+  if (!url) return getMemoryStore();
+  if (pgHolder.__refillGuardPg?.url !== url) {
+    const caFile = process.env.DATABASE_CA_FILE;
+    const pool = new Pool({ ...poolConfig(url, caFile ? readFileSync(caFile, "utf8") : undefined), max: 5 });
+    pgHolder.__refillGuardPg = { url, pool, store: createPostgresStore(fromPgPool(pool)) };
+  }
+  return pgHolder.__refillGuardPg.store;
+}
 
 function parts(): Parts {
   if (!holder.__refillGuardParts) {
@@ -53,6 +69,10 @@ export const getDriver = (): AgentDriver => parts().driver;
 
 /** Test helper: reseed the store and start fresh parts. */
 export async function resetRuntimeForTests(): Promise<void> {
+  if (pgHolder.__refillGuardPg) {
+    void pgHolder.__refillGuardPg.pool.end().catch(() => {});
+    pgHolder.__refillGuardPg = undefined;
+  }
   await getStore().reset(SEED);
   clearPhoneTokens();
   holder.__refillGuardParts = undefined;
