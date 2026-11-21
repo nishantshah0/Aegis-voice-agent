@@ -154,6 +154,11 @@ function negatedNear(w: string, at: number, day = false): boolean {
   return (day ? NEGATED_DAY : NEGATED_VERB).test(w.slice(0, at));
 }
 const MODAL_BEFORE = /\b(?:will|can|should|would|could|itll|itd) be $/;
+// "check whether it's ready", "see if your refill is ready", "when it can be filled": a done-word
+// asked about, not claimed. The subject comes straight after when/if/whether, so "Whether you like
+// it or not, it's approved" is still a claim.
+const EMBEDDED_QUESTION =
+  /\b(?:when|if|whether) (?:it|its|it is|they|theyre|they are|your \w+(?: is| are| s)?)(?: has been| have been| been)?(?:(?: can| could| will| would| should| might) be)? $/;
 
 /** True when a completion word in this clause is said as done, with no governed condition or negation. */
 function promisesCompletion(w: string): boolean {
@@ -163,6 +168,8 @@ function promisesCompletion(w: string): boolean {
     if (governed.some(([from, to]) => at >= from && at < to)) return false; // "once it's approved"
     const before = w.slice(0, at);
     const negation = before.match(NEGATED_BEFORE);
+    // "check when it can be filled": when/if/whether it could happen is a question, not a promise.
+    if (EMBEDDED_QUESTION.test(before)) return false;
     // "isn't approved yet", but not "no way it isn't approved": no other negation before it.
     if (negation && !ANY_NEGATION.test(before.slice(0, negation.index))) return false;
     const after = w.slice(at + m[0].length);
@@ -183,6 +190,9 @@ function promisesCompletion(w: string): boolean {
 const BARE_CONFIRMED = /^ (?:yes |thanks |ok |okay |great )?(?:thats|that is|that s) confirmed $/;
 const NAMES_IDENTITY = /\b(?:identity|date of birth|dob|birthday|your details|your name|the code|that code|your code)\b/;
 
+// A clause about the caller's identity, also after "and" splits "your code and date of birth".
+const IDENTITY_CLAUSE =
+  /^ (?:(?:your|the|that|those) )?(?:identity|date of birth|dob|birthday|details|code|name|phone number|address)(?: (?:is|are|s|has been|have been|was|were))?(?: both| all)? (?:confirmed|verified|matched|checked) $/;
 const NAMES_ORDER = /\b(?:refills?|prescriptions?|orders?|medications?|medicines?|meds|deliver\w*|pickup|rx)\b/;
 
 /** Drug names come from the store (see createSpeechGuard), so "your Concerta" counts as the order too. */
@@ -193,6 +203,11 @@ export function unexcusedCompletion(sentence: string, drugNames: string[] = []):
   const namesOrder = NAMES_ORDER.test(whole) || drugNames.some((d) => d.trim() && whole.includes(words(d)));
   return clauses.some((raw, i) => {
     const beside = [clauses[i - 1], clauses[i + 1]].filter((c): c is string => c !== undefined);
+    // "Your code and date of birth are confirmed.": verification, not the order. S1 covers identity.
+    if (IDENTITY_CLAUSE.test(raw) && !namesOrder) {
+      ledByApproval = false;
+      return false;
+    }
     if (BARE_CONFIRMED.test(raw) && !namesOrder && beside.some((c) => NAMES_IDENTITY.test(c))) {
       ledByApproval = false;
       return false;

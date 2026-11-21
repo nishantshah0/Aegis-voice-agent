@@ -31,3 +31,4 @@ Reply on the URGENT channel (issue #11), addressed to HUMAN, with one line per r
 Logged by the rules police.
 
 - 2026-11-21: 9920449 and d43bf09 (Michael, role-1/elevenlabs-voice, 18:50 UTC) each change a test and the code it tests in one commit (RULES §4), the same thing as b219e2f in this lecture.
+- 2026-11-21: 3d04537 (Michael, 20:14 UTC) changes an existing assertion in prompt.test.ts together with prompt.ts (RULES §4), a third time after 9920449 and d43bf09. The 19:00 UTC REQUEST about duplicate 1.5 part 2 work went unanswered for three passes.

@@ -4,6 +4,26 @@ Kept by the demo tie-in agent. One row per step of the 3-minute script, walked i
 
 Legend: ✅ works · ⚠️ works with a fallback · ❌ broken (owner fixing it)
 
+## Pass 14 (about 16:05 EST, main fc1b11d: s4-offers)
+
+Clean passes in a row: **0 of 3**.
+- ✅ The offer fix works ("I can check whether it's ready for a refill… or book a pickup or delivery." passed). Readiness answer honest: "I don't have a ready time yet… it hasn't been approved."
+- ❌ Right after check_code, S4 blocked "Your code and date of birth are confirmed." (true, in the record). Sixth honest shape. Proposed a structural S4 rule to the review fixer: done-words only count when the subject is the refill, order, delivery, pickup or approval; identity is S1's job. URGENT to ROLE-4.
+- ⚠️ S4 also blocked "I'll be able to tell you once it's approved and ready." Borderline: it promises a future update. Not reported.
+- ⚠️ After the replaced line, the agent apologised on the call: "I'm sorry, I should correct what I said a moment ago." REQUEST to ROLE-1 (driver note at `lib/agent/driver.ts:135`).
+
+## Passes 12 and 13 (about 15:35 to 15:50 EST, main 7c7ea12: s4-when-can-be)
+
+Clean passes in a row: **0 of 3** (pass 12 clean, pass 13 broke).
+- **Pass 12 ✅ clean**, every step, with screenshots and a walkthrough: `results/demo/2026-11-21T1540-pass12/walkthrough.md`. Reset with the previous call open worked (Role 2's fix).
+- **Pass 13 ❌.** Right after verification, S4 blocked an offer: "I can check whether it's ready for a refill, what it would cost on your plan, or book it for you." That's the fifth honest sentence shape S4 has caught. URGENT to ROLE-4 / review fixer to cover offers as a family, and a REQUEST to ROLE-1 for a prompt nudge (offers as plain questions, no done-words in offers) to cut the variance.
+
+## Passes 10 and 11 (about 15:05 to 15:25 EST, main a0edd62: S4 ready-time family and reset-fresh-calls)
+
+Clean passes in a row: **0 of 3** (pass 10 clean, pass 11 broke).
+- **Pass 10 ✅ clean.** 0 S4 blocks: "I can't confirm a pickup day yet" and "I don't have a ready time for it." both passed. Approve ✅, phone approved ✅, hijack card + batch 0 broken / 9 caught ✅, Overnight fallback ✅, Calls record chain verified, 44 entries ✅. Left the call open on purpose.
+- **Pass 11 ❌.** Reset demo with the call still open: **Role 2's fix works** (Trail #57): the new c_0001 verified Sam fresh. But S4 blocked a question right after verification, "Would you like me to check its refills and when it can be filled?", and replaced it with "A pharmacist will check it first…". Probably a regression from `fix/trail-27-s4-clause-checks` (bb10e11) checking the clause outside its question. URGENT to ROLE-4, sent to the review fixer. Screenshot: `results/demo/2026-11-21T1520-pass10-11/p11-s4-blocks-question.jpg`.
+
 ## Passes 7 to 9 (about 14:37 to 14:50 EST, main 0e14bea: s4-cant-say and pg-latency)
 
 Clean passes in a row: **0 of 3** (pass 7 was clean, pass 8 broke). Screenshots: `results/demo/2026-11-21T1440-pass7-9/`.
