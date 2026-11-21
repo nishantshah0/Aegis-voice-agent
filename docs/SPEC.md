@@ -1,5 +1,7 @@
 # Refill Guard: spec
 
+This is the product target, not a list of features already running. See [CURRENT.md](CURRENT.md) for the merged implementation and known gaps.
+
 > Copied from the planning session. Personal details about teammates are left as placeholders on purpose. Fill them in only with that person's OK.
 
 Locked Saturday, November 21, 2026, about 2:30 AM, and last updated about 7 AM, for Hack Western 13. Submissions close Sunday, November 22 at 9:00 AM Eastern. This replaces every earlier version. Change it only by team agreement, and write the change in the log at the bottom.
@@ -305,7 +307,7 @@ Every event is one entry:
 }
 ```
 
-- The newest hash is shown on the Compliance page and printed on every export, so an edit is detectable. Say "detectable", never "impossible".
+- Planned: the newest hash is shown in Rules and checks and printed on every export, so an edit is detectable. Say "detectable", never "impossible".
 - `context` holds every field the rule cards read, so any card can be replayed against past requests.
 
 ### The two hammers
@@ -359,7 +361,7 @@ For each failure:
 
 1. Fable 5.2 proposes one fix: a prompt edit (as a diff), a new rule card, a new speech-guard pattern or a new test.
 2. The release gate runs. For a prompt edit, the failing scenario and a 10-scenario sample also run 3 times against the real agent, and before and after numbers are shown, because the gate's scripted agent ignores the prompt.
-3. A signed-in reviewer approves or rejects it on the Compliance page.
+3. A signed-in reviewer approves or rejects it in Rules and checks.
 4. If approved, it goes live and the change history records the failure, the fix, the gate run, the approver and the time.
 
 **AI proposes, a person approves, the gate checks.** Nothing ships on its own.
@@ -391,7 +393,7 @@ Don't run the advice scenarios under the hijack switch. S3 catches invented dose
 
 ### The release gate
 
-One command. It runs the unit tests, the exhaustive check, the random hammer, every rule card's tests, and every fixed scenario against the scripted hijack agent. All of these give the same answer every run. It fails if any rule is broken. It runs on every change to the prompt, the model, the cards or the speech rules, and the page shows the last run and the one before. Runs of the real agent and the AI attacker vary each time, so they feed the suite and the numbers but are not the gate.
+Target: one command runs unit tests, exhaustive and random hammers, rule-card tests, and fixed scenarios against the scripted hijack agent. Runs of the real agent and attacker feed the suite but are not deterministic gate checks. Today, GitHub's Release gate runs typecheck, lint, tests, `npm run hammer`, and build on pull requests and pushes to `main`; the scenario gate and gate history page are pending.
 
 ### Scenarios
 
@@ -540,7 +542,7 @@ Folders and owners are defined in `docs/DESIGN.md` section 2 and `AGENTS.md`. In
 
 ### Page endpoints
 
-All under `/api`. The exact request and response types live in `lib/contract/`.
+All under `/api`. The exact request and response types live in `lib/contract/`. This table is the planned API; [CURRENT.md](CURRENT.md) lists routes that currently return 501.
 
 | Endpoint | Does |
 |---|---|
@@ -865,6 +867,7 @@ Ask the organisers how many tracks one project may enter.
 
 | When | Change | Agreed by |
 |---|---|---|
+| Sat 11:45 AM | Clarified planned versus merged behavior, route status and the Rules and checks approval location. No product rule changed. | Documentation audit; role verification requested |
 | Sat ~5:15 AM | No phone push. Approvals happen on the console's Today page, signed in through Auth0; the approver comes from the session. CIBA isn't on Auth0's Free plan. Earlier rows that mention Guardian push are history. | Nishant |
 | Sat 2:30 AM | Locked | _team_ |
 | Sat ~8 AM | Fixed contradictions: rule 4b allows a controlled refill up to 3 days early (Sam's call no longer ends refused); outbound calls start 3 days before run-out and only when rules 3 and 4b pass; S1 allows the scripted opener to say the patient's name; Sam's seed data pinned (refill 1 of 2, filled 27 days ago); the typed-refill done-when ends at the pharmacist's approval. Scope cut to a core demo first. | _team_ |

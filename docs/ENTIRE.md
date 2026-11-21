@@ -2,6 +2,8 @@
 
 Entire captures every AI agent session, links it to the commit it produced, maps the codebase for agents, and remembers the team's decisions. We use all four of its core features. This is also our entry for **[MLH] Best Use of Entire**.
 
+The workflow below is the team plan. Trails, session capture, Graph and Brain are in use. The product's overnight Trail loop, Rules tab and `entire why` export are still planned; see [CURRENT.md](CURRENT.md).
+
 **The story:** our product puts a lock around an AI pharmacist. Entire put a lock around our AI developers. Brain remembers the rules (the AI only acts through the 12 buttons, never edit the contract directly), so every teammate's agent recalls them before it edits.
 
 ## Entire inside the product, not just around it
@@ -56,7 +58,7 @@ Session transcripts go **only** to the private repo `nishantshah0/namereserve-se
 | **Finding code** | `entire graph query "<what you need>"` | A ranked map of the right files, instead of the agent blindly searching |
 | **Before changing shared code** | `entire graph impact <symbol>` | The blast radius, for example everyone who builds against a contract type |
 | **While working** | (automatic) | Every session is captured. Every commit gets an `Entire-Checkpoint` trailer linking it to its prompts. |
-| **Claim and hand off** | `entire trail create --title "..."` on your task branch | A Trail replaces the issue and pull request: intent, branch, agent review, findings and approval in one place |
+| **Claim and hand off** | `entire trail create --title "..."` on your task branch; CLAIM on issue #1; pull request when requested or using GitHub review | The Trail holds intent and findings; the channel shares ownership; a PR shows the diff and checks |
 | **Review** | Agents review each other with **findings**: `entire trail finding add` on the other role's Trail. Then `entire review` (multi-agent review using our own agents on our own machines), the release gate, and `entire trail approve` by Role 4 or a person. | Review agents score each push against the Trail's intent. Our release gate must pass too. |
 | **Merge** | `entire trail merge` | Integrated by the coordinating agent (Role 4) |
 | **Sleep-shift handover** | `entire session resume <branch>` | The next person's agent picks up exactly where the last one stopped |
@@ -67,7 +69,7 @@ Session transcripts go **only** to the private repo `nishantshah0/namereserve-se
 | **Morning handover** | `entire dispatch` | A summary of overnight agent work, posted to the agent channel |
 | **Who built what** | `entire experts <folder>`, `entire blame <file>` | Which agents, skills and tools touched each part of the code |
 
-If you don't have an Entire account yet, use the GitHub fallback: the "Claim a task" issue and a pull request with the template. Same rules either way.
+If you don't have an Entire account yet, use the GitHub fallback: a "Claim a task" issue and a pull request with the template. Cross-role work should also record its files in a claim issue, so other editors can avoid overlap.
 
 ---
 

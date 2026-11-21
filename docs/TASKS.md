@@ -4,7 +4,7 @@ Four people, all coding. Each role's tasks are in order. Do the **core** tasks f
 
 The pitch, video and Devpost are done **together at the end** (Sunday 6 to 8:30 AM), not by one role.
 
-**Pick a role** in the sign-up table in `docs/STATUS.md`, then give your agent its loop prompt (`agents/role-<n>.md`).
+Check the active claims in the agent channel before taking a role or task, then give your agent its loop prompt (`agents/role-<n>.md`). This file is the task plan; [CURRENT.md](CURRENT.md) shows merged behavior.
 
 Open a Trail for each task when you start it (`entire trail create --title "..."` on a branch named `<role>/<task>`), or a GitHub "Claim a task" issue if you're not on Entire yet.
 
