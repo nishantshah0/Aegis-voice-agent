@@ -19,7 +19,10 @@ export default function TodayPage() {
       <Suspense fallback={<p className="mt-6 text-sm text-neutral-500">Loading the queue…</p>}>
         <Queue />
       </Suspense>
-      <EventFeed />
+      <details className="mt-8">
+        <summary className="cursor-pointer text-sm text-neutral-500">Live event feed (for the team)</summary>
+        <EventFeed />
+      </details>
     </main>
   );
 }
