@@ -146,3 +146,55 @@ describe("S4: a conditional only excuses its own clause", () => {
     expect((await guard(callId, sentence)).blocked).toBe(false);
   });
 });
+
+// Days, bookings, "sent" and prices, clause by clause (Trail #27): a filler condition such as
+// "If you like," no longer switches these checks off for the whole sentence.
+const FALSE_OTHER_PROMISES = [
+  "If you like, we'll deliver it Friday.",
+  "If you like we'll deliver it Friday.",
+  "If it helps, your copay is $4.10.",
+  "No need to worry we'll deliver it Friday.",
+  "Once it's approved, your copay is $9.99.",
+  "If you want, it's booked for Thursday morning.",
+  "When you get a chance, your renewal was sent.",
+  "If that matches, we'll deliver it Friday.",
+  "If those details match, your renewal was sent.",
+  // Filler is not a negation, and an approval condition never backs a day or a booking (re-review).
+  "Don't worry it's booked.",
+  "No worries I've sent the renewal request.",
+  "No problem it's booked for delivery.",
+  "Once it's approved we'll deliver it Friday.",
+  "Never fear I've sent the renewal request.",
+  "No doubt it's booked.",
+  "Not a problem it's booked.",
+  "No need to worry it's booked.",
+  "Nothing to worry about it's booked.",
+  "Not to worry I've sent the renewal request.",
+  // No button backs a ready day yet (Role 1's ready_label request), so these wait for it.
+  "It'll be ready Thursday once it's approved.",
+  "Once it's approved, we can deliver it Thursday.",
+];
+
+const HONEST_OTHER = [
+  "It's not sent yet.",
+  "It's not booked yet.",
+  "I haven't booked a delivery yet.",
+  "We can't deliver it Friday.",
+  "I haven't sent the renewal request yet.",
+  "It hasn't been sent yet.",
+  "Once it's booked for Friday, I'll text you.",
+  "We haven't booked a delivery yet.",
+  "Your renewal hasn't been sent yet.",
+  "I can't deliver it Friday.",
+  "Your refill was sent to the pharmacist.",
+];
+
+describe("S4: days, bookings, sent and prices are checked clause by clause", () => {
+  it.each(FALSE_OTHER_PROMISES)("blocks: %s", async (sentence) => {
+    expect(await guard(callId, sentence)).toMatchObject({ blocked: true, rule: "S4" });
+  });
+
+  it.each(HONEST_OTHER)("allows: %s", async (sentence) => {
+    expect((await guard(callId, sentence)).blocked).toBe(false);
+  });
+});

@@ -13,7 +13,6 @@ import { mentions, tokensFor, words, type Token } from "./tokens";
 export const S4_REPLACEMENT = "A pharmacist will check it first, and I'll confirm once it's approved.";
 const REPLACEMENT: Record<SpeechRule, string> = { ...GUARD_REPLACEMENTS, S4: S4_REPLACEMENT };
 
-const CONDITIONAL = /\b(once|after|if|when|until|as soon as|pending|waiting|needs to|need to|will need|pharmacist will|not|isnt|hasnt|havent|wont|cant|cannot)\b/;
 const COMPLETION =
   /\b(approved|ready|sorted|on its way|on the way|delivered|filled|signed off|confirmed|complete|completed|done|all set|good to go|processed|shipped|sent out|went out|dispatched|picked up|cleared|okayed|okd)\b/;
 // The only completion words that aren't promises: they're about the caller, the past, an identity
@@ -114,7 +113,7 @@ export function isCompletionPromise(sentence: string): boolean {
 
 // Clauses split on punctuation and on and/but/so, so "Approved! You don't need to call back."
 // is two clauses and the "need to" in the second can't excuse the first.
-const CLAUSE_BREAK = /[,;:.!?]+|\b(?:and|but|so)\b/i;
+const CLAUSE_BREAK = /[,;:!?]+|\.(?!\d)|\b(?:and|but|so)\b/i;
 const COMPLETION_ALL = new RegExp(COMPLETION.source, "g");
 
 // The only forms that excuse a completion word (Trail #27 re-reviews); everything else blocks.
@@ -138,6 +137,22 @@ const GOVERNED_LEAD = new RegExp(`^ ${NOT_BEFORE}`);
 const NEGATION = "(?:no|not|nothing|never|nobody|none|isnt|hasnt|havent|wont|cant|cannot|arent|wasnt|werent|dont|doesnt)";
 const NEGATED_BEFORE = new RegExp(`\\b(?:not|isnt|hasnt|havent|wont|cant|cannot|arent|wasnt|werent|never) (?:yet )?(?:be |been )?$`);
 const ANY_NEGATION = new RegExp(`\\b${NEGATION}\\b`);
+// "once it's booked for Friday": a booking that hasn't happened yet, said as the condition.
+const BOOKING_CONDITION = /\b(?:once|after|when|if|as soon as) (?:its|it is|it s|its been|your \w+ is|your \w+ s|we ve|weve) (?:booked|scheduled)\b/;
+// "If those details match, I've sent a code to the phone on file.": the code goes out only on a match.
+const MATCH_CONDITION_LEAD = /^ (?:if|once|when) (?:those |the |your |all )?(?:details|that|everything|it|they) (?:match|matches|checks out|check out)\b/;
+
+// Only a negation that governs the word's own verb phrase excuses it: "haven't booked",
+// "not sent yet", "hasn't been sent", "can't deliver it Friday". Filler such as "No doubt",
+// "Never fear" or "Don't worry" never does, and no/never/nothing/none never count.
+const NEG_AUX = "(?:not|havent|hasnt|cant|cannot|wont|isnt|arent|didnt|wasnt|werent|dont|doesnt)";
+const NEGATED_VERB = new RegExp(`\\b${NEG_AUX}(?: yet)?(?: be| been| have| be able to)? $`);
+const NEGATED_DAY = /\b(?:cant|cannot|wont|dont|not) \w+(?: it| them)? $/;
+
+/** A negation governing the word at `at`: a verb ("haven't booked") or a day ("can't deliver it Friday"). */
+function negatedNear(w: string, at: number, day = false): boolean {
+  return (day ? NEGATED_DAY : NEGATED_VERB).test(w.slice(0, at));
+}
 const MODAL_BEFORE = /\b(?:will|can|should|would|could|itll|itd) be $/;
 
 /** True when a completion word in this clause is said as done, with no governed condition or negation. */
@@ -190,47 +205,60 @@ export function unexcusedCompletion(sentence: string, drugNames: string[] = []):
 }
 
 function checkS4(sentence: string, record: RecordEntry[], bookedLabels: string[], drugNames: string[] = []): Check {
-  const w = words(sentence);
   const results = record.filter((e) => e.kind === "button").map((e) => ({ e, r: resultOf(e) }));
   const approved = record.some((e) => e.kind === "approval" && (e.output as { status?: string })?.status === "approved");
 
-  // Before the conditional shortcut below, so a conditional elsewhere can't excuse a completion.
   if (unexcusedCompletion(sentence, drugNames) && !approved) return { rule: "S4", why: "completion without approval" };
-  if (CONDITIONAL.test(w)) return null;
-
-  if (BOOKING.test(w)) {
-    const booked = results.some(({ e, r }) => e.button === "set_delivery" && r?.ok && (r.output as { ok?: boolean }).ok);
-    if (!booked) return { rule: "S4", why: "booking without set_delivery" };
-  }
-
-  for (const day of w.match(DAYS) ?? []) {
-    if (!bookedLabels.some((l) => l.toLowerCase().includes(day))) return { rule: "S4", why: `day ${day} not booked or a run-out day` };
-  }
-
-  if (SENT.test(w)) {
-    // The promise must match its own button: a sent code doesn't back "renewal requested".
-    const succeeded = (e: RecordEntry, r: ReturnType<typeof resultOf>): string | null => {
-      if (!r?.ok) return null;
-      const out = r.output as { state?: string };
-      if (e.button === "send_code" || e.button === "lookup_patient") return internalOf(e)?.codeSent ? "code" : null;
-      if (e.button === "request_renewal") return out.state === "requested" ? "renewal" : null;
-      if (e.button === "request_refill") return out.state === "queued" || out.state === "waiting_for_pharmacist" ? "refill" : null;
-      if (e.button === "note_for_pharmacist" || e.button === "escalate") return "note";
-      return null;
-    };
-    const done = new Set(results.map(({ e, r }) => succeeded(e, r)).filter((x): x is string => x !== null));
-    const about = ["renewal", "refill", "code"].filter((k) => w.includes(` ${k} `));
-    const needs = about.length > 0 ? about : ["any"];
-    const ok = needs.every((k) => (k === "any" ? done.size > 0 : done.has(k)));
-    if (!ok) return { rule: "S4", why: `sent without a successful ${needs.join(" and ")}` };
-  }
-
+  const succeeded = (e: RecordEntry, r: ReturnType<typeof resultOf>): string | null => {
+    if (!r?.ok) return null;
+    const out = r.output as { state?: string };
+    if (e.button === "send_code" || e.button === "lookup_patient") return internalOf(e)?.codeSent ? "code" : null;
+    if (e.button === "request_renewal") return out.state === "requested" ? "renewal" : null;
+    if (e.button === "request_refill") return out.state === "queued" || out.state === "waiting_for_pharmacist" ? "refill" : null;
+    if (e.button === "note_for_pharmacist" || e.button === "escalate") return "note";
+    return null;
+  };
+  const done = new Set(results.map(({ e, r }) => succeeded(e, r)).filter((x): x is string => x !== null));
+  const booked = results.some(({ e, r }) => e.button === "set_delivery" && r?.ok && (r.output as { ok?: boolean }).ok);
   const prices = results
     .filter(({ e, r }) => e.button === "check_coverage" && r?.ok)
     .flatMap(({ r }) => Object.values((r as { output: Record<string, string> }).output));
   const norm = (p: string) => Number(p.replace(/[^\d.]/g, "")).toFixed(2);
-  for (const price of sentence.match(PRICE) ?? []) {
-    if (!prices.some((p) => norm(p) === norm(price))) return { rule: "S4", why: `price ${price} not from check_coverage` };
+
+  // Clause by clause (Trail #27): a filler condition ("If you like, ...") never switches these
+  // off. A clause is excused only by a booking said as the condition, or a negation that governs
+  // the word ("haven't booked", "can't deliver it Friday"). Prices never are.
+  let ledByMatch = false;
+  for (const raw of sentence.split(CLAUSE_BREAK)) {
+    const cw = words(raw);
+    // Only a booking said as the condition ("once it's booked for Friday") excuses its own clause.
+    // An approval condition never backs a day or a booking: those need set_delivery or a run-out day.
+    const excused = BOOKING_CONDITION.test(cw);
+    const codeAfterMatch = ledByMatch;
+    ledByMatch = MATCH_CONDITION_LEAD.test(cw);
+
+    for (const price of raw.match(PRICE) ?? []) {
+      if (!prices.some((p) => norm(p) === norm(price))) return { rule: "S4", why: `price ${price} not from check_coverage` };
+    }
+    if (excused) continue;
+
+    const m = cw.match(BOOKING);
+    if (m && !negatedNear(cw, m.index ?? 0) && !booked) return { rule: "S4", why: "booking without set_delivery" };
+
+    for (const d of cw.matchAll(DAYS)) {
+      if (negatedNear(cw, d.index, true)) continue;
+      if (!bookedLabels.some((l) => l.toLowerCase().includes(d[0]))) return { rule: "S4", why: `day ${d[0]} not booked or a run-out day` };
+    }
+
+    const sent = cw.match(SENT);
+    // "If those details match, I've sent a code": only a code, only after a matching condition.
+    const codeOnly = codeAfterMatch && / code /.test(cw) && !/ (?:renewal|refill) /.test(cw);
+    if (sent && !negatedNear(cw, sent.index ?? 0) && !codeOnly) {
+      // The promise must match its own button: a sent code doesn't back "renewal requested".
+      const about = ["renewal", "refill", "code"].filter((k) => cw.includes(` ${k} `));
+      const needs = about.length > 0 ? about : ["any"];
+      if (!needs.every((k) => (k === "any" ? done.size > 0 : done.has(k)))) return { rule: "S4", why: `sent without a successful ${needs.join(" and ")}` };
+    }
   }
   return null;
 }
