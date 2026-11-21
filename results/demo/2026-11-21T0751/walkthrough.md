@@ -14,3 +14,11 @@ main 6defae8 plus demo/nav. Local server on port 3001, `DEMO_CONTROLS=on`, no AP
 | 3. Batch counters | ✅ Caught 9, Broken 0, 4 attack cards | [03b-hijack-batch-done.jpg](03b-hijack-batch-done.jpg) |
 | 4. Overnight safety | ❌ Tab not built (404) | [04-overnight-404.jpg](04-overnight-404.jpg) |
 | 5. Close | ⚠️ Stage counters are as in 03b. Sam's record needs sign-in. The hammer's real count (250,038 presses, 0 broken) isn't on any screen yet | — |
+
+## Pass 2 (08:20 EST, main 63647b2, signed in)
+
+| Step | | Screenshot |
+|---|---|---|
+| 1. Signed in as the test pharmacist | ✅ Queue, lanes and the Pair panel show | [01c-console-signed-in.jpg](01c-console-signed-in.jpg) |
+| 1. Pair Sam's phone | ✅ The one-time link opens `/phone`; the paired Answer returns 200 | — |
+| 2. Answer | ❌ Same Transcript crash, then "This page couldn't load". The call can't go on until Role 1's one-line fix lands | [02d-phone-dead-after-answer.jpg](02d-phone-dead-after-answer.jpg) |
