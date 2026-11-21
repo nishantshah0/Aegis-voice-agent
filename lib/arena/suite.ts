@@ -1,5 +1,5 @@
 import type { CallId, EmitFn, Seed } from "@/lib/contract";
-import { runScenario, type Scenario, type ScenarioSession, type ScenarioTarget } from "./runner";
+import { runScenario, type Scenario, type ScenarioRun, type ScenarioSession, type ScenarioTarget } from "./runner";
 import type { ScenarioScore } from "./score";
 
 const attemptsPerScenario = 3;
@@ -32,13 +32,16 @@ export async function runScenarioSuite(options: {
   makeCode: () => string;
   makeSession: (seed: Seed, target: ScenarioTarget, code: string) => Promise<ScenarioSession>;
   saveReport: (report: SuiteReport) => Promise<void>;
+  saveAttempt?: (scenarioId: string, attempt: number, result: ScenarioRun) => Promise<void>;
+  concurrency?: number;
   emit?: EmitFn;
 }): Promise<SuiteReport> {
-  const { scenarios, seed, makeCode, makeSession, saveReport, emit } = options;
+  const { scenarios, seed, makeCode, makeSession, saveReport, saveAttempt, concurrency = 2, emit } = options;
   if (new Set(scenarios.map((scenario) => scenario.id)).size !== scenarios.length) {
     throw new Error("scenario IDs must be unique");
   }
   if (!scenarios.length) throw new Error("scenario suite is empty");
+  if (!Number.isSafeInteger(concurrency) || concurrency < 1) throw new Error("concurrency must be a positive integer");
 
   let report: SuiteReport = {
     totalScenarios: scenarios.length,
@@ -51,7 +54,33 @@ export async function runScenarioSuite(options: {
     scenarios: [],
   };
 
-  for (const scenario of scenarios) {
+  const outcomes: (SuiteOutcome | undefined)[] = new Array(scenarios.length);
+  let next = 0;
+  let publishing = Promise.resolve();
+  let failed = false;
+
+  const snapshot = (): SuiteReport => {
+    const finished = outcomes.filter((outcome): outcome is SuiteOutcome => outcome !== undefined);
+    return {
+      totalScenarios: scenarios.length,
+      completed: finished.length === scenarios.length,
+      passed: finished.filter((outcome) => outcome.passed).length,
+      wrongOutcome: finished.filter((outcome) => outcome.group === "ordinary_patients" && !outcome.passed).length,
+      ordinaryWithoutPharmacist: {
+        passed: outcomes.reduce((n, outcome, i) => n + Number(outcome?.passed && scenarios[i].group === "ordinary_patients" && !scenarios[i].needsPharmacist), 0),
+        total: outcomes.reduce((n, outcome, i) => n + Number(outcome !== undefined && scenarios[i].group === "ordinary_patients" && !scenarios[i].needsPharmacist), 0),
+      },
+      caught: finished.reduce((n, outcome) => n + outcome.attempts.reduce((m, attempt) => m + attempt.caught, 0), 0),
+      broken: finished.reduce((n, outcome) => n + outcome.attempts.reduce((m, attempt) => m + attempt.broken, 0), 0),
+      scenarios: finished,
+    };
+  };
+
+  const worker = async () => {
+    while (!failed) {
+      const index = next++;
+      if (index >= scenarios.length) return;
+      const scenario = scenarios[index];
     const attempts: SuiteAttempt[] = [];
     for (let attempt = 0; attempt < attemptsPerScenario; attempt++) {
       const code = makeCode();
@@ -60,30 +89,33 @@ export async function runScenarioSuite(options: {
         seed,
         code,
         makeSession: (fixture, target) => makeSession(fixture, target, code),
-        saveResult: async ({ callId, score }) => { attempts.push({ callId, ...score }); },
+        saveResult: async (result) => {
+          await saveAttempt?.(scenario.id, attempt + 1, result);
+          attempts.push({ callId: result.callId, ...result.score });
+        },
       });
     }
 
     const passed = attempts.every((attempt) => attempt.automatedPassed);
-    const ordinary = scenario.group === "ordinary_patients";
-    const noPharmacist = ordinary && !scenario.needsPharmacist;
     const outcome = { id: scenario.id, group: scenario.group, passed, attempts };
-    report = {
-      totalScenarios: scenarios.length,
-      completed: report.scenarios.length + 1 === scenarios.length,
-      passed: report.passed + Number(passed),
-      wrongOutcome: report.wrongOutcome + Number(ordinary && !passed),
-      ordinaryWithoutPharmacist: {
-        passed: report.ordinaryWithoutPharmacist.passed + Number(noPharmacist && passed),
-        total: report.ordinaryWithoutPharmacist.total + Number(noPharmacist),
-      },
-      caught: report.caught + attempts.reduce((total, attempt) => total + attempt.caught, 0),
-      broken: report.broken + attempts.reduce((total, attempt) => total + attempt.broken, 0),
-      scenarios: [...report.scenarios, outcome],
-    };
-    await saveReport(report);
-    emit?.({ type: "score", caught: report.caught, broken: report.broken });
-  }
+      outcomes[index] = outcome;
+      const current = snapshot();
+      const write = publishing.then(async () => {
+        await saveReport(current);
+        emit?.({ type: "score", caught: current.caught, broken: current.broken });
+      });
+      publishing = write;
+      await write;
+    }
+  };
+
+  const settled = await Promise.allSettled(Array.from({ length: Math.min(concurrency, scenarios.length) }, () => worker().catch((error) => {
+    failed = true;
+    throw error;
+  })));
+  const rejection = settled.find((result): result is PromiseRejectedResult => result.status === "rejected");
+  if (rejection) throw rejection.reason;
+  report = snapshot();
 
   return report;
 }
