@@ -148,3 +148,24 @@ describe("Sam's call on the real lock", () => {
     expect(postgres.map((e) => e.hash)).toEqual(memory.map((e) => e.hash));
   });
 });
+
+describe("creating a Postgres store (Trail #33)", () => {
+  it("doesn't touch the database until the store is used", async () => {
+    let calls = 0;
+    const db = {
+      query: async () => {
+        calls++;
+        return { rows: [{ n: 1 }] };
+      },
+      transaction: async <T>(fn: (q: never) => Promise<T>) => {
+        calls++;
+        return fn((async () => ({ rows: [] })) as never);
+      },
+    };
+    const store = createPostgresStore(db as never, SEED);
+    await new Promise((r) => setTimeout(r, 10));
+    expect(calls).toBe(0);
+    await store.listCards().catch(() => {});
+    expect(calls).toBeGreaterThan(0);
+  });
+});
