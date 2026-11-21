@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { resetBusForTests, subscribe } from "@/lib/events/bus";
 import type { Delivered } from "@/lib/events/types";
 import type { CallSayResponse, CallStartResponse, ClockResponse } from "@/lib/contract";
@@ -8,6 +8,12 @@ import { POST as startCall } from "./call/start/route";
 import { POST as say } from "./call/[id]/say/route";
 import { POST as decide } from "./queue/[id]/decide/route";
 import { POST as reset } from "./demo/reset/route";
+
+// connection() only works inside a real Next request; outside one it throws.
+vi.mock("next/server", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/server")>()),
+  connection: async () => {},
+}));
 
 afterEach(() => {
   resetBusForTests();
