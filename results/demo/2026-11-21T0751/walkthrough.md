@@ -15,7 +15,7 @@ main 6defae8 plus demo/nav. Local server on port 3001, `DEMO_CONTROLS=on`, no AP
 | 4. Overnight safety | ❌ Tab not built (404) | [04-overnight-404.jpg](04-overnight-404.jpg) |
 | 5. Close | ⚠️ Stage counters are as in 03b. Sam's record needs sign-in. The hammer's real count (250,038 presses, 0 broken) isn't on any screen yet | — |
 
-## Pass 2 (08:20 EST, main 63647b2, signed in)
+## Pass 2 (08:00 EST, main 63647b2, signed in)
 
 | Step | | Screenshot |
 |---|---|---|

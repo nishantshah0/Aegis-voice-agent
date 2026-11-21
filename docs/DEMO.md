@@ -7,7 +7,7 @@ Legend: ✅ works · ⚠️ works with a fallback · ❌ broken (owner fixing it
 ## Last pass
 
 - `main` commit: 63647b2 (pass 2). Pass 1 was 6defae8
-- When: pass 2 at about 08:20 EST, signed in as the test pharmacist. Pass 1 at about 07:50. Screenshots: `results/demo/2026-11-21T0751/walkthrough.md`
+- When: pass 2 at about 08:00 EST, signed in as the test pharmacist. Pass 1 at about 07:50. Screenshots: `results/demo/2026-11-21T0751/walkthrough.md`
 - How: `npm run dev -p 3001` with `DEMO_CONTROLS=on`, typed box, no `ANTHROPIC_API_KEY`, so the fake driver
 - Clean passes in a row: **0 of 3**
 
