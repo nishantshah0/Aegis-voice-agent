@@ -6,6 +6,7 @@
 //   tools: []                 no built-in tools (no Bash, Read, Write, Web, ...)
 //   allowedTools              only mcp__buttons__<button>
 //   permissionMode "dontAsk"  anything not allowed is denied, never asked
+//   strictMcpConfig, no plugins or skills: no other MCP server's tools reach the agent
 //   settingSources: []        no CLAUDE.md, settings or hooks from disk
 //   persistSession: false     nothing written to ~/.claude/projects
 // Live only with LIVE_AGENT=1: tests, the hammer, CI and scenario runs never
@@ -61,6 +62,39 @@ function inbox() {
   };
 }
 
+/** One model call per message id: the SDK streams each content block as its own assistant message. */
+export function createCallCounter() {
+  const ids = new Set<string>();
+  const count = (id: string) => {
+    ids.add(id);
+    return ids.size;
+  };
+  count.total = () => ids.size;
+  return count;
+}
+
+/** The session's options: the 12 buttons and nothing else (see the header). */
+export function sessionOptions(opts: { system: string; tools: ButtonTool[]; model: string; maxTurns: number }, server: unknown) {
+  return {
+    systemPrompt: opts.system,
+    model: opts.model,
+    effort: "low" as const,
+    tools: [] as string[],
+    allowedTools: opts.tools.map((t) => `mcp__buttons__${t.name}`),
+    mcpServers: { buttons: server },
+    // Only our server: no MCP servers from user settings, .mcp.json or plugins reach the agent.
+    strictMcpConfig: true,
+    plugins: [] as never[],
+    skills: [] as string[],
+    permissionMode: "dontAsk" as const,
+    settingSources: [] as never[],
+    persistSession: false,
+    includePartialMessages: true,
+    // A ceiling for the whole call; the per-line limit of opts.maxTurns is enforced in send().
+    maxTurns: opts.maxTurns * 25,
+  };
+}
+
 export function startAgentSdkSession(opts: { system: string; tools: ButtonTool[]; model: string; maxTurns: number }): SdkSession {
   if (process.env.LIVE_AGENT !== "1") {
     throw new Error("Live agent calls are off. Set LIVE_AGENT=1 to run the Claude Agent SDK, which uses this machine's Claude plan.");
@@ -80,23 +114,7 @@ export function startAgentSdkSession(opts: { system: string; tools: ButtonTool[]
         });
       }),
     });
-    return sdk.query({
-      prompt: input.messages() as never,
-      options: {
-        systemPrompt: opts.system,
-        model: opts.model,
-        effort: "low",
-        tools: [],
-        allowedTools: opts.tools.map((t) => `mcp__buttons__${t.name}`),
-        mcpServers: { buttons: server },
-        permissionMode: "dontAsk",
-        settingSources: [],
-        persistSession: false,
-        includePartialMessages: true,
-        // A ceiling for the whole call; the per-line limit of opts.maxTurns is enforced below.
-        maxTurns: opts.maxTurns * 25,
-      },
-    });
+    return sdk.query({ prompt: input.messages() as never, options: sessionOptions(opts, server) as never });
   })();
 
   let reader: AsyncIterator<unknown> | undefined;
@@ -107,7 +125,7 @@ export function startAgentSdkSession(opts: { system: string; tools: ButtonTool[]
       const query = await started;
       reader ??= (query as AsyncIterable<unknown>)[Symbol.asyncIterator]();
       input.push({ type: "user", message: { role: "user", content: text }, parent_tool_use_id: null, session_id: "" });
-      let modelCalls = 0;
+      const counter = createCallCounter();
       while (true) {
         const next = await reader.next();
         if (next.done) throw new Error("The Agent SDK session ended.");
@@ -116,12 +134,13 @@ export function startAgentSdkSession(opts: { system: string; tools: ButtonTool[]
           const e = msg.event as { type: string; delta?: { type: string; text?: string } };
           if (e.type === "content_block_delta" && e.delta?.type === "text_delta" && e.delta.text) yield { type: "text", text: e.delta.text };
         } else if (msg.type === "assistant" && msg.parent_tool_use_id === null) {
-          modelCalls++;
-          if (modelCalls > opts.maxTurns) {
+          const id = String((msg.message as { id?: unknown })?.id ?? msg.uuid);
+          if (counter(id) > opts.maxTurns) {
             await query.interrupt();
             throw new Error(`The Agent SDK used more than ${opts.maxTurns} model calls for one caller line.`);
           }
         } else if (msg.type === "result") {
+          const modelCalls = counter.total();
           const total = typeof msg.num_turns === "number" ? msg.num_turns : callsSoFar + modelCalls;
           const thisTurn = Math.max(modelCalls, total - callsSoFar);
           callsSoFar = total;

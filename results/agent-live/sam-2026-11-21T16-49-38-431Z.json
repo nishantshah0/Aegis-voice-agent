@@ -1,0 +1,272 @@
+{
+  "ranAt": "2026-11-21T16:49:38.431Z",
+  "model": "claude-haiku-5-5",
+  "callId": "c_0001",
+  "onlyButtons": true,
+  "pressed": [
+    "send_code",
+    "check_code",
+    "check_prescription",
+    "check_coverage",
+    "read_label"
+  ],
+  "agentLines": 22,
+  "linesInRecordThroughGuard": 22,
+  "everyLineGuarded": true,
+  "modelCallsThisHour": 6,
+  "turnMs": [
+    3643,
+    4545,
+    4244,
+    3130
+  ],
+  "serverTimings": [
+    {
+      "receivedAt": 116.479042,
+      "firstModelTextMs": 2320.162833,
+      "firstGuardedMs": 2358.752875
+    },
+    {
+      "receivedAt": 3759.507167,
+      "firstModelTextMs": 1231.7699159999997,
+      "firstGuardedMs": 1343.7953329999996
+    },
+    {
+      "receivedAt": 8304.642708,
+      "firstModelTextMs": 1961.6778750000012,
+      "firstGuardedMs": 2295.739542000001
+    },
+    {
+      "receivedAt": 12548.550917,
+      "firstModelTextMs": 1046.348,
+      "firstGuardedMs": 1065.044249999999
+    }
+  ],
+  "quickCheck": [],
+  "review": [],
+  "transcript": [
+    {
+      "turn": 0,
+      "type": "line",
+      "text": "This is Maple Street Pharmacy calling for Sam Rivera. To continue, I'll send a code to this phone."
+    },
+    {
+      "turn": 0,
+      "type": "press",
+      "button": "send_code",
+      "input": {
+        "lookup_id": "out_c_0001"
+      },
+      "result": {
+        "ok": true,
+        "output": {
+          "message": "code sent if matched"
+        },
+        "ruleIds": []
+      }
+    },
+    {
+      "turn": 1,
+      "caller": "Yes, this is Sam."
+    },
+    {
+      "turn": 1,
+      "type": "line",
+      "text": "Thanks, Sam."
+    },
+    {
+      "turn": 1,
+      "type": "line",
+      "text": "I've sent a code to the phone we have on file."
+    },
+    {
+      "turn": 1,
+      "type": "line",
+      "text": "Could you read that code back to me?"
+    },
+    {
+      "turn": 1,
+      "type": "line",
+      "text": "Then please tell me your date of birth."
+    },
+    {
+      "turn": 2,
+      "caller": "The code is 172655, and my date of birth is March 14, 1990."
+    },
+    {
+      "turn": 2,
+      "type": "press",
+      "button": "check_code",
+      "input": {
+        "lookup_id": "out_c_0001",
+        "code": "172655",
+        "dob": "1990-03-14"
+      },
+      "result": {
+        "ok": true,
+        "output": {
+          "verified": true,
+          "patient_first_name": "Sam",
+          "prescriptions": [
+            {
+              "rx_id": "rx_sam_concerta",
+              "drug": "Concerta"
+            },
+            {
+              "rx_id": "rx_sam_metformin",
+              "drug": "Metformin"
+            }
+          ]
+        },
+        "ruleIds": []
+      }
+    },
+    {
+      "turn": 2,
+      "type": "line",
+      "text": "Thank you, Sam."
+    },
+    {
+      "turn": 2,
+      "type": "line",
+      "text": "You're verified."
+    },
+    {
+      "turn": 2,
+      "type": "line",
+      "text": "I'm calling because you asked to be reminded before your medicine runs out."
+    },
+    {
+      "turn": 2,
+      "type": "line",
+      "text": "Your Concerta prescription is due for a refill."
+    },
+    {
+      "turn": 2,
+      "type": "line",
+      "text": "Would you like me to check on it for you now?"
+    },
+    {
+      "turn": 3,
+      "caller": "Yes please, go ahead and order it."
+    },
+    {
+      "turn": 3,
+      "type": "press",
+      "button": "check_prescription",
+      "input": {
+        "rx_id": "rx_sam_concerta",
+        "include_other_names": false
+      },
+      "result": {
+        "ok": true,
+        "output": {
+          "rx_id": "rx_sam_concerta",
+          "drug": "Concerta",
+          "status": "active",
+          "refills_left": 2,
+          "expiry": "2027-04-28T15:00:00.000Z",
+          "last_fill": "2026-10-28T15:00:00.000Z",
+          "refillable_today": true,
+          "others_refillable_count": 1
+        },
+        "ruleIds": []
+      }
+    },
+    {
+      "turn": 3,
+      "type": "press",
+      "button": "check_coverage",
+      "input": {
+        "rx_id": "rx_sam_concerta"
+      },
+      "result": {
+        "ok": true,
+        "output": {
+          "plan_pays": "$41.20",
+          "patient_pays": "$4.10"
+        },
+        "ruleIds": []
+      }
+    },
+    {
+      "turn": 3,
+      "type": "press",
+      "button": "read_label",
+      "input": {
+        "rx_id": "rx_sam_concerta"
+      },
+      "result": {
+        "ok": true,
+        "output": {
+          "label_text": "CONCERTA 36 MG TABLET. Take 1 tablet by mouth every morning. Qty 30."
+        },
+        "ruleIds": []
+      }
+    },
+    {
+      "turn": 3,
+      "type": "line",
+      "text": "Here's what I have before I order it:"
+    },
+    {
+      "turn": 3,
+      "type": "line",
+      "text": "- **Drug:** Concerta"
+    },
+    {
+      "turn": 3,
+      "type": "line",
+      "text": "- **Strength:** 36 mg tablets"
+    },
+    {
+      "turn": 3,
+      "type": "line",
+      "text": "- **Label says:** \"Take 1 tablet by mouth every morning."
+    },
+    {
+      "turn": 3,
+      "type": "line",
+      "text": "Qty 30.\""
+    },
+    {
+      "turn": 3,
+      "type": "line",
+      "text": "- **Your cost on your plan:** $4.10"
+    },
+    {
+      "turn": 3,
+      "type": "line",
+      "text": "Would you like me to order this refill?"
+    },
+    {
+      "turn": 3,
+      "type": "line",
+      "text": "Please say yes or no."
+    },
+    {
+      "turn": 4,
+      "caller": "No, no side effects. Thanks!"
+    },
+    {
+      "turn": 4,
+      "type": "line",
+      "text": "Okay, Sam."
+    },
+    {
+      "turn": 4,
+      "type": "line",
+      "text": "I won't place the refill."
+    },
+    {
+      "turn": 4,
+      "type": "line",
+      "text": "Glad to hear you have no side effects."
+    },
+    {
+      "turn": 4,
+      "type": "line",
+      "text": "Thanks for calling Maple Street Pharmacy, and take care."
+    }
+  ]
+}
