@@ -93,9 +93,17 @@ export function createAgentSdkModel({ startSession = startRealSession, model = p
       call.seen = request.messages.length;
 
       let final: Extract<SdkTurnEvent, { type: "result" }> | undefined;
-      for await (const event of call.session.send(text)) {
-        if (event.type === "text") yield { type: "text", text: event.text };
-        else final = event;
+      try {
+        for await (const event of call.session.send(text)) {
+          if (event.type === "text") yield { type: "text", text: event.text };
+          else final = event;
+        }
+      } catch (error) {
+        // An interrupted or crashed session can't take the next line: drop it, and the next
+        // line starts a fresh session with the whole conversation so far.
+        call.session.close();
+        calls.delete(request.callId);
+        throw error;
       }
       if (!final) throw new Error("The Agent SDK turn ended without a result.");
       cap.record({ callId: request.callId, model, modelCalls: final.modelCalls, usage: final.usage, costUsd: final.costUsd, subtype: final.subtype });
