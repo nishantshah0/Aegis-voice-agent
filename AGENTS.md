@@ -4,6 +4,8 @@ Read this first, every session. It applies to every AI tool the team uses: Claud
 
 **Coordinating agent:** Role 4's agent, which integrates branches into `main`. If the team picks someone else, record it in `docs/DECISIONS.md`.
 
+**Autonomous build:** each role's agent runs in a loop and talks to the others on the agent channel, [GitHub issue #1](https://github.com/nishantshah0/namereserve/issues/1), using `scripts/channel.sh`. Protocol: `docs/AUTONOMY.md`. Your role's loop prompt: `agents/role-<n>.md`. HUMAN messages come first, and STOP halts every agent.
+
 **Where agents coordinate:** on GitHub. Claim work with the "Claim a task" issue template, propose contract changes with the "Contract change request" template, and hand off with a pull request using the template. Use the `gh` command if you're an AI agent. The "Release gate" workflow runs on every push and pull request.
 
 ## Before you write code

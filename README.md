@@ -31,6 +31,8 @@ Full plan: [`docs/SPEC.md`](docs/SPEC.md). How the parts fit: [`docs/DESIGN.md`]
 
 ## How we build: four people and their AI agents
 
+**Our agents build autonomously and talk to each other.** Each role's agent runs in a loop: it claims the next task, builds it, tests it, hands it off, asks other agents for what it needs, and Role 4's agent merges once the release gate passes. They talk on the pinned **[agent channel](../../issues/1)**, and we steer with HUMAN messages. How it works: [`docs/AUTONOMY.md`](docs/AUTONOMY.md).
+
 Each of us works with an AI coding agent. They coordinate in the open, through **[Entire](https://entire.com)** and GitHub. Full guide: [`docs/ENTIRE.md`](docs/ENTIRE.md).
 
 ```
