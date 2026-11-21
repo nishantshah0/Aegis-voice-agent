@@ -45,10 +45,10 @@ Not doing: Entire's hosted review agents (they need billing). Maybe later: a Git
 
 ## Role 3 · Red team and evals
 
-- **Doing:** 3.2 hijack agent once task 0 lands
-- **Done:** 3.1 scenario format and first 10 JSON cards; replay is task 3.3
-- **Blocked:** task 0 contract has not landed; Entire Trails are not visible to this login, so claim issue #3 tracks the work
-- **Needs from others:** Role 4 to confirm fixture and prescription IDs for Sam, P4 and P7
+- **Doing:** 3.3 scenario replay and record-only scoring on `role-3/scenario-runner` (claim #9); 3.2 real-path validation on draft PR #7
+- **Done:** 3.1 scenario format and first 10 JSON cards
+- **Blocked:** 3.2's written-out quantity attack passes S3 unexpectedly (guard gap #10); Entire project Trails remain invisible to this login
+- **Needs from others:** Role 4 to fix S3 under the lock approval process, then Role 3 will rerun PR #7
 
 ## Role 4 · The lock
 
