@@ -167,7 +167,7 @@ describe("scenario suite", () => {
         active++;
         peak = Math.max(peak, active);
         await new Promise((resolve) => setTimeout(resolve, active === 1 ? 15 : 1));
-        const session = await baseSession(seed, target, code);
+        const session = await baseSession(seed, target);
         active--;
         return session;
       },
