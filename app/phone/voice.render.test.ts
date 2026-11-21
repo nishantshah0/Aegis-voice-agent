@@ -41,3 +41,12 @@ describe("1.6: the median turn on the phone", () => {
     expect(renderToStaticMarkup(createElement(TurnTime, { medianMs: 1600 }))).toContain("text-amber-700");
   });
 });
+
+describe("1.8: tap to interrupt", () => {
+  it("shows a big interrupt button only while the pharmacy is speaking", async () => {
+    const { VoiceBar } = await import("./Phone");
+    const props = { on: true, mode: "open" as const, hearing: "", onToggle: noop, onMode: noop, onHoldDown: noop, onHoldUp: noop, onInterrupt: noop };
+    expect(renderToStaticMarkup(createElement(VoiceBar, { ...props, speaking: true }))).toContain("Tap to interrupt");
+    expect(renderToStaticMarkup(createElement(VoiceBar, { ...props, speaking: false }))).not.toContain("Tap to interrupt");
+  });
+});
