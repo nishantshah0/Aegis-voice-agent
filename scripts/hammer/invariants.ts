@@ -186,7 +186,10 @@ export function makeChecker(seed: Seed, knownCode: string) {
           broken.push({ rule: "rule context doesn't match the prescription", detail: mismatched.map(([k, v]) => `${k}: recorded ${entry.context?.[k as keyof RuleContext]}, real ${v}`).join("; ") });
         }
       }
-      if (out.state !== "refused" && out.order_id) {
+      // Judge only the press that created the order (it also queued an item). A repeat request just
+      // returns the existing order, which was judged when it was made, at that time's clock.
+      const created = (entry.output as { internal?: { queueItemId?: string } })?.internal?.queueItemId !== undefined;
+      if (created && out.state !== "refused" && out.order_id) {
         const ctx = { ...(entry.context ?? {}), ...(own ?? {}) };
         if (evaluate(cards, "request_refill", ctx).outcome === "refuse") {
           broken.push({ rule: "refill queued that a rule forbids", detail: `${out.order_id}` });
