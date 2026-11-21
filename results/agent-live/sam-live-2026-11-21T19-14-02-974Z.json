@@ -1,0 +1,127 @@
+{
+  "task": "1.2b live Sam outbound call",
+  "model": "claude-haiku-5-5 (SDK_DEV_MODEL)",
+  "via": "Claude Agent SDK on this machine's Claude Code login, no ANTHROPIC_API_KEY",
+  "at": "2026-11-21T19:14:02.975Z",
+  "callerLines": [
+    "Sure, the code is 112358.",
+    "My date of birth is March 14th, 1990.",
+    "Yes please, I'd like to refill my Concerta.",
+    "Yes, that's right. Please order it.",
+    "I've had some mild headaches in the afternoon.",
+    "No, that's everything. Thanks."
+  ],
+  "spoken": [
+    "This is Maple Street Pharmacy calling for Sam Rivera. To continue, I'll send a code to this phone.",
+    "Thank you.",
+    "Before I can check the code, I need to confirm your date of birth.",
+    "Could you tell me your date of birth, with the day, month and year?",
+    "A pharmacist will check it first, and I'll confirm once it's approved.",
+    "I'm calling because you asked us to ring you before your medication runs out.",
+    "I can look at your Concerta prescription and tell you how many refills are left and whether it can be refilled today.",
+    "Would you like me to do that?",
+    "Good news, your Concerta can be refilled today.",
+    "You have 2 refills left.",
+    "Here are the details before I order it.",
+    "The medicine is Concerta, 36 milligrams tablets.",
+    "Your plan pays $41.20, and you pay $4.10.",
+    "Shall I go ahead and request this refill?",
+    "Please say yes or no.",
+    "Your refill request has been sent.",
+    "A pharmacist will check it first, and I'll confirm once it's approved.",
+    "Your order number is o underscore c, zero, zero, zero, one, underscore, r x, underscore, s a m, underscore, concerta.",
+    "Is there anything else I can help you with today?",
+    "Since your last refill, have you noticed any side effects, or anything else?",
+    "Thanks, I've passed that to the pharmacist with your refill.",
+    "Since I can't give medical advice, the pharmacist is the right person to talk to about the headaches.",
+    "Is there anything else I can help you with today?",
+    "You're welcome, Sam.",
+    "Your refill is with the pharmacist, and they will look at it soon.",
+    "Take care, and goodbye."
+  ],
+  "blocked": [
+    {
+      "rule": "S4",
+      "original": "Thank you, that's confirmed."
+    },
+    {
+      "rule": "S4",
+      "original": "A pharmacist needs to check it before it is approved, so a person will look at it."
+    }
+  ],
+  "presses": [
+    {
+      "button": "send_code",
+      "input": {
+        "lookup_id": "out_c_0001"
+      },
+      "ok": true
+    },
+    {
+      "button": "check_code",
+      "input": {
+        "lookup_id": "out_c_0001",
+        "code": "112358",
+        "dob": "1990-03-14"
+      },
+      "ok": true
+    },
+    {
+      "button": "check_prescription",
+      "input": {
+        "rx_id": "rx_sam_concerta",
+        "include_other_names": false
+      },
+      "ok": true
+    },
+    {
+      "button": "check_coverage",
+      "input": {
+        "rx_id": "rx_sam_concerta"
+      },
+      "ok": true
+    },
+    {
+      "button": "read_label",
+      "input": {
+        "rx_id": "rx_sam_concerta"
+      },
+      "ok": true
+    },
+    {
+      "button": "request_refill",
+      "input": {
+        "rx_id": "rx_sam_concerta",
+        "reason": "Caller asked to be called before medication runs out and requested the refill."
+      },
+      "ok": true
+    },
+    {
+      "button": "read_label",
+      "input": {
+        "rx_id": "rx_sam_concerta"
+      },
+      "ok": true
+    },
+    {
+      "button": "note_for_pharmacist",
+      "input": {
+        "rx_id": "rx_sam_concerta",
+        "text": "Caller reports mild headaches in the afternoon. Start date not given.",
+        "kind": "side_effect"
+      },
+      "ok": true
+    }
+  ],
+  "guardRecord": {
+    "lineSpoken": 24,
+    "lineBlocked": 2
+  },
+  "lanes": {
+    "quickCheck": 0,
+    "review": 1
+  },
+  "turnTimings": [],
+  "recordEntries": 42,
+  "hashChainIntact": true
+}
