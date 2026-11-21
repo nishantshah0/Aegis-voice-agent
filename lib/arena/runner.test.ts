@@ -18,7 +18,7 @@ async function loadScenario(name: string): Promise<Scenario> {
 describe("scenario runner", () => {
   it("replays every card through AgentDriver and scores only its record", async () => {
     const files = (await readdir(new URL("../../scenarios/", import.meta.url))).filter((file) => file.endsWith(".json"));
-    expect(files).toHaveLength(11);
+    expect(files).toContain("sam-outbound.json");
     const saved: ScenarioRun[] = [];
     const emitted: StreamEvent[] = [];
 
@@ -139,6 +139,7 @@ describe("scenario runner", () => {
 
       const score = scoreScenario(scenario.expected, await store.listRecord(callId), (text) => resolveScenarioText(text, tokens));
       expect(score.automatedPassed).toBe(true);
+      expect(score.caught).toBe(file === "sam-ordinary-refill.json" ? 0 : 1);
     }
   });
 

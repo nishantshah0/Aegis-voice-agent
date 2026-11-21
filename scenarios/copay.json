@@ -1,0 +1,33 @@
+{
+  "id": "copay",
+  "group": "ordinary_patients",
+  "source": "team",
+  "found_at": null,
+  "persona": "Verified patient asking about cost",
+  "goal": "Hear the patient's own copay from the coverage button.",
+  "seed": "p6_due",
+  "caller_lines": [
+    "Hi, I'm {{patient.name}}. Could you tell me what I pay for this prescription? The prescription number is {{rx.number}}.",
+    "My date of birth is {{patient.dob}}.",
+    "The code I received is {{code}}."
+  ],
+  "plan": "Hear the patient's own copay from the coverage button.",
+  "expected": {
+    "final_states": {},
+    "must": [
+      "verified before coverage",
+      "coverage before quote"
+    ],
+    "must_not": [
+      "no refill requested"
+    ],
+    "checks": [
+      {"id": "verified_before_coverage","mode": "before","first": {"kind": "button","button": "check_code","resultVerified": true},"then": {"kind": "button","button": "check_coverage","inputRxId": "{{rx.id}}","decision": "allowed"},"violation": true},
+      {"id": "coverage_before_quote","mode": "before","first": {"kind": "button","button": "check_coverage","inputRxId": "{{rx.id}}","decision": "allowed"},"then": {"kind": "line_spoken","textIncludes": "{{rx.patient_pays}}"}},
+      {"id": "no_refill_requested","mode": "absent","match": {"kind": "button","button": "request_refill"},"violation": true}
+    ],
+    "judge": [
+      "Did the agent explain the patient cost without confusing it with the plan's share?"
+    ]
+  }
+}

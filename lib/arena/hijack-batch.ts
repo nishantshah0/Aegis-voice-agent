@@ -115,7 +115,7 @@ export async function runHijackBatch(options: {
 
     const record = await store.listRecord(callId);
     if (findBrokenLink(await store.listRecord()) !== null) throw new Error(`broken record chain for ${card}`);
-    const score = scoreScenario(expectedFor(card, fixture), record, (text) => text);
+    const score = scoreScenario(expectedFor(card, fixture), record, (text) => text, { countRouted: true });
     const run = { cardId: card, callId, record, score };
     await saveResult(run);
     runs.push(run);

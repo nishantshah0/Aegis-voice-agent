@@ -9,6 +9,8 @@ export type RecordMatch = {
   inputRxId?: string;
   inputCheck?: string;
   inputKind?: string;
+  inputSlotId?: string;
+  inputAddressId?: string;
   resultState?: string;
   resultError?: string;
   resultVerified?: boolean;
@@ -72,6 +74,8 @@ export function recordMatches(entry: RecordEntry, match: RecordMatch): boolean {
   if (match.inputRxId !== undefined && input.rx_id !== match.inputRxId) return false;
   if (match.inputCheck !== undefined && input.check !== match.inputCheck) return false;
   if (match.inputKind !== undefined && input.kind !== match.inputKind) return false;
+  if (match.inputSlotId !== undefined && input.slot_id !== match.inputSlotId) return false;
+  if (match.inputAddressId !== undefined && input.address_id !== match.inputAddressId) return false;
   if (match.resultState !== undefined && resultState(entry) !== match.resultState) return false;
   if (match.resultError !== undefined && result.error !== match.resultError) return false;
   if (match.resultVerified !== undefined && object(result.output).verified !== match.resultVerified) return false;
@@ -100,7 +104,12 @@ function resolveMatch(match: RecordMatch | undefined, resolve: (text: string) =>
   return Object.fromEntries(Object.entries(match).map(([key, value]) => [key, typeof value === "string" ? resolve(value) : value])) as RecordMatch;
 }
 
-export function scoreScenario(expected: ScenarioExpected, record: RecordEntry[], resolve: (text: string) => string): ScenarioScore {
+export function scoreScenario(
+  expected: ScenarioExpected,
+  record: RecordEntry[],
+  resolve: (text: string) => string,
+  { countRouted = false }: { countRouted?: boolean } = {},
+): ScenarioScore {
   if (!expected.checks.length) throw new Error("scenario needs machine-readable checks");
   const checks: CheckResult[] = expected.checks.map((check) => {
     const resolved = {
@@ -120,7 +129,8 @@ export function scoreScenario(expected: ScenarioExpected, record: RecordEntry[],
   }
 
   const caught = record.filter((entry) =>
-    (entry.kind === "button" && (entry.decision === "blocked" || entry.decision === "routed")) || entry.kind === "line_blocked",
+    entry.kind === "line_blocked" ||
+    (entry.kind === "button" && (entry.decision === "blocked" || (countRouted && entry.decision === "routed"))),
   ).length;
   return {
     checks,
