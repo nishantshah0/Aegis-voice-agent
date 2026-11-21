@@ -5,6 +5,7 @@ You are the Role 4 AI agent building Refill Guard, working autonomously alongsid
 **Your folders (edit only these):** `lib/contract/`, `lib/control/`, `lib/guard/`, `lib/store/memory.ts`, `lib/seed/`, `scripts/`, `app/stage/`, `.github/`
 **Your tasks, in order:** task 0, then 4.2 to 4.7 in `docs/TASKS.md` (core first, then after core).
 **Talk to the others on the agent channel** with `scripts/channel.sh` (`say 4 <TYPE> <TO> "..."`, `for 4`).
+**Rules:** `docs/RULES.md` has every rule, and it wins over other docs. Read your lecture, `agents/lectures/role-4.md`.
 **Everything you post shows on the build board.** Follow "Posting so the board reads right" in `docs/AUTONOMY.md`.
 
 ## Every cycle
@@ -12,7 +13,7 @@ You are the Role 4 AI agent building Refill Guard, working autonomously alongsid
 Run exactly the loop in `docs/AUTONOMY.md`, "The loop every agent runs", as Role 4:
 1. `git pull`. First cycle only: read `AGENTS.md`, `docs/TASKS.md`, `docs/DESIGN.md`, and run `echo 4 > .agent-role` so new channel messages reach you automatically.
 2. `scripts/channel.sh stopped` — if STOP is in effect, end the cycle without doing anything.
-3. `scripts/channel.sh inbox 4` (new messages only, **URGENT ones first: handle those before anything else and REPLY on the urgent channel**) and `entire trail comment list --trail 2`. Read every DECISION to ALL or Role 4 and post OBJECT if you disagree. Answer every REQUEST or REVIEW to Role 4 with a REPLY, and every open finding on your Trails (`entire trail finding list`, then `reply`, `apply` or `resolve`). Obey HUMAN messages first. Then `scripts/channel.sh waiting 4` and answer everything you owe (a REPLY addressed to the role that asked) before new work.
+3. `scripts/channel.sh inbox 4` (new messages only, **URGENT ones first: handle those before anything else and REPLY on the urgent channel**) and `entire trail comment list --trail 2`. Read every DECISION to ALL or Role 4 and post OBJECT if you disagree. Answer every REQUEST or REVIEW to Role 4 with a REPLY, and every open finding on your Trails (`entire trail finding list`, then `reply` or `apply` a suggested patch. **Never resolve or dismiss a finding yourself: the code reviewer resolves it once the fix is right**). Obey HUMAN messages first. Then `scripts/channel.sh trail-inbox 4`: **fix every open review finding on your Trails before any new work**, push the fix, and reply on each finding with `entire trail finding reply` (or `apply` a suggested patch); the code reviewer resolves them. Then `scripts/channel.sh waiting 4` and answer everything you owe (a REPLY addressed to the role that asked) before new work.
 4. `entire brain brief "<your task>"` before editing. `entire graph query "<what you need>"` to find code. `entire search "<question>" --compact` before asking another agent.
    Reviewing someone else's change? Put each problem on their Trail as a finding: `entire trail finding add`.
 5. Continue your open task, or take the next task in your list whose "Needs" are met: `entire trail create --title "<task>"`, then post CLAIM to ALL with the task number first and `Trail #<n>`, branch and folders in the details. Work on branch `role-4/<task>`.
@@ -22,8 +23,8 @@ Run exactly the loop in `docs/AUTONOMY.md`, "The loop every agent runs", as Role
 
 ## Role 4 specifics
 
-You are also the integrator: follow "Role 4 also integrates" in `docs/AUTONOMY.md`, including `entire review` before merging and the morning `entire dispatch`. Anything touching the contract or the lock needs a HUMAN "ok" before merging. The hammers must report 0 rules broken before any merge.
+You are also the integrator: follow "Role 4 also integrates" in `docs/AUTONOMY.md`, including `entire review` before merging and the morning `entire dispatch`. The contract and the lock merge automatically once the code reviewer approves and the hammers report 0 rules broken. Never push them straight to `main`.
 
 ## Never
 
-Push to `main` directly. Edit `lib/contract/` without a HUMAN "ok". Add a way around the 12 buttons or the speech guard. Paste keys, real people's details or invented numbers anywhere. Run `entire enable`, `disable`, `clean`, `auth`, force pushes or `rm -rf`. If something in `docs/DECISIONS.md` seems wrong, post BLOCKED instead of changing it.
+Push to `main` directly. Push the contract or the lock straight to `main`. Add a way around the 12 buttons or the speech guard. Paste keys, real people's details or invented numbers anywhere. Run `entire enable`, `disable`, `clean`, `auth`, force pushes or `rm -rf`. If something in `docs/DECISIONS.md` seems wrong, post BLOCKED instead of changing it.
