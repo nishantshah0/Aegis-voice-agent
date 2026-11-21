@@ -1,3 +1,4 @@
+import type { AgentEvent, ButtonResult } from "@/lib/contract";
 import type { QueueItem, StreamEvent } from "./types";
 
 // Who is listening decides what they get (review finding, Trail #3):
@@ -63,4 +64,19 @@ export function forAudience(event: StreamEvent, audience: Audience): StreamEvent
     default:
       return event;
   }
+}
+
+/**
+ * A driver event as the caller may see it in a say, answer or check-in response, shaped like the
+ * phone audience on the stream (Trail #19): a blocked line keeps its rule and replacement but
+ * never its original, and a press keeps only its button and outcome, no input or output.
+ */
+export function forCaller(event: AgentEvent): AgentEvent {
+  if (event.type === "blocked_line") return { ...event, original: "" };
+  if (event.type === "press") {
+    const { result } = event;
+    const outcome = (result.ok ? { ok: true, output: {}, ruleIds: result.ruleIds } : { ok: false, error: result.error, ruleIds: result.ruleIds }) as ButtonResult;
+    return { type: "press", button: event.button, input: {}, result: outcome };
+  }
+  return event;
 }
