@@ -30,9 +30,11 @@ The strongest Entire projects make Entire part of what they build. Ours does it 
    entire plugin install graph
    entire plugin install brain
    entire brain setup --no-backfill --no-daemon
+   entire brain connect
    ```
 5. Sign in, for Trails and shared Brain memories: `entire login`.
 6. **Start a new agent session.** Agents only load Entire's hooks when a session starts.
+7. **Check everything:** `scripts/entire-check.sh` prints a tick or a cross for each piece, and how to fix a cross.
 
 **Important:** if you use Claude Code, install Entire before opening a session in this repo. The committed hooks call `entire`, and they'll error if it isn't installed.
 
