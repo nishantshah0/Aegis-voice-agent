@@ -2,8 +2,10 @@
 
 import { useEffect, useReducer, useRef, useState, type FormEvent } from "react";
 import { listenToEvents } from "@/lib/events/client";
+import type { ListenerMode } from "@/lib/voice/listener";
 import { phoneApi } from "./api";
 import { RULE_LABEL, initialPhone, phoneReducer, type PhoneState, type TranscriptItem } from "./state";
+import { useVoice } from "./useVoice";
 
 // The patient's phone (task 1.4). Everything on screen comes from /api/events;
 // the buttons only start things on the server.
@@ -11,6 +13,23 @@ export function Phone() {
   const [state, dispatch] = useReducer(phoneReducer, undefined, initialPhone);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
+  const [voiceOn, setVoiceOn] = useState(false);
+  const [mode, setMode] = useState<ListenerMode>("open");
+
+  const say = (text: string) => {
+    if (state.callId) void run(() => phoneApi.say(state.callId!, text));
+  };
+  const voice = useVoice({
+    on: voiceOn && state.mode === "in_call",
+    mode,
+    callId: state.callId,
+    transcript: state.transcript,
+    onTurn: say,
+    onProblem: (text) => {
+      setVoiceOn(false);
+      dispatch({ type: "problem", text });
+    },
+  });
 
   useEffect(() => listenToEvents((event) => dispatch({ type: "event", event })), []);
 
@@ -61,7 +80,7 @@ export function Phone() {
     const text = draft.trim();
     if (!text || !state.callId) return;
     setDraft("");
-    run(() => phoneApi.say(state.callId!, text));
+    say(text);
   }
 
   return (
@@ -76,6 +95,16 @@ export function Phone() {
         ) : (
           <>
             <Transcript items={state.transcript} />
+            <VoiceBar
+              on={voiceOn}
+              mode={mode}
+              hearing={voice.hearing}
+              speaking={voice.speaking}
+              onToggle={() => setVoiceOn((v) => !v)}
+              onMode={setMode}
+              onHoldDown={voice.holdDown}
+              onHoldUp={voice.holdUp}
+            />
             <form onSubmit={send} className="flex gap-2 border-t border-neutral-200 p-3 dark:border-neutral-800">
               <label htmlFor="say" className="sr-only">
                 What you say
@@ -102,6 +131,52 @@ export function Phone() {
         <p role="alert" className="bg-amber-100 px-4 py-2 text-center text-sm text-amber-900">
           {state.problem}
         </p>
+      )}
+    </div>
+  );
+}
+
+type VoiceBarProps = {
+  on: boolean;
+  mode: ListenerMode;
+  hearing: string;
+  speaking: boolean;
+  onToggle: () => void;
+  onMode: (mode: ListenerMode) => void;
+  onHoldDown: () => void;
+  onHoldUp: () => void;
+};
+
+export function VoiceBar({ on, mode, hearing, speaking, onToggle, onMode, onHoldDown, onHoldUp }: VoiceBarProps) {
+  return (
+    <div className="border-t border-neutral-200 px-3 pt-2 text-sm dark:border-neutral-800">
+      <div className="flex items-center justify-between gap-2">
+        <button type="button" aria-pressed={on} onClick={onToggle} className={`rounded-full px-3 py-1 ${on ? "bg-green-600 text-white" : "border border-neutral-300 dark:border-neutral-700"}`}>
+          {on ? "Voice on" : "Use voice"}
+        </button>
+        {on && (
+          <label className="flex items-center gap-1 text-xs text-neutral-600 dark:text-neutral-400">
+            <input type="checkbox" checked={mode === "hold"} onChange={(e) => onMode(e.target.checked ? "hold" : "open")} />
+            Hold to talk
+          </label>
+        )}
+      </div>
+      {on && (
+        <p aria-live="polite" className="mt-1 min-h-5 text-xs text-neutral-500">
+          {speaking ? "Pharmacy speaking…" : hearing ? `Hearing: ${hearing}` : mode === "hold" ? "Hold the button and talk." : "Listening…"}
+        </p>
+      )}
+      {on && mode === "hold" && (
+        <button
+          type="button"
+          onPointerDown={onHoldDown}
+          onPointerUp={onHoldUp}
+          onPointerLeave={onHoldUp}
+          disabled={speaking}
+          className="mt-1 w-full select-none rounded-xl bg-blue-600 py-3 font-medium text-white disabled:opacity-40"
+        >
+          Hold to talk
+        </button>
       )}
     </div>
   );
