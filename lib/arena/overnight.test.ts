@@ -5,7 +5,6 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { AgentDriver, Seed } from "@/lib/contract";
 import { createControl } from "@/lib/control";
 import { createSafetyCheck, createSpeechGuard } from "@/lib/guard";
-import { SEED } from "@/lib/seed";
 import { createMemoryStore } from "@/lib/store/memory";
 import { readOvernight } from "@/app/console/overnight/results";
 import { watchStore } from "./live-session";
