@@ -71,6 +71,18 @@ If you don't have an Entire account yet, use the GitHub fallback: the "Claim a t
 
 ---
 
+## Trails on a personal repo: what teammates can and can't see
+
+Our repo belongs to a personal GitHub account, so Entire's project for it (`gh/nishantshah0`) has one member: the owner. Entire copies that from GitHub and won't take manual grants. We're not moving to a GitHub organization for a hackathon, so:
+
+| Teammates can | Teammates can't |
+|---|---|
+| Create Trails on their branches (`entire trail create`) | See the full Trails list on entire.com or with `entire trail list` |
+| Open any Trail by number: `entire trail show <n> --project gh/nishantshah0` | |
+| Add and answer findings, mark ready, get recorded | |
+
+**The team's Trail list is the channel:** every CLAIM and HANDOFF includes `Trail #<n>`, and `scripts/channel.sh trails` lists every Trail mentioned, newest first. `scripts/entire-check.sh` accepts "can open Trails" as a pass.
+
 ## Entire's hosted review agents: we don't use them
 
 The Agents page on entire.com offers hosted reviewers (Code review, Security review, Slop). They need paid billing, because free credits are paused for new accounts. **We don't add them.** Our reviews come from our own agents' findings, `entire review` on our machines, and the release gate. They aren't required for the prize.

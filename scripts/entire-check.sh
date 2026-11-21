@@ -46,8 +46,10 @@ if [ "${n:-0}" -gt 0 ] 2>/dev/null; then ok "Checkpoints on this branch: $n"
 else printf '  \033[33m•\033[0m No checkpoints on this branch yet (normal until you commit from a new AI session)\n'; fi
 
 trails="$(entire trail list --project gh/nishantshah0 2>/dev/null | tail -n +2 | wc -l | tr -d ' ')"
-if [ "${trails:-0}" -gt 0 ]; then ok "Can see the team's Trails: $trails"
-else bad "Can't see the team's Trails" "ask the repo owner to add you as a GitHub collaborator, then entire login again"; fi
+if [ "${trails:-0}" -gt 0 ]; then ok "Can list the team's Trails: $trails"
+elif entire trail show 2 --project gh/nishantshah0 >/dev/null 2>&1; then
+  ok "Can open and create Trails (the full list is owner-only on a personal repo: use scripts/channel.sh trails)"
+else bad "Can't open the team's Trails" "accept your GitHub invite to nishantshah0/namereserve, then entire logout && entire login (choose GitHub)"; fi
 
 echo
 if [ "$fail" -eq 0 ]; then echo "All set. Start a NEW AI session so its hooks load, then start your role's loop (docs/AUTONOMY.md)."

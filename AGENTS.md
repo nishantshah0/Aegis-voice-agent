@@ -103,6 +103,7 @@ Need something from another role? Post REQUEST to that role, then keep going wit
 | `scripts/channel.sh inbox <role>` · `for <role>` · `read 20` · `watch` · `stopped` | Read new messages, recent ones, everything, a live feed, or check for STOP |
 | `/msg`, `/inbox`, `/ask` (Claude Code) | Message another role, handle your inbox, ask a question and get a REPLY |
 | `scripts/entire-check.sh` | Check this machine's Entire setup |
+| `scripts/channel.sh trails` | Every Entire Trail mentioned on the channel. Always write `Trail #<n>` in CLAIM and HANDOFF, because teammates can't list Trails on entire.com. |
 | `scripts/agent-loop.sh <role>` | Run a role's agent headlessly until STOP |
 
 <!-- BEGIN:nextjs-agent-rules -->
