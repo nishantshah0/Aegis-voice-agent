@@ -6,7 +6,12 @@ import type { QueueItem, StreamEvent } from "./types";
 //   public (anyone else)    presses, scores, the clock, rings, statuses, redacted queue items
 // Nobody ever gets a verification code's digits, and only staff get a blocked line's original.
 
-export type Audience = { kind: "staff" } | { kind: "phone"; callId: string } | { kind: "public" };
+export type Audience =
+  | { kind: "staff" }
+  | { kind: "phone"; callId: string }
+  // A patient's paired phone before it answers: only rings for that patient (Trail #19).
+  | { kind: "device"; patientId: string; ringTarget: (callId: string) => string | undefined }
+  | { kind: "public" };
 
 const CODE_SENT = "A verification code was sent to your phone.";
 
@@ -33,6 +38,12 @@ export function forAudience(event: StreamEvent, audience: Audience): StreamEvent
   }
   if (audience.kind === "staff") return event;
 
+  if (audience.kind === "device") {
+    if (event.type === "clock") return event;
+    const ringsHere = event.type === "phone" && event.kind === "ring" && audience.ringTarget(event.callId) === audience.patientId;
+    return ringsHere ? event : null;
+  }
+
   if (audience.kind === "phone") {
     if (!("callId" in event) || event.callId !== audience.callId) return event.type === "clock" ? event : null;
     if (event.type === "press") return null;
@@ -46,6 +57,9 @@ export function forAudience(event: StreamEvent, audience: Audience): StreamEvent
       return { ...event, original: "" };
     case "queue":
       return { type: "queue", item: redactItem(event.item) };
+    case "phone":
+      // Rings are public but carry no call id: only the paired device can tell which call.
+      return event.kind === "ring" ? { ...event, callId: "" } : event;
     default:
       return event;
   }

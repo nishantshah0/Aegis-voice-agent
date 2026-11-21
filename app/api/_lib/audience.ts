@@ -1,6 +1,7 @@
 import { getApprover } from "@/lib/auth/session";
 import type { Audience } from "@/lib/events/audience";
 import { fail } from "./http";
+import { devicePatient, ringTarget } from "./devices";
 import { tokenMatches } from "./phone";
 
 /**
@@ -16,5 +17,7 @@ export async function resolveAudience(request: Request): Promise<Audience | Resp
   if (callId || token) {
     return callId && tokenMatches(callId, token) ? { kind: "phone", callId } : fail(403, "That token isn't for this call");
   }
+  const patientId = devicePatient(request);
+  if (patientId) return { kind: "device", patientId, ringTarget };
   return { kind: "public" };
 }
