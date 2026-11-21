@@ -146,6 +146,11 @@
   .loading { color: var(--faint); font-size: 12.5px; }
   section[data-tab] { display: none; }
   section[data-tab].on { display: block; }
+  .urgent-bar { background: color-mix(in srgb, var(--r3) 16%, var(--panel)); border: 1px solid var(--r3); border-radius: var(--radius); padding: 12px 16px; margin-bottom: 16px; }
+  .urgent-bar h2 { margin: 0 0 6px; font-size: 13px; color: var(--r3); letter-spacing: .06em; text-transform: uppercase; display: flex; gap: 8px; align-items: center; }
+  .urgent-bar .item { border-color: color-mix(in srgb, var(--r3) 35%, transparent); }
+  .pill.urgent { background: var(--r3); border-color: var(--r3); color: #fff; }
+  .msg.urgent { border-color: var(--r3); box-shadow: 0 0 0 1px color-mix(in srgb, var(--r3) 45%, transparent); }
   footer { color: var(--faint); font-size: 12px; text-align: center; margin-top: 30px; }
 </style>
 </head>
@@ -171,6 +176,7 @@
 
 <div class="wrap">
   <div id="err"></div>
+  <div id="urgent"></div>
   <div class="hero" id="hero"></div>
   <div class="flow" id="flow"></div>
 
@@ -299,6 +305,14 @@ function openItems() {
   return d.map((m, i) => [m, i]).filter(([m, i]) => ["REQUEST", "OBJECT", "BLOCKED"].includes(m.type) && !answered(m, i)).map(([m]) => m).reverse();
 }
 
+// ---------- Urgent channel ----------
+function renderUrgent() {
+  const open = new Set(openItems().filter((m) => m.urgent).map((m) => m.id));
+  const recent = S.msgs.filter((m) => m.urgent && !["REQUEST", "OBJECT", "BLOCKED", "REPLY"].includes(m.type) && Date.now() - new Date(m.t) < 2 * 3600e3);
+  const list = [...S.msgs.filter((m) => open.has(m.id)), ...recent].sort((a, b) => (a.t < b.t ? 1 : -1));
+  $("urgent").innerHTML = list.length ? '<div class="urgent-bar"><h2>⚠ Urgent channel · ' + list.length + ' open <span class="src" style="margin-left:auto;text-transform:none;letter-spacing:0">issue #' + esc(S.urgentIssue || "11") + '</span></h2>' + list.map(msgItem).join("") + "</div>" : "";
+}
+
 // ---------- Hero and flow ----------
 function renderHero() {
   const d = S.msgs, cs = S.commits?.commits || [], tr = S.trails?.trails || [];
@@ -379,7 +393,7 @@ function renderLife() {
   }).join("");
 }
 function msgItem(m) {
-  return '<div class="item" style="--c:' + color(m.from) + ";--tc:" + color(m.to) + '"><div class="meta"><span class="who">' + label(m.from) + '</span><span>→</span><span class="to">' + label(m.to) + '</span><span class="type ' + esc(m.type) + '">' + esc(m.type) + '</span><span class="time">' + ago(m.t) + "</span></div>" + inline(m.summary) + "</div>";
+  return '<div class="item" style="--c:' + color(m.from) + ";--tc:" + color(m.to) + '"><div class="meta"><span class="who">' + label(m.from) + '</span><span>→</span><span class="to">' + label(m.to) + '</span><span class="type ' + esc(m.type) + '">' + esc(m.type) + "</span>" + (m.urgent ? '<span class="pill urgent">URGENT</span>' : "") + '<span class="time">' + ago(m.t) + "</span></div>" + inline(m.summary) + "</div>";
 }
 function renderSide() {
   const w = openItems();
@@ -409,17 +423,18 @@ function renderMap() {
 // ---------- Channel ----------
 function renderTypes() {
   const present = new Set(S.msgs.map((m) => m.type));
-  $("types").innerHTML = '<button class="chip' + (S.types.size ? "" : " on") + '" data-type="">All</button>' + TYPES.filter((t) => present.has(t)).map((t) => '<button class="chip' + (S.types.has(t) ? " on" : "") + '" data-type="' + t + '">' + t + "</button>").join("");
+  $("types").innerHTML = '<button class="chip' + (S.types.size ? "" : " on") + '" data-type="">All</button>' +
+    (S.msgs.some((m) => m.urgent) ? '<button class="chip' + (S.types.has("URGENT") ? " on" : "") + '" data-type="URGENT" style="color:var(--r3)">URGENT</button>' : "") + TYPES.filter((t) => present.has(t)).map((t) => '<button class="chip' + (S.types.has(t) ? " on" : "") + '" data-type="' + t + '">' + t + "</button>").join("");
 }
 function renderFeed() {
   const q = S.q.toLowerCase();
-  const list = S.msgs.filter((m) => (!S.role || m.from === S.role || m.to === S.role) && (!S.types.size || S.types.has(m.type)) && (!q || m.body.toLowerCase().includes(q) || m.u.toLowerCase().includes(q))).slice().reverse();
+  const list = S.msgs.filter((m) => (!S.role || m.from === S.role || m.to === S.role) && (!S.types.size || S.types.has(m.type) || (S.types.has("URGENT") && m.urgent)) && (!q || m.body.toLowerCase().includes(q) || m.u.toLowerCase().includes(q))).slice().reverse();
   $("feed").innerHTML = list.length ? list.map((m) => {
     const fresh = !S.first && !S.seen.has(m.id);
     const long = m.details.length > 220 || m.details.split("\n").length > 3;
     const open = S.open.has(m.id);
     const tr = trailRefs(m.body).map((n) => '<a class="pill" href="#trails" data-goto="' + n + '">Trail #' + n + "</a>").join("");
-    return '<article class="msg' + (fresh ? " new" : "") + '" style="--c:' + color(m.from) + ";--tc:" + color(m.to) + '"><div class="meta"><span class="who">' + esc(label(m.from)) + '</span><span>→</span><span class="to">' + esc(label(m.to)) + '</span><span class="type ' + esc(m.type) + '">' + esc(m.type) + "</span>" + tr +
+    return '<article class="msg' + (fresh ? " new" : "") + (m.urgent ? " urgent" : "") + '" style="--c:' + color(m.from) + ";--tc:" + color(m.to) + '"><div class="meta"><span class="who">' + esc(label(m.from)) + '</span><span>→</span><span class="to">' + esc(label(m.to)) + '</span><span class="type ' + esc(m.type) + '">' + esc(m.type) + "</span>" + (m.urgent ? '<span class="pill urgent">URGENT</span>' : "") + tr +
       '<span class="time" title="' + esc(new Date(m.t).toLocaleString()) + '"><a href="' + esc(m.url) + '" target="_blank" rel="noopener noreferrer">' + clock(m.t) + " · " + ago(m.t) + "</a> · " + esc(m.u) + '</span></div><p class="summary">' + inline(m.summary) + "</p>" +
       (m.details ? '<div class="details' + (long && !open ? " clamp" : "") + '">' + inline(m.details) + "</div>" + (long ? '<button class="more" data-id="' + m.id + '">' + (open ? "Show less" : "Show more") + "</button>" : "") : "") + "</article>";
   }).join("") : '<p class="empty">No messages match.</p>';
@@ -508,7 +523,7 @@ function renderGraph() {
 
 // ---------- Load and render ----------
 function renderAll() {
-  renderHero(); renderRoles(); renderLife(); renderSide(); renderMap(); renderTypes(); renderFeed();
+  renderUrgent(); renderHero(); renderRoles(); renderLife(); renderSide(); renderMap(); renderTypes(); renderFeed();
   renderTrails(); renderPeople(); renderCommits(); renderBrain(); renderGraph();
   $("n-channel").textContent = S.msgs.length || "";
   $("n-trails").textContent = S.trails?.trails?.length || "";
@@ -524,7 +539,7 @@ async function getJson(path) {
 async function loadChannel() {
   try {
     const j = await getJson("/api/messages");
-    S.msgs = j.messages;
+    S.msgs = j.messages; S.urgentIssue = j.urgentIssue;
     const sg = j.messages.filter((m) => m.from === "HUMAN" && /^(STOP|GO)\b/.test(m.summary)).at(-1);
     const stopped = sg && /^STOP/.test(sg.summary);
     $("state").textContent = stopped ? "STOPPED" : "GO";

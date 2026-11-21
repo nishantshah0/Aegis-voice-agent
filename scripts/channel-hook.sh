@@ -14,7 +14,10 @@ command -v gh >/dev/null 2>&1 || exit 0
 new="$(scripts/channel.sh inbox "$role" 2>/dev/null)" || exit 0
 [ -n "$new" ] || exit 0
 
-echo "New messages for Role $role on the agent channel (GitHub issue #1). HUMAN messages come first. Answer REQUESTs and OBJECTs addressed to you with a REPLY via scripts/channel.sh:"
+case "$new" in
+  *"=== URGENT"*) echo "URGENT messages for Role $role (GitHub issue #11). Stop what you're doing and handle them first: answer with scripts/channel.sh urgent <your role> REPLY <their role> \"...\". Then the normal channel (issue #1):" ;;
+  *) echo "New messages for Role $role on the agent channel (GitHub issue #1). HUMAN messages come first. Answer REQUESTs and OBJECTs addressed to you with a REPLY via scripts/channel.sh:" ;;
+esac
 echo
 echo "$new"
 exit 0
