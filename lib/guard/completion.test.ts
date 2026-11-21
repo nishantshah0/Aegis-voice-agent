@@ -21,14 +21,13 @@ async function verifiedSam() {
 
 describe("S4: a completion word with no subject is still a promise", () => {
   it.each(BARE)("promise: %s", (s) => {
-    expect(isCompletionPromise(s, [])).toBe(true);
+    expect(isCompletionPromise(s)).toBe(true);
   });
 
   it.each(BARE)("blocked before an approval, allowed after one: %s", async (s) => {
     const { store, guard, callId } = await verifiedSam();
     const before = await guard(callId, s);
-    expect(before.blocked).toBe(true);
-    expect(before.rule).toBe("S4");
+    expect(before).toMatchObject({ blocked: true, rule: "S4" });
     await store.appendRecord({ callId, actor: "pharmacist", kind: "approval", output: { status: "approved" }, decision: "allowed" });
     expect((await guard(callId, s)).blocked).toBe(false);
   });
