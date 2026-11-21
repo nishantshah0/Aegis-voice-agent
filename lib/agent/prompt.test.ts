@@ -108,7 +108,12 @@ describe("the prompt sets the tone SPEC Part 2 asks for", () => {
     // natural one to say.
     expect(inbound).toMatch(/already happened/i);
     expect(inbound).toMatch(/once a button has come back saying so/i);
-    expect(inbound).toMatch(/a pharmacist will approve it, then it's ready/i);
+    // The wording the guard actually allows. This assertion used to demand
+    // "a pharmacist will approve it, then it's ready Thursday", which S4 blocks:
+    // prompt.guard.test.ts now checks every quoted example against the real guard
+    // so a blocked example can't be asserted into the prompt again.
+    expect(inbound).toMatch(/I'll confirm once it's approved/i);
+    expect(inbound).toMatch(/I don't have a ready time yet/i);
   });
 
   it("makes the buttons the only way it acts", () => {
