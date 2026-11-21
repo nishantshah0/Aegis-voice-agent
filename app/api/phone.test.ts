@@ -97,7 +97,7 @@ describe("GET /api/call/:id/code with the phone token", () => {
     expect(await (await callCode(req("GET", undefined, phoneToken), params(callId))).json()).toEqual({
       code: await getControl().codeFor(callId),
     });
-    expect((await callCode(req("GET", undefined, "wrong-token"), params(callId))).status).toBe(401);
+    expect((await callCode(req("GET", undefined, "wrong-token"), params(callId))).status).toBe(403);
   });
 });
 
