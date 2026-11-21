@@ -45,10 +45,9 @@ export type ControlOptions = {
   /** Makes the 6-digit code. Tests pass a fixed one; the default is random. */
   makeCode?: () => string;
   /**
-   * TRANSITIONAL. When true, the code's digits go out on the shared event stream (old
-   * behaviour). /api/events has no sign-in, so anyone watching it could read the code.
-   * Read it with control.codeFor(callId) instead. This default flips to false once
-   * Role 2's code reads codeFor, then the option goes away.
+   * Off by default (fails closed). When true, the code's digits go out on the shared event
+   * stream, which anyone watching could read. Read the code with control.codeFor(callId).
+   * Only a test that asks for the old text turns this on.
    */
   broadcastCodes?: boolean;
 };
@@ -64,7 +63,7 @@ type Handled = {
 
 const hashCode = (lookupId: string, code: string) => createHash("sha256").update(`${lookupId}:${code}`).digest("hex");
 
-export function createControl({ store, emit = () => {}, makeCode, broadcastCodes = true }: ControlOptions) {
+export function createControl({ store, emit = () => {}, makeCode, broadcastCodes = false }: ControlOptions) {
   const newCode = makeCode ?? (() => String(randomInt(0, 1_000_000)).padStart(6, "0"));
   // Codes in plain text live only here, in memory, never in the record or on the stream.
   const sentCodes = new Map<CallId, { code: string; hash: string }>();
@@ -175,8 +174,9 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
       .at(-1);
     const codeFresh = sent && isFresh(sent.at, now, CODE_VALID_MS);
     const codeRight = lookup?.patientId && codeFresh && internalOf(sent)?.codeHash === hashCode(input.lookup_id, input.code.trim());
-    // A date of birth, when given (outbound calls confirm it with the code), must match too.
-    let dobRight = true;
+    // An outbound call confirms the date of birth with the code (SPEC Part 2, outbound step 2):
+    // without one, or with a wrong one, it's a failed try. Inbound calls check a dob only when given.
+    let dobRight = current.direction !== "outbound";
     if (codeRight && input.dob !== undefined) {
       const p = await store.getPatient(lookup!.patientId!);
       dobRight = normaliseDob(input.dob) === p?.dob;

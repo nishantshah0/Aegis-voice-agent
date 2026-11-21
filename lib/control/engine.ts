@@ -31,7 +31,14 @@ function resolve(value: CardCondition["value"], ctx: RuleContext): CardValue | u
   return value;
 }
 
-/** One condition. A field the context doesn't have never matches. */
+/** True when the context lacks a field this condition reads (its value's field and minus included). */
+export function readsMissing(cond: CardCondition, ctx: RuleContext): boolean {
+  const v = cond.value;
+  const fields = v !== null && typeof v === "object" && !Array.isArray(v) ? [cond.field, v.field, ...(typeof v.minus === "string" ? [v.minus] : [])] : [cond.field];
+  return fields.some((f) => ctx[f] === undefined);
+}
+
+/** One condition. A field the context doesn't have never matches here; see evaluate for cards. */
 export function holds(cond: CardCondition, ctx: RuleContext): boolean {
   const actual = ctx[cond.field];
   const expected = resolve(cond.value, ctx);
@@ -67,8 +74,11 @@ export function evaluate(cards: RuleCard[], button: ButtonName | "outbound_check
   for (const card of cards) {
     if (!card.live || !card.appliesTo.includes(button)) continue;
     if (card.when.length === 0) continue;
-    if (!card.when.every((cond) => holds(cond, ctx))) continue;
     const then: CardOutcome = VALID_OUTCOMES.includes(card.then) ? card.then : "refuse";
+    // Fail closed: a refuse or route card whose field is missing from the context counts that
+    // condition as holding, so a gap in the context can't switch a rule off. Flags can skip.
+    const failClosed = then !== "flag";
+    if (!card.when.every((cond) => holds(cond, ctx) || (failClosed && readsMissing(cond, ctx)))) continue;
     matched.push({ id: card.id, then, flagText: card.flagText });
   }
   const outcome = matched.reduce<Outcome>((acc, m) => stricter(acc, m.then), "allowed");
