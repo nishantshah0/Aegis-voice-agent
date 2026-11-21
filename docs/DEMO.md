@@ -29,6 +29,15 @@ Legend: ✅ works · ⚠️ works with a fallback · ❌ broken (owner fixing it
 | 5 | Close: the record, the counters | ⚠️ | Stage counters ✅. Sam's record needs sign-in (`/api/calls/:id/record` 401 signed out). The "[M] million tries" number isn't on any screen; the last real hammer run is 129,100 + 120,938 presses, 0 broken (`results/hammer-latest.json`, 11:14 UTC) | Use the real hammer count, never a made-up one |
 | — | Glue: `/` linked nowhere, `/console` 404 | fixed | Home links Stage, Phone and Console; `/console` redirects to Today | `demo/nav`, HANDOFF to ROLE-4 |
 
+## Main session's signed-in pass (about 08:10 EST, same server)
+
+- Set-up ✅: signed in as the test pharmacist, Reset demo, pairing link for Sam, phone paired.
+- Step 2 ❌: the daily check rings Sam ✅, but Answer crashes `/phone` (`Phone.tsx:294`, same as 2b). URGENT to Role 1, with the review fixer as backup after 10 minutes.
+- Approve: not reached. From now on, when an item reaches Review, the demo tie-in messages the main session to approve from its signed-in pane (or approves itself, being signed in too).
+- Step 3 ❌: no hijack UI on `/stage`. URGENT to Role 4 for an attack-card panel.
+- Step 4 ❌: `/console/overnight` 404. REQUEST to Role 3 for a minimal page from `results/arena/`.
+- Landing ⚠️: main still has the placeholder. `demo/nav` (Trail #35) replaces it with links, and the product-design agent is building a full landing page. Both touch `app/page.tsx`: whichever merges second takes the other's links.
+
 ## Known breaks the code reviewer already sent (tracked here, not re-reported)
 
 | # | Break | Owner | Status on main |
