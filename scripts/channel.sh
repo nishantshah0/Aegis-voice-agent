@@ -16,6 +16,9 @@
 #   scripts/channel.sh stopped         exits 0 if a HUMAN has posted STOP since the last GO
 #   scripts/channel.sh waiting <ROLE>  what ROLE still owes others (unanswered REQUEST, OBJECT, BLOCKED to it)
 #                                      and what ROLE is still waiting on. Same rule as the board's "Waiting on someone".
+#   scripts/channel.sh trail-inbox <ROLE>  open Entire review findings on ROLE's Trails, and new human comments
+#                                      on Trail #2. Add --if-changed to print only when something changed
+#                                      (the hook uses this). Fix findings before new work.
 #   scripts/channel.sh trails          every Entire Trail mentioned on the channel, newest mention first
 #                                      (teammates can't list Trails on entire.com: see docs/ENTIRE.md)
 #
@@ -148,6 +151,87 @@ case "${1:-}" in
       [ -s "$tmp" ] && since="$(cat "$tmp")"
     done
     ;;
+  trail-inbox)
+    role="${2:?usage: $0 trail-inbox <ROLE> [--if-changed]}"; only_changed="${3:-}"
+    mkdir -p "$STATE_DIR"
+    command -v entire >/dev/null 2>&1 || { echo "entire CLI not found: can't read Trail findings (see SETUP.md)"; exit 0; }
+    out="$(messages | "$PY" -c '
+import sys, json, re, subprocess, concurrent.futures as cf
+role, project, state = "ROLE-" + sys.argv[1], sys.argv[2], sys.argv[3]
+HEAD = re.compile(r"^\[(?:ROLE-(\d)|HUMAN) · ")
+owner = {}
+for line in sys.stdin:
+    if not line.strip():
+        continue
+    m = json.loads(line)
+    h = HEAD.match(m["b"])
+    if not h or not h.group(1) or h.group(1) == "0":
+        continue
+    for n in re.findall(r"(?:[Tt]rail\s*#\s*|/trails/)(\d+)", m["b"]):
+        owner.setdefault(int(n), "ROLE-" + h.group(1))  # first role to mention a Trail owns it
+mine = sorted([n for n, r in owner.items() if r == role], reverse=True)[:12]
+
+def entire(*args):
+    r = subprocess.run(["entire", *args, "--project", project, "--json"], capture_output=True, text=True, timeout=20)
+    if r.returncode != 0:
+        raise RuntimeError((r.stderr or r.stdout).strip().splitlines()[-1] if (r.stderr or r.stdout).strip() else "failed")
+    return json.loads(r.stdout or "{}")
+
+def findings(n):
+    try:
+        return n, entire("trail", "finding", "list", "--trail", str(n), "--status", "open", "--freshness", "any"), None
+    except Exception as e:
+        return n, None, str(e)
+
+lines, errors = [], []
+with cf.ThreadPoolExecutor(6) as ex:
+    for n, d, err in ex.map(findings, mine):
+        if err and "no open changes" in err:
+            continue  # a Trail with no branch yet has no findings
+        if err:
+            errors.append("Trail #%d: %s" % (n, err[:160]))
+            continue
+        fs = d.get("findings") or []
+        if not fs:
+            continue
+        rank = {"high": 0, "medium": 1, "low": 2}
+        fs.sort(key=lambda f: rank.get(f.get("severity") or "low", 3))
+        lines.append("Trail #%d: %d open" % (n, len(fs)))
+        for f in fs:
+            body = " ".join((f.get("body") or f.get("title") or "").split())
+            lines.append("  [%s] %s  %s" % (f.get("severity") or "?", f.get("id", "?"), body[:400]))
+if lines:
+    print("=== Open review findings on %s Trails. Fix them before new work, then reply on each finding (entire trail finding reply/apply). The code reviewer resolves them. ===" % role.replace("ROLE-", "Role "))
+    print("\n".join(lines))
+if errors:
+    print("=== Could not read some Trails from this login (check entire auth status; if it persists, post BLOCKED to ROLE-2, the project owner) ===")
+    print("\n".join(errors))
+
+# New human comments on Trail #2 (humans steer there; Entire blocks agents from commenting)
+mark = state + "/trail2-seen-" + role
+try:
+    seen = open(mark).read().strip()
+except OSError:
+    seen = ""
+try:
+    items = entire("trail", "comment", "list", "--trail", "2").get("items") or []
+    new = [c for c in items if (c.get("createdAt") or c.get("created_at") or "") > seen]
+    if new:
+        print("=== New human comments on Trail #2 (human steering: obey these like HUMAN messages) ===")
+        for c in new:
+            print("  %s %s" % ((c.get("createdAt") or c.get("created_at") or "")[:16], " ".join((c.get("body") or "").split())[:400]))
+        open(mark, "w").write(max((c.get("createdAt") or c.get("created_at") or "") for c in new))
+except Exception as e:
+    print("=== Could not read Trail #2 comments: %s ===" % str(e)[:160])
+' "$role" "gh/${REPO%%/*}" "$STATE_DIR")"
+    if [ "$only_changed" = "--if-changed" ]; then
+      sum="$(printf '%s' "$out" | cksum | cut -d' ' -f1)"; last="$(cat "$STATE_DIR/trail-inbox-sum-$role" 2>/dev/null || true)"
+      age=$(( $(date +%s) - $(stat -f %m "$STATE_DIR/trail-inbox-sum-$role" 2>/dev/null || stat -c %Y "$STATE_DIR/trail-inbox-sum-$role" 2>/dev/null || echo 0) ))
+      [ "$sum" = "$last" ] && [ "$age" -lt 900 ] && exit 0   # unchanged, and shown in the last 15 minutes
+      echo "$sum" > "$STATE_DIR/trail-inbox-sum-$role"
+    fi
+    [ -n "$out" ] && echo "$out"
+    ;;
   trails)
     messages | "$PY" -c '
 import sys, json, re
@@ -225,6 +309,6 @@ print(last)')
     case "$last" in *"] STOP"*) echo "STOP is in effect"; exit 0;; *) exit 1;; esac
     ;;
   *)
-    sed -n '2,24p' "$0"; exit 2
+    sed -n '2,27p' "$0"; exit 2
     ;;
 esac

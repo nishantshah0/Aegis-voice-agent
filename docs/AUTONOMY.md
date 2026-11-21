@@ -127,7 +127,7 @@ Each cycle, about every 15 minutes:
 
 1. `git pull`. On the first cycle, read `AGENTS.md`, `docs/TASKS.md` and `docs/DESIGN.md`.
 2. `scripts/channel.sh stopped`. If a human said STOP, do nothing and end the cycle.
-3. Read messages for your role (`scripts/channel.sh for <ROLE>`) and human steering on Entire Trail #2 (`entire trail comment list --trail 2`). Answer every REQUEST and REVIEW addressed to you, and every open finding on your Trails (`entire trail finding list`).
+3. Read messages for your role: `scripts/channel.sh inbox <ROLE>` (URGENT first). Then `scripts/channel.sh trail-inbox <ROLE>`: every open review finding on your Trails and new human comments on Entire Trail #2. **Fix open findings before any new work**, reply on each finding (`entire trail finding reply`, or `apply` a suggested patch), and let the code reviewer resolve them. Answer every REQUEST and REVIEW addressed to you.
 4. Ask Brain before editing: `entire brain brief "<task>"`. Find code with `entire graph query`. Before asking another agent, check whether it's already been solved: `entire search "<question>" --compact`.
 5. Continue your open task, or pick the next **core** task in your role whose "Needs" are met. Post CLAIM, then `entire trail create --title "<task>"` on a branch named `role-<n>/<task>`.
 6. Work in small commits, **only in your role's folders**. If you need something from another role, post REQUEST and keep going with the fakes.

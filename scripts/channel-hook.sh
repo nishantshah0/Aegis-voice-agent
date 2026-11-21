@@ -11,8 +11,14 @@ role="${AGENT_ROLE:-$( { tr -dc '1-4' < .agent-role; } 2>/dev/null | head -c1)}"
 [ -n "$role" ] || exit 0
 command -v gh >/dev/null 2>&1 || exit 0
 
-new="$(scripts/channel.sh inbox "$role" 2>/dev/null)" || exit 0
-[ -n "$new" ] || exit 0
+new="$(scripts/channel.sh inbox "$role" 2>/dev/null)" || new=""
+trail="$(scripts/channel.sh trail-inbox "$role" --if-changed 2>/dev/null)" || trail=""
+[ -n "$new" ] || [ -n "$trail" ] || exit 0
+if [ -n "$trail" ]; then
+  echo "Entire Trails for Role $role: open review findings and human steering. Handle these before starting new work:"
+  echo; echo "$trail"; echo
+  [ -n "$new" ] || exit 0
+fi
 
 case "$new" in
   *"=== URGENT"*) echo "URGENT messages for Role $role (GitHub issue #11). Stop what you're doing and handle them first: answer with scripts/channel.sh urgent <your role> REPLY <their role> \"...\". Then the normal channel (issue #1):" ;;
