@@ -35,3 +35,5 @@ One line each, newest first. If you're an AI agent, don't undo anything here wit
 | Sat early | Triage lanes (Automatic, Quick check, Review) are chosen in code, never by the AI | The pharmacist only sees tricky calls, for reasons based on facts |
 | Sat early | The AI's self-reported confidence is shown but never used for decisions | Models are often overconfident |
 | Sat early | Nothing from earlier projects is reused | Everything is built this weekend |
+| Sat 11:00 | The agent driver owns the tool loop on the Messages API (`claude-sonnet-5-5`, low effort, strict tools, automatic tool choice, server-side fallback on refusal). A refusal or more than 8 model steps for one caller line hands over through `escalate`. | Every tool call passes through `control.press`; the model can't act or speak any other way |
+| Sat 11:00 | When the guard replaces a sentence, the driver tells the model, in a mid-conversation system message, what the caller heard instead | Otherwise the model believes it said "approved" and builds on it |
