@@ -78,6 +78,19 @@ describe("memory store", () => {
     await expect(store.decide("q_missing", "approve", pharmacist)).rejects.toThrow(/no queue item/);
   });
 
+  it("binds a pharmacist approval record to its signer decision", async () => {
+    const store = createMemoryStore();
+    await store.saveOrder({ id: "o_signed", rxId: IDS.samConcerta, patientId: IDS.sam, state: "waiting_for_pharmacist", createdAt: SEED.now });
+    const item = await store.addQueueItem({ callId: "c_signed", patientId: IDS.sam, orderId: "o_signed", kind: "refill", lane: "review", ruleIds: [], signals: [], notes: [] });
+    const ref = { runId: "run-synthetic", invocationId: "decision-synthetic", decisionId: "policy-synthetic" };
+
+    await store.decide(item.id, "approve", pharmacist, undefined, ref);
+
+    const approval = (await store.listRecord("c_signed")).find((entry) => entry.kind === "approval");
+    expect(approval?.input).toMatchObject({ tracekit: ref, itemId: item.id, decision: "approve" });
+    expect(findBrokenLink(await store.listRecord())).toBeNull();
+  });
+
   it("hash chain links every entry and detects an edit", async () => {
     const store = createMemoryStore();
     await exercise(store);

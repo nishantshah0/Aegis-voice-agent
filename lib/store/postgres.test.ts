@@ -97,6 +97,18 @@ describe.each(Object.entries(factories))("%s store", (_name, make) => {
     await expect(store.decide("q_none", "approve", pharmacist)).rejects.toThrow(/no queue item/);
   });
 
+  it("stores the signer reference inside the same pharmacist-decision record", async () => {
+    await store.saveOrder({ id: "o_signed", rxId: IDS.samConcerta, patientId: IDS.sam, state: "waiting_for_pharmacist", createdAt: SEED.now });
+    const item = await store.addQueueItem({ callId: "c_signed", patientId: IDS.sam, orderId: "o_signed", kind: "refill", lane: "review", ruleIds: [], signals: [], notes: [] });
+    const ref = { runId: "run-synthetic", invocationId: "decision-synthetic", decisionId: "policy-synthetic" };
+
+    await store.decide(item.id, "approve", pharmacist, undefined, ref);
+
+    const approval = (await store.listRecord("c_signed")).find((entry) => entry.kind === "approval");
+    expect(approval?.input).toMatchObject({ tracekit: ref, itemId: item.id, decision: "approve" });
+    expect(findBrokenLink(await store.listRecord())).toBeNull();
+  });
+
   it("resets to a seed, clearing calls, new orders, the queue and the record", async () => {
     await store.setNow("2026-12-01T09:00:00-05:00");
     await store.saveCall({ id: "c_r", direction: "inbound", state: "greeting", startedAt: SEED.now, failedCodeTries: 0, callerSaid: [] });
