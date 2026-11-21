@@ -40,10 +40,10 @@ Role 1 runs from Nishant's machine from 1.2 on (MikeyDigit did 1.1).
 
 ## Role 2 · Platform and pharmacist
 
-- **Doing:** 2.3 handed off (Trail #10, branch `role-2/today-view`, stacked on 2.2's Trail #9 and 2.4's Trail #7). Next: 2.6 hosting.
-- **Done:** 2.1 and the contract switch (merged). 2.5 decided: no phone push. 2.4 Auth0 sign-in and Approve/Deny (Trail #7). 2.2 demo reset and daily check (Trail #9). 2.3 Today view: lane totals, Review first, full item detail, phone status on approve (Trail #10).
-- **Blocked:** 
-- **Needs from others:** Role 1: the real AgentDriver for `app/api/_lib/runtime.ts`, so a live call can put Sam's refill in the queue (today only tests do). Role 4: see the triage REQUEST about Sam's refill lane.
+- **Doing:** 2.8 handed off (Trail #12, branch `role-2/quick-check`, stacked on #10, #9, #7). Waiting on merges and on the humans for hosting (2.6) and the database (2.7).
+- **Done:** 2.1 and the contract switch (merged). 2.5 decided: no phone push. 2.4 Auth0 sign-in and Approve/Deny (Trail #7). 2.2 demo reset and daily check (Trail #9). 2.3 Today view (Trail #10). 2.8 one-tap Quick check, and `GET /api/calls/:id/record` (Trail #12).
+- **Blocked:** 2.6 hosting and 2.7 Postgres: parked by Nishant until the accounts are sorted.
+- **Needs from others:** Role 1: the real AgentDriver for `app/api/_lib/runtime.ts`. Role 4: merge #7, #9, #10, #12 in order; answer the triage REQUEST about Sam's refill lane.
 
 ## Role 3 · Red team and evals
 
