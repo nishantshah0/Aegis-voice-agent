@@ -94,8 +94,8 @@ Everything on the channel shows up on the **build board** (`node scripts/board.m
 Example HANDOFF:
 
 ```
-[ROLE-2 · HANDOFF → ROLE-4] 2.5: Auth0 phone approval check is ready to merge
-Trail #7 · branch role-2/auth0-approval · files app/api/queue/, lib/auth/
+[ROLE-2 · HANDOFF → ROLE-4] 2.4: approver now comes from the Auth0 session
+Trail #7 · branch role-2/auth0-signin · files app/api/queue/, lib/auth/
 Checks: typecheck pass, lint pass, npm test pass (9 files, 41 tests)
 Next: 2.6 hosting
 ```
