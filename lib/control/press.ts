@@ -45,10 +45,9 @@ export type ControlOptions = {
   /** Makes the 6-digit code. Tests pass a fixed one; the default is random. */
   makeCode?: () => string;
   /**
-   * TRANSITIONAL. When true, the code's digits go out on the shared event stream (old
-   * behaviour). /api/events has no sign-in, so anyone watching it could read the code.
-   * Read it with control.codeFor(callId) instead. This default flips to false once
-   * Role 2's code reads codeFor, then the option goes away.
+   * Off by default (fails closed). When true, the code's digits go out on the shared event
+   * stream, which anyone watching could read. Read the code with control.codeFor(callId).
+   * Only a test that asks for the old text turns this on.
    */
   broadcastCodes?: boolean;
 };
@@ -64,7 +63,7 @@ type Handled = {
 
 const hashCode = (lookupId: string, code: string) => createHash("sha256").update(`${lookupId}:${code}`).digest("hex");
 
-export function createControl({ store, emit = () => {}, makeCode, broadcastCodes = true }: ControlOptions) {
+export function createControl({ store, emit = () => {}, makeCode, broadcastCodes = false }: ControlOptions) {
   const newCode = makeCode ?? (() => String(randomInt(0, 1_000_000)).padStart(6, "0"));
   // Codes in plain text live only here, in memory, never in the record or on the stream.
   const sentCodes = new Map<CallId, { code: string; hash: string }>();
@@ -175,8 +174,9 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
       .at(-1);
     const codeFresh = sent && isFresh(sent.at, now, CODE_VALID_MS);
     const codeRight = lookup?.patientId && codeFresh && internalOf(sent)?.codeHash === hashCode(input.lookup_id, input.code.trim());
-    // A date of birth, when given (outbound calls confirm it with the code), must match too.
-    let dobRight = true;
+    // An outbound call confirms the date of birth with the code (SPEC Part 2, outbound step 2):
+    // without one, or with a wrong one, it's a failed try. Inbound calls check a dob only when given.
+    let dobRight = current.direction !== "outbound";
     if (codeRight && input.dob !== undefined) {
       const p = await store.getPatient(lookup!.patientId!);
       dobRight = normaliseDob(input.dob) === p?.dob;
@@ -430,6 +430,31 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
     if (!patient) return blocked("not_verified", ["1"]);
     if (input.rx_id !== undefined && !(await ownRx(call, input.rx_id))) return blocked("not_yours", ["1"], { patientId: patient.id });
     const noteId = `n_${call.id}_${(await store.queue()).length + 1}`;
+    const note = { id: noteId, kind: input.kind, text: input.text };
+
+    // A side effect moves this call's open refill (for that prescription, if named) to Review,
+    // with the note on it (SPEC inbound step 8), instead of leaving it in Quick check.
+    if (input.kind === "side_effect") {
+      const refills = (await store.queue()).filter(
+        (q) => q.status === "open" && q.kind === "refill" && q.callId === call.id && (input.rx_id === undefined || q.rxId === input.rx_id),
+      );
+      for (const q of refills) {
+        const moved = await store.updateQueueItem(q.id, {
+          lane: "review",
+          signals: q.signals.includes("side_effect") ? q.signals : [...q.signals, "side_effect"],
+          notes: [...q.notes, note],
+        });
+        emit({ type: "queue", item: moved });
+      }
+      if (refills.length > 0) {
+        return {
+          result: ok<"note_for_pharmacist">({ note_id: noteId }, [], "review"),
+          decision: "allowed",
+          internal: { patientId: patient.id, rxId: input.rx_id, queueItemId: refills[0].id },
+        };
+      }
+    }
+
     const item = await addItem({
       callId: call.id,
       patientId: patient.id,
@@ -438,7 +463,7 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
       lane: "review",
       ruleIds: [],
       signals: input.kind === "side_effect" ? ["side_effect"] : [],
-      notes: [{ id: noteId, kind: input.kind, text: input.text }],
+      notes: [note],
     });
     return {
       result: ok<"note_for_pharmacist">({ note_id: noteId }, [], "review"),

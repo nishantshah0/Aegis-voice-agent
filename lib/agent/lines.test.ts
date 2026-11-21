@@ -46,7 +46,7 @@ describe("the scripted lines match SPEC Part 2", () => {
   });
 
   it("offers refill sync without naming the drug", () => {
-    expect(REFILL_SYNC_OFFER).toBe("You have one other prescription ready to refill. Want me to add it?");
+    expect(REFILL_SYNC_OFFER).toBe("You have one other prescription that can be refilled today. Want me to add it?");
     expect(REFILL_SYNC_OFFER.toLowerCase()).not.toContain(samConcerta.drug.toLowerCase());
   });
 
@@ -67,7 +67,7 @@ describe("the scripted lines match SPEC Part 2", () => {
       CODE_SENT,
       HOLDING,
       outboundOpener("Harbour Pharmacy", "Sam Rivera"),
-      outboundWrongPerson("Harbour Pharmacy", "Sam Rivera"),
+      outboundWrongPerson("Harbour Pharmacy"),
       REFILL_SYNC_OFFER,
       SIDE_EFFECT_PASSED_ON,
       MISSED_DOSES_CHECK_IN,
@@ -103,8 +103,10 @@ describe("the outbound opener, the one exception to S1", () => {
   });
 
   it("tells a household member nothing when the wrong person answers", () => {
-    const line = outboundWrongPerson("Harbour Pharmacy", "Sam Rivera");
-    expect(line).toContain("Sam Rivera");
+    // Only the opener may name the patient (S1's one exception), so this line doesn't.
+    const line = outboundWrongPerson("Harbour Pharmacy");
+    expect(line).toContain("Harbour Pharmacy");
+    expect(line).not.toMatch(/Sam|Rivera/);
     expect(line).not.toMatch(/\brefill|medication|prescription|runs out\b/i);
   });
 });

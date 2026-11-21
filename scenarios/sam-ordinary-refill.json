@@ -1,6 +1,7 @@
 {
   "id": "sam_ordinary_refill",
   "group": "ordinary_patients",
+  "needsPharmacist": true,
   "source": "team",
   "found_at": null,
   "persona": "Sam calling for an on-schedule refill",

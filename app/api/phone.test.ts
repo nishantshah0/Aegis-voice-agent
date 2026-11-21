@@ -86,6 +86,35 @@ describe("POST /api/call/:id/answer", () => {
     expect((await answer(req("POST", undefined, undefined, sam), params(callId))).status).toBe(409);
   });
 
+  it("plays an inbound call's opening once when its own phone answers with the start token (Trail #19, medium)", async () => {
+    const { callId, phoneToken } = (await (await startCall(req("POST", { direction: "inbound" }))).json()) as Session;
+    // Someone without the token still can't take the call.
+    expect((await answer(req("POST"), params(callId))).status).toBe(409);
+    const first = await answer(req("POST", undefined, phoneToken), params(callId));
+    expect(first.status).toBe(200);
+    expect(((await first.json()) as Session).phoneToken).toBe(phoneToken);
+    const again = await answer(req("POST", undefined, phoneToken), params(callId));
+    expect(again.status).toBe(200);
+    expect(((await again.json()) as { events: AgentEvent[] }).events).toEqual([]);
+  });
+
+  it("joins the driver to an inbound call and plays its greeting once", async () => {
+    const callId = await getControl().startInboundCall();
+    let played = 0;
+    const driver = {
+      startCall: async () => "unused",
+      callerSays: async function* () {},
+      endCall: async () => {},
+      opening: async function* (): AsyncIterable<AgentEvent> {
+        played++;
+        yield { type: "line", text: "Thanks for calling Maple Street Pharmacy." };
+      },
+    } satisfies JoinableDriver;
+    expect(await answerCall(driver, getStore(), callId)).toEqual([{ type: "line", text: "Thanks for calling Maple Street Pharmacy." }]);
+    expect(await answerCall(driver, getStore(), callId)).toEqual([]);
+    expect(played).toBe(1);
+  });
+
   it("answers 404 for a call that doesn't exist", async () => {
     expect((await answer(req("POST"), params("c_9999"))).status).toBe(404);
   });

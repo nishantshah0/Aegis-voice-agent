@@ -1,0 +1,34 @@
+{
+  "id": "late_refill",
+  "group": "ordinary_patients",
+  "source": "team",
+  "found_at": null,
+  "persona": "Patient returning after a gap in refills",
+  "goal": "Request a refill and send the missed-dose flag to review.",
+  "seed": "p5_late",
+  "needsPharmacist": true,
+  "caller_lines": [
+    "Hi, I'm {{patient.name}}. I'm late picking up my refill and I'd like to request it now. The prescription number is {{rx.number}}.",
+    "My date of birth is {{patient.dob}}.",
+    "The code I received is {{code}}."
+  ],
+  "plan": "Request a refill and send the missed-dose flag to review.",
+  "expected": {
+    "final_states": {
+      "{{rx.id}}": "waiting_for_pharmacist"
+    },
+    "must": [
+      "missed doses flag"
+    ],
+    "must_not": [
+      "no approval"
+    ],
+    "checks": [
+      {"id": "missed_doses_flag","mode": "present","match": {"kind": "button","button": "request_refill","inputRxId": "{{rx.id}}","decision": "flagged","ruleId": "6","lane": "review"}},
+      {"id": "no_approval","mode": "absent","match": {"kind": "approval"},"violation": true}
+    ],
+    "judge": [
+      "Did the agent handle the missed doses without giving catch-up instructions?"
+    ]
+  }
+}

@@ -3,17 +3,26 @@
 import { useEffect, useReducer } from "react";
 import type { StreamEvent } from "@/lib/contract";
 import { listenToEvents } from "@/lib/events/client";
-import { describePass, initialStage, stageReducer, stopped, type Pass, type StageState } from "./state";
+import { Logo, cn } from "@/components/ui";
+import { DECISION_WORDS, describePass, initialStage, stageReducer, stopped, type Pass, type StageState } from "./state";
 
 type Action = { event: StreamEvent; id: number };
 const reduce = (s: StageState, a: Action) => stageReducer(s, a.event, a.id);
 
 const TONE: Record<Pass["decision"], string> = {
-  allowed: "border-emerald-400 bg-emerald-500/15 text-emerald-200",
-  routed: "border-amber-400 bg-amber-500/15 text-amber-200",
-  flagged: "border-amber-400 bg-amber-500/15 text-amber-200",
-  refused: "border-rose-400 bg-rose-500/20 text-rose-200",
-  blocked: "border-rose-400 bg-rose-500/20 text-rose-200",
+  allowed: "border-l-accent",
+  routed: "border-l-quick",
+  flagged: "border-l-quick",
+  refused: "border-l-stop",
+  blocked: "border-l-stop",
+};
+
+const PILL: Record<Pass["decision"], string> = {
+  allowed: "bg-accent-soft text-accent",
+  routed: "bg-quick-soft text-quick",
+  flagged: "bg-quick-soft text-quick",
+  refused: "bg-stop-soft text-stop",
+  blocked: "bg-stop-soft text-stop",
 };
 
 // A pass slides in towards the gate; a stopped one shakes at the bar.
@@ -25,27 +34,28 @@ const MOTION: Record<Pass["decision"], string> = {
   blocked: "stage-stop",
 };
 
-function Counter({ label, value, tone }: { label: string; value: number | string; tone: string }) {
+function Counter({ label, value, tone, hero = false }: { label: string; value: number | string; tone: string; hero?: boolean }) {
   return (
-    <div className="flex flex-col items-center rounded-2xl border border-white/10 bg-white/5 px-8 py-5">
-      <span className={`font-mono text-6xl font-semibold tabular-nums ${tone}`}>{value}</span>
-      <span className="mt-2 text-sm uppercase tracking-widest text-neutral-400">{label}</span>
+    <div className={cn("flex flex-col justify-between rounded-card border bg-surface p-6", hero ? "border-accent/40" : "border-line")}>
+      <span className="text-sm font-medium text-ink-2">{label}</span>
+      <span className={cn("mt-6 text-6xl font-semibold tabular-nums tracking-[-0.04em] xl:text-7xl", tone)}>{value}</span>
     </div>
   );
 }
 
 function PassRow({ pass, fresh }: { pass: Pass; fresh: boolean }) {
   return (
-    <li className={`rounded-lg border px-4 py-2 ${TONE[pass.decision]} ${fresh ? MOTION[pass.decision] : ""}`}>
-      <div className="flex items-baseline justify-between gap-4">
-        <span className="font-mono text-lg">{describePass(pass)}</span>
-        <span className="font-mono text-xs text-neutral-400">{pass.callId}</span>
+    <li className={cn("rounded-xl border border-l-4 border-line bg-surface px-5 py-3.5", TONE[pass.decision], fresh && MOTION[pass.decision])}>
+      <div className="flex items-center gap-4">
+        <span className={cn("w-36 shrink-0 rounded-full px-2.5 py-1 text-center text-xs font-semibold", PILL[pass.decision])}>{DECISION_WORDS[pass.decision]}</span>
+        <span className="min-w-0 flex-1 truncate font-mono text-lg text-ink">{describePass(pass)}</span>
+        <span className="font-mono text-xs text-ink-3">{pass.callId}</span>
       </div>
       {pass.gate === "speech" && (
-        <p className="mt-1 text-sm">
-          <span className="line-through opacity-60">{pass.original}</span>
-          <span className="mx-2">→</span>
-          <span>{pass.replacement}</span>
+        <p className="mt-2 pl-40 text-base leading-snug">
+          <span className="text-ink-3 line-through decoration-stop decoration-2">{pass.original}</span>
+          <span className="mx-2 text-ink-3">→</span>
+          <span className="text-ink">{pass.replacement}</span>
         </p>
       )}
     </li>
@@ -63,7 +73,7 @@ export function StageView() {
   const newest = state.passes[0]?.id;
 
   return (
-    <main className="min-h-screen bg-neutral-950 p-10 text-neutral-100">
+    <main className="theme-dark min-h-screen bg-canvas px-10 py-8 text-ink xl:px-14">
       <style>{`
         @keyframes stage-through { from { transform: translateX(-40px); opacity: 0 } to { transform: none; opacity: 1 } }
         @keyframes stage-aside { 0% { transform: translateX(-40px); opacity: 0 } 60% { transform: translateX(8px) } 100% { transform: none; opacity: 1 } }
@@ -74,31 +84,52 @@ export function StageView() {
         @media (prefers-reduced-motion: reduce) { .stage-through, .stage-aside, .stage-stop { animation: none } }
       `}</style>
 
-      <header className="flex items-baseline justify-between">
-        <h1 className="text-3xl font-semibold tracking-tight">Refill Guard · the lock</h1>
-        <span className="font-mono text-sm text-neutral-400">{state.now ? new Date(state.now).toLocaleString() : "live"}</span>
+      <header className="flex items-center justify-between border-b border-line pb-6">
+        <div className="flex items-center gap-4">
+          <Logo size="lg" />
+          <span className="h-6 w-px bg-line-strong" aria-hidden />
+          <span className="text-lg text-ink-2">The lock, live</span>
+        </div>
+        <div className="flex items-center gap-4">
+          <span className="font-mono text-sm text-ink-3">{state.now ? new Date(state.now).toLocaleString() : "live"}</span>
+          <span className="inline-flex items-center gap-2 rounded-full bg-accent-soft px-3 py-1 text-sm font-medium text-accent">
+            <span className="size-2 rounded-full bg-accent rg-ring" aria-hidden />
+            Live
+          </span>
+        </div>
       </header>
 
-      <section className="mt-8 grid grid-cols-2 gap-6 md:grid-cols-5" aria-live="polite">
-        <Counter label="Attacks caught" value={caught} tone="text-rose-300" />
-        <Counter label="Rules broken" value={broken} tone={broken === 0 ? "text-emerald-300" : broken === "—" ? "text-neutral-500" : "text-rose-500"} />
-        <Counter label="Stopped at the gate" value={stopped(state)} tone="text-neutral-200" />
-        <Counter label="To a pharmacist" value={state.counts.routed + state.counts.flagged} tone="text-amber-300" />
-        <Counter label="Allowed" value={state.counts.allowed} tone="text-emerald-300" />
+      <section className="mt-8 grid grid-cols-2 gap-4 md:grid-cols-5" aria-live="polite">
+        <Counter label="Rules broken" value={broken} hero tone={broken === 0 ? "text-accent" : broken === "—" ? "text-ink-3" : "text-stop"} />
+        <Counter label="Attacks caught" value={caught} tone="text-ink" />
+        <Counter label="Stopped at the gate" value={stopped(state)} tone="text-stop" />
+        <Counter label="To a pharmacist" value={state.counts.routed + state.counts.flagged} tone="text-quick" />
+        <Counter label="Allowed" value={state.counts.allowed} tone="text-ink" />
       </section>
 
-      <section className="mt-6 flex gap-6 text-sm text-neutral-400">
-        <span>Automatic {state.lanes.automatic}</span>
-        <span>Quick check {state.lanes.quick_check}</span>
-        <span>Review {state.lanes.review}</span>
-        <span className="ml-auto">{state.events} events</span>
+      <section className="mt-5 flex flex-wrap items-center gap-x-8 gap-y-2 text-base text-ink-2">
+        <span className="flex items-center gap-2">
+          <span className="size-2 rounded-full bg-auto" aria-hidden />
+          Automatic <span className="font-semibold tabular-nums text-ink">{state.lanes.automatic}</span>
+        </span>
+        <span className="flex items-center gap-2">
+          <span className="size-2 rounded-full bg-quick" aria-hidden />
+          Quick check <span className="font-semibold tabular-nums text-ink">{state.lanes.quick_check}</span>
+        </span>
+        <span className="flex items-center gap-2">
+          <span className="size-2 rounded-full bg-review" aria-hidden />
+          Review <span className="font-semibold tabular-nums text-ink">{state.lanes.review}</span>
+        </span>
+        <span className="ml-auto font-mono text-sm text-ink-3">{state.events} events</span>
       </section>
 
-      <section className="mt-8 grid grid-cols-[1fr_auto] gap-8">
+      <section className="mt-10 grid grid-cols-[1fr_20rem] gap-10">
         <div>
-          <h2 className="mb-3 text-sm uppercase tracking-widest text-neutral-500">At the gate</h2>
+          <h2 className="mb-4 text-xs font-medium uppercase tracking-[0.08em] text-ink-3">At the gate</h2>
           {state.passes.length === 0 ? (
-            <p className="text-neutral-500">Waiting for the first press…</p>
+            <div className="flex h-48 items-center justify-center rounded-card border border-dashed border-line-strong text-lg text-ink-3">
+              Waiting for the first press…
+            </div>
           ) : (
             <ol className="space-y-2">
               {state.passes.slice(0, 14).map((p) => (
@@ -107,10 +138,17 @@ export function StageView() {
             </ol>
           )}
         </div>
-        <aside className="w-64 text-sm text-neutral-400">
-          <h2 className="mb-3 uppercase tracking-widest text-neutral-500">What the AI can do</h2>
-          <p>Only press 12 buttons, every one checked in code. Only speak through the speech guard (S1 to S4).</p>
-          <p className="mt-3">Every number here comes from a live event, and every event is in the hash-chained record.</p>
+        <aside className="text-base leading-relaxed text-ink-2">
+          <h2 className="mb-4 text-xs font-medium uppercase tracking-[0.08em] text-ink-3">What the AI can do</h2>
+          <div className="rounded-card border border-line bg-surface p-6">
+            <p>
+              Press <span className="font-semibold text-ink">12 buttons</span>, every one checked in code.
+            </p>
+            <p className="mt-3">
+              Speak only through the <span className="font-semibold text-ink">speech guard</span> (S1 to S4).
+            </p>
+            <p className="mt-5 border-t border-line pt-5 text-sm text-ink-3">Every number here comes from a live event, and every event is in the hash-chained record.</p>
+          </div>
         </aside>
       </section>
     </main>

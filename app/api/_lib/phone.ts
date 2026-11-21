@@ -3,6 +3,7 @@ import type { AgentDriver, AgentEvent, CallId, Store } from "@/lib/contract";
 import { getApprover } from "@/lib/auth/session";
 import { demoControlsRefused } from "./demo";
 import { fail } from "./http";
+import { forCaller } from "@/lib/events/audience";
 
 // The per-call phone token. The demo phone has no sign-in, so each call gets one
 // unguessable token, issued exactly once: by /api/call/start for an inbound call, or by
@@ -32,10 +33,14 @@ export function takeSpeech(callId: CallId, limit: number): boolean {
   return true;
 }
 
-/** Forget every token and speech allowance (demo reset reuses call ids). */
+const openedHolder = globalThis as typeof globalThis & { __refillGuardOpened?: Set<CallId> };
+const opened = () => (openedHolder.__refillGuardOpened ??= new Set());
+
+/** Forget every token, speech allowance and played opening (demo reset reuses call ids). */
 export function clearPhoneTokens(): void {
   tokens().clear();
   speechCounts().clear();
+  opened().clear();
 }
 
 export function tokenMatches(callId: CallId, given: string | null): boolean {
@@ -59,8 +64,10 @@ export type JoinableDriver = AgentDriver & {
   checkIn?(callId: CallId): AsyncIterable<AgentEvent>;
 };
 
-/** Hand an answered call to the driver and collect its opening. */
+/** Hand an answered call to the driver and collect its opening, once per call. */
 export async function answerCall(driver: JoinableDriver, store: Store, callId: CallId): Promise<AgentEvent[]> {
+  if (opened().has(callId)) return [];
+  opened().add(callId);
   const call = await store.getCall(callId);
   if (call?.direction === "outbound" && call.targetPatientId && driver.joinCall) {
     const start = (await store.listRecord(callId)).find((e) => (e.input as { check?: string })?.check === "call_start");
@@ -71,7 +78,7 @@ export async function answerCall(driver: JoinableDriver, store: Store, callId: C
     }
   }
   const events: AgentEvent[] = [];
-  if (driver.opening) for await (const event of driver.opening(callId)) events.push(event);
+  if (driver.opening) for await (const event of driver.opening(callId)) events.push(forCaller(event));
   return events;
 }
 
@@ -88,6 +95,6 @@ export async function codeRefused(request: Request, callId: CallId): Promise<Res
 export async function checkInCall(driver: JoinableDriver, callId: CallId): Promise<AgentEvent[] | null> {
   if (!driver.checkIn) return null;
   const events: AgentEvent[] = [];
-  for await (const event of driver.checkIn(callId)) events.push(event);
+  for await (const event of driver.checkIn(callId)) events.push(forCaller(event));
   return events;
 }

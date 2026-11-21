@@ -54,3 +54,22 @@ describe("Today page markup", () => {
     expect(html).toContain(">Deny</button>");
   });
 });
+
+describe("Quick check lane", () => {
+  it("lists Quick check items as compact rows with one-tap Approve and Deny, after Review", async () => {
+    const store = getStore();
+    for (let i = 1; i <= 6; i++) {
+      await store.addQueueItem({ callId: `c_qc_${i}`, patientId: IDS.sam, rxId: IDS.samConcerta, kind: "refill", lane: "quick_check", ruleIds: ["4"], signals: [], notes: [] });
+    }
+    await store.addQueueItem({ callId: "c_rv", patientId: IDS.sam, kind: "note", lane: "review", ruleIds: [], signals: ["side_effect"], notes: [] });
+    const open = (await store.queue()).filter((q) => q.status === "open");
+    const details = await Promise.all(open.map((q) => itemDetail(store, q)));
+    const html = renderToStaticMarkup(
+      createElement(QueueList, { totals: await laneTotals(store), waiting: details, decided: [], canDecide: true, signedIn: true }),
+    );
+    const quick = html.slice(html.indexOf('data-testid="quick-check"'));
+    expect(html.indexOf('data-testid="review"')).toBeLessThan(html.indexOf('data-testid="quick-check"'));
+    expect(quick.match(/>Approve<\/button>/g)).toHaveLength(6);
+    expect(quick).not.toContain("<details open");
+  });
+});

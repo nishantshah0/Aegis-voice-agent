@@ -353,7 +353,7 @@ describe("outbound calls (rule 7)", () => {
     expect(started.lookupId).toBe(outboundLookupId(started.callId));
     expect((await store.getCall(started.callId))?.state).toBe("code_sent");
     out(await control.press(started.callId, "send_code", { lookup_id: started.lookupId }));
-    expect(out(await control.press(started.callId, "check_code", { lookup_id: started.lookupId, code: CODE }))).toEqual({
+    expect(out(await control.press(started.callId, "check_code", { lookup_id: started.lookupId, code: CODE, dob: "1990-03-14" }))).toEqual({
       verified: true,
       patient_first_name: "Sam",
       prescriptions: [

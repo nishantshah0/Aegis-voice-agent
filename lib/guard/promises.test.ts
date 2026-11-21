@@ -1,8 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { isCompletionPromise } from "./speech";
 
-const drugs = ["Concerta", "Metformin"];
-
 describe("S4: completion words are promises only when they're about the order", () => {
   it.each([
     "Your refill is approved.",
@@ -13,7 +11,7 @@ describe("S4: completion words are promises only when they're about the order", 
     "Everything is sorted.",
     "They're ready to collect.",
   ])("promise: %s", (s) => {
-    expect(isCompletionPromise(s, drugs)).toBe(true);
+    expect(isCompletionPromise(s)).toBe(true);
   });
 
   it.each([
@@ -24,6 +22,6 @@ describe("S4: completion words are promises only when they're about the order", 
     "Let me know when you're ready.",
     "Thanks for calling.",
   ])("not a promise: %s", (s) => {
-    expect(isCompletionPromise(s, drugs)).toBe(false);
+    expect(isCompletionPromise(s)).toBe(false);
   });
 });
