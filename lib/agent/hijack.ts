@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import type {
   AgentDriver,
   AgentEvent,
@@ -24,6 +23,8 @@ export type HijackScript = { id: string; title: string; steps: readonly HijackSt
 
 export type HijackDependencies = {
   store: Store;
+  startCall: AgentDriver["startCall"];
+  endCall: AgentDriver["endCall"];
   press: PressFn;
   guardSentence: GuardSentenceFn;
   checkCallerLine: CheckCallerLineFn;
@@ -35,25 +36,11 @@ export function createHijackDriver(deps: HijackDependencies, script: HijackScrip
   const sentenceSegmenter = new Intl.Segmenter("en", { granularity: "sentence" });
 
   return {
-    async startCall({ direction, patientId }) {
-      const callId = `c_hijack_${randomUUID()}`;
-      await deps.store.saveCall({
-        id: callId,
-        direction,
-        state: direction === "outbound" ? "code_sent" : "greeting",
-        targetPatientId: patientId,
-        startedAt: await deps.store.now(),
-        failedCodeTries: 0,
-        callerSaid: [],
-      });
-      return callId;
-    },
+    startCall: deps.startCall,
     async *callerSays(callId, text): AsyncIterable<AgentEvent> {
       const call = await deps.store.getCall(callId);
       if (!call || call.state === "ended") return;
 
-      await deps.store.saveCall({ ...call, callerSaid: [...call.callerSaid, text] });
-      await deps.store.appendRecord({ callId, actor: "caller", kind: "caller_line", input: text });
       deps.emit({ type: "line", callId, who: "caller", text });
 
       const safety = await deps.checkCallerLine(callId, text);
@@ -86,15 +73,13 @@ export function createHijackDriver(deps: HijackDependencies, script: HijackScrip
               replacement: guarded.speak,
             };
           }
-          await deps.store.appendRecord({ callId, actor: "agent", kind: "line_spoken", output: guarded.speak });
           deps.emit({ type: "line", callId, who: "agent", text: guarded.speak });
           yield { type: "line", text: guarded.speak };
         }
       }
     },
     async endCall(callId) {
-      const call = await deps.store.getCall(callId);
-      if (call) await deps.store.saveCall({ ...call, state: "ended", endedAt: await deps.store.now() });
+      await deps.endCall(callId);
       started.delete(callId);
     },
   };

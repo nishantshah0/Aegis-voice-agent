@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AgentEvent, ButtonName, StreamEvent } from "@/lib/contract";
-import { createFakeGuard, createFakePress, createFakeStore, fakeCheckCallerLine, FAKE_CODE } from "@/lib/contract/fakes";
+import { createFakeDriver, createFakeGuard, createFakePress, createFakeStore, fakeCheckCallerLine, FAKE_CODE } from "@/lib/contract/fakes";
 import { IDS, SEED } from "@/lib/seed";
 import { createHijackDriver, hijackCardScript, type HijackFixture } from "@/lib/agent/hijack";
 
@@ -23,10 +23,14 @@ function fixtureFor(patientId: string, rxId: string, orderId?: string): HijackFi
 
 function seedFakes(emit: (event: StreamEvent) => void = () => {}) {
   const store = createFakeStore(SEED);
+  const guardSentence = createFakeGuard(store, emit);
+  const calls = createFakeDriver(store, guardSentence, emit);
   return {
     store,
+    startCall: calls.startCall,
+    endCall: calls.endCall,
     press: createFakePress(store, emit),
-    guardSentence: createFakeGuard(store, emit),
+    guardSentence,
     checkCallerLine: fakeCheckCallerLine,
     emit,
   };
