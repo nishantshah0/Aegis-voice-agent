@@ -116,6 +116,8 @@ type CallState = {
    * and the driver places it, through the lock, when the caller answers.
    */
   heldRefill?: { rxId: RxId; input: unknown };
+  /** 1.x: what the caller heard from the agent on the current caller line. */
+  turnSaid: string[];
   /** One entry per caller line: when it arrived, first model text, first guarded sentence. */
   timings: ServerTurnTiming[];
   /** 1.x: this call's voice and its wording of the fixed handover line. */
@@ -176,6 +178,7 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
       refillable: new Map(),
       labels: new Map(),
       sideEffectNoted: new Set(),
+      turnSaid: [],
       timings: [],
       style: pickStyle(random),
       handover: pickLine(HANDOVER_LINES, random),
@@ -197,6 +200,7 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
       );
       yield { type: "blocked_line", rule: guarded.rule, original: guarded.original, replacement: guarded.speak };
     }
+    state.get(callId)?.turnSaid.push(guarded.speak);
     emit({ type: "line", callId, who: "agent", text: guarded.speak });
     yield { type: "line", text: guarded.speak };
   }
@@ -362,10 +366,13 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
       return;
     }
     call.askedSideEffects.add(held.rxId);
-    const label = call.labels.get(held.rxId) ?? (yield* labelFor(callId, held.rxId));
-    const question = sideEffectQuestionBeforeRefill(label);
-    yield* speak(callId, question);
-    pushSaid(call, question);
+    // The model already asked it this turn (live run side-effects-first): one question, not two.
+    if (!call.turnSaid.some((line) => /side[- ]?effects?/i.test(line))) {
+      const label = call.labels.get(held.rxId) ?? (yield* labelFor(callId, held.rxId));
+      const question = sideEffectQuestionBeforeRefill(label);
+      yield* speak(callId, question);
+      pushSaid(call, question);
+    }
     call.awaitingSideEffect = held.rxId;
     call.sideEffectLinesLeft = 2;
   }
@@ -444,6 +451,7 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
         return;
       }
       emit({ type: "line", callId, who: "caller", text });
+      call.turnSaid = [];
       const timing: ServerTurnTiming = { receivedAt: now() };
       call.timings.push(timing);
 
@@ -551,7 +559,7 @@ function forModel(result: ButtonResult): Record<string, unknown> {
 const HELD = {
   held: true,
   message:
-    "Not placed yet. The phone system asks the side-effect question next and places this refill when the caller answers. If they already told you about a side effect on this call, press note_for_pharmacist with it first. Say nothing more this turn, and don't say the refill is in.",
+    "Not placed yet. The phone system asks the side-effect question itself, right after you stop, and places this refill when the caller answers. Don't ask it yourself, and don't say the refill is in: at most a short acknowledgement such as \"Sure.\" If they already told you about a side effect on this call, press note_for_pharmacist with it first.",
 };
 
 /** 1.x: the held refill went through the lock when the caller answered. */
