@@ -17,38 +17,65 @@ function Scene({ label, children, product = false }: { label: string; children: 
 }
 
 function PatientPhone({ step }: { step: "ring" | "verify" | "refill" }) {
+  const description = step === "verify"
+    ? "Aegis confirms the code and date of birth before discussing the prescription."
+    : step === "refill" ? "Concern sent to the pharmacist." : null;
+
   return (
-    <Scene label="Demo call">
+    <figure className="landing-phone-scene">
       <div className="landing-phone">
-        <div className="landing-phone-top"><Mark className="size-5" />{PHARMACY_NAME}</div>
-        {step === "ring" ? (
-          <div className="landing-ringing">
-            <p>Incoming call</p>
-            <strong>{PHARMACY_NAME}</strong>
-            <div className="landing-answer">
-              <span><Icon name="calls" className="size-6" /></span>
-              Answer
+        <div className="landing-phone-screen" data-ringing={step === "ring"}>
+          <div className="landing-phone-status-bar" aria-hidden="true">
+            <span className="landing-phone-signal"><i /><i /><i /><i /></span>
+            <span className="landing-phone-camera" />
+            <span className="landing-phone-battery" />
+          </div>
+          {step === "ring" ? (
+            <div className="landing-phone-ringing">
+              <div className="landing-phone-caller">
+                <div className="landing-phone-avatar"><Mark className="size-8" /></div>
+                <p>Incoming call</p>
+                <strong>{PHARMACY_NAME}</strong>
+              </div>
+              <div className="landing-phone-call-actions" aria-hidden="true">
+                <div>
+                  <span className="landing-phone-decline"><Icon name="calls" className="size-6" /></span>
+                  Decline
+                </div>
+                <div>
+                  <span className="landing-phone-answer"><Icon name="calls" className="size-6" /></span>
+                  Answer
+                </div>
+              </div>
             </div>
-          </div>
-        ) : step === "verify" ? (
-          <div className="landing-verify">
-            <div className="landing-phone-status"><Icon name="phone" /> Verification text</div>
-            <div className="landing-text-message">
-              <p>Your verification code</p>
-              <span className="landing-code" aria-label="Six-digit demo code masked">••••••</span>
-            </div>
-            <p className="landing-phone-note">Aegis confirms the code and date of birth before discussing the prescription.</p>
-          </div>
-        ) : (
-          <div className="landing-conversation">
-            <div className="landing-phone-status"><Icon name="check" /> Identity verified</div>
-            <div className="landing-agent-bubble">How have you been feeling on this medication?</div>
-            <div className="landing-patient-bubble">{REPORTED_CONCERN}</div>
-            <p className="landing-phone-note">Concern sent to the pharmacist</p>
-          </div>
-        )}
+          ) : (
+            <>
+              <div className="landing-phone-contact">
+                <div className="landing-phone-avatar"><Mark className="size-5" /></div>
+                <strong>{PHARMACY_NAME}</strong>
+                <p>{step === "verify" ? "Verification text" : "Call transcript"}</p>
+              </div>
+              {step === "verify" ? (
+                <div className="landing-phone-thread">
+                  <div className="landing-phone-received">
+                    <p>Your verification code</p>
+                    <span className="landing-phone-code" aria-label="Six-digit demo code masked">••••••</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="landing-phone-thread">
+                  <p className="landing-phone-note">Identity verified</p>
+                  <p className="landing-phone-received">How have you been feeling on this medication?</p>
+                  <p className="landing-phone-sent">{REPORTED_CONCERN}</p>
+                </div>
+              )}
+            </>
+          )}
+          <span className="landing-phone-home-bar" aria-hidden="true" />
+        </div>
       </div>
-    </Scene>
+      {description && <figcaption className="landing-phone-caption">{description}</figcaption>}
+    </figure>
   );
 }
 

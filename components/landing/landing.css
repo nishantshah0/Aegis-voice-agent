@@ -441,106 +441,241 @@
   padding-block: 0.8rem 0.2rem;
 }
 
-.landing-phone {
+.landing-phone-scene {
   display: flex;
-  flex-direction: column;
-  width: min(100%, 15rem);
-  min-height: 20.25rem;
-  overflow: hidden;
-  border: 5px solid var(--rg-accent-ink);
-  background: var(--rg-surface);
-  box-shadow: 0 12px 26px -18px var(--rg-accent-ink);
-  font-size: 0.8125rem;
-  line-height: 1.4;
-}
-
-.landing-phone-top {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.65rem 0.65rem 0.55rem;
-  border-bottom: 1px solid var(--rg-line);
-  font-weight: 650;
-}
-
-.landing-ringing,
-.landing-verify,
-.landing-conversation {
-  flex: 1;
-  padding: 1rem;
-}
-
-.landing-ringing {
-  display: flex;
+  min-width: 0;
+  height: 100%;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: var(--rg-accent-ink);
-  color: var(--rg-ink-inverse);
-  text-align: center;
+  gap: 0.65rem;
 }
 
-.landing-ringing strong {
-  max-width: 11ch;
-  margin-top: 0.45rem;
-  font: 400 2rem/1.02 var(--font-display);
+.landing-phone-caption {
+  max-width: 32ch;
+  color: var(--rg-ink-2);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  text-align: center;
   text-wrap: balance;
 }
 
-.landing-answer {
+.landing-phone {
+  width: min(14rem, 100%);
+  padding: 0.35rem;
+  border: 1px solid #6d727b;
+  border-radius: 2.2rem;
+  background: #171a21;
+  box-shadow: inset 0 0 0 1px #3c414b, 0 16px 30px -16px rgb(25 30 39 / 55%);
+  font: 400 0.8125rem/1.4 system-ui, sans-serif;
+}
+
+.landing-phone-screen {
+  position: relative;
+  display: flex;
+  min-height: 23.75rem;
+  flex-direction: column;
+  padding-bottom: 1rem;
+  overflow: hidden;
+  border-radius: 1.8rem;
+  background: #fff;
+  color: #202332;
+}
+
+.landing-phone-screen[data-ringing="true"] {
+  background:
+    radial-gradient(ellipse at 85% 0%, #4d577e, transparent 70%),
+    linear-gradient(155deg, #2d3754, #171d30 70%);
+  color: #fff;
+}
+
+.landing-phone-status-bar {
+  display: flex;
+  min-height: 2rem;
+  align-items: center;
+  justify-content: space-between;
+  padding-inline: 0.9rem;
+}
+
+.landing-phone-camera {
+  position: absolute;
+  top: 0.45rem;
+  left: 50%;
+  width: 3.6rem;
+  height: 0.8rem;
+  translate: -50% 0;
+  border-radius: 1rem;
+  background: #101118;
+}
+
+.landing-phone-camera::after {
+  position: absolute;
+  top: 50%;
+  right: 0.3rem;
+  width: 0.32rem;
+  aspect-ratio: 1;
+  translate: 0 -50%;
+  border-radius: 50%;
+  background: #2d344a;
+  content: "";
+}
+
+.landing-phone-signal {
+  display: flex;
+  align-items: end;
+  gap: 2px;
+}
+
+.landing-phone-signal i {
+  width: 2px;
+  height: 3px;
+  border-radius: 1px;
+  background: currentColor;
+}
+
+.landing-phone-signal i:nth-child(2) { height: 5px; }
+.landing-phone-signal i:nth-child(3) { height: 7px; }
+.landing-phone-signal i:nth-child(4) { height: 9px; }
+
+.landing-phone-battery {
+  width: 0.95rem;
+  height: 0.5rem;
+  border: 1px solid currentColor;
+  border-radius: 2px;
+  background: linear-gradient(currentColor 0 0) left 1px center / 68% 0.25rem no-repeat;
+}
+
+.landing-phone-home-bar {
+  position: absolute;
+  bottom: 0.35rem;
+  left: 50%;
+  width: 33%;
+  height: 0.18rem;
+  translate: -50% 0;
+  border-radius: 1rem;
+  background: currentColor;
+  opacity: 0.82;
+}
+
+.landing-phone-ringing {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 1.55rem 0.85rem 1.15rem;
+  text-align: center;
+}
+
+.landing-phone-caller,
+.landing-phone-contact {
   display: grid;
   justify-items: center;
-  gap: 0.45rem;
-  margin-top: 1.25rem;
 }
 
-.landing-answer > span {
+.landing-phone-avatar {
   display: grid;
-  width: 2.85rem;
+  width: 3.4rem;
+  aspect-ratio: 1;
+  margin-bottom: 0.65rem;
+  place-items: center;
+  border-radius: 50%;
+  background: #eff3ee;
+}
+
+.landing-phone-caller p {
+  color: #e0e6f6;
+  font-size: 0.75rem;
+}
+
+.landing-phone-caller strong {
+  margin-top: 0.3rem;
+  font-size: 1.45rem;
+  font-weight: 650;
+  line-height: 1.08;
+  text-wrap: balance;
+}
+
+.landing-phone-call-actions {
+  display: flex;
+  justify-content: space-evenly;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  font-size: 0.75rem;
+}
+
+.landing-phone-call-actions > div {
+  display: grid;
+  justify-items: center;
+  gap: 0.4rem;
+}
+
+.landing-phone-decline,
+.landing-phone-answer {
+  display: grid;
+  width: 2.9rem;
   aspect-ratio: 1;
   place-items: center;
-  background: var(--rg-accent-soft);
-  color: var(--rg-accent-ink);
+  border-radius: 50%;
+  color: #fff;
 }
 
-.landing-verify,
-.landing-conversation {
+.landing-phone-decline { background: #cc354b; }
+.landing-phone-decline svg { rotate: 135deg; }
+.landing-phone-answer { background: #137b4d; }
+
+.landing-phone-contact {
+  gap: 0.15rem;
+  padding: 0.35rem 0.5rem 0.65rem;
+  border-bottom: 1px solid #e1e5eb;
+  background: #f7f8fb;
+  text-align: center;
+}
+
+.landing-phone-contact .landing-phone-avatar {
+  width: 2.15rem;
+  margin-bottom: 0.2rem;
+}
+
+.landing-phone-contact p,
+.landing-phone-note {
+  color: #535b6b;
+  font-size: 0.6875rem;
+}
+
+.landing-phone-thread {
   display: grid;
-  align-content: center;
-  gap: 0.65rem;
-  background: var(--rg-canvas);
+  gap: 0.7rem;
+  padding: 0.9rem 0.75rem;
 }
 
-.landing-phone-status {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  color: var(--rg-accent-ink);
-  font-weight: 650;
+.landing-phone-received,
+.landing-phone-sent {
+  max-width: 88%;
+  padding: 0.45rem 0.65rem;
+  overflow-wrap: anywhere;
 }
 
-.landing-text-message,
-.landing-agent-bubble,
-.landing-patient-bubble {
-  padding: 0.65rem 0.75rem;
-  border: 1px solid var(--rg-line);
-  background: var(--rg-surface);
+.landing-phone-received {
+  justify-self: start;
+  border-radius: 0.95rem 0.95rem 0.95rem 0.28rem;
+  background: #edf0f4;
 }
 
-.landing-patient-bubble {
-  width: fit-content;
+.landing-phone-sent {
   justify-self: end;
-  border-color: transparent;
-  background: var(--rg-accent-soft);
+  border-radius: 0.95rem 0.95rem 0.28rem 0.95rem;
+  background: #235bb8;
+  color: #fff;
 }
 
-.landing-code {
-  font: 600 1.1rem/1.6 var(--font-mono);
-  letter-spacing: 0.2em;
+.landing-phone-code {
+  font: 600 1.1rem/1.55 var(--font-mono);
+  letter-spacing: 0.16em;
 }
 
 .landing-phone-note {
-  color: var(--rg-ink-3);
+  text-align: center;
+  text-wrap: balance;
 }
 
 .landing-preview {
@@ -909,6 +1044,11 @@
   .landing-slide[data-active="true"] {
     z-index: 1;
     opacity: 1;
+  }
+
+  .landing-slide .landing-phone-scene {
+    justify-content: start;
+    padding-block-start: max(1rem, calc((var(--panel-height) - 27rem) / 2));
   }
 }
 

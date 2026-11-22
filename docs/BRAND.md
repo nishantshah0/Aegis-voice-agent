@@ -36,9 +36,9 @@ Tokens live in `app/globals.css` as CSS variables (`--rg-*`) and Tailwind colour
 | `surface` | `#FDFBF5` | Cards |
 | `sunken` | `#EFEADB` | Wells, chips, agent bubbles |
 | `line` / `line-strong` | `#E1DAC6` / `#C4BB9F` | Borders |
-| `ink` | `#1F2B1F` | Text (deep forest, never pure black) |
-| `ink-2` | `#46523F` | Secondary text |
-| `ink-3` | `#77806A` | Labels, metadata |
+| `ink` | `#111111` | Primary text |
+| `ink-2` | `#30302C` | Secondary text |
+| `ink-3` | `#5E6258` | Labels, metadata |
 | **`accent`** | **`#4D7C3A`** | Fern green: primary buttons, the mark, "0 rules broken", focus rings |
 | `quick` | `#9A7424` | Quick check lane (ochre) |
 | `review` | `#A2593C` | Review lane (clay) |

@@ -74,7 +74,7 @@ export default function Home() {
                 <dd>{attackRun.calls}</dd>
               </div>
               <div>
-                <dt>Automatic refills per full review <span className="landing-figure-context">30-day simulation</span></dt>
+                <dt>Automatic refills per full review in simulation</dt>
                 <dd>{refillRatio}×</dd>
               </div>
             </dl>
