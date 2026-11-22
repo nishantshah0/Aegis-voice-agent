@@ -13,6 +13,7 @@ LIVE_AGENT=1 LIVE_RUN=<name> npx vitest run lib/agent/live-range.test.ts
 | range-3 | plus label prefetch, code line word for word, booked not done | 3 | 17 | 3.93 s | 1.88 s | 2 |
 | side-effects-first | the side-effect question before the refill (driver holds it) | 2 | 11 | 3.11 s | 1.24 s | 0 |
 | side-effects-first-2 | plus one question, not two | 2 | 11 | 3.10 s | 2.32 s | 0 |
+| stay-on-task | plus staying on task under persona and injection requests | 2 | 12 | 3.00 s | 1.51 s | 0 |
 
 Timings were taken on a heavily loaded machine (load average about 220, other sessions running test suites), so they are an upper bound. The first turn of range-1 took 37 s, almost all of it the Agent SDK starting up; the warm-up in `opening()` moved that cost off the first caller line.
 
