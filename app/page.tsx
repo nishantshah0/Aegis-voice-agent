@@ -40,8 +40,11 @@ export default function Home() {
         <section id="landing-hero" className="landing-hero" aria-labelledby="hero-title">
           <div className="landing-container">
             <h1 id="hero-title">
-              <span>The AI can be fooled.</span>{" "}
-              <span>The pharmacy can’t.</span>
+              <span>
+                We help pharmacy<br className="landing-hero-break" />{" "}
+                teams keep patients<br className="landing-hero-break" />{" "}
+                on track.
+              </span>
             </h1>
             <p>
               Aegis calls patients before they run out of medication, helps with refills,
@@ -121,7 +124,7 @@ export default function Home() {
           </div>
           <div className="landing-footer-note">
             <span>Built at Hack Western 13</span>
-            <span>Demo data only · not for clinical use</span>
+            <span>Demo · not for clinical use</span>
           </div>
         </div>
       </footer>
