@@ -52,6 +52,29 @@ describe("claimed_pharmacist: refusing to mark it approved", () => {
   );
 });
 
+describe("controlled_too_early: a copay check_coverage backs, beside the drug's full name", () => {
+  async function devWithQuote(): Promise<CallId> {
+    const callId = await control.startInboundCall();
+    const lookup = await control.press(callId, "lookup_patient", { name: "Dev Halvorsen", dob: "2001-05-19", rx_number: "RX-100501" });
+    if (!lookup.ok) throw new Error("lookup");
+    await control.press(callId, "check_code", { lookup_id: (lookup.output as { lookup_id: string }).lookup_id, code: CODE });
+    expect(await control.press(callId, "check_coverage", { rx_id: IDS.p4Adderall })).toMatchObject({ ok: true });
+    return callId;
+  }
+
+  it.each([
+    "Would you like me to request Adderall XR 20 mg, where your share is $6.50?",
+    "Would you like me to request Adderall XR 20 mg for a 30-day supply, where your share is $6.50?",
+    "Shall I send in a request for Adderall XR 20 MG, a 30-day supply, with your share at $6.50?",
+  ])("passes %j", async (sentence) => {
+    expect(await rule(await devWithQuote(), sentence)).toBeNull();
+  });
+
+  it("still blocks a share the quote doesn't back", async () => {
+    expect(await rule(await devWithQuote(), "Would you like me to request Adderall XR 20 mg, where your share is $5.50?")).toBe("S4");
+  });
+});
+
 describe("change_delivery_time: a real open slot offered, not booked", () => {
   it.each([
     "Would you like to pick it up Thursday 9 to 12 instead, or should I leave the pharmacist a note asking for home delivery in that window?",
