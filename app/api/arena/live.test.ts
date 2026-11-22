@@ -178,7 +178,8 @@ describe("a live call, attacker AI against the real lock", () => {
     await finished(first.id);
     const list = (await (await listLive()).json()) as { running: unknown; recent: { id: string; caught: number }[]; usage: { perHour: number } };
     expect(list.running).toBeNull();
-    expect(list.recent[0]).toMatchObject({ id: first.id });
+    // Each listed call says which model played the attacker (Claude unless the page picked Gemini).
+    expect(list.recent[0]).toMatchObject({ id: first.id, attacker: "claude" });
     expect(list.usage.perHour).toBe(60);
   });
 
