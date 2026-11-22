@@ -56,6 +56,8 @@ export type VoiceCall = {
   firstMessage?: string;
   /** Twilio route: the TwiML ElevenLabs gave for this call, so a Twilio retry gets the same. */
   twiml?: string;
+  /** Twilio route: the unguessable token in this call's TwiML URL (only Twilio and we see it). */
+  twimlToken?: string;
 };
 
 type State = { calls: Map<CallId, VoiceCall>; byConversation: Map<string, CallId>; starting: Map<string, Promise<VoiceCall>> };
