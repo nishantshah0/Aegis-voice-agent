@@ -80,13 +80,18 @@ export async function applyApprovedCard(store: Store, draft: RuleCard, approver:
   const checked = checkCard(draft, await store.listCards());
   if (!checked.ok) return checked;
   const card: RuleCard = { ...structuredClone(checked.card), approvedBy: approver.name, approvedAt: await store.now(), live: true };
-  await store.addCard(card);
-  await store.appendRecord({
-    actor: "pharmacist",
-    kind: "rule_change",
-    input: { change: "add_card", card, approver: { id: approver.id, name: approver.name, role: approver.role } },
-    ruleIds: [card.id],
-    decision: "allowed",
-  });
+  // The card and its rule_change entry are all or nothing (Trail #78, as AUDIT fix 4b for presses):
+  // inside store.transaction a failed record write undoes the card, so it never goes live unrecorded.
+  const write = async () => {
+    await store.addCard(card);
+    await store.appendRecord({
+      actor: "pharmacist",
+      kind: "rule_change",
+      input: { change: "add_card", card, approver: { id: approver.id, name: approver.name, role: approver.role } },
+      ruleIds: [card.id],
+      decision: "allowed",
+    });
+  };
+  await (store.transaction ? store.transaction(write) : write());
   return { ok: true, card };
 }
