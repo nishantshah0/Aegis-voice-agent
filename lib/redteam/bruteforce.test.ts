@@ -1,6 +1,6 @@
 // Red-team RT-C5 (Trail #86): a slow brute force. Two wrong codes every 16 minutes never hit
 // the 3-in-15-minutes lockout; on main 34d697e that gave 180 wrong codes against one patient in
-// 24 hours. Since c12db45 six wrong codes in 24 hours lock the patient for 24 hours. A plain
+// 24 hours. Six wrong codes in 24 hours lock the patient for 2 hours (the top session's call; a pharmacist can clear it), and each wrong code after that, within the day, locks again at once. A plain
 // test, so the slow brute force stays closed.
 
 import { describe, expect, it } from "vitest";

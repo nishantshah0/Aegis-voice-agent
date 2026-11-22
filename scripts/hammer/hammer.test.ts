@@ -197,13 +197,13 @@ describe("the checker catches real breakage", () => {
     expect((await checker.check(store, later)).map((b) => b.rule)).not.toContain("code checked during a patient's lockout");
   });
 
-  it("a code checked inside the 24-hour lock after six wrong codes spread over a day", async () => {
+  it("a code checked inside the 2-hour lock after six wrong codes spread over a day", async () => {
     const store = createMemoryStore(SEED);
     for (let h = 0; h < 6; h++) {
       await store.setNow(new Date(Date.parse(SEED.now) + h * 3600 * 1000).toISOString());
       await store.appendRecord({ callId: `c_d${h}`, actor: "agent", kind: "button", button: "check_code", input: { lookup_id: "lk", code: "000000" }, output: { result: { ok: true, output: h === 5 ? { locked_until: "x" } : { verified: false }, ruleIds: [] }, internal: { patientId: IDS.sam, codeFailed: true } }, decision: "blocked" });
     }
-    await store.setNow(new Date(Date.parse(SEED.now) + 10 * 3600 * 1000).toISOString());
+    await store.setNow(new Date(Date.parse(SEED.now) + 6 * 3600 * 1000).toISOString());
     const next = await store.appendRecord({ callId: "c_d9", actor: "agent", kind: "button", button: "check_code", input: { lookup_id: "lk", code: HAMMER_CODE }, output: { result: { ok: true, output: { verified: true }, ruleIds: [] }, internal: { patientId: IDS.sam } } });
     expect((await checker.check(store, next)).map((b) => b.rule)).toContain("code checked during a patient's lockout");
   });
