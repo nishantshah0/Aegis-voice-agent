@@ -15,8 +15,25 @@
 
 <p align="center"><strong>Synthetic demo data only · Not for clinical use</strong></p>
 
+<p align="center">
+  <a href="https://github.com/nishantshah0/Aegis-voice-agent/actions/workflows/ci.yml"><img src="https://github.com/nishantshah0/Aegis-voice-agent/actions/workflows/ci.yml/badge.svg?branch=main" alt="Release gate status"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-4a7a3a" alt="MIT License"></a>
+</p>
+
 <p align="center"><a href="public/brand/hero-flowers-dithered-4x4.mp4"><img src="docs/images/flowers-loop.gif" alt="Looping preview of the Aegis landing-page flowers" width="900"></a></p>
 <p align="center"><sub><a href="public/brand/hero-flowers-dithered-4x4.mp4">Watch the full flower video</a></sub></p>
+
+## A look
+
+| Landing page | Pharmacist's Today queue |
+|---|---|
+| ![Aegis landing page with a live call transcript](docs/images/landing.png) | ![The pharmacist's Today queue with one call's checked lines](docs/images/console.png) |
+
+| Stage view | Patient phone |
+|---|---|
+| ![Stage view counting rules broken, attacks caught and presses stopped](docs/images/stage.png) | ![The patient's phone page waiting for the pharmacy to call](docs/images/phone.png) |
+
+Screenshots are from the hackathon build, on made-up patients.
 
 ## How it works
 
@@ -36,6 +53,18 @@ flowchart LR
   Record --> Safety[Safety suite and evidence]
   Attacks[Scenarios and attacks] --> Agent
 ```
+
+## Stack
+
+| Part | Built with |
+|---|---|
+| App | Next.js 16, React 19, TypeScript, Tailwind CSS 4 |
+| Call agent | Claude (Anthropic SDK and Claude Agent SDK) |
+| Attacker models | Claude and Gemini |
+| Sign-in and roles | Auth0 |
+| Phone and voice | Twilio, ElevenLabs |
+| Store | Postgres, or an in-memory store when `DATABASE_URL` is not set |
+| Tests | Vitest, PGlite |
 
 ## Workspaces
 
