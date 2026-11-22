@@ -107,4 +107,13 @@ describe("safety suite data", () => {
     expect(batch?.batches).toBe(1);
     expect(await readLatestBatch(await tmp())).toBeNull();
   });
+
+  it("takes the newest batch by its folder name when file times are equal (a fresh checkout)", async () => {
+    const dir = await tmp();
+    const card = (cardId: string, caught: number) => ({ cardId, callId: "c_0001", record: [], score: { automatedPassed: true, caught, broken: 0, checks: [] } });
+    await put(join(dir, "hijack", "2026-11-22T00-08-58-709Z", "early_refill.json"), card("early_refill", 9));
+    await put(join(dir, "hijack", "2026-11-21T11-22-05-794Z", "early_refill.json"), card("early_refill", 2));
+    for (const b of ["2026-11-22T00-08-58-709Z", "2026-11-21T11-22-05-794Z"]) await utimes(join(dir, "hijack", b, "early_refill.json"), new Date(5_000_000), new Date(5_000_000));
+    expect((await readLatestBatch(dir))?.caught).toBe(9);
+  });
 });

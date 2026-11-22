@@ -95,4 +95,12 @@ describe("the Attack library", () => {
     expect(injection.run).toBeGreaterThanOrEqual(1);
     expect(injection.caught).toBeGreaterThanOrEqual(1);
   });
+
+  it("takes each hijack card's newest batch by folder name when file times are equal", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "library-order-"));
+    await put(join(dir, "hijack", "2026-11-22T00-08-58-709Z", "early_refill.json"), card("early_refill", 9), 5_000_000);
+    await put(join(dir, "hijack", "2026-11-21T11-22-05-794Z", "early_refill.json"), card("early_refill", 0, 1), 5_000_000);
+    const lib = await readLibrary(dir);
+    expect(lib.find((a) => a.id === "hijack:early_refill")?.last).toMatchObject({ result: "caught", caught: 9 });
+  });
 });

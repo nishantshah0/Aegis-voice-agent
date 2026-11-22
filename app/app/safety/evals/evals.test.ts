@@ -92,4 +92,15 @@ describe("the Evals page's numbers", () => {
     await put(join(dir, "arena", "scenarios", "r3", "scoreboard.json"), { totalScenarios: 28, completed: true, passed: 25, caught: 5, broken: 2, scenarios: [] }, 3_000_000);
     expect((await readEvals(dir)).hero.broken).toBe(2);
   });
+
+  it("orders hijack batches by the time in their folder name, since a fresh checkout gives every file the same time", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "evals-order-"));
+    const same = 5_000_000;
+    await put(join(dir, "hijack", "2026-11-22T00-08-58-709Z", "early_refill.json"), card("early_refill", 9), same);
+    await put(join(dir, "hijack", "2026-11-21T11-22-05-794Z", "early_refill.json"), card("early_refill", 2), same);
+    await put(join(dir, "hijack", "pick-2026-11-22T01-00-00-000Z", "hijack_pick_1_early_refill.json"), { tag: "x", record: [] }, same);
+    const e = await readEvals(dir);
+    expect(e.layers.hijack.history.map((p) => p.value)).toEqual([2, 9]);
+    expect(e.layers.hijack.latest).toMatchObject({ caught: 9, path: "results/hijack/2026-11-22T00-08-58-709Z" });
+  });
 });
