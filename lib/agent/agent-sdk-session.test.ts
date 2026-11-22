@@ -23,6 +23,13 @@ describe("1.2b: the real Agent SDK session", () => {
     const noteSchema = z.object(zodShape(z, note.input_schema));
     expect(noteSchema.safeParse({ text: "x", kind: "side_effect" }).success).toBe(true);
     expect(noteSchema.safeParse({ text: "x", kind: "advice" }).success).toBe(false);
+    for (const name of ["request_refill", "check_coverage"]) {
+      const tool = BUTTON_TOOLS.find((t) => t.name === name)!;
+      const input = z.object(zodShape(z, tool.input_schema)).strict();
+      expect(input.safeParse({ rx_id: "r", days_supply: 7 }).success).toBe(true);
+      expect(input.safeParse({ rx_id: "r", days_supply: 2.5 }).success).toBe(false);
+    }
+    expect(noteSchema.safeParse({ kind: "appointment", slot_id: "s", text: "Consultation" }).success).toBe(true);
     const rx = BUTTON_TOOLS.find((t) => t.name === "check_prescription")!;
     expect(z.object(zodShape(z, rx.input_schema)).safeParse({ rx_id: "r", include_other_names: true }).success).toBe(true);
   });

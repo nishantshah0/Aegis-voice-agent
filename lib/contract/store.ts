@@ -51,6 +51,10 @@ export type Prescription = {
   /** The interval the prescriber wrote between fills, in days. */
   prescribedIntervalDays: number;
   lastFill: IsoTime;
+  /** Quantity actually dispensed with lastFill. Older records may lack this field. */
+  lastDispensedQuantity?: { count: number; unit: "tablets" | "capsules" };
+  /** Separately recorded insurance quotes for nonstandard fill sizes. */
+  supplyQuotes?: { days: number; planPays: string; patientPays: string }[];
   refillsLeft: number;
   /** Which fill this would be, e.g. Sam is on refill 1 of 2. */
   refillsTotal: number;
@@ -63,11 +67,16 @@ export type Prescription = {
 
 export type DeliverySlot = { id: SlotId; label: string; start: IsoTime; end: IsoTime };
 
+export type Appointment = { slotId: SlotId; patientId: PatientId; bookedAt: IsoTime };
+export type AppointmentSlot = { id: SlotId; start: IsoTime; label: string };
+
 export type Order = {
   id: OrderId;
   rxId: RxId;
   patientId: PatientId;
   state: RefillState;
+  /** Supply ordered. Legacy orders lack this field. */
+  daysSupply?: number;
   slotId?: SlotId;
   addressId?: AddressId | "pickup";
   createdAt: IsoTime;
@@ -82,7 +91,7 @@ export type Seed = {
   slots: DeliverySlot[];
   orders: Order[];
   cards: RuleCard[];
-  policy: { controlledEarlyWindowDays: number };
+  policy: { controlledEarlyWindowDays: number; appointmentSlots?: AppointmentSlot[] };
 };
 
 // ---------- Calls ----------
@@ -163,6 +172,7 @@ export type QueueItem = {
   patientId: PatientId;
   rxId?: RxId;
   orderId?: OrderId;
+  requestedDaysSupply?: number;
   kind: "refill" | "renewal" | "delivery" | "note" | "escalation";
   lane: Lane;
   /** The rules that sent it here. */
@@ -190,6 +200,9 @@ export interface Store {
   getPrescriptions(patientId: PatientId): Promise<Prescription[]>;
   getPrescription(rxId: RxId): Promise<Prescription | undefined>;
   listSlots(): Promise<DeliverySlot[]>;
+  listAppointments(): Promise<Appointment[]>;
+  /** Atomically takes a slot, succeeds again for its owner, refuses any other patient. */
+  reserveAppointment(appointment: Appointment): Promise<boolean>;
   listOrders(patientId?: PatientId): Promise<Order[]>;
   saveOrder(order: Order): Promise<Order>;
   listCards(): Promise<RuleCard[]>;

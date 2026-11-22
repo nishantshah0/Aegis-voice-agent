@@ -23,6 +23,8 @@ function schema(properties: Record<string, object>, optional: string[] = []): Sc
   };
 }
 
+const daysSupply = { type: "integer", minimum: 1, description: "Days of medication for this fill, as requested by the caller" };
+
 const BUTTONS: Record<ButtonName, { description: string; input_schema: Schema }> = {
   lookup_patient: {
     description:
@@ -51,7 +53,7 @@ const BUTTONS: Record<ButtonName, { description: string; input_schema: Schema }>
   },
   check_prescription: {
     description:
-      "Status of one of the verified patient's prescriptions: refills left, expiry, last fill, whether it can be refilled today, and how many others are ready.",
+      "Check one verified prescription, including its recorded last fill date, dispensed quantity and days supplied. Use history_readback for a history question.",
     input_schema: schema({
       rx_id: text("The prescription id"),
       include_other_names: { type: "boolean", description: "Also return the names of the other prescriptions ready to refill" },
@@ -62,19 +64,19 @@ const BUTTONS: Record<ButtonName, { description: string; input_schema: Schema }>
     input_schema: schema({ rx_id: text("The prescription id") }),
   },
   check_coverage: {
-    description: "What the plan pays and what the patient pays for this prescription.",
-    input_schema: schema({ rx_id: text("The prescription id") }),
+    description: "Read the stored plan and patient price for this prescription and supply. Use coverage_readback.",
+    input_schema: schema({ rx_id: text("The prescription id"), days_supply: daysSupply }, ["days_supply"]),
   },
   order_status: {
-    description: "The verified patient's open orders, with their status and delivery slot.",
-    input_schema: schema({}),
+    description: "Get the verified patient's orders. Set include_appointments to list available pharmacist consultations and this patient's bookings.",
+    input_schema: schema({ include_appointments: { type: "boolean", description: "Include pharmacist consultation slots and bookings" } }, ["include_appointments"]),
   },
   request_refill: {
     description:
       "Ask for a refill. Returns the refill's state and the rule numbers that decided it. A pharmacist may need to check it first.",
     input_schema: schema(
-      { rx_id: text("The prescription id"), reason: text("Why now, in the caller's words, if they gave one") },
-      ["reason"],
+      { rx_id: text("The prescription id"), reason: text("Why now, in the caller's words, if they gave one"), days_supply: daysSupply },
+      ["reason", "days_supply"],
     ),
   },
   request_renewal: {
@@ -90,14 +92,15 @@ const BUTTONS: Record<ButtonName, { description: string; input_schema: Schema }>
     }),
   },
   note_for_pharmacist: {
-    description: "Leave the pharmacist a note: a side effect the caller mentioned, or a question you cannot answer.",
+    description: "Leave a side-effect or question note. For a consultation, select the available slot the caller chose with kind appointment and slot_id.",
     input_schema: schema(
       {
         rx_id: text("The prescription it is about, if any"),
         text: text("The note, in the caller's own words where you can"),
-        kind: { type: "string", enum: ["side_effect", "question"], description: "side_effect or question" },
+        slot_id: text("Available consultation slot id, for appointments only"),
+        kind: { type: "string", enum: ["side_effect", "question", "appointment"], description: "What the caller needs" },
       },
-      ["rx_id"],
+      ["rx_id", "slot_id"],
     ),
   },
   escalate: {

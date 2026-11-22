@@ -172,6 +172,20 @@ export function TodayBoard({ data, canDecide, initial }: { data: Today; canDecid
         </SlideOver>
       </div>
 
+      {data.appointments.length > 0 && (
+        <section className="mt-10">
+          <SectionHeader title="Upcoming pharmacist appointments" />
+          <Table>
+            <THead><tr><Th>Appointment</Th><Th>Patient</Th></tr></THead>
+            <tbody>
+              {data.appointments.map((booking) => (
+                <Tr key={booking.slotId}><Td>{booking.label}</Td><Td>{booking.patient}</Td></Tr>
+              ))}
+            </tbody>
+          </Table>
+        </section>
+      )}
+
       <section className="mt-10">
         <SectionHeader
           title="Decided"

@@ -7,7 +7,7 @@ type Prop = { type: string; enum?: string[] };
 
 /** An input with every field the schema lists, filled in. */
 function sample(properties: Record<string, Prop>): Record<string, unknown> {
-  return Object.fromEntries(Object.entries(properties).map(([k, p]) => [k, p.type === "boolean" ? false : (p.enum?.[0] ?? "x")]));
+  return Object.fromEntries(Object.entries(properties).map(([k, p]) => [k, p.type === "integer" ? 7 : p.type === "boolean" ? false : (p.enum?.[0] ?? "x")]));
 }
 
 describe("1.2: the 12 buttons as tools", () => {
@@ -23,9 +23,12 @@ describe("1.2: the 12 buttons as tools", () => {
     for (const tool of BUTTON_TOOLS) {
       const properties = (tool.input_schema.properties ?? {}) as Record<string, Prop>;
       const required = (tool.input_schema.required ?? []) as string[];
-      expect(checkInput(tool.name as never, sample(properties)), tool.name).toMatchObject({ ok: true });
+      const valid = sample(properties);
+      // An ordinary pharmacist note has no appointment slot. The appointment shape is tested separately.
+      if (tool.name === "note_for_pharmacist") delete valid.slot_id;
+      expect(checkInput(tool.name as never, valid), tool.name).toMatchObject({ ok: true });
       for (const key of required) {
-        const missing = sample(properties);
+        const missing = { ...valid };
         delete missing[key];
         expect(checkInput(tool.name as never, missing).ok, `${tool.name} without ${key}`).toBe(false);
       }

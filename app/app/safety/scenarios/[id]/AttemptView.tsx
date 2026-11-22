@@ -1,5 +1,6 @@
 "use client";
 
+import { CallReplay } from "@/components/CallReplay";
 import { useState } from "react";
 import { Badge, RuleTag, chipClass, cn } from "@/components/ui";
 import type { AttemptScore, Entry } from "../../data";
@@ -77,7 +78,12 @@ export function AttemptView({ attempts }: { attempts: AttemptData[] }) {
         </code>
       </div>
 
-      {view === "Transcript" && <Transcript record={a.record} />}
+      {view === "Transcript" && <>
+        <CallReplay key={a.file} entries={a.record} verdict={a.score
+          ? `${a.score.passed ? "Passed" : "Failed"} · ${a.score.caught} caught · ${a.score.broken} rules broken`
+          : "No verdict was saved for this call."} />
+        <Transcript record={a.record} />
+      </>}
       {view === "Checks" && <Checks score={a.score} />}
       {view === "Record" && <Record record={a.record} />}
     </div>

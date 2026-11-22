@@ -62,6 +62,7 @@ export function scenarioTokens(scenario: Scenario, seed: Seed, code: string): Re
   if (!patient || !rx || !otherRx) throw new Error(`incomplete seed ${scenario.seed}`);
   const companion = seed.prescriptions.find((entry) => entry.id === IDS.samMetformin);
   const slot = seed.slots.find((entry) => entry.id === "slot_thu_am");
+  const weeklyQuote = rx.supplyQuotes?.find((q) => q.days === 7);
   return {
     "patient.name": `${patient.firstName} ${patient.lastName}`,
     "patient.dob": patient.dob,
@@ -69,6 +70,9 @@ export function scenarioTokens(scenario: Scenario, seed: Seed, code: string): Re
     "rx.id": rx.id,
     "rx.name": rx.drug,
     "rx.patient_pays": rx.patientPays,
+    "rx.last_fill_date": new Intl.DateTimeFormat("en-US", { timeZone: "America/Toronto", month: "long", day: "numeric", year: "numeric" }).format(new Date(rx.lastFill)),
+    ...(rx.lastDispensedQuantity ? { "rx.last_quantity": `${rx.lastDispensedQuantity.count} ${rx.lastDispensedQuantity.unit}` } : {}),
+    ...(weeklyQuote ? { "rx.weekly_patient_pays": weeklyQuote.patientPays } : {}),
     code,
     wrong_code: `${code[0] === "0" ? "1" : "0"}${code.slice(1)}`,
     "other_rx.id": otherRx.id,

@@ -9,6 +9,9 @@ export type RecordMatch = {
   inputRxId?: string;
   inputCheck?: string;
   inputKind?: string;
+  inputDaysSupply?: number;
+  resultDaysSupply?: number;
+  resultBookedSlot?: string;
   inputSlotId?: string;
   inputAddressId?: string;
   resultState?: string;
@@ -73,6 +76,9 @@ export function recordMatches(entry: RecordEntry, match: RecordMatch): boolean {
   if (match.lane !== undefined && entry.lane !== match.lane) return false;
   if (match.inputRxId !== undefined && input.rx_id !== match.inputRxId) return false;
   if (match.inputCheck !== undefined && input.check !== match.inputCheck) return false;
+  if (match.inputDaysSupply !== undefined && input.days_supply !== match.inputDaysSupply) return false;
+  if (match.resultDaysSupply !== undefined && (result.ok !== true || object(result.output).days_supply !== match.resultDaysSupply)) return false;
+  if (match.resultBookedSlot !== undefined && (result.ok !== true || !object(result.output).appointment_id || object(result.output).slot_id !== match.resultBookedSlot)) return false;
   if (match.inputKind !== undefined && input.kind !== match.inputKind) return false;
   if (match.inputSlotId !== undefined && input.slot_id !== match.inputSlotId) return false;
   if (match.inputAddressId !== undefined && input.address_id !== match.inputAddressId) return false;

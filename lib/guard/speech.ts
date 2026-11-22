@@ -8,6 +8,7 @@
 import { GUARD_REPLACEMENTS, type Call, type EmitFn, type GuardResult, type GuardSentenceFn, type RecordEntry, type SpeechRule, type Store } from "@/lib/contract";
 import { internalOf, resultOf } from "@/lib/control/context";
 import { canonical, unbackedDoses, wordsToNumber } from "./doses";
+import { isRecordedReadback, ungroundedPatientFact } from "./patient-facts";
 import { mentions, tokensFor, words, type Token } from "./tokens";
 
 export const S4_REPLACEMENT = "A pharmacist will check it first, and I'll confirm once it's approved.";
@@ -40,9 +41,8 @@ const NOT_A_PROMISE = new RegExp(
 const BOOKING = /\b(booked|scheduled)\b/;
 const SENT = /\b(sent|requested|submitted)\b/;
 const DAYS = /\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/g;
-const PRICE = /\$\s?\d+(?:\.\d{2})?/g;
 
-type Check = { rule: SpeechRule; why: string } | null;
+type Check = { rule: SpeechRule; why: string; replacement?: string } | null;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 // Sentences about the supply running out or lasting. Never "due": "your delivery is due Friday"
@@ -302,10 +302,6 @@ function checkS4(sentence: string, record: RecordEntry[], bookedLabels: string[]
   };
   const done = new Set(results.map(({ e, r }) => succeeded(e, r)).filter((x): x is string => x !== null));
   const booked = results.some(({ e, r }) => e.button === "set_delivery" && r?.ok && (r.output as { ok?: boolean }).ok);
-  const prices = results
-    .filter(({ e, r }) => e.button === "check_coverage" && r?.ok)
-    .flatMap(({ r }) => Object.values((r as { output: Record<string, string> }).output));
-  const norm = (p: string) => Number(p.replace(/[^\d.]/g, "")).toFixed(2);
   // The ready days request_refill and order_status returned on this call (ready_label).
   const readyLabels = results.flatMap(({ e, r }) => {
     if (!r?.ok || (e.button !== "request_refill" && e.button !== "order_status")) return [];
@@ -325,9 +321,6 @@ function checkS4(sentence: string, record: RecordEntry[], bookedLabels: string[]
     const codeAfterMatch = ledByMatch;
     ledByMatch = MATCH_CONDITION_LEAD.test(cw);
 
-    for (const price of raw.match(PRICE) ?? []) {
-      if (!prices.some((p) => norm(p) === norm(price))) return { rule: "S4", why: `price ${price} not from check_coverage` };
-    }
     if (excused) continue;
 
     const m = cw.match(BOOKING);
@@ -376,15 +369,19 @@ export function createSpeechGuard({ store, emit = () => {} }: { store: Store; em
         }
         found =
           checkS1(call, sentence, tokens, said, record) ??
-          checkS2(call, sentence, tokens, said) ??
-          (await checkS3(store, call, sentence)) ??
-          checkS4(
-            spokenPrices(sentence),
+          checkS2(call, sentence, tokens, said);
+        if (!found && !isRecordedReadback(sentence, call, record)) {
+          const line = spokenPrices(sentence);
+          const drugs = [...new Set(tokens.filter(t => t.kind === "drug").map(t => t.text))];
+          const why = ungroundedPatientFact(line, call, record, drugs);
+          found = (why ? { rule: "S4", why, replacement: "I can't confirm that from your record." } : null) ?? (await checkS3(store, call, sentence)) ?? checkS4(
+            line,
             record,
             bookedLabels,
-            tokens.filter((t) => t.kind === "drug").map((t) => t.text),
+            drugs,
             new Set((await store.queue()).filter((q) => q.kind === "refill" || q.kind === "renewal").map((q) => q.id)),
           );
+        }
 
         if (found?.rule === "S3" && call.lockedPatientId) {
           const item = await store.addQueueItem({
@@ -408,7 +405,7 @@ export function createSpeechGuard({ store, emit = () => {} }: { store: Store; em
       await store.appendRecord({ callId, actor: "agent", kind: "line_spoken", input: { text: sentence }, decision: "allowed" }).catch(() => {});
       return { speak: sentence, blocked: false };
     }
-    const replacement = REPLACEMENT[found.rule];
+    const replacement = found.replacement ?? REPLACEMENT[found.rule];
     await store
       .appendRecord({
         callId,

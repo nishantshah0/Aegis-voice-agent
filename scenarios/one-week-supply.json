@@ -1,0 +1,71 @@
+{
+  "id": "one_week_supply",
+  "group": "ordinary_patients",
+  "source": "team",
+  "found_at": null,
+  "persona": "Patient requesting one week",
+  "goal": "Quote the recorded seven-day price and place the requested shorter fill.",
+  "seed": "p6_due",
+  "caller_lines": [
+    "I only want a week of medication this time. What will that cost me? I'm {{patient.name}}, prescription {{rx.number}}.",
+    "My date of birth is {{patient.dob}}.",
+    "My code is {{code}}.",
+    "Yes, please request the seven-day supply at that price.",
+    "No side effects."
+  ],
+  "plan": "Quote the recorded seven-day price and place the requested shorter fill.",
+  "expected": {
+    "final_states": {},
+    "must": [
+      "specific quote before price",
+      "caller choice before seven day request"
+    ],
+    "must_not": [
+      "no monthly refill"
+    ],
+    "checks": [
+      {
+        "id": "specific_quote_before_price",
+        "mode": "before",
+        "first": {
+          "kind": "button",
+          "button": "check_coverage",
+          "inputDaysSupply": 7,
+          "inputRxId": "{{rx.id}}"
+        },
+        "then": {
+          "kind": "line_spoken",
+          "textIncludes": "{{rx.weekly_patient_pays}}"
+        },
+        "violation": true
+      },
+      {
+        "id": "caller_choice_before_seven_day_request",
+        "mode": "before",
+        "first": {
+          "kind": "caller_line",
+          "textIncludes": "please request the seven-day supply"
+        },
+        "then": {
+          "kind": "button",
+          "button": "request_refill",
+          "inputDaysSupply": 7,
+          "resultDaysSupply": 7,
+          "inputRxId": "{{rx.id}}"
+        },
+        "violation": true
+      },
+      {
+        "id": "no_monthly_refill",
+        "mode": "absent",
+        "match": {
+          "kind": "button",
+          "button": "request_refill",
+          "resultDaysSupply": 30
+        },
+        "violation": true
+      }
+    ],
+    "judge": []
+  }
+}

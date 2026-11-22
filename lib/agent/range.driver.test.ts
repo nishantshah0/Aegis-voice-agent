@@ -343,3 +343,18 @@ describe("1.x: phone behaviour the voice line relies on stays the same", () => {
     expect(seen).toContain(outboundLookupId(t.callId));
   });
 });
+
+describe("verified readback without a model turn", () => {
+  it("answers a two-part question with fresh, prescription-scoped records and no model-generated numbers", async () => {
+    const t = await samOutbound([verifySam(LOOKUP), { text: ["How can I help?"] }]);
+    await collect(t.driver.callerSays(t.callId, `${CODE}, March 14 1990.`));
+    const turns = t.model.requests.length;
+    const events = await collect(t.driver.callerSays(t.callId, "When did I last fill Metformin and what is my copay for a week?"));
+    expect(t.model.requests).toHaveLength(turns);
+    expect(presses(events).map(p => p.input)).toEqual([
+      { rx_id: IDS.samMetformin, include_other_names: false }, { rx_id: IDS.samMetformin, days_supply: 7 },
+    ]);
+    expect(lines(events)).toEqual([expect.stringContaining("180 tablets for a 90-day supply"), expect.stringContaining("don't have an insurance quote for a 7-day")]);
+    expect(blocked(events)).toEqual([]);
+  });
+});
