@@ -114,6 +114,15 @@
   --rg-focus: #5cd0f5;
 }
 
+/* Back to the pharmacy green inside a Safety page (the area switcher's Pharmacy tile). */
+.theme-app .theme-pharmacy {
+  --rg-accent: #3ddc97;
+  --rg-accent-strong: #5ee6aa;
+  --rg-accent-soft: rgb(61 220 151 / 0.12);
+  --rg-accent-ink: #3ddc97;
+  --rg-focus: #3ddc97;
+}
+
 .theme-light {
   color-scheme: light;
 }

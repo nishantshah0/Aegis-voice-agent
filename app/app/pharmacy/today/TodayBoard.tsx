@@ -3,11 +3,10 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { listenToEvents } from "@/lib/events/client";
-import { Badge, Card, LANE_LABEL, Table, TableEmpty, Td, Th, THead, Tr, cn, type Lane } from "@/components/ui";
-import { LaneTotals } from "@/app/console/today/LaneTotals";
+import { Badge, Card, LANE_LABEL, SectionHeader, Table, TableEmpty, Td, Th, THead, Tr, When, chipClass, cn, linkClass, type Lane } from "@/components/ui";
 import { DecideBar } from "../_parts/Decide";
 import { SlideOver } from "../_parts/SlideOver";
-import { dateTime, time, typing } from "../_parts/format";
+import { typing } from "../_parts/format";
 import { ItemPanel, ItemSummary } from "./ItemPanel";
 import type { Today, TodayItem } from "./today";
 
@@ -23,13 +22,12 @@ function Row({ d, selected, onSelect }: { d: TodayItem; selected: boolean; onSel
         aria-current={selected ? "true" : undefined}
         data-item={d.id}
         className={cn(
-          "flex w-full items-center justify-between gap-3 border-l-4 px-4 py-3 text-left transition-colors hover:bg-sunken/60 focus-visible:bg-sunken focus-visible:outline-none",
-          d.lane === "review" ? "border-l-review" : d.lane === "quick_check" ? "border-l-quick" : "border-l-accent",
-          selected && "bg-sunken",
+          "flex w-full items-center justify-between gap-3 border-l-2 px-4 py-3 text-left transition-colors hover:bg-sunken/60 focus-visible:bg-sunken focus-visible:outline-none",
+          selected ? "border-l-accent bg-sunken" : "border-l-transparent",
         )}
       >
         <ItemSummary d={d} />
-        <span className="shrink-0 text-xs tabular-nums text-ink-3">{time(d.createdAt)}</span>
+        <When iso={d.createdAt} className="shrink-0 text-xs text-ink-3" />
       </button>
     </li>
   );
@@ -105,10 +103,8 @@ export function TodayBoard({ data, canDecide, initial }: { data: Today; canDecid
 
   return (
     <>
-      <LaneTotals totals={data.totals} />
-
       <div className="mt-8 flex flex-wrap items-center justify-between gap-3">
-        <div role="tablist" aria-label="Lane" className="flex flex-wrap gap-1.5">
+        <div role="tablist" aria-label="Lane" className="flex flex-wrap gap-1">
           {FILTERS.map((f) => {
             const count = f === "all" ? all.length : all.filter((d) => d.lane === f).length;
             return (
@@ -118,18 +114,24 @@ export function TodayBoard({ data, canDecide, initial }: { data: Today; canDecid
                 role="tab"
                 aria-selected={filter === f}
                 onClick={() => setFilter(f)}
-                className={cn(
-                  "h-8 rounded-full border px-3.5 text-[13px] transition-colors",
-                  filter === f ? "border-ink bg-ink text-ink-inverse" : "border-line-strong bg-surface text-ink-2 hover:border-ink-3",
-                )}
+                className={chipClass(filter === f)}
               >
-                {f === "all" ? "Everything" : LANE_LABEL[f]} <span className="tabular-nums opacity-70">{count}</span>
+                {f !== "all" && <span aria-hidden className={cn("size-1.5 rounded-full", f === "review" ? "bg-review" : f === "quick_check" ? "bg-quick" : "bg-auto")} />}
+                {f === "all" ? "Everything" : LANE_LABEL[f]} <span className="tabular-nums text-ink-3">{count}</span>
               </button>
             );
           })}
         </div>
         <p className="hidden text-xs text-ink-3 md:block">
-          <kbd className="font-mono">↑↓</kbd> move{canDecide && " · A approve · D decline · N note"}
+          <kbd className="rounded border border-line-strong px-1 font-mono text-[10px]">↑↓</kbd> move
+          {canDecide && (
+            <>
+              {" · "}
+              <kbd className="rounded border border-line-strong px-1 font-mono text-[10px]">A</kbd> approve ·{" "}
+              <kbd className="rounded border border-line-strong px-1 font-mono text-[10px]">D</kbd> decline ·{" "}
+              <kbd className="rounded border border-line-strong px-1 font-mono text-[10px]">N</kbd> note
+            </>
+          )}
         </p>
       </div>
 
@@ -138,7 +140,7 @@ export function TodayBoard({ data, canDecide, initial }: { data: Today; canDecid
       <div className="mt-4 grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
         <div>
           {shown.length === 0 ? (
-            <TableEmpty>{filter === "all" ? "Nothing waiting. Run the daily check to ring today's patients." : `Nothing in ${LANE_LABEL[filter]}.`}</TableEmpty>
+            <TableEmpty>{filter === "all" ? "Nothing waiting. The herd's all set." : `Nothing in ${LANE_LABEL[filter]}.`}</TableEmpty>
           ) : (
             <ul className="divide-y divide-line overflow-hidden rounded-card border border-line bg-surface shadow-card" data-testid="queue">
               {shown.map((d) => (
@@ -156,7 +158,7 @@ export function TodayBoard({ data, canDecide, initial }: { data: Today; canDecid
           )}
         </div>
         <Card className="hidden self-start lg:sticky lg:top-6 lg:block" aria-label="Selected item">
-          {panel ?? <p className="text-sm text-ink-3">Pick an item to see why it&apos;s here.</p>}
+          {panel ?? <p className="text-[13px] text-ink-3">{all.length ? "Pick an item to see why it's here." : "When a call needs a pharmacist, the reason and the transcript show here."}</p>}
         </Card>
       </div>
 
@@ -167,10 +169,10 @@ export function TodayBoard({ data, canDecide, initial }: { data: Today; canDecid
       </div>
 
       <section className="mt-10">
-        <h2 className="text-xl font-semibold tracking-[-0.02em]">Decided</h2>
-        <div className="mt-3">
+        <SectionHeader title="Decided" description="Approvals and declines, newest first, with the note that went to the record." />
+        <div>
           {data.decided.length === 0 ? (
-            <TableEmpty>No decisions yet.</TableEmpty>
+            <TableEmpty>No decisions yet today.</TableEmpty>
           ) : (
             <Table data-testid="decided">
               <THead>
@@ -185,7 +187,9 @@ export function TodayBoard({ data, canDecide, initial }: { data: Today; canDecid
               <tbody>
                 {data.decided.map((d) => (
                   <Tr key={d.id}>
-                    <Td className="whitespace-nowrap">{dateTime(d.decidedAt)}</Td>
+                    <Td className="whitespace-nowrap">
+                      <When iso={d.decidedAt} />
+                    </Td>
                     <Td>
                       <ItemSummary d={d} />
                     </Td>
@@ -197,7 +201,7 @@ export function TodayBoard({ data, canDecide, initial }: { data: Today; canDecid
                     </Td>
                     <Td>{d.decisionNote ?? <span className="text-ink-3">–</span>}</Td>
                     <Td className="text-right">
-                      <Link href={`/app/pharmacy/calls/${encodeURIComponent(d.callId)}`} className="text-[13px] font-medium text-accent underline-offset-4 hover:underline">
+                      <Link href={`/app/pharmacy/calls/${encodeURIComponent(d.callId)}`} className={linkClass}>
                         Call
                       </Link>
                     </Td>
@@ -210,7 +214,7 @@ export function TodayBoard({ data, canDecide, initial }: { data: Today; canDecid
       </section>
 
       <div aria-live="polite" className="pointer-events-none fixed bottom-6 left-1/2 z-40 -translate-x-1/2">
-        {toast && <div className="pointer-events-auto rounded-full bg-ink px-4 py-2 text-sm text-ink-inverse shadow-card">{toast}</div>}
+        {toast && <div className="pointer-events-auto rounded-full border border-line-strong bg-raised px-4 py-2 text-sm text-ink shadow-pop">{toast}</div>}
       </div>
     </>
   );

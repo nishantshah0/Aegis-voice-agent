@@ -15,6 +15,12 @@ const PATHS: Record<IconName, string> = {
   moon: "M15.5 12.5A6.5 6.5 0 0 1 7.5 4.5a6.5 6.5 0 1 0 8 8Z",
   book: "M4 4a1.5 1.5 0 0 1 1.5-1.5H16V15H5.5A1.5 1.5 0 0 0 4 16.5V4ZM4 16.5A1.5 1.5 0 0 0 5.5 18H16M7.5 6.5h5",
   phone: "M6.5 2.5h7a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-7a1 1 0 0 1-1-1v-13a1 1 0 0 1 1-1ZM9 15h2",
+  chevrons: "M7 7.5 10 4.5l3 3M7 12.5l3 3 3-3",
+  sliders: "M4 6h7M15 6h1M4 14h1M9 14h7M13 4v4M7 12v4",
+  signout: "M8 3.5H5a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h3M12.5 13.5 16 10l-3.5-3.5M16 10H8",
+  check: "M5 10.5 8.5 14 15 6.5",
+  external: "M8 4.5H5a1 1 0 0 0-1 1V15a1 1 0 0 0 1 1h9.5a1 1 0 0 0 1-1v-3M11.5 3.5H16.5V8.5M16 4l-6.5 6.5",
+  feed: "M4 4.5h12M4 8.5h12M4 12.5h8M4 16.5h5",
 };
 
 export function Icon({ name, className }: { name: IconName; className?: string }) {

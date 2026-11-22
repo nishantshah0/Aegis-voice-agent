@@ -1,20 +1,19 @@
 import { Suspense } from "react";
+import { Skeleton, SkeletonTiles } from "@/components/ui";
 import { AppFrame } from "./_shell/AppFrame";
 import { Account } from "./_shell/Account";
+import { DemoMenu } from "./_shell/DemoMenu";
 import { RequireSignIn } from "./_shell/RequireSignIn";
 
 export const metadata = { title: "Aegis" };
 
 function Loading() {
   return (
-    <div className="space-y-4" aria-busy>
-      <div className="h-9 w-48 animate-pulse rounded-lg bg-sunken" />
-      <div className="h-4 w-80 animate-pulse rounded bg-sunken" />
-      <div className="mt-8 grid grid-cols-3 gap-3">
-        <div className="h-24 animate-pulse rounded-card bg-sunken" />
-        <div className="h-24 animate-pulse rounded-card bg-sunken" />
-        <div className="h-24 animate-pulse rounded-card bg-sunken" />
-      </div>
+    <div aria-busy aria-label="Loading">
+      <Skeleton className="h-8 w-48" />
+      <Skeleton className="mt-2 h-4 w-80" />
+      <SkeletonTiles className="mt-8" />
+      <Skeleton className="mt-6 h-64 w-full rounded-card" />
     </div>
   );
 }
@@ -23,8 +22,13 @@ export default function AppLayout({ children }: LayoutProps<"/app">) {
   return (
     <AppFrame
       account={
-        <Suspense fallback={null}>
+        <Suspense fallback={<Skeleton className="h-9 w-full" />}>
           <Account />
+        </Suspense>
+      }
+      demo={
+        <Suspense fallback={null}>
+          <DemoMenu />
         </Suspense>
       }
     >

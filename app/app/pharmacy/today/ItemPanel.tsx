@@ -1,7 +1,6 @@
 import Link from "next/link";
-import { Badge, Eyebrow, LaneBadge, RuleTag } from "@/components/ui";
+import { Badge, Eyebrow, LaneBadge, RuleTag, When } from "@/components/ui";
 import type { TodayItem } from "./today";
-import { dateTime } from "../_parts/format";
 
 export const SIGNAL_LABEL: Record<string, string> = {
   early: "Early refill",
@@ -47,7 +46,9 @@ export function ItemPanel({ d }: { d: TodayItem }) {
           {d.callId} →
         </Link>
       </div>
-      <p className="-mt-3 text-xs text-ink-3">Sent here {dateTime(d.createdAt)}</p>
+      <p className="-mt-3 text-xs text-ink-3">
+        Sent here <When iso={d.createdAt} />
+      </p>
 
       <Section title="Why it's here">
         {d.rules.length === 0 && <p className="text-ink-3">No rule card: sent here by the signals below.</p>}
@@ -110,7 +111,7 @@ export function ItemPanel({ d }: { d: TodayItem }) {
         <summary className="cursor-pointer text-[13px] font-medium text-ink hover:text-accent">Transcript ({d.transcript.length} lines)</summary>
         <ol className="mt-2 flex flex-col gap-1.5">
           {d.transcript.map((l, i) => (
-            <li key={i} className={l.who === "caller" ? "max-w-[85%] self-end rounded-xl bg-accent-soft px-3 py-1.5 text-sm" : "max-w-[85%] self-start rounded-xl bg-sunken px-3 py-1.5 text-sm"}>
+            <li key={i} className={l.who === "caller" ? "max-w-[85%] self-end rounded-xl bg-accent-soft px-3 py-1.5 text-[13px] text-ink" : "max-w-[85%] self-start rounded-xl bg-sunken px-3 py-1.5 text-[13px] text-ink"}>
               {l.blocked ? (
                 <>
                   <s>{l.text}</s> <RuleTag>{l.blocked}</RuleTag>
