@@ -30,9 +30,20 @@ import type {
 } from "@/lib/contract";
 import { outboundLookupId } from "@/lib/control";
 import type { ServerTurnTiming } from "@/lib/voice/timing";
-import { HOLDING, SIDE_EFFECT_PASSED_ON, STILL_THERE, inboundGreeting, outboundOpener, sideEffectQuestion } from "./lines";
+import { SEED } from "@/lib/seed";
+import {
+  HANDOVER_LINE,
+  HANDOVER_LINES,
+  HOLDING,
+  SIDE_EFFECT_PASSED_ON,
+  STILL_THERE_LINES,
+  inboundGreeting,
+  outboundOpener,
+  pickLine,
+  sideEffectQuestion,
+} from "./lines";
 import type { AgentModel, ModelTurn, PressForModel } from "./model";
-import { systemPrompt } from "./prompt";
+import { pickStyle, systemPrompt, type CallStyle } from "./prompt";
 import { createSentenceSplitter } from "./sentences";
 import { BUTTON_TOOLS, isButtonName } from "./tools";
 import { UsageCapError } from "./usage";
@@ -65,7 +76,14 @@ export type AgentDriverOptions = {
   maxSteps?: number;
   /** Clock for turn timing (task 1.6), in ms. Tests pass a fake one. */
   now?: () => number;
+  /** 1.x: picks each call's voice and the wording of its check-in and handover. Tests pass a fixed one. */
+  random?: () => number;
+  /** 1.x: the pharmacy's delivery windows (tier 0), listed in the call note so set_delivery has a slot id. */
+  deliverySlots?: { id: string; label: string }[];
 };
+
+/** A delivery window as the call note lists it. */
+type DeliverySlot = { id: string; label: string };
 
 type CallState = {
   direction: Direction;
@@ -84,12 +102,19 @@ type CallState = {
   sideEffectLinesLeft?: number;
   /** One entry per caller line: when it arrived, first model text, first guarded sentence. */
   timings: ServerTurnTiming[];
+  /** 1.x: this call's voice and its wording of the fixed check-in and handover lines. */
+  style: CallStyle;
+  stillThere: string;
+  handover: string;
   ended: boolean;
 };
 
 export const MAX_STEPS = 8;
 export const STUCK_REASON = "The agent could not finish the caller's request.";
-export const HANDOVER_LINE = "Let me get a pharmacist to help you with that.";
+export { HANDOVER_LINE };
+
+/** 1.x: after verification, how many of the patient's prescriptions the driver checks itself. */
+const PREFETCH_MAX = 3;
 
 /** Refill states that mean a refill is going ahead, so the side-effect question follows. */
 const REFILL_GOING_AHEAD = new Set(["queued", "waiting_for_pharmacist", "approved"]);
@@ -109,7 +134,19 @@ export type ClaudeAgentDriver = AgentDriver & {
 };
 
 export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDriver {
-  const { calls, press, guardSentence, checkCallerLine, model, pharmacyName, emit = () => {}, maxSteps = MAX_STEPS, now = () => performance.now() } = options;
+  const {
+    calls,
+    press,
+    guardSentence,
+    checkCallerLine,
+    model,
+    pharmacyName,
+    emit = () => {},
+    maxSteps = MAX_STEPS,
+    now = () => performance.now(),
+    random = Math.random,
+    deliverySlots = SEED.slots.map((s) => ({ id: s.id, label: s.label })),
+  } = options;
   const state = new Map<CallId, CallState>();
 
   function track(callId: CallId, opts: DriverStartOpts) {
@@ -118,10 +155,13 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
       rxId: opts.rxId,
       patientName: opts.patientName,
       messages: [],
-      callNote: callNote(callId, opts),
+      callNote: callNote(callId, opts, deliverySlots),
       notes: [],
       askedSideEffects: new Set(),
       timings: [],
+      style: pickStyle(random),
+      stillThere: pickLine(STILL_THERE_LINES, random),
+      handover: pickLine(HANDOVER_LINES, random),
       ended: false,
     });
   }
@@ -165,9 +205,37 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
     else call.messages.push({ role: "assistant", content: line });
   }
 
+  /**
+   * 1.x (audit fix 1): right after the code checks out, the driver checks the
+   * prescriptions itself, through the same buttons and the same lock, so the model
+   * can answer and read back in one step instead of pressing each in turn. Outbound:
+   * the prescription the call is about. Inbound: each of the patient's, up to
+   * PREFETCH_MAX. The coverage figure is then in the record, so a read-back of it
+   * passes S4 (audit fix 2).
+   */
+  async function prefetch(callId: CallId, result: ButtonResult): Promise<{ events: AgentEvent[]; checked: Record<string, unknown>[] }> {
+    const events: AgentEvent[] = [];
+    const checked: Record<string, unknown>[] = [];
+    const output = result.ok ? (result.output as { verified?: boolean; prescriptions?: { rx_id: RxId }[] }) : undefined;
+    if (!output?.verified) return { events, checked };
+    const call = state.get(callId);
+    const rxIds = call?.direction === "outbound" && call.rxId ? [call.rxId] : (output.prescriptions ?? []).map((p) => p.rx_id).slice(0, PREFETCH_MAX);
+    for (const rxId of rxIds) {
+      for (const [button, input] of [
+        ["check_prescription", { rx_id: rxId, include_other_names: false }],
+        ["check_coverage", { rx_id: rxId }],
+      ] as const) {
+        const r = await press(callId, button, input);
+        events.push({ type: "press", button, input, result: r });
+        checked.push({ button, rx_id: rxId, ...forModel(r) });
+      }
+    }
+    return { events, checked };
+  }
+
   /** One button press for the model, through the lock. A name that isn't a button never reaches it. */
-  async function pressOne(callId: CallId, name: string, input: unknown, refilled: RxId[]): Promise<{ event?: AgentEvent; content: string; isError: boolean }> {
-    if (!isButtonName(name)) return { content: JSON.stringify({ error: "no such button" }), isError: true };
+  async function pressOne(callId: CallId, name: string, input: unknown, refilled: RxId[]): Promise<{ events: AgentEvent[]; content: string; isError: boolean }> {
+    if (!isButtonName(name)) return { events: [], content: JSON.stringify({ error: "no such button" }), isError: true };
     const result: ButtonResult = await press(callId, name, input);
     const rxId = (input as { rx_id?: unknown })?.rx_id;
     if (name === "note_for_pharmacist" && result.ok && (input as { kind?: unknown })?.kind === "side_effect") {
@@ -178,7 +246,14 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
     if (name === "request_refill" && result.ok && typeof rxId === "string") {
       if (REFILL_GOING_AHEAD.has((result.output as { state: string }).state)) refilled.push(rxId);
     }
-    return { event: { type: "press", button: name, input, result }, content: JSON.stringify(forModel(result)), isError: !result.ok };
+    const events: AgentEvent[] = [{ type: "press", button: name, input, result }];
+    const seen = forModel(result);
+    if (name === "check_code") {
+      const extra = await prefetch(callId, result);
+      events.push(...extra.events);
+      if (extra.checked.length) seen.already_checked = extra.checked;
+    }
+    return { events, content: JSON.stringify(seen), isError: !result.ok };
   }
 
   async function* pressAll(callId: CallId, turn: ModelTurn, refilled: RxId[]): AsyncGenerator<AgentEvent, ToolResult[]> {
@@ -186,7 +261,7 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
     for (const block of turn.content) {
       if (block.type !== "tool_use") continue;
       const pressed = await pressOne(callId, block.name, block.input, refilled);
-      if (pressed.event) yield pressed.event;
+      yield* pressed.events;
       results.push({ type: "tool_result", tool_use_id: block.id, is_error: pressed.isError, content: pressed.content });
     }
     return results;
@@ -220,7 +295,7 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
   /** Hand the call to a pharmacist, through the escalate button like any other action. */
   async function* handOver(callId: CallId, reason: string): AsyncIterable<AgentEvent> {
     yield* pressFixed(callId, "escalate", { reason });
-    yield* speak(callId, HANDOVER_LINE);
+    yield* speak(callId, state.get(callId)?.handover ?? HANDOVER_LINE);
   }
 
   return {
@@ -257,7 +332,7 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
 
     speakLine: speakFixed,
 
-    checkIn: (callId) => speakFixed(callId, STILL_THERE),
+    checkIn: (callId) => speakFixed(callId, state.get(callId)?.stillThere ?? STILL_THERE_LINES[0]),
 
     async *callerSays(callId, text) {
       const call = state.get(callId);
@@ -288,7 +363,7 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
         if (call.sideEffectLinesLeft === 0) call.awaitingSideEffect = undefined;
       }
       pushUser(call, text);
-      const system = `${systemPrompt({ pharmacyName, direction: call.direction })}\n\n${call.callNote}`.trim();
+      const system = `${systemPrompt({ pharmacyName, direction: call.direction, style: call.style })}\n\n${call.callNote}`.trim();
       const refilled: RxId[] = [];
 
       for (let step = 0; step < maxSteps; step++) {
@@ -298,7 +373,7 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
         const pressed: AgentEvent[] = [];
         const pressForModel: PressForModel = async (name, input) => {
           const r = await pressOne(callId, name, input, refilled);
-          if (r.event) pressed.push(r.event);
+          pressed.push(...r.events);
           return { content: r.content, isError: r.isError };
         };
         try {
@@ -369,6 +444,7 @@ function sideEffectNote(rxId: RxId): string {
     `Then press note_for_pharmacist with kind side_effect, rx_id ${rxId}: what they noticed, since when, and how bad, in their own words.`,
     `Then say: "${SIDE_EFFECT_PASSED_ON}" No advice: don't say what it might mean or what to do about it.`,
     "If they noticed nothing, carry on.",
+    AFTER_SIDE_EFFECTS,
   ].join(" ");
 }
 
@@ -378,13 +454,27 @@ function sideEffectFollowUpNote(rxId: RxId): string {
     `The caller is answering your side-effect follow-up about rx_id ${rxId}.`,
     `If they mentioned a side effect, press note_for_pharmacist with kind side_effect, rx_id ${rxId}: what they noticed, since when, and how bad, in their own words, with anything they couldn't say left out.`,
     `Then say: "${SIDE_EFFECT_PASSED_ON}" No advice.`,
+    AFTER_SIDE_EFFECTS,
   ].join(" ");
 }
 
-/** Ids the model needs to press on this call. Opaque ids only: no patient detail. */
-function callNote(callId: CallId, opts: DriverStartOpts): string {
-  if (opts.direction !== "outbound") return "";
-  const lines = [`For this call, the lookup id is ${outboundLookupId(callId)}.`];
-  if (opts.rxId) lines.push(`The prescription this call is about has rx_id ${opts.rxId}.`);
+/** 1.x: proactive, not pushy. Once the side effects are dealt with, the next useful question. */
+const AFTER_SIDE_EFFECTS =
+  'Then, if it isn\'t settled yet, offer delivery or pickup in one short question: "Would you like delivery, or would you rather pick it up?"';
+
+/**
+ * Ids the model needs to press on this call. Opaque ids and the pharmacy's own
+ * delivery windows (tier 0) only: no patient detail.
+ */
+function callNote(callId: CallId, opts: DriverStartOpts, slots: DeliverySlot[]): string {
+  const lines: string[] = [];
+  if (opts.direction === "outbound") {
+    lines.push(`For this call, the lookup id is ${outboundLookupId(callId)}.`);
+    if (opts.rxId) lines.push(`The prescription this call is about has rx_id ${opts.rxId}.`);
+  }
+  if (slots.length) {
+    const listed = slots.map((s) => `${s.label} (slot_id ${s.id})`).join("; ");
+    lines.push(`The pharmacy's delivery and pickup windows: ${listed}. For pickup, set_delivery takes address_id "pickup".`);
+  }
   return lines.join("\n");
 }

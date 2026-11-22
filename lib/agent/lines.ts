@@ -2,6 +2,11 @@
 // "The call, outbound"). They are scripted so the wording cannot drift between
 // calls, and so the privacy-sensitive ones are impossible to paraphrase.
 //
+// The privacy and safety lines (greeting, verification, code, opener, wrong
+// person, refill sync, side effects, missed doses) are one fixed wording each.
+// Only lines that carry no record detail (the check-in, the handover) come in a
+// few wordings, picked per call.
+//
 // These are the words we intend to say, not permission to skip the guard. Every
 // one of them still goes through `guardSentence` before it reaches speech, and
 // the ones that report an action are spoken only after that button has returned.
@@ -35,6 +40,32 @@ export const HOLDING = "One moment.";
 
 /** Task 1.8: said once after a long silence from the caller. Names nothing, so it is safe at any point in a call. */
 export const STILL_THERE = "Are you still there? Take your time.";
+
+/**
+ * 1.x (Trail #75): the check-in, worded per call so two calls don't sound the same.
+ * Every one names nothing and promises nothing, so each is safe at any point in a call.
+ */
+export const STILL_THERE_LINES: readonly string[] = [
+  STILL_THERE,
+  "Hello, are you still with me? No rush.",
+  "I'm still here whenever you're ready.",
+];
+
+/** Said when the agent can't go on (model failure, too many steps): a person takes over. */
+export const HANDOVER_LINE = "Let me get a pharmacist to help you with that.";
+
+/** 1.x: the handover, worded per call. None names a time, so none promises one. */
+export const HANDOVER_LINES: readonly string[] = [
+  HANDOVER_LINE,
+  "I'll get a pharmacist to help you with this one.",
+  "Let me bring in a pharmacist for that.",
+];
+
+/** One of `lines`, chosen by a number in [0, 1), so tests can fix the choice. */
+export function pickLine(lines: readonly string[], random: () => number): string {
+  const i = Math.min(lines.length - 1, Math.max(0, Math.floor(random() * lines.length)));
+  return lines[i];
+}
 
 /**
  * SPEC Part 2, outbound step 2, and the **one exception to S1**: before
