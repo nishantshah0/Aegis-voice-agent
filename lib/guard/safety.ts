@@ -69,7 +69,7 @@ const EMERGENCY: RegExp[] = [
   /\b(?:swelling|swollen|welts|hives|rash all over|allergic reaction|anaphyla\w*|bad reaction|having a reaction|had a reaction|reaction to)\b/,
   /\b(?:cant|cannot|trouble) swallow\w*\b/,
   // Consciousness.
-  /\b(?:passed out|passing out|fainted|fainting|unconscious|collapsed|seizure\w*|convuls\w*|wont wake up|unresponsive)\b/,
+  /\b(?:feel faint|feeling faint|going to faint|about to faint|passed out|passing out|fainted|fainting|unconscious|collapsed|seizure\w*|convuls\w*|wont wake up|unresponsive)\b/,
   /\b(?:lips are blue|blue lips|vomiting blood|coughing up blood|throwing up blood)\b/,
   // Overdose, poisoning.
   /\b(?:overdos\w*|overdoes|over dosed?|od on)\b/,
@@ -104,6 +104,18 @@ const HANDOVER: RegExp[] = [
   /\b(?:the|a) pharmacist please\b/,
 ];
 
+// A possible small overdose with no symptom (Trail #86 review low): a pharmacist, not 911.
+// The wordings already listed as emergencies above ("took two doses", "doubled up") stay so.
+const SMALL_OVERDOSE: RegExp[] = [
+  /\b(?:took|taken|had|swallowed) (?:an|one) extra(?: one| dose| pill| tablet| capsule)?\b/,
+  /\b(?:took|taken) (?:two|2|both|another|another one|one more|it|them|my \w+)(?: again)? (?:by mistake|by accident|accidentally)\b/,
+  /\baccidentally (?:took|taken|had) (?:another|an extra|two|2|both|it again|my \w+ again|one more)\b/,
+  /\bdouble ?dos\w*\b/,
+  /\b(?:took|taken|had) one too many\b/,
+  /\b(?:forgot|didnt remember) (?:i|that i) (?:already |had already )?(?:took|taken|had) (?:it|my dose|my \w+)\b/,
+  /\btook (?:it|my dose|my \w+) again\b/,
+];
+
 const test = (forms: string[], patterns: RegExp[]) => forms.some((w) => patterns.some((re) => re.test(w)));
 
 /**
@@ -125,7 +137,7 @@ export function classify(line: string): SafetyResult {
   const crisisForms = forms.map((w) => w.replace(NOT_CRISIS, " "));
   if (test(crisisForms, CRISIS) || CRISIS_SCRIPTS.test(line)) return { action: "crisis", script: CRISIS_SCRIPT };
   if (test(forms, EMERGENCY) || EMERGENCY_SCRIPTS.test(line) || raw.some((f) => OD.test(f))) return { action: "emergency", script: EMERGENCY_SCRIPT };
-  if (test(forms, HANDOVER)) return { action: "handover", script: HANDOVER_SCRIPT };
+  if (test(forms, HANDOVER) || test(forms, SMALL_OVERDOSE)) return { action: "handover", script: HANDOVER_SCRIPT };
   if (raw.some((f) => UNREADABLE.test(f))) return { action: "handover", script: HANDOVER_SCRIPT };
   return { action: "continue" };
 }
