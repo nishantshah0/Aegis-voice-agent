@@ -69,7 +69,7 @@ const appointmentClaim = /\b(?:available|booked|scheduled|confirmed|reserved|set
 // Match complete numeric tokens. Never truncate $4.123 to $4.12 or $4,100 to $4.
 const currency = /\$\s*(\d+(?:[,.]\d+)*)/g;
 const validAmount = /^\d+(?:\.\d{1,2})?$/;
-const nonDollarNotation = /\b(?:dollars?|bucks?|cents?|cad|usd|(?:is|its|it is|will be|completely|totally) free|free (?:of charge|on your plan)|fully covered|no (?:copay|co-pay|charge|cost)|pay nothing)\b|[£€]/i;
+const nonDollarNotation = /\b(?:dollars?|bucks?|cents?|cad|usd|(?:is|its|it is|will be|completely|totally) free|free (?:of charge|on your plan)|fully covered|covered (?:in full|completely|entirely|100 percent)|no (?:copay|co-pay|charge|cost)|pay nothing)\b|[£€]/i;
 const priceContext = /\b(?:co-?pay|(?:plan|insurance) (?:pays?|covers?)|(?:your|patient) (?:price|cost|share)|you(?:'ll| will)? (?:owe|pay))\b/i;
 const planSubject = /\b(?:plan|insurance|insurer)\s+(?:would |will )?(?:pays?|covers?|contributes?)\b|\b(?:covered|paid) by (?:your |the )?(?:plan|insurance)\b/i;
 

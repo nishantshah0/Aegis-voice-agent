@@ -21,16 +21,48 @@ const LOOKALIKE = new RegExp(`[${Object.keys(LOOKALIKES).join("")}]`, "gu");
 const INVISIBLE =
   /[­͏؜ᅟᅠ឴឵᠋-᠏​-‏‪-‮⁠-⁤⁦-⁯ㅤ︀-️﻿ﾠ\u{E0000}-\u{E007F}\u{E0100}-\u{E01EF}]+/gu;
 
+// Markup a voice reads differently from its text: <phoneme ph="set">x</phoneme> says "set",
+// <sub alias="ready">r</sub> says "ready", and every other tag (<break/>) says nothing.
+const SPOKEN_AS = /<(phoneme|sub)\b[^>]*\b(?:ph|alias)\s*=\s*["']([^"']*)["'][^>]*>[\s\S]*?<\/\1\s*>/gi;
+const TAG = /<\/?[a-z][^>]*>/gi;
+// Markdown emphasis ("**ap**proved") is not heard.
+const MARKDOWN = /[*_`~]+/g;
+// A word broken by a hyphen ("ap-proved", "Riv-era") is heard as one word; a number said with
+// a hyphen ("forty-one") stays two number words.
+const HYPHENATED = /\p{L}+(?:-\p{L}+)+/gu;
+const NUMBER_WORDS = new Set(["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
+  "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen",
+  "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety", "hundred"]);
+const joinBroken = (w: string) => (w.split("-").every((p) => NUMBER_WORDS.has(p.toLowerCase())) ? w : w.replace(/-/g, ""));
+// Letters or digits spelled one at a time ("A-P-P-R-O-V-E-D", "S A M", "N 6 A 0 A 1").
+const SPELLED = /(?<![\p{L}\p{N}])(?:[\p{L}\p{N}][-. ]){2,}[\p{L}\p{N}](?![\p{L}\p{N}])/gu;
+// Leetspeak inside a word ("4ppr0v3d", "s3t"); never a dose, a time or an ordinal ("36mg", "3pm", "2nd").
+const LEET: Record<string, string> = { "0": "o", "1": "i", "3": "e", "4": "a", "5": "s", "7": "t", "8": "b", "@": "a" };
+const NOT_LEET = /^(?:\d+(?:\.\d+)?(?:mg|mcg|ml|g|am|pm|st|nd|rd|th|s|x|k|h|hr|hrs|min)?|x\d+|rx\d+)$/i;
+// A postal code is written in capitals ("N6A 0A1"); "s3t" is leetspeak.
+const POSTAL = /^(?:[A-Z]\d[A-Z](?:\d[A-Z]\d)?|\d[A-Z]\d)$/;
+
+function leet(text: string): string {
+  return text.replace(/[\p{L}\p{N}@]+/gu, (w) => (/\p{L}/u.test(w) && /[\d@]/.test(w) && !NOT_LEET.test(w) && !POSTAL.test(w) ? w.replace(/[0134578@]/g, (d) => LEET[d]) : w));
+}
+
 /**
- * The sentence as heard, in each way an invisible character can be heard: dropped
- * ("appr​oved" is "approved") or as a break ("it's​approved" is "it's approved").
- * One form when there are no invisible characters. Compatibility forms (fullwidth letters)
- * become plain, accents are dropped and lookalike letters become Latin.
+ * The sentence as heard, in each way it can be heard. Joined: invisible characters, tags,
+ * markdown and in-word hyphens are dropped, spelled-out letters are one word and leetspeak is
+ * letters ("appr​oved", "ap<break/>proved", "A-P-P-R-O-V-E-D" and "4ppr0v3d" are all
+ * "approved"). Spaced: invisible characters and tags are breaks ("it's​approved" is
+ * "it's approved"), as written otherwise. In both, compatibility forms (fullwidth letters)
+ * are plain, accents are dropped and lookalike letters are Latin.
  */
 export function hearableForms(text: string): string[] {
-  const forms = [text.replace(INVISIBLE, ""), text.replace(INVISIBLE, " ")].map(plain);
-  return [...new Set(forms)];
+  const spoken = text.replace(SPOKEN_AS, "$2");
+  const joined = leet(spoken.replace(INVISIBLE, "").replace(TAG, "").replace(MARKDOWN, "").replace(HYPHENATED, joinBroken).replace(SPELLED, (m) => m.replace(/[-. ]/g, "")));
+  const spaced = spoken.replace(INVISIBLE, " ").replace(TAG, " ").replace(MARKDOWN, "");
+  return [...new Set([plain(joined), plain(spaced)])];
 }
+
+/** Letters in a script the guard can't read (anything but Latin, after lookalikes are mapped). */
+export const UNREADABLE = /(?![\p{Script=Latin}])\p{L}/u;
 
 function plain(text: string): string {
   return text.normalize("NFKD").replace(/\p{M}+/gu, "").replace(LOOKALIKE, (c) => LOOKALIKES[c] ?? c).normalize("NFC");

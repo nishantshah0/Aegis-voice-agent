@@ -29,8 +29,13 @@ export function wordsToNumber(run: string): number | undefined {
 }
 
 const UNIT_WORDS: [RegExp, string][] = [
-  [/\bmilligrams?\b/g, "mg"],
-  [/\bmicrograms?\b/g, "mcg"],
+  [/\bmilligram[sz]?\b/g, "mg"],
+  [/\bmicrogram[sz]?\b/g, "mcg"],
+  // Unit slang and spelling: "72mgs", "72 m g", "seventy two m.g.", "50 mcgs".
+  [/\bm\.? ?g\b\.?/g, "mg"],
+  [/\b(\d*)(mg|mcg|ml)s\b/g, "$1$2"],
+  [/\btabs?\b/g, "tablet"],
+  [/\bcaps\b/g, "capsule"],
   [/\bmillilit(?:re|er)s?\b/g, "ml"],
   [/\bgrams?\b/g, "g"],
   [/\b(tablet|capsule|pill|dose|puff|hour|day|week|night)s\b/g, "$1"],

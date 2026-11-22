@@ -12,27 +12,36 @@ const NOT_DOSING =
 // "Keep taking it as your label says": no amount or time of its own, so nothing to back.
 const AS_DIRECTED =
   /\b(?:as|like) (?:directed|prescribed|(?:the|your) label (?:says|said|reads|shows)|it says on (?:the|your) label|on (?:the|your) label|(?:the|your) (?:pharmacist|doctor) (?:said|says|told you|prescribed))\b/;
-const VERB = /\b(?:take|takes|taking|taken|swallow\w*|chew\w*|crush\w*|pop|pops|popping|double|doubling|skip|skipping)\b/;
+// Also "make it two", "finish them", and the same verbs in the languages callers try.
+const VERB =
+  /\b(?:take|takes|taking|taken|swallow\w*|chew\w*|crush\w*|pop|pops|popping|double|doubling|triple|tripling|skip|skipping|make it|finish\w*|use up|prenez|prends|prendre|tome|tomar|toma|tomen|nehmen|nimm|prendi|prenda|lijiye|khaiye|khao|le lo)\b/;
 // An amount or a time, on canonical() text (number words are digits, "tablets" is "tablet").
 // A bare number counts only with one or two digits, so "call 911" is not an amount.
 const AMOUNT =
   /\b\d{1,2}(?:\.\d+)?(?= (?:tablet|capsule|pill|dose|puff|more|extra|of them|at a time|at once)\b| ?$)/;
 const TIME_OR_AMOUNT =
-  /\b(?:all of them|them all|it all|all at once|at once|at a time|whole|entire|extra|another|double|twice|\d+ times|both|the rest|half|handful|couple|more of them|tonight|tomorrow|every|a day|bedtime|morning|night|evening|hourly|hour)\b/;
+  /\b(?:all of them|them all|it all|all at once|at once|at a time|whole|entire|extra|another|double|twice|\d+ times|both|the rest|half|handful|couple|more of them|tonight|tomorrow|every|a day|bedtime|morning|night|evening|hourly|hour|ce soir|toutes les|esta noche|cada|stasera|auf einmal|jeden|aaj raat|har)\b/;
+// Amounts and times that are only a dose beside the verb: "take two today", "swallow 30
+// together", "take as many as you need". On their own ("refilled today", "anything more?") they
+// are ordinary words.
+const WITH_VERB =
+  /\b(?:\d+|today|now|together|in one go|at the same time|in one sitting|at lunch|at noon|again|whenever|as many|as much|as needed|more|the lot|a few|several|full|all of it|x ?\d+|comprimes?|pastillas|tabletas|tabletten|compresse|goliyan)\b/;
 
 // "The label says take 1 tablet ...": a read-back lead, dropped before the clause is matched.
 const READ_BACK_LEAD = /^\W*(?:(?:the|your) (?:label|directions|instructions) (?:says?|reads?|shows?|are)|it says)(?: to)?\b/i;
 
-export type DosingClause = "neutral" | "verb" | "amount" | "backed" | "unbacked";
+export type DosingClause = "neutral" | "verb" | "amount" | "backed" | "backed_verb" | "unbacked";
 
 /** What a clause does: tells the caller to take something, gives an amount, both, or neither. */
 export function classifyClause(clause: string, backed: (clause: string) => boolean): DosingClause {
   const w = words(clause).replace(NOT_DOSING, " ");
   const c = canonical(w);
   const verb = VERB.test(c);
-  const amount = AMOUNT.test(c) || TIME_OR_AMOUNT.test(c);
+  const amount = AMOUNT.test(c) || TIME_OR_AMOUNT.test(c) || (verb && WITH_VERB.test(c));
   if (!amount) return verb && !AS_DIRECTED.test(c) ? "verb" : "neutral";
-  if (backed(clause.replace(READ_BACK_LEAD, ""))) return "backed";
+  // A label read-back with its verb ("Take 1 tablet every morning") still tells the caller to
+  // take it, so an amount beside it ("and another at lunch") is a dose too.
+  if (backed(clause.replace(READ_BACK_LEAD, ""))) return verb ? "backed_verb" : "backed";
   return verb ? "unbacked" : "amount";
 }
 
@@ -45,7 +54,7 @@ export function unbackedDosing(clauses: string[], previous: string[], backed: (c
   const now = clauses.map((c) => classifyClause(c, backed));
   if (now.includes("unbacked")) return "dosing instruction not on the label";
   const before = previous.map((c) => classifyClause(c, backed));
-  const verb = now.includes("verb") || before.includes("verb");
+  const verb = [...now, ...before].some((k) => k === "verb" || k === "backed_verb");
   const amount = now.includes("amount") || before.includes("amount");
   const fromNow = now.includes("verb") || now.includes("amount");
   return verb && amount && fromNow ? "dosing instruction split across clauses, not on the label" : null;

@@ -27,16 +27,29 @@ function dobForms(dob: string): string[] {
   const [y, m, d] = dob.split("-");
   const month = MONTHS[Number(m) - 1];
   const day = String(Number(d));
-  return [`${y} ${m} ${d}`, `${d} ${m} ${y}`, `${m} ${d} ${y}`, `${month} ${day} ${y}`, `${day} ${month} ${y}`, `${month} ${day}`, `${day} ${month}`];
+  const mon = String(Number(m));
+  // Zero-padded and not ("1990 03 14", "3 14 1990"), and the month as a word.
+  const forms = [`${y} ${m} ${d}`, `${d} ${m} ${y}`, `${m} ${d} ${y}`, `${y} ${mon} ${day}`, `${day} ${mon} ${y}`, `${mon} ${day} ${y}`];
+  return [...new Set([...forms, `${month} ${day} ${y}`, `${day} ${month} ${y}`, `${month} ${day}`, `${day} ${month}`])];
 }
 
 export function tokensFor(patient: Patient, prescriptions: Prescription[]): Token[] {
   const t = (kind: Token["kind"], text: string): Token => ({ kind, text, patientId: patient.id });
   const out: Token[] = [t("name", patient.firstName), t("name", patient.lastName)];
-  for (const a of patient.addresses) out.push(t("address", a.line1), t("address", a.postal));
+  for (const a of patient.addresses) {
+    out.push(t("address", a.line1), t("address", a.postal), t("address", a.postal.replace(/\s+/g, "")));
+    // The street on its own ("Elm Row", "Cedar Court") is part of the address too.
+    const street = a.line1.replace(/^\d+\s*/, "");
+    if (street !== a.line1 && street.split(/\s+/).length >= 2) out.push(t("address", street));
+  }
   out.push(t("phone", patient.phone));
   for (const form of dobForms(patient.dob)) out.push(t("dob", form));
-  for (const rx of prescriptions) out.push(t("rx_number", rx.rxNumber), t("drug", rx.drug));
+  for (const rx of prescriptions) {
+    out.push(t("rx_number", rx.rxNumber), t("drug", rx.drug));
+    // "Adderall XR" is "Adderall" too.
+    const base = rx.drug.match(/^(.{4,}?)\s+(?:XR|ER|SR|CR|XL|LA|CD|DR|ODT)$/i)?.[1];
+    if (base) out.push(t("drug", base));
+  }
   return out;
 }
 

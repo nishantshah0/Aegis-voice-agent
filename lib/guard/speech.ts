@@ -9,7 +9,7 @@ import { GUARD_REPLACEMENTS, type Call, type EmitFn, type GuardResult, type Guar
 import { internalOf, resultOf } from "@/lib/control/context";
 import { canonical, NUMBER_RUN_SOURCE, unbackedDoses, wordsToNumber } from "./doses";
 import { unbackedDosing } from "./dosing";
-import { digitText, hearableForms, withoutPossessives } from "./normalize";
+import { digitText, hearableForms, UNREADABLE, withoutPossessives } from "./normalize";
 import { isRecordedReadback, ungroundedPatientFact } from "./patient-facts";
 import { digitsOf, mentions, tokensFor, words, type Token } from "./tokens";
 
@@ -17,7 +17,7 @@ export const S4_REPLACEMENT = "A pharmacist will check it first, and I'll confir
 const REPLACEMENT: Record<SpeechRule, string> = { ...GUARD_REPLACEMENTS, S4: S4_REPLACEMENT };
 
 const COMPLETION =
-  /\b(approved|ready|sorted|on its way|on the way|delivered|filled|signed off|confirmed|complete|completed|done|all set|good to go|processed|shipped|sent out|went out|dispatched|picked up|cleared|okayed|okd|taken care of|went through|gone through|green ?light(?:ed)?|green ?lit|finali[sz]ed|authori[sz]ed|locked in)\b/;
+  /\b(approved|ready|sorted|on its way|on the way|delivered|filled|signed off|confirmed|complete|completed|done|all set|good to go|processed|shipped|sent out|went out|dispatched|picked up|cleared|okayed|okd|taken care of|went through|gone through|green ?light(?:ed)?|green ?lit|finali[sz]ed|authori[sz]ed|locked in|squared away|granted|validated|a ?ok|oked|ok ed|in the bag|bagged|on the shelf|(?:is|s) a go|said yes|(?:is|s|are) waiting for you\b(?! to)|passed (?:the )?(?:pharmacists? )?(?:check|review)|pharmacists? (?:sign off|signoff|approval|ok|okay|blessing|go ahead|green light)|given (?:it )?the (?:ok|okay|go ahead|nod|thumbs up)|(?:is|s|been) (?:handled|accepted)|(?:refill|order|prescription|medication|meds|it) (?:is|s|has been) all good|approuve\w*|aprobad\w*|genehmigt|listo|lista|pret|fertig|pronto|taiyar)\b/;
 // The only completion words that aren't promises: they're about the caller, the past, an identity
 // check or the agent itself ("whenever you're ready", "last filled 27 days ago", "your identity
 // is confirmed", "are you done?"), and are dropped before the check. "You're all set." and
@@ -43,7 +43,30 @@ const NOT_A_PROMISE = new RegExp(
   "g",
 );
 const BOOKING = /\b(booked|scheduled)\b/;
-const SENT = /\b(sent|requested|submitted)\b/;
+// Other booking words count only about a delivery or pickup: "I've set up your delivery",
+// "I've lined up a driver", "Delivery's in the calendar".
+const BOOKING_WIDE = /\b(reserved|arranged|lined up|set up|slotted|put you down|in the calendar|on the calendar|organi[sz]ed)\b/;
+const DELIVERY_CONTEXT = /\b(?:deliver\w*|driver|courier|slot|pick ?up|pickup|drop ?off)\b/;
+// A hand-off claim needs its button: "passed your refill to the pharmacist", "placed the order",
+// "your doctor has been contacted", "your refill is in the queue".
+const SENT =
+  /\b(sent|requested|submitted|passed|forwarded|faxed|contacted|notified|placed|lodged|filed|put (?:it|the \w+|your \w+) in|let (?:the |your )?\w+ know|in the queue|with (?:your|the) (?:doctor|prescriber))\b/;
+// When a delivery or pickup happens needs set_delivery: "deliver it tomorrow", "drop it off
+// tonight", "arrive in two days", "your driver comes by 3 PM", "pick it up this afternoon".
+const HANDOVER_WIDE = /\b(?:driver|courier|at your door|to your door)\b/;
+const NUMBER = "(?:\\d+|a|an|one|two|three|four|five|six|seven|eight|nine|ten|few|couple of)";
+const WHEN = new RegExp(
+  [
+    "today|tonight|tomorrow|this (?:morning|afternoon|evening|week|weekend)|next (?:week|month|\\w+day)",
+    `in ${NUMBER} (?:days?|hours?|minutes?|weeks?)`,
+    "on the \\d+|\\d{1,2}(?: ?(?:am|pm)| \\d\\d (?:am|pm))",
+    "(?:jan|feb|mar|apr|jun|jul|aug|sep|sept|oct|nov|dec)\\w* \\d+",
+    "mon|tue|tues|wed|thu|thur|thurs|fri|sat|sun",
+    "lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche|lunes|martes|miercoles|jueves|viernes|sabado|domingo",
+  ]
+    .map((p) => `\\b(?:${p})\\b`)
+    .join("|"),
+);
 const DAYS = /\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/g;
 
 type Check = { rule: SpeechRule; why: string; replacement?: string } | null;
@@ -76,7 +99,8 @@ function callerText(call: Call, record: RecordEntry[]): string {
 }
 
 /** The text, "Sam's" as "Sam", and number words as digits ("oh one oh one" is "0101"). */
-const forms = (text: string) => [text, withoutPossessives(text), digitText(words(withoutPossessives(text)))];
+const withoutPlural = (text: string) => text.replace(/\b(\p{L}{3,})s\b/gu, "$1");
+const forms = (text: string) => [text, withoutPossessives(text), withoutPlural(withoutPossessives(text)), digitText(words(withoutPossessives(text)))];
 const mentionedIn = (text: string, t: Token) => forms(text).some((f) => mentions(f, t));
 
 /** Tokens in the sentence that the caller hasn't said themselves. */
@@ -90,10 +114,10 @@ function leaked(sentence: string, tokens: Token[], said: string): Token[] {
 const DIGIT_TOKENS: Token["kind"][] = ["phone", "rx_number", "dob"];
 const digitRuns = (text: string) => (digitText(words(text)).match(/\d+/g) ?? []).filter((r) => r.length >= 4);
 
-function partialDigits(sentence: string, tokens: Token[], said: string): Token[] {
-  const heard = digitRuns(said);
+function partialDigits(sentence: string, tokens: Token[], said: string, kinds = DIGIT_TOKENS, own: Token[] = []): Token[] {
+  const heard = [...digitRuns(said), ...own.filter((t) => kinds.includes(t.kind)).map((t) => digitsOf(t.text))];
   const runs = digitRuns(sentence).filter((r) => !heard.some((h) => h.includes(r)));
-  return tokens.filter((t) => DIGIT_TOKENS.includes(t.kind) && runs.some((r) => digitsOf(t.text).includes(r)));
+  return tokens.filter((t) => kinds.includes(t.kind) && runs.some((r) => digitsOf(t.text).includes(r)));
 }
 
 function checkS1(call: Call, sentence: string, tokens: Token[], said: string, record: RecordEntry[]): Check {
@@ -111,7 +135,9 @@ function checkS2(call: Call, sentence: string, tokens: Token[], said: string): C
   if (call.state !== "verified" || !call.lockedPatientId) return null;
   const own = tokens.filter((t) => t.patientId === call.lockedPatientId);
   const others = tokens.filter((t) => t.patientId !== call.lockedPatientId && !own.some((o) => o.kind === t.kind && words(o.text) === words(t.text)));
-  const found = leaked(sentence, others, said);
+  // Part of another patient's phone or rx number ("the other number ends in 0102") leaks too,
+  // unless it's also part of the caller's own.
+  const found = [...leaked(sentence, others, said), ...partialDigits(sentence, others, said, ["phone", "rx_number"], own)];
   return found.length > 0 ? { rule: "S2", why: found.map((t) => t.kind).join(",") } : null;
 }
 
@@ -375,6 +401,12 @@ function checkS4(sentence: string, record: RecordEntry[], bookedLabels: string[]
 
     const m = cw.match(BOOKING);
     if (m && !negatedNear(cw, m.index ?? 0) && !booked) return { rule: "S4", why: "booking without set_delivery" };
+    const wide = cw.match(BOOKING_WIDE);
+    if (wide && DELIVERY_CONTEXT.test(cw) && !negatedNear(cw, wide.index ?? 0) && !booked) return { rule: "S4", why: "booking without set_delivery" };
+    const when = cw.match(WHEN);
+    if (when && (HANDOVER.test(cw) || HANDOVER_WIDE.test(cw)) && !negatedNear(cw, when.index ?? 0, true) && !booked) {
+      return { rule: "S4", why: `delivery time ${when[0].trim()} without set_delivery` };
+    }
 
     for (const d of cw.matchAll(DAYS)) {
       if (negatedNear(cw, d.index, true)) continue;
@@ -388,9 +420,18 @@ function checkS4(sentence: string, record: RecordEntry[], bookedLabels: string[]
     const codeOnly = codeAfterMatch && / code /.test(cw) && !/ (?:renewal|refill) /.test(cw);
     if (sent && !negatedNear(cw, sent.index ?? 0) && !codeOnly) {
       // The promise must match its own button: a sent code doesn't back "renewal requested".
+      // An order is a refill, a doctor or prescriber is a renewal, and the pharmacist needs a
+      // note, a refill or a renewal: a sent code backs none of them.
       const about = ["renewal", "refill", "code"].filter((k) => cw.includes(` ${k} `));
-      const needs = about.length > 0 ? about : ["any"];
-      if (!needs.every((k) => (k === "any" ? done.size > 0 : done.has(k)))) return { rule: "S4", why: `sent without a successful ${needs.join(" and ")}` };
+      if (about.length === 0 && / (?:order|orders) /.test(cw)) about.push("refill");
+      if (about.length === 0 && / (?:doctor|prescriber|doctors|prescribers) /.test(cw)) about.push("renewal");
+      // "I've passed that to the pharmacist with your refill": the hand-off goes to the pharmacist.
+      const toPharmacist = / to (?:the |a |your )?pharmacists? /.test(cw);
+      if (toPharmacist) about.length = 0;
+      const forPharmacist = about.length === 0 && / pharmacists? /.test(cw);
+      const needs = about.length > 0 ? about : [forPharmacist ? "pharmacist" : "any"];
+      const has = (k: string) => (k === "any" ? done.size > 0 : k === "pharmacist" ? ["note", "refill", "renewal"].some((d) => done.has(d)) : done.has(k));
+      if (!needs.every(has)) return { rule: "S4", why: `sent without a successful ${needs.join(" and ")}` };
     }
   }
   return null;
@@ -430,12 +471,18 @@ export function createSpeechGuard({ store, emit = () => {} }: { store: Store; em
           if (call.state === "verified" && call.lockedPatientId && RUN_OUT.test(w) && !HANDOVER.test(w)) {
             for (const rx of await store.getPrescriptions(call.lockedPatientId)) bookedLabels.push(runOutDay(rx.lastFill, rx.daysSupplied));
           }
+          // A script the guard can't read (Chinese, Hindi, ...) can't be checked, so it isn't spoken.
+          // S3's replacement hands the question to the pharmacist.
+          if (UNREADABLE.test(heard)) {
+            found = { rule: "S3", why: "a script the guard can't read" };
+            break;
+          }
           found =
             checkS1(call, heard, tokens, said, record) ??
             checkS2(call, heard, identityTokens, said);
           if (!found && !recorded) {
             const line = spokenPrices(heard);
-            const why = ungroundedPatientFact(line, call, record, drugs);
+            const why = ungroundedPatientFact(line.replace(/['’]/g, ""), call, record, drugs);
             found =
               (why ? { rule: "S4", why, replacement: "I can't confirm that from your record." } : null) ??
               (await checkS3(store, call, heard, record)) ??
