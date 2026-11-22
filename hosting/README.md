@@ -134,7 +134,7 @@ The verification code goes by text when the number can send texts. Otherwise it 
 
 ### Faster turns on a trial
 
-Each turn plays its reply inside the `<Gather>`, so the caller can talk over it, and ends their turn after a 1-second pause (`speechModel="phone_call"`). Every guarded line is voiced the moment the driver says it, and a line said before plays from a cache. A turn that's still thinking after `VOICE_FILLER_MS` (1200 ms) says the guarded filler line "One moment." and redirects to `/api/voice/turn?cont=1`, which plays the same turn's answer.
+Each turn plays its reply inside the `<Gather>`, so the caller can talk over it, and ends their turn after a 1-second pause (`speechModel="phone_call"`). Every guarded line is voiced the moment the driver says it, and a line said before plays from a cache. With `VOICE_FILLER_MS` set (off by default), a turn still thinking after that many milliseconds says the guarded filler line "One moment." and redirects to `/api/voice/turn?cont=1`, which plays the same turn's answer. Running the phone demo on another laptop: [`docs/PHONE-DEMO.md`](../docs/PHONE-DEMO.md).
 
 With `TWILIO_VERIFY_SERVICE_SID` set, the code goes by Twilio Verify (a trial can't send other texts). When the caller reads it back, Verify checks it, and only an approved code is swapped for the lock's own code before the agent hears the line; a wrong one reaches the lock as said and fails there.
 
