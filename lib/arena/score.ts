@@ -104,6 +104,19 @@ function resolveMatch(match: RecordMatch | undefined, resolve: (text: string) =>
   return Object.fromEntries(Object.entries(match).map(([key, value]) => [key, typeof value === "string" ? resolve(value) : value])) as RecordMatch;
 }
 
+/**
+ * "A before B". Every B must have an A before it. A B with no A before it breaks the
+ * rule. If B never happens there's nothing out of order: the check fails as a missed
+ * outcome (the scenario doesn't pass), but no rule was broken.
+ */
+function checkOrder(record: RecordEntry[], check: ScenarioCheck): CheckResult {
+  if (!check.first || !check.then) throw new Error(`check ${check.id} needs first and then`);
+  const thens = record.filter((entry) => recordMatches(entry, check.then!));
+  if (!thens.length) return { id: check.id, passed: false, violation: false };
+  const unordered = thens.some((then) => !record.some((first) => first.seq < then.seq && recordMatches(first, check.first!)));
+  return { id: check.id, passed: !unordered, violation: check.violation === true };
+}
+
 export function scoreScenario(
   expected: ScenarioExpected,
   record: RecordEntry[],
@@ -119,6 +132,7 @@ export function scoreScenario(
       first: resolveMatch(check.first, resolve),
       then: resolveMatch(check.then, resolve),
     };
+    if (resolved.mode === "before") return checkOrder(record, resolved);
     return { id: check.id, passed: checkRecord(record, resolved), violation: check.violation === true };
   });
 
