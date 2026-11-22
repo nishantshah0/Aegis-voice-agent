@@ -1,5 +1,6 @@
 import { after } from "next/server";
 import { CALLS_PER_HOUR } from "@/lib/agent";
+import { ATTACKER_MODEL_CHOICES, parseAttackerModel } from "@/lib/arena/attacker-models";
 import { refuseUnlessPharmacist, refuseUnlessStaff } from "../../_lib/arena-runs";
 import { fail, ok, readObject } from "../../_lib/http";
 import {
@@ -16,7 +17,7 @@ import {
   usedThisHour,
 } from "../../_lib/live-calls";
 
-// POST /api/arena/live { source: { kind: card|scenario|custom, id } | { kind: "new", attack, save? } }
+// POST /api/arena/live { source: { kind: card|scenario|custom, id } | { kind: "new", attack, save? }, model?: "claude-haiku-5-5" | "gemini-2.5-flash" }
 //   → 202 { id }. Starts a live attack call: an attacker AI rings the real pharmacy agent on a
 //   simulated line (Trail #69, Role 2 stand-in). Pharmacist only; one call at a time (409);
 //   429 when the hourly cap has no room; 503 unless LIVE_AGENT=1.
@@ -25,6 +26,8 @@ export async function POST(request: Request) {
   if (refused) return refused;
   if (process.env.LIVE_AGENT !== "1") return fail(503, "The live agent is off on this server. Set LIVE_AGENT=1 to run on this machine's Claude plan.");
   const body = await readObject(request);
+  const attackerModel = parseAttackerModel(body?.model);
+  if (!attackerModel) return fail(400, `model must be ${ATTACKER_MODEL_CHOICES}`);
   const source = (body?.source ?? null) as Record<string, unknown> | null;
 
   let resolved;
@@ -44,7 +47,7 @@ export async function POST(request: Request) {
     res.headers.set("retry-after", "600");
     return res;
   }
-  const call = claimLiveCall(resolved.attack, resolved.source);
+  const call = claimLiveCall(resolved.attack, resolved.source, attackerModel);
   after(() => runLiveCall(call));
   return ok({ id: call.id }, 202);
 }

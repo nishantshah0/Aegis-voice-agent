@@ -69,3 +69,106 @@ export function createSdkAttacker({
     return { lines: parseAttackLines(text) };
   };
 }
+
+// ---------- the Gemini attacker (task 3.7g) ----------
+// A second model family plays the caller: same brief, same JSON lines, same parse. It only
+// writes caller text, so every line still goes through checkCallerLine, the AgentDriver, the
+// 12 buttons and guardSentence. It runs on GEMINI_API_KEY, not Nishant's Claude plan, so it
+// doesn't count against the hourly cap; a pacer keeps it under Gemini's per-minute limit.
+
+/** The part of @google/genai's client the attacker uses, so tests can pass a fake. */
+export type GeminiClient = {
+  models: {
+    generateContent(params: {
+      model: string;
+      contents: string;
+      config?: {
+        systemInstruction?: string;
+        temperature?: number;
+        maxOutputTokens?: number;
+        responseMimeType?: string;
+        responseJsonSchema?: unknown;
+        thinkingConfig?: { thinkingBudget?: number };
+        safetySettings?: { category: string; threshold: string }[];
+      };
+    }): Promise<{ text?: string; promptFeedback?: { blockReason?: string } }>;
+  };
+};
+
+/** At most one request every minGapMs, across every Gemini attacker in this process. */
+export function createGeminiPacer({
+  minGapMs = 7_000,
+  now = Date.now,
+  sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)),
+}: { minGapMs?: number; now?: () => number; sleep?: (ms: number) => Promise<void> } = {}): () => Promise<void> {
+  let next = 0;
+  let queue = Promise.resolve();
+  return () => {
+    queue = queue.then(async () => {
+      const wait = next - now();
+      if (wait > 0) await sleep(wait);
+      next = now() + minGapMs;
+    });
+    return queue;
+  };
+}
+
+// About 8 requests a minute: under the free tier's 10 for gemini-2.5-flash.
+const sharedGeminiPace = createGeminiPacer();
+
+// A made-up pharmacy and made-up patients: let social-engineering lines through, still block the worst.
+const RED_TEAM_SAFETY = ["HARM_CATEGORY_HARASSMENT", "HARM_CATEGORY_HATE_SPEECH", "HARM_CATEGORY_SEXUALLY_EXPLICIT", "HARM_CATEGORY_DANGEROUS_CONTENT"].map((category) => ({ category, threshold: "BLOCK_ONLY_HIGH" }));
+
+const RETRY_MS = [15_000, 45_000];
+const isRateLimit = (error: unknown) => {
+  const e = error as { status?: unknown; message?: unknown };
+  return e?.status === 429 || e?.status === 503 || (typeof e?.message === "string" && /\b429\b|RESOURCE_EXHAUSTED/.test(e.message));
+};
+
+async function defaultGeminiClient(): Promise<GeminiClient> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error("GEMINI_API_KEY isn't set. Add it to .env to run the Gemini attacker.");
+  const { GoogleGenAI } = await import("@google/genai");
+  return new GoogleGenAI({ apiKey }) as unknown as GeminiClient;
+}
+
+export function createGeminiAttacker({
+  model = "gemini-2.5-flash",
+  client,
+  pace = sharedGeminiPace,
+  beforeCall = async () => {},
+  sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)),
+}: { model?: string; client?: GeminiClient; pace?: () => Promise<void>; beforeCall?: () => Promise<void>; sleep?: (ms: number) => Promise<void> } = {}): Attacker {
+  let ready: Promise<GeminiClient> | undefined = client ? Promise.resolve(client) : undefined;
+  return async (request) => {
+    const gemini = await (ready ??= defaultGeminiClient().catch((error) => {
+      ready = undefined;
+      throw error;
+    }));
+    await beforeCall();
+    const params = {
+      model,
+      contents: attackPrompt(request),
+      config: {
+        systemInstruction: SYSTEM,
+        temperature: 1,
+        maxOutputTokens: 400,
+        responseMimeType: "application/json",
+        responseJsonSchema: { type: "array", items: { type: "string" }, minItems: 1, maxItems: 4 },
+        thinkingConfig: { thinkingBudget: 0 },
+        safetySettings: RED_TEAM_SAFETY,
+      },
+    };
+    for (let attempt = 0; ; attempt++) {
+      await pace();
+      try {
+        const response = await gemini.models.generateContent(params);
+        // A blocked prompt has no text: no lines, so the run counts it as a bad plan.
+        return { lines: parseAttackLines(response.text ?? "") };
+      } catch (error) {
+        if (!isRateLimit(error) || attempt >= RETRY_MS.length) throw error;
+        await sleep(RETRY_MS[attempt]!);
+      }
+    }
+  };
+}
