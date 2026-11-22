@@ -96,7 +96,7 @@ export function TodayBoard({ data, canDecide, initial }: { data: Today; canDecid
     <div data-decide-panel>
       <ItemPanel d={selected} />
       {canDecide && selected.status === "open" && selected.lane !== "automatic" && (
-        <DecideBar key={selected.id} id={selected.id} hint className="mt-5 border-t border-line pt-4" />
+        <DecideBar key={selected.id} id={selected.id} className="mt-5 border-t border-line pt-4" />
       )}
       {selected.lane === "automatic" && <p className="mt-5 border-t border-line pt-4 text-sm text-ink-3">Went through on its own: no rule card matched and nothing unusual was seen.</p>}
     </div>
