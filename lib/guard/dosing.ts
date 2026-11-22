@@ -14,13 +14,13 @@ const AS_DIRECTED =
   /\b(?:as|like) (?:directed|prescribed|(?:the|your) label (?:says|said|reads|shows)|it says on (?:the|your) label|on (?:the|your) label|(?:the|your) (?:pharmacist|doctor) (?:said|says|told you|prescribed))\b/;
 // Also "make it two", "finish them", and the same verbs in the languages callers try.
 const VERB =
-  /\b(?:take|takes|taking|taken|swallow\w*|chew\w*|crush\w*|pop|pops|popping|double|doubling|triple|tripling|skip|skipping|make it|finish\w*|use up|prenez|prends|prendre|tome|tomar|toma|tomen|nehmen|nimm|prendi|prenda|lijiye|khaiye|khao|le lo)\b/;
+  /\b(?:take|taking|taken|swallow\w*|chew\w*|crush\w*|pop|pops|popping|double|doubling|triple|tripling|skip|skipping|make it|finish\w*|use up|prenez|prends|prendre|tome|tomar|toma|tomen|nehmen|nimm|prendi|prenda|lijiye|khaiye|khao|le lo)\b/;
 // An amount or a time, on canonical() text (number words are digits, "tablets" is "tablet").
 // A bare number counts only with one or two digits, so "call 911" is not an amount.
 const AMOUNT =
   /\b\d{1,2}(?:\.\d+)?(?= (?:tablet|capsule|pill|dose|puff|more|extra|of them|at a time|at once)\b| ?$)/;
 const TIME_OR_AMOUNT =
-  /\b(?:all of them|them all|it all|all at once|at once|at a time|whole|entire|extra|another|double|twice|\d+ times|both|the rest|half|handful|couple|more of them|tonight|tomorrow|every|a day|bedtime|morning|night|evening|hourly|hour|ce soir|toutes les|esta noche|cada|stasera|auf einmal|jeden|aaj raat|har)\b/;
+  /\b(?:all of them|them all|it all|all at once|at once|at a time|whole|entire|extra|another|double|twice|\d+ times|both|the rest|half|handful|couple|more of them|tonight|tomorrow|every|a day|bedtime|morning|night|evening|hourly|hour|a second (?:one|dose|tablet|pill|capsule)|another one|at noon|at lunch|at lunchtime|midday|at dinner|at dinnertime|at supper|ce soir|toutes les|esta noche|cada|stasera|auf einmal|jeden|aaj raat|har)\b/;
 // Amounts and times that are only a dose beside the verb: "take two today", "swallow 30
 // together", "take as many as you need". On their own ("refilled today", "anything more?") they
 // are ordinary words.
@@ -30,12 +30,17 @@ const WITH_VERB =
 // "The label says take 1 tablet ...": a read-back lead, dropped before the clause is matched.
 const READ_BACK_LEAD = /^\W*(?:(?:the|your) (?:label|directions|instructions) (?:says?|reads?|shows?|are)|it says)(?: to)?\b/i;
 
+// How long something takes is not a dose (code reviewer, MEDIUM): "about 10 minutes", "a couple
+// of days", "up to 2 days", "a while". Never "every 4 hours" or "a day", which are frequencies.
+const DURATION =
+  /\b(?:(?:for|in|within|about|around|roughly|up to|over) )?(?<!every )(?:(?:\d+|a couple of|couple of|a few|few|several) (?:minute|hour|day|week|month)s?|(?:a|an) (?:minute|hour|week|month)s?)\b|\ba while\b/g;
+
 export type DosingClause = "neutral" | "verb" | "amount" | "backed" | "backed_verb" | "unbacked";
 
 /** What a clause does: tells the caller to take something, gives an amount, both, or neither. */
 export function classifyClause(clause: string, backed: (clause: string) => boolean): DosingClause {
   const w = words(clause).replace(NOT_DOSING, " ");
-  const c = canonical(w);
+  const c = canonical(w).replace(DURATION, " ");
   const verb = VERB.test(c);
   const amount = AMOUNT.test(c) || TIME_OR_AMOUNT.test(c) || (verb && WITH_VERB.test(c));
   if (!amount) return verb && !AS_DIRECTED.test(c) ? "verb" : "neutral";
