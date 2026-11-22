@@ -1,6 +1,6 @@
 // Plays the next N days forward over the simulated population. "Who to call" and "which
 // lane" are the real code, imported and never copied:
-//   - daysLeft and DUE_WITHIN_DAYS (app/api/_lib/outbound.ts), the daily check's due-soon test
+//   - notDueReason, daysLeft and DUE_WITHIN_DAYS (app/api/_lib/outbound.ts), the daily check's own test
 //   - refillPreview (same file): the real rule cards and lib/control/lanes.ts, read only
 //   - control.checkOutbound (lib/control): rule 7's cards (opt-in, hours, one call per 3 days)
 // They run against a throwaway in-memory store that holds only simulated patients. Nothing
@@ -12,7 +12,7 @@ import { createControl } from "@/lib/control";
 import { createMemoryStore } from "@/lib/store/memory";
 import { SEED } from "@/lib/seed";
 import { CALL_HOUR, CALL_OUTCOMES, generatePopulation, hashSeed, rng, type Population, type SimPatient } from "@/lib/seed/population";
-import { DUE_WITHIN_DAYS, daysLeft, refillPreview } from "@/app/api/_lib/outbound";
+import { DUE_WITHIN_DAYS, daysLeft, notDueReason, refillPreview } from "@/app/api/_lib/outbound";
 import { EARLY_REACH_DAYS_LEFT, HIGH_RISK, MODEL_NOTES, historyStats, predictCall, refillOnCallChance, riskScore, selfRefillDelay } from "./model";
 import type { ForecastRow, LaneCounts, Risk, SimCall, SimDay, SimHeld, SimOptions, SimRefill, SimRun, SimSummary } from "./types";
 
@@ -164,9 +164,12 @@ export async function runSim(options: Partial<SimOptions> = {}, population?: Pop
         const source = left <= DUE_WITHIN_DAYS ? "daily_check" : opts.earlyReach && risk.score >= HIGH_RISK && left === EARLY_REACH_DAYS_LEFT ? "early_reach" : null;
         if (!source) continue;
         const plan = plans.get(current.id)!;
+        // A daily-check call goes through the route's own test; early reach (the sim's idea) only through the refill rules.
+        const reason = source === "daily_check" ? await notDueReason(store, sp.patient, current) : null;
         const preview = await refillPreview(store, sp.patient, current);
-        if (preview.kind === "refused") {
-          const held: SimHeld = { at: iso(at), patientId: sp.patient.id, rxId: current.id, ruleIds: preview.ruleIds, by: "refill_rules" };
+        if (reason || preview.kind === "refused") {
+          const ruleIds = reason ?? (preview.kind === "refused" ? preview.ruleIds : []);
+          const held: SimHeld = { at: iso(at), patientId: sp.patient.id, rxId: current.id, ruleIds, by: "refill_rules" };
           day.held.push(held);
           plan.firstHeld ??= held;
           continue;
@@ -266,7 +269,7 @@ function summarise(opts: SimOptions, pop: Population, days: SimDay[], forecast: 
     earlyReach: opts.earlyReach,
     sources: {
       real: [
-        "Due soon: daysLeft and DUE_WITHIN_DAYS (app/api/_lib/outbound.ts), the daily check's own test",
+        "Who the daily check rings: notDueReason (app/api/_lib/outbound.ts), the daily check's own test",
         "Lane and refused refills: refillPreview, the real rule cards and lib/control/lanes.ts, read only",
         "May we ring: control.checkOutbound, rule 7's cards (opt-in, 9 AM to 8 PM, one call per 3 days)",
       ],
