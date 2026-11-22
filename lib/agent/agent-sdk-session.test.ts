@@ -39,6 +39,19 @@ describe("1.2b: live-run fixes (results/agent-live/sam-2026-11-21T16-47-10-176Z.
     expect(Object.keys(o.mcpServers)).toEqual(["buttons"]);
   });
 
+  it("thinks as before by default, and not at all with AGENT_THINKING=off (phone latency)", async () => {
+    const { sessionOptions } = await import("./agent-sdk-session");
+    const tools = BUTTON_TOOLS.map((t) => ({ name: t.name, description: "", schema: t.input_schema, run: async () => ({ content: "", isError: false }) })) as never;
+    const opts = { system: "s", tools, model: "claude-haiku-5-5", maxTurns: 4 };
+    expect(sessionOptions(opts, {})).not.toHaveProperty("thinking");
+    vi.stubEnv("AGENT_THINKING", "off");
+    try {
+      expect(sessionOptions(opts, {})).toMatchObject({ thinking: { type: "disabled" }, effort: "low", tools: [] });
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   it("counts one model call per message id, not per streamed block", async () => {
     const { createCallCounter } = await import("./agent-sdk-session");
     const count = createCallCounter();
