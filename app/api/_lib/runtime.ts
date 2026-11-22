@@ -111,6 +111,11 @@ export async function forgetCalls(): Promise<void> {
 
 /** Test helper: reseed the store and start fresh parts. */
 export async function resetRuntimeForTests(): Promise<void> {
+  // A test must never wipe the shared demo database (URGENT, 2026-11-22). The vitest setup
+  // already clears DATABASE_URL; this refuses a Postgres store anyway, before connecting.
+  if (process.env.DATABASE_URL && process.env.ALLOW_TEST_DB_RESET !== "1") {
+    throw new Error("resetRuntimeForTests refuses to reset a Postgres store (DATABASE_URL is set). Unset DATABASE_URL, or set ALLOW_TEST_DB_RESET=1 for a database you mean to wipe.");
+  }
   if (pgHolder.__refillGuardPg) {
     void pgHolder.__refillGuardPg.pool.end().catch(() => {});
     pgHolder.__refillGuardPg = undefined;
