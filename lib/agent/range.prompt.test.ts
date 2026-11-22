@@ -89,6 +89,16 @@ describe("1.x: real conversation on the phone", () => {
     expect(inbound).toMatch(/one or two short sentences/i);
   });
 
+  it("takes a yes to an offer that already read back the refill, and asks no second time", () => {
+    // Live run range-1, outbound-sam-several-requests: Sam said "Yeah, go ahead with the
+    // refill", and the agent read it back again and asked "Please say yes to confirm."
+    for (const prompt of [inbound, outbound]) {
+      expect(prompt).toMatch(/that offer is your read-back/i);
+      expect(prompt).toMatch(/never ask them to confirm twice/i);
+      expect(prompt).toMatch(/press request_refill first, then answer the rest in order/i);
+    }
+  });
+
   it("reads back once before a refill, not three times", () => {
     expect(inbound).toMatch(/once, and wait for a yes/i);
     expect(inbound).toMatch(/one read-back is enough/i);
