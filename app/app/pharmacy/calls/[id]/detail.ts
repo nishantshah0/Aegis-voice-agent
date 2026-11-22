@@ -1,4 +1,5 @@
 import type { Call, CallId, Lane, Order, RecordDecision, RecordEntry, RuleId, SpeechRule, Store } from "@/lib/contract";
+import { recordedConversation } from "@/app/api/_lib/call-recording";
 import { findBrokenLink } from "@/lib/store/memory";
 import type { ServerTurnTiming } from "@/lib/voice/timing";
 import type { TimingSource } from "@/app/console/calls/calls";
@@ -49,6 +50,7 @@ export type CallDetail = {
   patient?: string;
   verified: boolean;
   outcome: CallOutcome;
+  hasRecording?: boolean;
   timeline: TimelineEvent[];
   items: DecisionView[];
   timing: ServerTurnTiming[];
@@ -170,6 +172,7 @@ export async function callDetail(store: Store, callId: CallId, { driver, usageLo
     ...(patient ? { patient: `${patient.firstName[0]}.${patient.lastName[0]}.` } : {}),
     verified: Boolean(call.lockedPatientId),
     outcome: outcomeOf(presses, mine),
+    hasRecording: call.state === "ended" && Boolean(recordedConversation(entries)),
     timeline: entries.map(toEvent),
     items,
     timing: driver?.turnTimings?.(callId) ?? [],

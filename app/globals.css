@@ -21,9 +21,9 @@
   --rg-line: #e1dac6;
   --rg-line-strong: #c4bb9f;
 
-  --rg-ink: #1f2b1f;
-  --rg-ink-2: #46523f;
-  --rg-ink-3: #77806a;
+  --rg-ink: #111111;
+  --rg-ink-2: #30302c;
+  --rg-ink-3: #5e6258;
   --rg-ink-inverse: #fdfbf5;
 
   --rg-accent: #4d7c3a;
@@ -42,7 +42,7 @@
 
   --rg-tan: #8a6a3b;
   --rg-label: #dfe8bf;
-  --rg-label-ink: #1f2b1f;
+  --rg-label-ink: #111111;
   --rg-cobalt: #4a7f70;
   --rg-hot: #a3452e;
   --rg-focus: #4d7c3a;

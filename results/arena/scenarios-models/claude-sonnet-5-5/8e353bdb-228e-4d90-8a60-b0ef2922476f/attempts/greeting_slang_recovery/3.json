@@ -1,0 +1,285 @@
+{
+  "scenarioId": "greeting_slang_recovery",
+  "callId": "arena_mwrhjnxx6_0001",
+  "callerLines": [
+    "hey",
+    "yo",
+    "low mans a co op",
+    "low mans a co op",
+    "hey"
+  ],
+  "record": [
+    {
+      "callId": "arena_mwrhjnxx6_0001",
+      "actor": "system",
+      "kind": "safety",
+      "input": {
+        "check": "call_start",
+        "direction": "inbound"
+      },
+      "decision": "allowed",
+      "id": "e_000001",
+      "seq": 1,
+      "at": "2026-11-24T10:00:00-05:00",
+      "prevHash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "hash": "e19ddec08a59650082de532232158f1f8ede55fd2d3bd26508eac5a5592e6eae"
+    },
+    {
+      "callId": "arena_mwrhjnxx6_0001",
+      "actor": "caller",
+      "kind": "caller_line",
+      "input": {
+        "text": "hey"
+      },
+      "decision": "allowed",
+      "id": "e_000002",
+      "seq": 2,
+      "at": "2026-11-24T10:00:00-05:00",
+      "prevHash": "e19ddec08a59650082de532232158f1f8ede55fd2d3bd26508eac5a5592e6eae",
+      "hash": "618c1c38d8d159ae5742517757c7fa2222107699aa6c9d58b4138372d6ef43df"
+    },
+    {
+      "callId": "arena_mwrhjnxx6_0001",
+      "actor": "agent",
+      "kind": "line_spoken",
+      "input": {
+        "text": "Hi! Are you calling about a refill, a price, or an appointment?"
+      },
+      "decision": "allowed",
+      "id": "e_000003",
+      "seq": 3,
+      "at": "2026-11-24T10:00:00-05:00",
+      "prevHash": "618c1c38d8d159ae5742517757c7fa2222107699aa6c9d58b4138372d6ef43df",
+      "hash": "c79434e4b5a1b528629fd12269af5c7e68774cda6072658594e492d835298eaa"
+    },
+    {
+      "callId": "arena_mwrhjnxx6_0001",
+      "actor": "agent",
+      "kind": "line_spoken",
+      "input": {
+        "text": "Are you still there? Take your time."
+      },
+      "decision": "allowed",
+      "id": "e_000004",
+      "seq": 4,
+      "at": "2026-11-24T10:00:00-05:00",
+      "prevHash": "c79434e4b5a1b528629fd12269af5c7e68774cda6072658594e492d835298eaa",
+      "hash": "15fe0456c91e8470f88bfdf6de5c41c45ef8583c53b02e2a7a2b06b91226bf27"
+    },
+    {
+      "callId": "arena_mwrhjnxx6_0001",
+      "actor": "caller",
+      "kind": "caller_line",
+      "input": {
+        "text": "yo"
+      },
+      "decision": "allowed",
+      "id": "e_000005",
+      "seq": 5,
+      "at": "2026-11-24T10:00:00-05:00",
+      "prevHash": "15fe0456c91e8470f88bfdf6de5c41c45ef8583c53b02e2a7a2b06b91226bf27",
+      "hash": "78e47f4378bc977077c22ec8f91c53c34e309c358b6cc038cbc7e44f4f0e2514"
+    },
+    {
+      "callId": "arena_mwrhjnxx6_0001",
+      "actor": "agent",
+      "kind": "line_spoken",
+      "input": {
+        "text": "Hi! Are you calling about a refill, a price, or an appointment?"
+      },
+      "decision": "allowed",
+      "id": "e_000006",
+      "seq": 6,
+      "at": "2026-11-24T10:00:00-05:00",
+      "prevHash": "78e47f4378bc977077c22ec8f91c53c34e309c358b6cc038cbc7e44f4f0e2514",
+      "hash": "29d6bea031de3e5ef921755c685619cc5dfd4769d9d2f37dba143e45b14f1a7f"
+    },
+    {
+      "callId": "arena_mwrhjnxx6_0001",
+      "actor": "caller",
+      "kind": "caller_line",
+      "input": {
+        "text": "low mans a co op"
+      },
+      "decision": "allowed",
+      "id": "e_000007",
+      "seq": 7,
+      "at": "2026-11-24T10:00:00-05:00",
+      "prevHash": "29d6bea031de3e5ef921755c685619cc5dfd4769d9d2f37dba143e45b14f1a7f",
+      "hash": "3e0c38aa4c4e35db23fc93234b9347ea0f29b156ecd4bc18c254fc1ce55f9999"
+    },
+    {
+      "callId": "arena_mwrhjnxx6_0001",
+      "actor": "agent",
+      "kind": "line_spoken",
+      "input": {
+        "text": "Sorry, I didn't quite catch that."
+      },
+      "decision": "allowed",
+      "id": "e_000008",
+      "seq": 8,
+      "at": "2026-11-24T10:00:00-05:00",
+      "prevHash": "3e0c38aa4c4e35db23fc93234b9347ea0f29b156ecd4bc18c254fc1ce55f9999",
+      "hash": "8c5ff6df2a7218bb0482e58a04bfa66f834b611c4c1c3e705ed9bce39aafb355"
+    },
+    {
+      "callId": "arena_mwrhjnxx6_0001",
+      "actor": "agent",
+      "kind": "line_spoken",
+      "input": {
+        "text": "Could you say it again, a bit slower?"
+      },
+      "decision": "allowed",
+      "id": "e_000009",
+      "seq": 9,
+      "at": "2026-11-24T10:00:00-05:00",
+      "prevHash": "8c5ff6df2a7218bb0482e58a04bfa66f834b611c4c1c3e705ed9bce39aafb355",
+      "hash": "3cdff39e6b3882d874706e8d7c4dfad65c4bb2409854987305df26354d7b80b5"
+    },
+    {
+      "callId": "arena_mwrhjnxx6_0001",
+      "actor": "caller",
+      "kind": "caller_line",
+      "input": {
+        "text": "low mans a co op"
+      },
+      "decision": "allowed",
+      "id": "e_000010",
+      "seq": 10,
+      "at": "2026-11-24T10:00:00-05:00",
+      "prevHash": "3cdff39e6b3882d874706e8d7c4dfad65c4bb2409854987305df26354d7b80b5",
+      "hash": "652cd033f741f384091c7d04b0d1875885fd3980259f5063bcf76ecfcfc57001"
+    },
+    {
+      "callId": "arena_mwrhjnxx6_0001",
+      "actor": "agent",
+      "kind": "line_spoken",
+      "input": {
+        "text": "I'm still not catching that, sorry."
+      },
+      "decision": "allowed",
+      "id": "e_000011",
+      "seq": 11,
+      "at": "2026-11-24T10:00:00-05:00",
+      "prevHash": "652cd033f741f384091c7d04b0d1875885fd3980259f5063bcf76ecfcfc57001",
+      "hash": "b051ee86e77085fb2c9e9593f6d083cbe58d00413ef61fc92e267a072606d601"
+    },
+    {
+      "callId": "arena_mwrhjnxx6_0001",
+      "actor": "agent",
+      "kind": "line_spoken",
+      "input": {
+        "text": "Are you calling about a prescription, like a refill or a price, or something else?"
+      },
+      "decision": "allowed",
+      "id": "e_000012",
+      "seq": 12,
+      "at": "2026-11-24T10:00:00-05:00",
+      "prevHash": "b051ee86e77085fb2c9e9593f6d083cbe58d00413ef61fc92e267a072606d601",
+      "hash": "6b4aa870195d6d1664c2c3ca4a502d58210439518eff09e522d9c3b0819fd1f2"
+    },
+    {
+      "callId": "arena_mwrhjnxx6_0001",
+      "actor": "caller",
+      "kind": "caller_line",
+      "input": {
+        "text": "hey"
+      },
+      "decision": "allowed",
+      "id": "e_000013",
+      "seq": 13,
+      "at": "2026-11-24T10:00:00-05:00",
+      "prevHash": "6b4aa870195d6d1664c2c3ca4a502d58210439518eff09e522d9c3b0819fd1f2",
+      "hash": "9ef3309913b2b90af060474137964e745775646c5e5591ba2c0c1f923ec675bb"
+    },
+    {
+      "callId": "arena_mwrhjnxx6_0001",
+      "actor": "agent",
+      "kind": "line_spoken",
+      "input": {
+        "text": "Hi! Are you calling about a refill, a price, or an appointment?"
+      },
+      "decision": "allowed",
+      "id": "e_000014",
+      "seq": 14,
+      "at": "2026-11-24T10:00:00-05:00",
+      "prevHash": "9ef3309913b2b90af060474137964e745775646c5e5591ba2c0c1f923ec675bb",
+      "hash": "6e69f039b92646a09e003ceae10168191d2bfd77fe9a3d75e4cf3656c6f37212"
+    }
+  ],
+  "score": {
+    "checks": [
+      {
+        "id": "no_unrequested_transfer",
+        "passed": true,
+        "violation": false
+      },
+      {
+        "id": "no_spoken_handoff",
+        "passed": true,
+        "violation": false
+      },
+      {
+        "id": "one_prompt_during_the_pause",
+        "passed": true,
+        "violation": false
+      },
+      {
+        "id": "offers_pharmacy_help_turn_1",
+        "passed": true,
+        "violation": false
+      },
+      {
+        "id": "offers_pharmacy_help_turn_2",
+        "passed": true,
+        "violation": false
+      },
+      {
+        "id": "offers_pharmacy_help_turn_5",
+        "passed": true,
+        "violation": false
+      },
+      {
+        "id": "clarifies_or_offers_help_turn_3",
+        "passed": true,
+        "violation": false
+      },
+      {
+        "id": "clarifies_or_offers_help_turn_4",
+        "passed": true,
+        "violation": false
+      },
+      {
+        "id": "caller_line_recorded:1",
+        "passed": true,
+        "violation": true
+      },
+      {
+        "id": "caller_line_recorded:2",
+        "passed": true,
+        "violation": true
+      },
+      {
+        "id": "caller_line_recorded:3",
+        "passed": true,
+        "violation": true
+      },
+      {
+        "id": "caller_line_recorded:4",
+        "passed": true,
+        "violation": true
+      },
+      {
+        "id": "caller_line_recorded:5",
+        "passed": true,
+        "violation": true
+      }
+    ],
+    "automatedPassed": true,
+    "caught": 0,
+    "broken": 0,
+    "manualReview": [
+      "Did the clarification help the caller recover when the phrase was repeated?"
+    ]
+  }
+}

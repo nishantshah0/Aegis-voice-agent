@@ -35,7 +35,7 @@ vi.mock("@/lib/arena/pace", async (importOriginal) => ({
   readUsageLog: () => async () => "",
 }));
 
-const fakes = vi.hoisted(() => ({ agentSteps: [] as unknown[], used: [] as string[] }));
+const fakes = vi.hoisted(() => ({ agentSteps: [] as unknown[], used: [] as string[], geminiLines: ["Hi, is my refill approved?"], beforeGemini: async () => {} }));
 vi.mock("@/lib/agent", async (importOriginal) => {
   const real = await importOriginal<typeof import("@/lib/agent")>();
   const { scriptedModel: scripted } = await import("@/lib/agent/testing/scripted-model");
@@ -44,7 +44,11 @@ vi.mock("@/lib/agent", async (importOriginal) => {
 vi.mock("@/lib/arena/attacker", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/arena/attacker")>()),
   createSdkAttacker: (opts: { model?: string } = {}) => async () => (fakes.used.push(`claude:${opts.model}`), { lines: ["Hi, is my refill approved?"] }),
-  createGeminiAttacker: (opts: { model?: string } = {}) => async () => (fakes.used.push(`gemini:${opts.model}`), { lines: ["Hi, is my refill approved?"] }),
+  createGeminiAttacker: (opts: { model?: string } = {}) => async () => {
+    await fakes.beforeGemini();
+    fakes.used.push(`gemini:${opts.model}`);
+    return { lines: fakes.geminiLines };
+  },
 }));
 
 const night = vi.hoisted(() => vi.fn());
@@ -76,6 +80,8 @@ beforeEach(async () => {
   vi.stubEnv("LIVE_AGENT", "1");
   session.approver = PHARMACIST;
   fakes.used = [];
+  fakes.geminiLines = ["Hi, is my refill approved?"];
+  fakes.beforeGemini = async () => {};
   fakes.agentSteps = [{ text: ["A pharmacist has to approve that first."] }];
   night.mockReset();
   night.mockImplementation(async (options: NightOptions) => {
@@ -125,10 +131,39 @@ describe("POST /api/arena/live with an attacker model", () => {
     const call = await finished(((await res.json()) as { id: string }).id);
     expect(call.state).toBe("ended");
     expect(call).toMatchObject({ attacker: "gemini", attackerModel: "gemini-2.5-flash" });
+    expect(call.progress).toEqual({ completed: 1, turn: 1, phase: "finished" });
     expect(fakes.used).toEqual(["gemini:gemini-2.5-flash"]);
     // The Gemini caller's line reached the agent as a caller line in the record, like any caller's.
     expect(call.turns.filter((t) => t.kind === "caller_line").map((t) => t.text)).toEqual(["Hi, is my refill approved?"]);
     expect(call.verdict?.recordVerified).toBe(true);
+  });
+
+  it("publishes the actual Gemini turn while the caller is still composing it", async () => {
+    const entered = Promise.withResolvers<void>();
+    const resume = Promise.withResolvers<void>();
+    fakes.beforeGemini = () => {
+      entered.resolve();
+      return resume.promise;
+    };
+    const response = await startLive(post({ source: { kind: "new", attack }, model: "gemini" }));
+    const { id } = await response.json() as { id: string };
+    try {
+      await entered.promise;
+      const inFlight = await (await getCall(new Request("http://localhost"), ctx(id))).json() as LiveCall;
+      expect(inFlight.progress).toEqual({ turn: 1, completed: 0, phase: "caller" });
+      expect(inFlight.verdict).toBeUndefined();
+    } finally {
+      resume.resolve();
+    }
+    expect((await finished(id)).progress?.completed).toBe(1);
+  });
+
+  it("reports an incomplete run if Gemini supplies no caller turn", async () => {
+    fakes.geminiLines = [];
+    const response = await startLive(post({ source: { kind: "new", attack }, model: "gemini-2.5-flash" }));
+    const call = await finished(((await response.json()) as { id: string }).id);
+    expect(call.state).toBe("failed");
+    expect(call.progress).toEqual({ turn: 1, completed: 0, phase: "failed" });
   });
 
   it("defaults to Claude, and refuses an unknown model", async () => {

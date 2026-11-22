@@ -83,9 +83,9 @@ async function reply(ctx: Ctx, button: ButtonName): Promise<string> {
       if ("locked_until" in out) return "That's too many tries, so I can't go on by phone today. Please call back later.";
       return "That code doesn't match. Please check the text and read it again.";
     case "check_prescription":
-      return `You have ${String(out.refills_left)} refills left on it.`;
+      return String(out.history_readback ?? "I could not retrieve the fill history.");
     case "check_coverage":
-      return `On your plan, you would pay ${String(out.patient_pays)}.`;
+      return String(out.coverage_readback ?? "I could not retrieve the insurance quote.");
     case "request_refill": {
       const state = String(out.state);
       const rules = (out.rule_ids as string[] | undefined) ?? [];
@@ -333,7 +333,8 @@ async function run(store: Store): Promise<HistorySummary> {
       steps.length = 0;
       await drain(driver.opening(callId));
       for (const turn of call.turns) {
-        steps.push(...turn.agent);
+        // A fixed driver readback can finish a turn without consuming a scripted model step.
+        steps.splice(0, steps.length, ...turn.agent);
         const text = typeof turn.caller === "string" ? turn.caller : await turn.caller(current);
         await drain(driver.callerSays(callId, text));
       }

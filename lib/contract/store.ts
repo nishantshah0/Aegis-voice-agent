@@ -53,6 +53,10 @@ export type Prescription = {
   /** The interval the prescriber wrote between fills, in days. */
   prescribedIntervalDays: number;
   lastFill: IsoTime;
+  /** Quantity actually dispensed with lastFill. Older records may lack this field. */
+  lastDispensedQuantity?: { count: number; unit: "tablets" | "capsules" };
+  /** Separately recorded insurance quotes for nonstandard fill sizes. */
+  supplyQuotes?: { days: number; planPays: string; patientPays: string }[];
   refillsLeft: number;
   /** Which fill this would be, e.g. Sam is on refill 1 of 2. */
   refillsTotal: number;
@@ -70,6 +74,9 @@ export type Prescription = {
 };
 
 export type DeliverySlot = { id: SlotId; label: string; start: IsoTime; end: IsoTime };
+
+export type LegacyAppointment = { slotId: SlotId; patientId: PatientId; bookedAt: IsoTime };
+export type LegacyAppointmentSlot = { id: SlotId; start: IsoTime; label: string };
 
 export type Order = {
   id: OrderId;
@@ -108,6 +115,7 @@ export type Policy = {
   controlledEarlyWindowDays: number;
   /** Weekly appointment times. Missing: DEFAULT_APPOINTMENT_SCHEDULE. */
   appointmentSchedule?: AppointmentTemplate[];
+  appointmentSlots?: LegacyAppointmentSlot[];
 };
 
 export type Seed = {
@@ -200,6 +208,7 @@ export type QueueItem = {
   patientId: PatientId;
   rxId?: RxId;
   orderId?: OrderId;
+  requestedDaysSupply?: number;
   kind: "refill" | "renewal" | "delivery" | "note" | "escalation";
   lane: Lane;
   /** The rules that sent it here. */
@@ -229,6 +238,9 @@ export interface Store {
   getPrescriptions(patientId: PatientId): Promise<Prescription[]>;
   getPrescription(rxId: RxId): Promise<Prescription | undefined>;
   listSlots(): Promise<DeliverySlot[]>;
+  listAppointments(): Promise<LegacyAppointment[]>;
+  /** Atomically takes a slot, succeeds again for its owner, refuses any other patient. */
+  reserveAppointment(appointment: LegacyAppointment): Promise<boolean>;
   listOrders(patientId?: PatientId): Promise<Order[]>;
   saveOrder(order: Order): Promise<Order>;
   listCards(): Promise<RuleCard[]>;

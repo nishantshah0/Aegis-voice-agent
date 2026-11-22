@@ -33,6 +33,9 @@ export const INVARIANTS = [
   "appointment for someone who isn't the verified patient",
   "appointment cancelled that isn't the verified patient's",
   "spoken line promises an appointment nobody booked",
+  // Trail #86: the lockout and triage follow the patient and the whole call.
+  "code checked during a patient's lockout",
+  "open request left out of Review after a later signal",
 ] as const;
 
 type Result = { ok: boolean; output?: unknown };
@@ -41,6 +44,8 @@ type Internal = {
   codeSent?: boolean;
   lookupId?: string;
   matched?: boolean;
+  codeFailed?: boolean;
+  queueItemId?: string;
   appointment?: { appointmentId: string; slotId: string; patientId: string; type: string; start: string };
 };
 
@@ -195,6 +200,59 @@ export function makeChecker(seed: Seed, knownCode: string) {
     }
   }
 
+  /**
+   * Trail #86: three wrong codes against a patient within 15 minutes lock that patient, on every
+   * call, for 15 minutes from the third. No later check_code for them may compare a code
+   * (answer verified true or false) inside that window, whichever call it's on.
+   */
+  function checkPatientLockout(entry: RecordEntry, record: RecordEntry[], broken: Broken[]) {
+    const patientId = internalOf(entry)?.patientId;
+    const out = resultOf(entry)?.output as { verified?: boolean } | undefined;
+    if (entry.button !== "check_code" || !patientId || !out || !("verified" in out)) return;
+    const wrong = record
+      .filter((e) => e.seq < entry.seq && e.button === "check_code" && internalOf(e)?.patientId === patientId)
+      .filter((e) => {
+        const o = resultOf(e)?.output as { verified?: boolean; locked_until?: string } | undefined;
+        return o?.verified === false || (o?.locked_until !== undefined && internalOf(e)?.codeFailed === true);
+      })
+      .map((e) => Date.parse(e.at));
+    const t = Date.parse(entry.at);
+    // Three in 15 minutes lock 15 minutes; six in 24 hours lock 24 hours (Trail #86 review).
+    for (const [n, windowMs] of [[3, 15 * 60 * 1000], [6, DAY_MS]] as const) {
+      for (let i = n - 1; i < wrong.length; i++) {
+        if (wrong[i] - wrong[i - (n - 1)] <= windowMs && t < wrong[i] + windowMs) {
+          broken.push({ rule: "code checked during a patient's lockout", detail: `${entry.callId}: ${patientId} at ${entry.at} (${n} wrong)` });
+          return;
+        }
+      }
+    }
+  }
+
+  /** Trail #86: a signal on a call after a request was queued must leave that request in Review. */
+  async function checkRelane(store: Store, record: RecordEntry[], broken: Broken[]) {
+    const isSignal = (e: RecordEntry) =>
+      e.kind === "line_blocked" || (e.kind === "safety" && e.actor !== "system") || (e.button === "check_code" && e.decision === "blocked");
+    for (const q of await store.queue()) {
+      if (q.status !== "open" || q.lane === "review" || !["refill", "renewal", "delivery"].includes(q.kind)) continue;
+      const made = record.find((e) => e.kind === "button" && internalOf(e)?.queueItemId === q.id);
+      if (!made) continue;
+      // The caller's safety words on any later call verified as this patient count too (Trail #86 review).
+      const verifiedAs = (callId: string | undefined, seq: number) => {
+        const v = record.find((x) => x.callId === callId && x.seq < seq && x.button === "check_code" && (resultOf(x)?.output as { verified?: boolean } | undefined)?.verified === true);
+        return v ? internalOf(v)?.patientId : undefined;
+      };
+      const later = record.find(
+        (e) =>
+          e.seq > made.seq &&
+          ((e.callId === q.callId && isSignal(e)) ||
+            (e.kind === "safety" && e.actor === "caller" && e.callId !== q.callId && verifiedAs(e.callId, e.seq) === q.patientId) ||
+            // A wrong code against this patient on any call (RT-C4).
+            (e.button === "check_code" && e.decision === "blocked" && internalOf(e)?.codeFailed === true && internalOf(e)?.patientId === q.patientId)),
+      );
+      if (later) broken.push({ rule: "open request left out of Review after a later signal", detail: `${q.id} (${q.lane}) after seq ${later.seq} ${later.kind}` });
+    }
+  }
+
   function checkCodeRate(entry: RecordEntry, record: RecordEntry[], broken: Broken[]) {
     const internal = internalOf(entry);
     if (!internal?.codeSent || !internal.patientId) return;
@@ -276,6 +334,7 @@ export function makeChecker(seed: Seed, knownCode: string) {
 
     // Deliveries: pickup or an address on that patient's file.
     const patients = new Map<string, Patient>((await store.listPatients()).map((p) => [p.id, p]));
+    await checkRelane(store, record, broken);
     for (const o of await store.listOrders()) {
       if (o.addressId === undefined || o.addressId === "pickup") continue;
       if (!patients.get(o.patientId)?.addresses.some((a) => a.id === o.addressId)) {
@@ -304,6 +363,7 @@ export function makeChecker(seed: Seed, knownCode: string) {
     checkVerification(entry, record, patients, broken);
     checkCodeRate(entry, record, broken);
     checkAppointment(entry, record, broken);
+    checkPatientLockout(entry, record, broken);
     const result = resultOf(entry);
     const call = entry.callId ? await store.getCall(entry.callId) : undefined;
 

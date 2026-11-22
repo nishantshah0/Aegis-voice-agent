@@ -11,9 +11,10 @@ export const MAX_TEXT = 1000;
 
 type FieldSpec =
   | { type: "string"; max: number; optional?: boolean; oneOf?: readonly string[] }
-  | { type: "boolean" }
+  | { type: "boolean"; optional?: boolean }
   /** A whole number from min to max. */
-  | { type: "integer"; min: number; max: number; optional?: boolean };
+  | { type: "integer"; min: number; max: number; optional?: boolean }
+  | { type: "positive_integer"; optional?: boolean };
 
 const SPECS: Record<ButtonName, Record<string, FieldSpec>> = {
   lookup_patient: {
@@ -25,8 +26,8 @@ const SPECS: Record<ButtonName, Record<string, FieldSpec>> = {
   check_code: { lookup_id: { type: "string", max: MAX_ID }, code: { type: "string", max: 20 }, dob: { type: "string", max: 40, optional: true } },
   check_prescription: { rx_id: { type: "string", max: MAX_ID }, include_other_names: { type: "boolean" } },
   read_label: { rx_id: { type: "string", max: MAX_ID } },
-  check_coverage: { rx_id: { type: "string", max: MAX_ID } },
-  order_status: {},
+  check_coverage: { rx_id: { type: "string", max: MAX_ID }, days_supply: { type: "positive_integer", optional: true } },
+  order_status: { include_appointments: { type: "boolean", optional: true } },
   request_refill: {
     rx_id: { type: "string", max: MAX_ID },
     reason: { type: "string", max: MAX_TEXT, optional: true },
@@ -53,16 +54,28 @@ const SPECS: Record<ButtonName, Record<string, FieldSpec>> = {
 export type Checked<B extends ButtonName> = { ok: true; input: ButtonInputs[B] } | { ok: false; problem: string };
 
 export function checkInput<B extends ButtonName>(button: B, input: unknown): Checked<B> {
-  const spec = SPECS[button];
+  let spec = SPECS[button];
+  if (button === "note_for_pharmacist" && (input as { kind?: unknown } | null)?.kind === "appointment") {
+    spec = {
+      kind: { type: "string", max: 20, oneOf: ["appointment"] },
+      slot_id: { type: "string", max: MAX_ID },
+      text: { type: "string", max: MAX_TEXT, optional: true },
+    };
+  }
   if (!spec) return { ok: false, problem: "unknown button" };
-  if (input === undefined && Object.keys(spec).length === 0) return { ok: true, input: {} as ButtonInputs[B] };
+  if (input === undefined && button === "order_status") return { ok: true, input: {} as ButtonInputs[B] };
   if (typeof input !== "object" || input === null || Array.isArray(input)) return { ok: false, problem: "input must be an object" };
   const obj = input as Record<string, unknown>;
   for (const key of Object.keys(obj)) {
-    if (!(key in spec)) return { ok: false, problem: `unknown field ${key}` };
+    if (!Object.hasOwn(spec, key)) return { ok: false, problem: `unknown field ${key}` };
   }
   for (const [key, field] of Object.entries(spec)) {
     const value = obj[key];
+    if (value === undefined && field.optional) continue;
+    if (field.type === "positive_integer") {
+      if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 1) return { ok: false, problem: `${key} must be a positive whole number` };
+      continue;
+    }
     if (field.type === "boolean") {
       if (typeof value !== "boolean") return { ok: false, problem: `${key} must be true or false` };
       continue;

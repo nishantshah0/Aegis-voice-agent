@@ -9,6 +9,9 @@ export type RecordMatch = {
   inputRxId?: string;
   inputCheck?: string;
   inputKind?: string;
+  inputDaysSupply?: number;
+  resultDaysSupply?: number;
+  resultBookedSlot?: string;
   inputSlotId?: string;
   inputAddressId?: string;
   resultState?: string;
@@ -20,7 +23,10 @@ export type RecordMatch = {
 
 export type ScenarioCheck = {
   id: string;
-  mode: "present" | "absent" | "before" | "any";
+  mode: "present" | "absent" | "before" | "any" | "count";
+  /** Restrict the check to events from this one-based caller turn. */
+  turn?: number;
+  count?: number;
   match?: RecordMatch;
   matches?: RecordMatch[];
   first?: RecordMatch;
@@ -73,6 +79,9 @@ export function recordMatches(entry: RecordEntry, match: RecordMatch): boolean {
   if (match.lane !== undefined && entry.lane !== match.lane) return false;
   if (match.inputRxId !== undefined && input.rx_id !== match.inputRxId) return false;
   if (match.inputCheck !== undefined && input.check !== match.inputCheck) return false;
+  if (match.inputDaysSupply !== undefined && input.days_supply !== match.inputDaysSupply) return false;
+  if (match.resultDaysSupply !== undefined && (result.ok !== true || object(result.output).days_supply !== match.resultDaysSupply)) return false;
+  if (match.resultBookedSlot !== undefined && (result.ok !== true || !object(result.output).appointment_id || object(result.output).slot_id !== match.resultBookedSlot)) return false;
   if (match.inputKind !== undefined && input.kind !== match.inputKind) return false;
   if (match.inputSlotId !== undefined && input.slot_id !== match.inputSlotId) return false;
   if (match.inputAddressId !== undefined && input.address_id !== match.inputAddressId) return false;
@@ -85,6 +94,10 @@ export function recordMatches(entry: RecordEntry, match: RecordMatch): boolean {
 }
 
 function checkRecord(record: RecordEntry[], check: ScenarioCheck): boolean {
+  if (check.mode === "count") {
+    if (!check.match || !Number.isSafeInteger(check.count) || check.count! < 0) throw new Error(`check ${check.id} needs a match and a nonnegative count`);
+    return record.filter(entry => recordMatches(entry, check.match!)).length === check.count;
+  }
   if (check.mode === "any") {
     if (!check.matches?.length) throw new Error(`check ${check.id} needs matches`);
     return record.some((entry) => check.matches!.some((match) => recordMatches(entry, match)));
@@ -124,6 +137,7 @@ export function scoreScenario(
   { countRouted = false }: { countRouted?: boolean } = {},
 ): ScenarioScore {
   if (!expected.checks.length) throw new Error("scenario needs machine-readable checks");
+  const callerTurns = record.filter(entry => entry.kind === "caller_line" && entry.actor === "caller");
   const checks: CheckResult[] = expected.checks.map((check) => {
     const resolved = {
       ...check,
@@ -132,8 +146,16 @@ export function scoreScenario(
       first: resolveMatch(check.first, resolve),
       then: resolveMatch(check.then, resolve),
     };
-    if (resolved.mode === "before") return checkOrder(record, resolved);
-    return { id: check.id, passed: checkRecord(record, resolved), violation: check.violation === true };
+    let scope = record;
+    if (check.turn !== undefined) {
+      if (!Number.isSafeInteger(check.turn) || check.turn < 1) throw new Error(`invalid caller turn for ${check.id}`);
+      const start = callerTurns[check.turn - 1];
+      if (!start) return { id: check.id, passed: false, violation: false };
+      const end = callerTurns[check.turn]?.seq ?? Infinity;
+      scope = record.filter(entry => entry.seq >= start.seq && entry.seq < end);
+    }
+    if (resolved.mode === "before") return checkOrder(scope, resolved);
+    return { id: check.id, passed: checkRecord(scope, resolved), violation: check.violation === true };
   });
 
   for (const [rxToken, expectedState] of Object.entries(expected.final_states)) {

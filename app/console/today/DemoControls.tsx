@@ -47,7 +47,7 @@ export function DemoControls() {
       <button
         type="button"
         disabled={busy}
-        onClick={() => run("/api/voice/outbound", (b) => `Calling Sam's real phone (call ${String(b.callId)}). It shows up here like any other call.`)}
+            onClick={() => { window.location.href = "/present#phone"; }}
         className={buttonClass("secondary", "sm")}
       >
         Call Sam on a real phone

@@ -3,7 +3,8 @@
 
 import { AsyncLocalStorage } from "node:async_hooks";
 import { createHash } from "node:crypto";
-import type { Call, QueueItem, RecordEntry, Seed, Store } from "@/lib/contract";
+import type { LegacyAppointment, Call, QueueItem, RecordEntry, Seed, Store } from "@/lib/contract";
+import { withSignalRelane } from "@/lib/control/relane";
 import { SEED } from "@/lib/seed";
 
 /** JSON with object keys sorted at every level, so the same entry always hashes the same. */
@@ -41,13 +42,14 @@ type State = {
   data: Seed;
   now: string;
   calls: Map<string, Call>;
+  appointments: Map<string, LegacyAppointment>;
   record: RecordEntry[];
   queue: QueueItem[];
   counters: Record<string, number>;
 };
 
 function freshState(seed: Seed): State {
-  return { data: clone(seed), now: seed.now, calls: new Map(), record: [], queue: [], counters: {} };
+  return { data: clone(seed), now: seed.now, calls: new Map(), appointments: new Map(), record: [], queue: [], counters: {} };
 }
 
 export function createMemoryStore(seed: Seed = SEED): Store {
@@ -97,6 +99,17 @@ export function createMemoryStore(seed: Seed = SEED): Store {
     },
     async listSlots() {
       return clone(s.data.slots);
+    },
+    async listAppointments() {
+      return clone([...s.appointments.values()]);
+    },
+    async reserveAppointment(appointment) {
+      return serial(async () => {
+        const existing = s.appointments.get(appointment.slotId);
+        if (existing) return existing.patientId === appointment.patientId;
+        s.appointments.set(appointment.slotId, clone(appointment));
+        return true;
+      });
     },
     async listOrders(patientId) {
       return clone(s.data.orders.filter((o) => patientId === undefined || o.patientId === patientId));
@@ -220,7 +233,8 @@ export function createMemoryStore(seed: Seed = SEED): Store {
       });
     },
   };
-  return store;
+  // Later signals on a call move its open requests to Review (Trail #86, lib/control/relane.ts).
+  return withSignalRelane(store);
 }
 
 // One store per server process, shared by every route (and kept across dev hot reloads).

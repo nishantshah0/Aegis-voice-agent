@@ -531,7 +531,14 @@ export default function HomePage() {
       <PageHeader
         title="Home"
         description="What needs a pharmacist, how the phone line is doing, and how the lock is holding."
-        actions={<Live />}
+        actions={<div className="flex flex-wrap items-center gap-2">
+          <Live />
+          {process.env.AEGIS_PUBLIC_ORIGIN && <>
+            <ButtonLink href="/app/pharmacy/outreach#patients" size="sm" variant="ghost">Patient directory</ButtonLink>
+            <ButtonLink href="/app/safety/business-tests" size="sm" variant="secondary">Business tests</ButtonLink>
+            <ButtonLink href="/app/pharmacy/phone" size="sm">Open phone</ButtonLink>
+          </>}
+        </div>}
       />
       <Suspense fallback={<BodySkeleton />}>
         <Body />

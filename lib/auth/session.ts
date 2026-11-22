@@ -1,3 +1,5 @@
+import { cookies } from 'next/headers';
+import { presenterAuthorized, presenterCookie } from './presenter';
 import type { Approver } from "@/lib/contract";
 import { ROLE_CLAIM, getAuth0 } from "./auth0";
 
@@ -18,6 +20,9 @@ export function approverFromUser(user: Record<string, unknown> | null | undefine
 
 /** The signed-in approver for the current request (route handler or server component). */
 export async function getApprover(): Promise<Approver | null> {
+  if (process.env.AEGIS_PUBLIC_ORIGIN && presenterAuthorized((await cookies()).get(presenterCookie)?.value)) {
+    return { id: 'synthetic-presenter', name: 'Demo pharmacist', role: 'pharmacist' };
+  }
   const auth0 = getAuth0();
   if (!auth0) return null;
   try {

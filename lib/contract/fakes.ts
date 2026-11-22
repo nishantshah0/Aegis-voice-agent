@@ -5,6 +5,7 @@
 // hash is not sha256. Never ship them, and never score a real result against them.
 // All people, phones (555-01xx), addresses, dates and prices here are made up.
 
+import { coverageFacts, lastFillFacts } from "./patient-facts";
 import { STARTING_CARDS } from "./cards";
 import type { ButtonInputs, ButtonName, ButtonResult, PressFn } from "./buttons";
 import { NEEDS_VERIFIED } from "./buttons";
@@ -13,7 +14,7 @@ import type { EmitFn } from "./events";
 import type { CheckCallerLineFn, GuardSentenceFn } from "./guard";
 import { GUARD_REPLACEMENTS } from "./guard";
 import type { CallId, Lane, PatientId, RuleId } from "./ids";
-import type { Call, Order, QueueItem, RecordEntry, Seed, Store } from "./store";
+import type { LegacyAppointment, Call, Order, QueueItem, RecordEntry, Seed, Store } from "./store";
 
 // ---------- Sam's data ----------
 
@@ -59,6 +60,7 @@ export const FAKE_SEED: Seed = {
       refillsLeft: 2,
       refillsTotal: 2,
       expiry: "2027-04-28T00:00:00-04:00",
+      lastDispensedQuantity: { count: 30, unit: "tablets" },
       labelText: "CONCERTA 36 MG TABLET. Take 1 tablet by mouth every morning. Qty 30.",
       planPays: "$41.20",
       patientPays: "$4.10",
@@ -77,6 +79,7 @@ export const FAKE_SEED: Seed = {
       refillsLeft: 3,
       refillsTotal: 3,
       expiry: "2027-09-01T00:00:00-04:00",
+      lastDispensedQuantity: { count: 180, unit: "tablets" },
       labelText: "METFORMIN 500 MG TABLET. Take 1 tablet by mouth twice a day with meals. Qty 180.",
       planPays: "$12.60",
       patientPays: "$2.00",
@@ -109,6 +112,7 @@ export function createFakeStore(seed: Seed = FAKE_SEED): Store {
   let data = clone(seed);
   let now = seed.now;
   let calls = new Map<CallId, Call>();
+  const appointments = new Map<string, LegacyAppointment>();
   let record: RecordEntry[] = [];
   let queueItems: QueueItem[] = [];
   let counter = 0;
@@ -135,6 +139,15 @@ export function createFakeStore(seed: Seed = FAKE_SEED): Store {
     },
     async listSlots() {
       return clone(data.slots);
+    },
+    async listAppointments() {
+      return clone([...appointments.values()]);
+    },
+    async reserveAppointment(appointment) {
+      const existing = appointments.get(appointment.slotId);
+      if (existing) return existing.patientId === appointment.patientId;
+      appointments.set(appointment.slotId, clone(appointment));
+      return true;
     },
     async listOrders(patientId) {
       return clone(data.orders.filter((o) => !patientId || o.patientId === patientId));
@@ -207,6 +220,7 @@ export function createFakeStore(seed: Seed = FAKE_SEED): Store {
     },
     async reset(next) {
       data = clone(next);
+      appointments.clear();
       now = next.now;
       calls = new Map();
       record = [];
@@ -291,6 +305,7 @@ export function createFakePress(store: Store, emit: EmitFn = () => {}): PressFn 
           refills_left: rx.refillsLeft,
           expiry: rx.expiry,
           last_fill: rx.lastFill,
+          ...lastFillFacts(rx),
           refillable_today: daysBetween(rx.lastFill, now) >= rx.daysSupplied * 0.8,
           others_refillable_count: others.length,
           ...(include_other_names ? { other_names: others.map((o) => o.drug) } : {}),
@@ -302,7 +317,7 @@ export function createFakePress(store: Store, emit: EmitFn = () => {}): PressFn 
       }
       case "check_coverage": {
         const rx = await ownRx((input as ButtonInputs["check_coverage"]).rx_id);
-        return rx ? done({ plan_pays: rx.planPays, patient_pays: rx.patientPays }) : fail("not_yours", ["1"]);
+        return rx ? done(coverageFacts(rx, (input as ButtonInputs["check_coverage"]).days_supply)) : fail("not_yours", ["1"]);
       }
       case "order_status": {
         const slots = await store.listSlots();

@@ -82,6 +82,9 @@ export type AppointmentType = (typeof APPOINTMENT_TYPES)[number];
 
 export type RefillState = "queued" | "waiting_for_pharmacist" | "refused" | "approved" | "denied";
 
+export type AppointmentOffer = { slot_id: SlotId; slot_label: string; availability_text: string };
+export type AppointmentConfirmation = { slot_id: SlotId; slot_label: string; appointment_id: string; confirmation_text: string };
+
 export type ButtonInputs = {
   lookup_patient: { name: string; dob: string; rx_number: string };
   send_code: { lookup_id: LookupId };
@@ -89,8 +92,8 @@ export type ButtonInputs = {
   check_code: { lookup_id: LookupId; code: string; dob?: string };
   check_prescription: { rx_id: RxId; include_other_names: boolean };
   read_label: { rx_id: RxId };
-  check_coverage: { rx_id: RxId };
-  order_status: Record<string, never>;
+  check_coverage: { rx_id: RxId; days_supply?: number };
+  order_status: { include_appointments?: boolean };
   /**
    * days_supply: a shorter supply than prescribed (a partial fill), e.g. 7 or 14 of 30. Never
    * longer. The quantity is worked out in code from the label, never taken from the model.
@@ -98,7 +101,9 @@ export type ButtonInputs = {
   request_refill: { rx_id: RxId; reason?: string; days_supply?: number };
   request_renewal: { rx_id: RxId };
   set_delivery: { order_id: OrderId; slot_id: SlotId; address_id: AddressId | "pickup" };
-  note_for_pharmacist: { rx_id?: RxId; text: string; kind: "side_effect" | "question" };
+  note_for_pharmacist:
+    | { rx_id?: RxId; text: string; kind: "side_effect" | "question" }
+    | { kind: "appointment"; slot_id: SlotId; text?: string };
   escalate: { reason: string };
   refill_history: { rx_id: RxId };
   list_appointment_slots: { type: AppointmentType };
@@ -127,16 +132,30 @@ export type ButtonOutputs = {
     refills_left: number;
     expiry: IsoTime;
     last_fill: IsoTime;
+    days_supplied: number;
+    last_quantity: number | null;
+    last_quantity_unit: string | null;
+    history_readback: string;
     refillable_today: boolean;
     others_refillable_count: number;
     /** Only present when include_other_names was true. */
     other_names?: string[];
   };
   read_label: { label_text: string };
-  check_coverage: { plan_pays: string; patient_pays: string };
+  check_coverage: {
+    rx_id: RxId;
+    drug: string;
+    days_supply: number;
+    available: boolean;
+    plan_pays: string | null;
+    patient_pays: string | null;
+    coverage_readback: string;
+  };
   order_status: {
+    appointment_slots?: AppointmentOffer[];
+    appointments?: AppointmentConfirmation[];
     /** ready_label: the weekday the refill is expected ready once approved, e.g. "Thursday". */
-    orders: { order_id: OrderId; rx_id: RxId; status: RefillState; slot_id?: SlotId; slot_label?: string; ready_label?: string }[];
+    orders: { order_id: OrderId; rx_id: RxId; status: RefillState; days_supply?: number; slot_id?: SlotId; slot_label?: string; ready_label?: string }[];
   };
   /** ready_label: the weekday the refill is expected ready once approved, e.g. "Thursday" (waiting, queued or approved only). */
   request_refill: {
@@ -147,12 +166,13 @@ export type ButtonOutputs = {
     ready_label?: string;
     /** The days supply asked for (a partial fill when under the prescribed days). */
     days_supply?: number;
+    supply_text?: string;
     /** Units for that supply, computed in code from the label. */
     quantity?: number;
   };
   request_renewal: { state: "requested" | "waiting_for_pharmacist" | "refused"; rule_ids: RuleId[] };
   set_delivery: { ok: boolean; rule_ids: RuleId[] };
-  note_for_pharmacist: { note_id: NoteId };
+  note_for_pharmacist: { note_id: NoteId } | AppointmentConfirmation;
   escalate: { flag_id: FlagId };
   /** The verified patient's own last fill, read back from the record. */
   refill_history: {

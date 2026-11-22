@@ -139,7 +139,8 @@ describe("S4: every promise matches the record", () => {
     await control.press(callId, "request_refill", { rx_id: IDS.samConcerta });
     expect(await blocks(callId, "Your refill is approved.")).toBe("S4");
     expect((await guard(callId, "It's ready.")).speak).toBe(S4_REPLACEMENT);
-    const [item] = await store.queue("quick_check");
+    // Trail #86: the replaced lines above moved the refill from Quick check to Review.
+    const [item] = (await store.queue("review")).filter((q) => q.kind === "refill");
     await store.decide(item.id, "approve", { id: "u1", name: "Test Pharmacist", role: "pharmacist" });
     expect(await blocks(callId, "Your refill is approved.")).toBeNull();
   });

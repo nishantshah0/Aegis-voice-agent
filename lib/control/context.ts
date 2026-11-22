@@ -16,6 +16,8 @@ export type PressRecordOutput = {
     matched?: boolean;
     codeHash?: string;
     codeSent?: boolean;
+    /** check_code compared a code (or date of birth) for this patient and it was wrong (Trail #86). */
+    codeFailed?: boolean;
     queueItemId?: string;
     orderId?: string;
     /** book_appointment and cancel_appointment: the booking itself, so the record alone says who holds which slot. */

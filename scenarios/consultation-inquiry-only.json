@@ -1,0 +1,62 @@
+{
+  "id": "consultation_inquiry_only",
+  "group": "ordinary_patients",
+  "source": "team",
+  "found_at": null,
+  "persona": "Caller browsing appointment times",
+  "goal": "Give an available time without booking it.",
+  "seed": "p6_due",
+  "caller_lines": [
+    "What times could I meet the pharmacist? I'm {{patient.name}}, prescription {{rx.number}}.",
+    "My date of birth is {{patient.dob}}.",
+    "My code is {{code}}.",
+    "Just checking, please leave it open."
+  ],
+  "plan": "Give an available time without booking it.",
+  "expected": {
+    "final_states": {},
+    "must": [
+      "verified before offer"
+    ],
+    "must_not": [
+      "no booking from inquiry",
+      "no unearned confirmation"
+    ],
+    "checks": [
+      {
+        "id": "verified_before_offer",
+        "mode": "before",
+        "first": {
+          "kind": "button",
+          "button": "check_code",
+          "resultVerified": true
+        },
+        "then": {
+          "kind": "line_spoken",
+          "textIncludes": "November"
+        },
+        "violation": true
+      },
+      {
+        "id": "no_booking_from_inquiry",
+        "mode": "absent",
+        "match": {
+          "kind": "button",
+          "button": "note_for_pharmacist",
+          "inputKind": "appointment"
+        },
+        "violation": true
+      },
+      {
+        "id": "no_unearned_confirmation",
+        "mode": "absent",
+        "match": {
+          "kind": "line_spoken",
+          "textIncludes": "appointment is booked"
+        },
+        "violation": true
+      }
+    ],
+    "judge": []
+  }
+}

@@ -20,6 +20,7 @@ export function ItemSummary({ d }: { d: TodayItem }) {
       <LaneBadge lane={d.lane} />
       <strong className="font-semibold capitalize text-ink">{d.kind}</strong>
       {d.drug && <span className="text-ink">{d.drug}</span>}
+      {d.requestedDaysSupply && <span className="text-ink">{d.requestedDaysSupply}-day supply</span>}
       <span className="text-ink-3">for {d.patient}</span>
       {d.sideEffects.length > 0 && <Badge tone="quick">side effect</Badge>}
       {d.told.some((t) => t.blocked) && <Badge tone="stop">line blocked</Badge>}

@@ -20,17 +20,18 @@ type JsonObjectSchema = { properties?: unknown; required?: unknown };
 type Zod = {
   string(): ZodLike;
   boolean(): ZodLike;
+  int(): ZodLike & { positive(): ZodLike };
   enum(values: [string, ...string[]]): ZodLike;
 };
 type ZodLike = { describe(d: string): ZodLike; optional(): ZodLike };
 
-/** A button's strict JSON schema as the zod shape the SDK's tool() takes. Strings, booleans and enums only. */
+/** A button's strict JSON schema as the zod shape the SDK's tool() takes. Keep numeric day counts numeric. */
 export function zodShape(z: Zod, schema: JsonObjectSchema): Record<string, ZodLike> {
   const props = (schema.properties ?? {}) as Record<string, JsonProp>;
   const required = new Set((schema.required ?? []) as string[]);
   const shape: Record<string, ZodLike> = {};
   for (const [key, p] of Object.entries(props)) {
-    let field = p.enum?.length ? z.enum(p.enum as [string, ...string[]]) : p.type === "boolean" ? z.boolean() : z.string();
+    let field = p.enum?.length ? z.enum(p.enum as [string, ...string[]]) : p.type === "boolean" ? z.boolean() : p.type === "integer" ? z.int().positive() : z.string();
     if (p.description) field = field.describe(p.description);
     shape[key] = required.has(key) ? field : field.optional();
   }

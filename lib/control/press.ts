@@ -2,10 +2,12 @@
 // decided in code, written to the hash-chained record and emitted as a "press" event.
 // press() never throws to the agent.
 
+import { coverageFacts, lastFillFacts } from "@/lib/contract/patient-facts";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { createHash, randomInt } from "node:crypto";
 import {
   NEEDS_VERIFIED,
+  type LegacyAppointmentSlot,
   type ButtonError,
   type ButtonInputs,
   type ButtonName,
@@ -29,6 +31,7 @@ import {
 } from "@/lib/contract";
 import { appointmentContext, appointmentFloor, liveAppointments, slotsFrom, MAX_LISTED_SLOTS } from "./appointments";
 import { buildContext, internalOf, loadContext, resultOf, type PressRecordOutput } from "./context";
+import { APPOINTMENT_CONFIRMATION_QUESTION, confirmsBooking } from "@/lib/contract/appointment-consent";
 import { evaluate, type Verdict } from "./engine";
 import { chooseLane, signalsFromCards } from "./lanes";
 import { addMs, DAY_MS, fresh as isFresh, isBefore, MINUTE_MS, within } from "./time";
@@ -39,6 +42,17 @@ export const MAX_CODE_TRIES = 3;
 export const LOCKOUT_MS = 15 * MINUTE_MS;
 export const CODE_VALID_MS = 10 * MINUTE_MS;
 export const MAX_CODES_PER_HOUR = 3;
+/**
+ * Wrong codes against one patient, on any calls, that lock that patient (Trail #86): three in 15
+ * minutes lock 15 minutes from the third; six in 24 hours lock 24 hours from the sixth, so two
+ * guesses a call spaced past the 15-minute lock can't add up.
+ */
+export const PATIENT_CODE_LOCKS = [
+  { wrong: MAX_CODE_TRIES, withinMs: LOCKOUT_MS, lockMs: LOCKOUT_MS },
+  { wrong: 6, withinMs: 24 * 60 * MINUTE_MS, lockMs: 24 * 60 * MINUTE_MS },
+] as const;
+/** How long failed codes against a patient send that patient's requests to Review, on any call (Trail #86). */
+export const FAILED_CODE_SIGNAL_MS = 60 * MINUTE_MS;
 
 /** The lookup id an outbound call uses for send_code and check_code. */
 export const outboundLookupId = (callId: CallId): string => `out_${callId}`;
@@ -120,6 +134,14 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
     const record = await store.listRecord(call.id);
     const signals = new Set<Signal>();
     if (call.failedCodeTries > 0 || record.some((e) => e.button === "check_code" && e.decision === "blocked")) signals.add("failed_code_attempts");
+    // Failed codes against this patient on any call in the last hour: a redial doesn't clear them (Trail #86, RT-C2).
+    if (call.lockedPatientId) {
+      const now = await store.now();
+      const failed = (await store.listRecord()).some(
+        (e) => e.button === "check_code" && internalOf(e)?.codeFailed && internalOf(e)?.patientId === call.lockedPatientId && within(e.at, now, FAILED_CODE_SIGNAL_MS),
+      );
+      if (failed) signals.add("failed_code_attempts");
+    }
     if (record.some((e) => e.kind === "line_blocked")) signals.add("speech_guard_replacement");
     if (record.some((e) => e.kind === "safety" && e.actor !== "system")) signals.add("safety_words");
     if (record.some((e) => e.button === "note_for_pharmacist" && (e.input as { kind?: string })?.kind === "side_effect")) signals.add("side_effect");
@@ -190,6 +212,28 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
     return { result: ok<"send_code">({ message: "code sent if matched" }), decision: "allowed", internal };
   }
 
+  /** When each wrong code against this patient was entered, on any call, oldest first (Trail #86). */
+  async function failedCodesFor(patientId: string): Promise<string[]> {
+    return (await store.listRecord()).filter((e) => e.button === "check_code" && internalOf(e)?.codeFailed && internalOf(e)?.patientId === patientId).map((e) => e.at);
+  }
+
+  /**
+   * The patient's lockout, worked out from the record so it holds across calls, redials and
+   * servers (Trail #86, RT-C1): PATIENT_CODE_LOCKS, e.g. any three wrong codes within 15 minutes
+   * lock that patient for 15 minutes from the third. A clock moved back never ends it early.
+   */
+  function patientLockedUntil(failures: string[], now: string): string | undefined {
+    let until: number | undefined;
+    for (const rule of PATIENT_CODE_LOCKS) {
+      for (let i = rule.wrong - 1; i < failures.length; i++) {
+        if (Date.parse(failures[i]) - Date.parse(failures[i - (rule.wrong - 1)]) <= rule.withinMs) {
+          until = Math.max(until ?? 0, Date.parse(failures[i]) + rule.lockMs);
+        }
+      }
+    }
+    return until !== undefined && until > Date.parse(now) ? new Date(until).toISOString() : undefined;
+  }
+
   async function checkCode(call: Call, input: ButtonInputs["check_code"]): Promise<Handled> {
     const now = await store.now();
     let current = call;
@@ -201,6 +245,12 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
       await store.saveCall(current);
     }
     const lookup = await findLookup(current, input.lookup_id);
+    // The patient's own lockout comes first, whichever call the wrong codes were on.
+    const patientFailures = lookup?.patientId ? await failedCodesFor(lookup.patientId) : [];
+    const patientLock = lookup?.patientId ? patientLockedUntil(patientFailures, now) : undefined;
+    if (patientLock) {
+      return { result: ok<"check_code">({ locked_until: patientLock }), decision: "blocked", internal: { lookupId: input.lookup_id, patientId: lookup?.patientId ?? undefined } };
+    }
     const sent = (await store.listRecord(current.id))
       .filter((e) => internalOf(e)?.lookupId === input.lookup_id && internalOf(e)?.codeHash)
       .at(-1);
@@ -230,14 +280,20 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
     }
 
     const tries = current.failedCodeTries + 1;
-    const internal = { lookupId: input.lookup_id, patientId: lookup?.patientId ?? undefined };
-    if (tries >= MAX_CODE_TRIES) {
-      const until = addMs(now, LOCKOUT_MS);
+    const internal = { lookupId: input.lookup_id, patientId: lookup?.patientId ?? undefined, ...(lookup?.patientId ? { codeFailed: true } : {}) };
+    // This wrong code counts against the patient too: it may be their third in 15 minutes.
+    const lockNow = lookup?.patientId ? patientLockedUntil([...patientFailures, now], now) : undefined;
+    if (tries >= MAX_CODE_TRIES || lockNow) {
+      const callUntil = tries >= MAX_CODE_TRIES ? addMs(now, LOCKOUT_MS) : undefined;
+      const until = [lockNow, callUntil].filter((t): t is string => t !== undefined).sort((a, b) => Date.parse(b) - Date.parse(a))[0];
       await store.saveCall({ ...current, state: current.state === "verified" ? "verified" : "locked_out", failedCodeTries: tries, lockedUntil: until });
       return { result: ok<"check_code">({ locked_until: until }), decision: "blocked", internal };
     }
     await store.saveCall({ ...current, failedCodeTries: tries });
-    return { result: ok<"check_code">({ verified: false, tries_left: MAX_CODE_TRIES - tries }), decision: "blocked", internal };
+    const patientLeft = lookup?.patientId
+      ? Math.min(...PATIENT_CODE_LOCKS.map((rule) => rule.wrong - [...patientFailures, now].filter((at) => within(at, now, rule.withinMs)).length))
+      : MAX_CODE_TRIES;
+    return { result: ok<"check_code">({ verified: false, tries_left: Math.min(MAX_CODE_TRIES - tries, patientLeft) }), decision: "blocked", internal };
   }
 
   async function refillVerdict(call: Call, patient: Patient, rx: Prescription, reason?: string, daysSupply?: number) {
@@ -262,6 +318,7 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
         refills_left: rx.refillsLeft,
         expiry: rx.expiry,
         last_fill: rx.lastFill,
+        ...lastFillFacts(rx),
         refillable_today: verdict.outcome !== "refuse",
         others_refillable_count: othersRefillable,
         ...(input.include_other_names ? { other_names: others.map((o) => o.drug) } : {}),
@@ -282,21 +339,73 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
     const rx = await ownRx(call, input.rx_id);
     if (!rx) return blocked("not_yours", ["1"], { patientId: call.lockedPatientId });
     return {
-      result: ok<"check_coverage">({ plan_pays: rx.planPays, patient_pays: rx.patientPays }),
+      result: ok<"check_coverage">(coverageFacts(rx, input.days_supply)),
       decision: "allowed",
       internal: { patientId: rx.patientId, rxId: rx.id },
     };
   }
 
-  async function orderStatus(call: Call): Promise<Handled> {
+  function appointmentOffer(slot: LegacyAppointmentSlot) {
+    return { slot_id: slot.id, slot_label: slot.label, availability_text: `The pharmacist has an appointment available on ${slot.label}.` };
+  }
+
+  function appointmentConfirmation(slot: LegacyAppointmentSlot) {
+    return {
+      slot_id: slot.id, slot_label: slot.label, appointment_id: `appt_${slot.id}`,
+      confirmation_text: `Your pharmacist appointment is booked for ${slot.label}.`,
+    };
+  }
+
+  async function appointmentStatus(patientId: string) {
+    const [policy, reservations, now] = await Promise.all([store.policy(), store.listAppointments(), store.now()]);
+    const upcoming = (policy.appointmentSlots ?? []).filter((slot) => isBefore(now, slot.start));
+    const booked = new Map(reservations.map((r) => [r.slotId, r.patientId]));
+    return {
+      appointment_slots: upcoming.filter((s) => !booked.has(s.id)).map(appointmentOffer),
+      appointments: upcoming.filter((s) => booked.get(s.id) === patientId).map(appointmentConfirmation),
+    };
+  }
+
+  async function bookLegacyAppointment(call: Call, slotId: string, patientId: string): Promise<Handled> {
+    const [policy, now, record] = await Promise.all([store.policy(), store.now(), store.listRecord(call.id)]);
+    const slot = policy.appointmentSlots?.find((s) => s.id === slotId && isBefore(now, s.start));
+    if (!slot) return blocked("invalid_input");
+    const seen = record.some((entry) => {
+      if (entry.button !== "order_status" || internalOf(entry)?.patientId !== patientId) return false;
+      const result = resultOf(entry) as ButtonResult<"order_status"> | undefined;
+      return result?.ok && [...(result.output.appointment_slots ?? []), ...(result.output.appointments ?? [])].some((s) => s.slot_id === slotId);
+    });
+    if (!seen) return blocked("invalid_input");
+    const previous = (await store.listAppointments()).find((a) => a.slotId === slotId);
+    if (previous?.patientId !== patientId) {
+      // Only the actual caller's reply to the spoken offer can authorize this slot.
+      // A blocked offer or question cannot establish consent.
+      const [offer, question, reply] = record.filter((e) =>
+        e.kind === "line_spoken" || e.kind === "line_blocked" || e.kind === "caller_line"
+      ).slice(-3);
+      const textOf = (e: typeof offer | undefined) => (e?.input as { text?: string } | undefined)?.text ?? "";
+      if (offer?.kind !== "line_spoken" || textOf(offer) !== appointmentOffer(slot).availability_text
+        || question?.kind !== "line_spoken" || textOf(question) !== APPOINTMENT_CONFIRMATION_QUESTION
+        || reply?.kind !== "caller_line" || reply.actor !== "caller" || !confirmsBooking(textOf(reply))) {
+        return blocked("refused");
+      }
+    }
+    const reserved = await store.reserveAppointment({ slotId, patientId, bookedAt: now });
+    if (!reserved) return blocked("refused");
+    return { result: ok<"note_for_pharmacist">(appointmentConfirmation(slot)), decision: "allowed", internal: { patientId } };
+  }
+
+  async function orderStatus(call: Call, input: ButtonInputs["order_status"]): Promise<Handled> {
     const slots = await store.listSlots();
     const orders = await store.listOrders(call.lockedPatientId);
     return {
       result: ok<"order_status">({
+        ...(input.include_appointments && call.lockedPatientId ? await appointmentStatus(call.lockedPatientId) : {}),
         orders: orders.map((o) => ({
           order_id: o.id,
           rx_id: o.rxId,
           status: o.state,
+          ...(o.daysSupply !== undefined ? { days_supply: o.daysSupply } : {}),
           ...(o.slotId ? { slot_id: o.slotId, slot_label: slots.find((s) => s.id === o.slotId)?.label } : {}),
           ...(READY_STATES.has(o.state) ? { ready_label: readyDay(o.createdAt) } : {}),
         })),
@@ -320,16 +429,22 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
     const patient = await lockedPatient(call);
     if (!rx || !patient) return blocked("not_yours", ["1"], { patientId: call.lockedPatientId });
 
-    const open = (await store.listOrders(patient.id)).find(
+    const daysSupply = input.days_supply ?? rx.daysSupplied;
+
+    const open = daysSupply <= rx.daysSupplied ? (await store.listOrders(patient.id)).find(
       (o) => o.rxId === rx.id && (o.state === "queued" || o.state === "waiting_for_pharmacist" || o.state === "approved"),
-    );
+    ) : undefined;
     if (open) {
+      // Older orders predate supply selection and used the full prescription supply.
+      const existingDays = open.daysSupply ?? rx.daysSupplied;
       return {
         result: ok<"request_refill">({
           state: open.state,
           rule_ids: [],
           message: "This refill was already requested.",
           order_id: open.id,
+          days_supply: existingDays,
+          supply_text: `Your existing refill request is for a ${existingDays}-day supply.`,
           ...(READY_STATES.has(open.state) ? { ready_label: readyDay(open.createdAt) } : {}),
         }),
         decision: "allowed",
@@ -366,13 +481,14 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
     const taken = new Set((await store.listOrders()).map((o) => o.id));
     let orderId = `o_${call.id}_${rx.id}`;
     for (let n = 2; taken.has(orderId); n++) orderId = `o_${call.id}_${rx.id}_${n}`;
-    const order = await store.saveOrder({ id: orderId, rxId: rx.id, patientId: patient.id, state, createdAt: now, ...(supply ?? {}) });
+    const order = await store.saveOrder({ id: orderId, rxId: rx.id, patientId: patient.id, state, daysSupply, createdAt: now, ...(supply ?? {}) });
     const item = await addItem({
       callId: call.id,
       patientId: patient.id,
       rxId: rx.id,
       orderId: order.id,
       kind: "refill",
+      requestedDaysSupply: daysSupply,
       lane,
       ruleIds,
       signals,
@@ -386,6 +502,8 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
           state,
           rule_ids: ruleIds,
           message: refillMessage(state, ruleIds),
+          days_supply: daysSupply,
+          supply_text: `Your refill request is for a ${daysSupply}-day supply.`,
           order_id: order.id,
           ...(READY_STATES.has(state) ? { ready_label: readyDay(now) } : {}),
           ...(supply ? { days_supply: supply.daysSupply, quantity: supply.quantity } : {}),
@@ -488,6 +606,7 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
   async function noteForPharmacist(call: Call, input: ButtonInputs["note_for_pharmacist"]): Promise<Handled> {
     const patient = await lockedPatient(call);
     if (!patient) return blocked("not_verified", ["1"]);
+    if (input.kind === "appointment") return bookLegacyAppointment(call, input.slot_id, patient.id);
     if (input.rx_id !== undefined && !(await ownRx(call, input.rx_id))) return blocked("not_yours", ["1"], { patientId: patient.id });
     const noteId = `n_${call.id}_${(await store.queue()).length + 1}`;
     const note = { id: noteId, kind: input.kind, text: input.text };
@@ -684,7 +803,7 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
       case "check_coverage":
         return checkCoverage(call, i);
       case "order_status":
-        return orderStatus(call);
+        return orderStatus(call, i);
       case "request_refill":
         return requestRefill(call, i);
       case "request_renewal":

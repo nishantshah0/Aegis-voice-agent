@@ -186,4 +186,3 @@ describe("the read-back clauses say nothing else", () => {
     await allows(say, "Your consult is booked for Thursday the 26th.");
   });
 });
-
