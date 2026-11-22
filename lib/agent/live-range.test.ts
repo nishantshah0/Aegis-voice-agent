@@ -207,6 +207,17 @@ const CASES: LiveCase[] = [
       "Yes please.",
     ],
   },
+  {
+    id: "inbound-tom-corrected-supply-and-copay",
+    what: "Inbound; a self-corrected supply length and 'how much did I pay', answered from the lock's read-backs",
+    direction: "inbound",
+    steps: [
+      "Tom Brennan, September 21 1983, RX-100701.",
+      `${CODE}.`,
+      "How much did I pay for it?",
+      "And how much for two weeks, sorry, one week?",
+    ],
+  },
 ];
 
 async function collect(stream: AsyncIterable<AgentEvent>): Promise<AgentEvent[]> {
