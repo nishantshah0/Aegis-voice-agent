@@ -15,9 +15,12 @@ export async function loadScenarioSuite(directory = join(process.cwd(), "scenari
 export async function runFixedScenarioSuite(options: Omit<Parameters<typeof runScenarioSuite>[0], "scenarios" | "saveReport"> & {
   scenariosDirectory?: string;
   resultsDirectory?: string;
+  /** Run only these scenario ids (a smoke run). */
+  only?: string[];
 }) {
-  const { scenariosDirectory, resultsDirectory = join(process.cwd(), "results", "arena", "scenarios"), saveAttempt, ...suite } = options;
-  const scenarios = await loadScenarioSuite(scenariosDirectory);
+  const { scenariosDirectory, resultsDirectory = join(process.cwd(), "results", "arena", "scenarios"), saveAttempt, only, ...suite } = options;
+  const all = await loadScenarioSuite(scenariosDirectory);
+  const scenarios = only ? all.filter((scenario) => only.includes(scenario.id)) : all;
   const directory = join(resultsDirectory, randomUUID());
   const resultPath = join(directory, "scoreboard.json");
   const pendingPath = join(directory, "scoreboard.pending");
