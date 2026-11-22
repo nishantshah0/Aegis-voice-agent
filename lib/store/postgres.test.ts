@@ -32,6 +32,16 @@ describe.each(Object.entries(factories))("%s store", (_name, make) => {
     await store.reset(SEED);
   });
 
+  it("adds an approved rule card after the seed's, refuses a duplicate id, and reset drops it (AUDIT #9)", async () => {
+    const card = { ...SEED.cards[0], id: "w1", wording: "Any antibiotic refill needs a pharmacist.", when: [{ field: "drug.class" as const, op: "=" as const, value: "antibiotic" }], then: "route" as const };
+    await store.addCard(card);
+    expect((await store.listCards()).map((c) => c.id)).toEqual([...SEED.cards.map((c) => c.id), "w1"]);
+    expect((await store.listCards()).at(-1)).toEqual(card);
+    await expect(store.addCard(card)).rejects.toThrow();
+    await store.reset(SEED);
+    expect(await store.listCards()).toEqual(SEED.cards);
+  });
+
   it("serves the seed", async () => {
     expect(await store.now()).toBe(SEED.now);
     expect(await store.listPatients()).toEqual(SEED.patients);
