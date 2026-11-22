@@ -54,18 +54,19 @@ describe("POST /api/demo/history: seed a week of scripted calls", () => {
     const record = await store.listRecord();
     const ids = historyCallIds(record);
     expect(ids.size).toBe(summary.calls);
-    const days = new Set<number>();
+    const days = new Set<string>();
     for (const id of ids) {
       const call = (await store.getCall(id))!;
       expect(call.state).toBe("ended");
       const ago = (Date.parse(DEMO_NOW) - Date.parse(call.startedAt)) / DAY_MS;
       expect(ago).toBeGreaterThan(0);
       expect(ago).toBeLessThanOrEqual(8);
-      days.add(Math.ceil(ago));
+      days.add(new Date(Date.parse(call.startedAt) - 5 * 60 * 60 * 1000).toISOString().slice(0, 10)); // the pharmacy's calendar day
       const marker = record.find((e) => e.callId === id && (e.input as { check?: string })?.check === "demo_history");
       expect(marker?.input).toMatchObject({ source: DEMO_HISTORY_SOURCE });
     }
     expect(days.size).toBe(7);
+    expect([...days].every((d) => d < DEMO_NOW.slice(0, 10))).toBe(true);
   });
 
   it("goes through the real lock and the record: buttons pressed, lines guarded, chain verified", async () => {
