@@ -9,7 +9,7 @@ import { IDS, SEED } from "@/lib/seed";
 import { createMemoryStore } from "@/lib/store/memory";
 import { createAgentSdkModel, type SdkTurnEvent, type StartSdkSession } from "./agent-sdk";
 import { createAgentDriver } from "./driver";
-import { STILL_THERE_LINES } from "./lines";
+import { STILL_THERE } from "./lines";
 import type { AgentModel, ModelRequest } from "./model";
 import { collect, scriptedModel } from "./testing/scripted-model";
 import { createUsageCap } from "./usage";
@@ -102,7 +102,7 @@ describe("1.x: the SDK model warms up during the opening", () => {
     const [checkIn] = await collect(driver.checkIn(callId));
     await collect(driver.callerSays(callId, "Sorry, I'm here."));
     const said = (checkIn as { text: string }).text;
-    expect(STILL_THERE_LINES).toContain(said);
+    expect(said).toBe(STILL_THERE);
     expect(sessions.sent[0]).toContain(said);
   });
 

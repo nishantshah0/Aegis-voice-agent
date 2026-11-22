@@ -16,7 +16,7 @@ import { createSafetyCheck, createSpeechGuard } from "@/lib/guard";
 import { IDS, SEED } from "@/lib/seed";
 import { createMemoryStore, findBrokenLink } from "@/lib/store/memory";
 import { createAgentDriver, type DriverStartOpts } from "./driver";
-import { CODE_SENT, HANDOVER_LINES, STILL_THERE_LINES, pickLine } from "./lines";
+import { CODE_SENT, HANDOVER_LINES, STILL_THERE, pickLine } from "./lines";
 import { CALL_STYLES } from "./prompt";
 import { collect, scriptedModel, type ScriptStep } from "./testing/scripted-model";
 
@@ -86,17 +86,13 @@ describe("1.x: every call gets its own voice", () => {
     expect(last.model.requests[0].system).not.toBe(first.model.requests[0].system);
   });
 
-  it("varies the check-in line by call, always one of the fixed check-in lines", async () => {
-    const a = setup([], { random: () => 0 });
-    const b = setup([], { random: () => 0.999 });
-    const callA = await a.driver.startCall({ direction: "inbound" });
-    const callB = await b.driver.startCall({ direction: "inbound" });
-    expect(lines(await collect(a.driver.checkIn(callA)))).toEqual([STILL_THERE_LINES[0]]);
-    expect(lines(await collect(b.driver.checkIn(callB)))).toEqual([STILL_THERE_LINES.at(-1)]);
-
-    const plain = setup([]);
-    const call = await plain.driver.startCall({ direction: "inbound" });
-    expect(STILL_THERE_LINES).toContain(lines(await collect(plain.driver.checkIn(call)))[0]);
+  it("keeps the check-in line fixed, whatever the call's voice", async () => {
+    // The real phone line (app/api/voice-gather.test.ts, Trail #70) plays this exact line.
+    for (const r of [0, 0.999]) {
+      const t = setup([], { random: () => r });
+      const callId = await t.driver.startCall({ direction: "inbound" });
+      expect(lines(await collect(t.driver.checkIn(callId)))).toEqual([STILL_THERE]);
+    }
   });
 
   it("picks a line from the random number it is given", () => {
@@ -107,11 +103,11 @@ describe("1.x: every call gets its own voice", () => {
 
   it("every check-in and handover line passes the real guard, before and after verification", async () => {
     const t = await samOutbound([]);
-    for (const line of [...STILL_THERE_LINES, ...HANDOVER_LINES]) {
+    for (const line of [STILL_THERE, ...HANDOVER_LINES]) {
       expect(await t.guard(t.callId, line), line).toMatchObject({ blocked: false, speak: line });
     }
     await t.control.press(t.callId, "check_code", { lookup_id: t.lookupId, code: CODE, dob: "1990-03-14" });
-    for (const line of [...STILL_THERE_LINES, ...HANDOVER_LINES]) {
+    for (const line of [STILL_THERE, ...HANDOVER_LINES]) {
       expect(await t.guard(t.callId, line), line).toMatchObject({ blocked: false, speak: line });
     }
   });
@@ -308,7 +304,7 @@ describe("1.x: phone behaviour the voice line relies on stays the same", () => {
     expect(lines(said)).toEqual(["One moment."]);
     await collect(t.driver.callerSays(t.callId, "Sorry, I'm back."));
     const seen = JSON.stringify(t.model.requests[0]);
-    expect(STILL_THERE_LINES.some((l) => seen.includes(l))).toBe(true);
+    expect(seen).toContain(STILL_THERE);
     expect(seen).toContain(outboundLookupId(t.callId));
   });
 });
