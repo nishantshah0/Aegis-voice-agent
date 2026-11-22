@@ -94,6 +94,7 @@ function checkS2(call: Call, sentence: string, tokens: Token[], said: string): C
 }
 
 // A dosing verb or a frequency makes a number of tablets a dose, never the supply.
+const SENTENCE_DOSING = /\b(?:take|takes|taking|took|swallow|swallows|chew|chews|use|uses|have|ingest|all|together|at once|at the same time)\b/;
 const DOSING_OR_FREQUENCY =
   /\b(?:take|takes|taking|swallow|chew|use|have|a day|daily|every|at once|at a time|per|times|twice|once|morning|night|bedtime|hours?)\b/;
 
@@ -106,6 +107,9 @@ function labelQuantity(label: string, sentence: string): string[] {
   const qty = Number(label.match(/\bqty\.? ?(\d+)\b/i)?.[1]);
   const form = label.match(/\b(tablet|capsule|pill)s?\b/i)?.[1]?.toLowerCase();
   if (!qty || !form) return [];
+  // A dosing verb or all-at-once words anywhere make it a dose: "Your refill is 30 tablets, take
+  // them all at once." The read-back "…, 1 tablet every morning, 30 tablets." has neither.
+  if (SENTENCE_DOSING.test(words(sentence))) return [];
   const namesQty = (c: string) =>
     new RegExp(`\\b${form}s?\\b`).test(c) && c.split(" ").some((t) => t === String(qty) || wordsToNumber(t) === qty);
   const qtyClauses = sentence.split(CLAUSE_BREAK).map((c) => words(c)).filter(namesQty);
