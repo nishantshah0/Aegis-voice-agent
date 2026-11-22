@@ -13,6 +13,7 @@ import { FAKE_SEED, SAM_ID } from "@/lib/contract/fakes";
 import { IDS, SEED } from "@/lib/seed";
 import { createMemoryStore } from "@/lib/store/memory";
 
+import { CODE_SENT } from "./lines";
 import { CALL_STYLES, pickStyle, systemPrompt } from "./prompt";
 
 /** Every sentence the prompt puts in double quotes as wording to copy (as in prompt.guard.test.ts). */
@@ -102,6 +103,32 @@ describe("1.x: real conversation on the phone", () => {
   it("reads back once before a refill, not three times", () => {
     expect(inbound).toMatch(/once, and wait for a yes/i);
     expect(inbound).toMatch(/one read-back is enough/i);
+  });
+});
+
+describe("1.x: fixes from live run range-2", () => {
+  it("says the code line word for word after lookup_patient", () => {
+    // Live: "If those details match our records, a verification code has been texted..."
+    // SPEC Part 2, inbound step 3 wants the same words every time.
+    expect(inbound).toContain(`"${CODE_SENT}"`);
+    expect(inbound).toMatch(/word for word/i);
+  });
+
+  it("books a window the caller already named, in the same turn", () => {
+    // Live: "can I pick it up Thursday morning?" got the refill but no booking.
+    expect(inbound).toMatch(/already named a window[^.]*set_delivery/i);
+    expect(inbound).toMatch(/order id request_refill returned/i);
+  });
+
+  it("confirms a booking as booked, not done", () => {
+    // Live: "Done, Lena." after set_delivery was replaced by the guard.
+    expect(inbound).toMatch(/booked for/i);
+    expect(inbound).toMatch(/done, all set and approved are for a pharmacist's approval/i);
+  });
+
+  it("promises no callback after a note", () => {
+    // Live: "they'll get back to you".
+    expect(inbound).toMatch(/not whether or when they will call/i);
   });
 });
 

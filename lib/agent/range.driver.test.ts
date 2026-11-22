@@ -158,6 +158,9 @@ describe("1.x: after verification the driver checks the prescription and its cos
       ["check_code", undefined],
       ["check_prescription", IDS.samConcerta],
       ["check_coverage", IDS.samConcerta],
+      // Live run range-2: check_prescription has no strength, so Haiku guessed "18 mg" (S3 caught it).
+      // The label has it.
+      ["read_label", IDS.samConcerta],
     ]);
     // One model step after the code, not three: the check_code result carries both.
     expect(t2.model.requests).toHaveLength(2);
@@ -165,12 +168,13 @@ describe("1.x: after verification the driver checks the prescription and its cos
     expect(toolResult).toContain("already_checked");
     expect(toolResult).toContain("refills_left");
     expect(toolResult).toContain("$4.10");
+    expect(toolResult).toContain("CONCERTA 36 MG TABLET");
     // The honest read-back is the coverage figure, so nothing is replaced.
     expect(blocked(evs)).toEqual([]);
     expect(lines(evs)).toContain("Your plan pays $41.20, and you pay $4.10.");
     // Every press is in the record, linked as usual.
     const buttons = (await t2.store.listRecord(t2.callId)).filter((e) => e.kind === "button").map((e) => e.button);
-    expect(buttons).toEqual(["send_code", "check_code", "check_prescription", "check_coverage"]);
+    expect(buttons).toEqual(["send_code", "check_code", "check_prescription", "check_coverage", "read_label"]);
     expect(findBrokenLink(await t2.store.listRecord())).toBeNull();
   });
 
@@ -189,8 +193,10 @@ describe("1.x: after verification the driver checks the prescription and its cos
       "check_code:",
       `check_prescription:${IDS.samConcerta}`,
       `check_coverage:${IDS.samConcerta}`,
+      `read_label:${IDS.samConcerta}`,
       `check_prescription:${IDS.samMetformin}`,
       `check_coverage:${IDS.samMetformin}`,
+      `read_label:${IDS.samMetformin}`,
     ]);
     expect(blocked(evs)).toEqual([]);
   });

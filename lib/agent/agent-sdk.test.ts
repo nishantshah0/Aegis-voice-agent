@@ -91,7 +91,7 @@ describe("1.2b: Agent SDK model", () => {
     await collect(t.driver.opening(callId));
     const evs = await collect(t.driver.callerSays(callId, `It's ${CODE}, born March 14, 1990.`));
     // 1.x (Trail #75): once verified, the driver checks the call's prescription and its cost itself.
-    expect(presses(evs).map((p) => p.button)).toEqual(["check_code", "check_prescription", "check_coverage"]);
+    expect(presses(evs).map((p) => p.button)).toEqual(["check_code", "check_prescription", "check_coverage", "read_label"]);
     expect(presses(evs)[0].result).toMatchObject({ ok: true, output: { verified: true } });
     // S4 still holds: nothing is approved yet.
     expect(evs.some((e) => e.type === "blocked_line" && e.rule === "S4")).toBe(true);
