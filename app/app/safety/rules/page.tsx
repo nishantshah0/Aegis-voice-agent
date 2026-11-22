@@ -1,8 +1,8 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
-import { Card, Eyebrow, PageHeader } from "@/components/ui";
+import { Card, Eyebrow, PageHeader, SkeletonRows, When } from "@/components/ui";
 import { RuleBook } from "@/app/console/rules/RuleBook";
-import { RUN_COMMANDS, readWhy, when, whyGroup } from "../data";
+import { RUN_COMMANDS, readWhy, whyGroup } from "../data";
 import { WhyList, type WhyItem } from "./WhyList";
 import { SuiteGate } from "../SignedIn";
 
@@ -14,10 +14,10 @@ export default function SuiteRulesPage() {
   return (
     <SuiteGate>
       <PageHeader title="Rules" description="The 12 buttons and the speech rules, from the code, with what the latest hammer run found and why each rule is there. Read only." />
-      <Suspense fallback={<p className="mt-8 text-sm text-ink-3">Reading why each rule exists…</p>}>
+      <Suspense fallback={<SkeletonRows rows={5} className="mt-8" />}>
         <Why />
       </Suspense>
-      <Suspense fallback={<p className="mt-8 text-sm text-ink-3">Reading the rules…</p>}>
+      <Suspense fallback={<SkeletonRows rows={12} className="mt-8" />}>
         <RuleBook />
       </Suspense>
     </SuiteGate>
@@ -43,7 +43,13 @@ async function Why() {
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <Eyebrow>Why each rule is there</Eyebrow>
         <span className="text-xs text-ink-3">
-          {items.length} rules traced to their commit {why.generatedAt ? `· ${when(why.generatedAt)}` : ""} · results/why/
+          {items.length} rules traced to their commit{" "}
+          {why.generatedAt && (
+            <>
+              · <When iso={why.generatedAt} />{" "}
+            </>
+          )}
+          · results/why/
           {why.missing.length ? ` · ${why.missing.length} couldn't be traced` : ""}
         </span>
       </div>

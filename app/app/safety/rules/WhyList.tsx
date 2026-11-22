@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Badge, RuleTag, cn } from "@/components/ui";
+import { Badge, RuleTag, When, chipClass, cn } from "@/components/ui";
 import type { Why } from "../data";
 
 export type WhyItem = Why & { group: string };
@@ -17,14 +17,14 @@ export function WhyList({ items }: { items: WhyItem[] }) {
 
   return (
     <div className="flex flex-col gap-3">
-      <div role="group" aria-label="Kind of rule" className="flex w-fit flex-wrap rounded-full border border-line bg-surface p-0.5">
+      <div role="group" aria-label="Kind of rule" className="flex flex-wrap gap-1">
         {present.map((g) => (
           <button
             key={g}
             type="button"
             aria-pressed={group === g}
             onClick={() => setGroup(g)}
-            className={cn("cursor-pointer rounded-full px-3 py-1 text-[13px]", group === g ? "bg-accent text-ink-inverse" : "text-ink-2 hover:text-ink")}
+            className={chipClass(group === g, "cursor-pointer")}
           >
             {g} <span className="tabular-nums opacity-70">{g === "All" ? items.length : items.filter((i) => i.group === g).length}</span>
           </button>
@@ -54,7 +54,12 @@ export function WhyList({ items }: { items: WhyItem[] }) {
                         <dt className="text-ink-3">By</dt>
                         <dd>
                           {w.author}
-                          {w.authorTime ? ` · ${w.authorTime.slice(0, 16).replace("T", " ")} UTC` : ""}
+                          {w.authorTime && (
+                            <>
+                              {" · "}
+                              <When iso={w.authorTime} />
+                            </>
+                          )}
                         </dd>
                       </>
                     )}
