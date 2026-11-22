@@ -16,7 +16,9 @@ export default function ScenariosPage() {
       <PageHeader
         title="Scenarios"
         description="Scripted callers, each run three times through the real driver, buttons and speech guard, and scored only from the record."
-        actions={<ArenaRunControl kind="suite" label="Run suite" compact />}
+        actions={process.env.AEGIS_PUBLIC_ORIGIN ? (
+              <a className="underline" href="/present#suite">Open live suite</a>
+            ) : <ArenaRunControl kind="suite" label="Run suite" compact />}
       />
       <Suspense
         fallback={

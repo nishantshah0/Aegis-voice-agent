@@ -162,7 +162,7 @@ export function SuiteControl() {
     }
   }
 
-  return <section className="presenter-card" aria-labelledby="suite-heading">
+  return <section id="suite" className="presenter-card" aria-labelledby="suite-heading">
     <h2 id="suite-heading">Business test suite</h2>
     <p>Run three live synthetic calls in sequence and see how the pharmacy handles each one.</p>
     <button type="button" className="presenter-primary" onClick={run} disabled={running}>{running ? "Suite running…" : "Run all 3 business tests"}</button>
