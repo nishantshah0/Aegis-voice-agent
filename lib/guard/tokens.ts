@@ -28,6 +28,8 @@ export type Token = {
   kind: "name" | "rx_number" | "drug" | "drug_class" | "address" | "phone" | "dob" | "age";
   text: string;
   patientId: string;
+  /** For another name of a drug ("Adderall", "methylphenidate"): the prescription's own drug name. */
+  of?: string;
 };
 
 // Each seeded drug's other names (generic or brand) and its classes, so "methylphenidate" or
@@ -80,10 +82,11 @@ export function tokensFor(patient: Patient, prescriptions: Prescription[], at: D
     out.push(t("rx_number", rx.rxNumber), t("drug", rx.drug));
     // "Adderall XR" is "Adderall" too.
     const base = rx.drug.match(/^(.{4,}?)\s+(?:XR|ER|SR|CR|XL|LA|CD|DR|ODT)$/i)?.[1];
-    if (base) out.push(t("drug", base));
+    const alias = (kind: Token["kind"], text: string): Token => ({ ...t(kind, text), of: rx.drug });
+    if (base) out.push(alias("drug", base));
     const other = DRUG_NAMES[rx.drug.toLowerCase()];
-    for (const name of other?.names ?? []) out.push(t("drug", name));
-    for (const c of other?.classes ?? []) out.push(t("drug_class", c));
+    for (const name of other?.names ?? []) out.push(alias("drug", name));
+    for (const c of other?.classes ?? []) out.push(alias("drug_class", c));
   }
   return out;
 }
