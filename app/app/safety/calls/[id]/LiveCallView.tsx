@@ -214,12 +214,16 @@ function TurnRow({ t, playing, onPlay }: { t: LiveTurn; playing: boolean; onPlay
 }
 
 export function LiveCallView({ id }: { id: string }) {
-  const [call, setCall] = useState<LiveCall | null>(null);
+  const [callEntry, setCallEntry] = useState<{ id: string; call: LiveCall } | null>(null);
+  const call = callEntry?.id === id ? callEntry.call : null;
   const callRef = useRef<LiveCall | null>(null);
-  const [missing, setMissing] = useState(false);
-  const [connectionIssue, setConnectionIssue] = useState(false);
+  const [missingId, setMissingId] = useState<string | null>(null);
+  const missing = missingId === id;
+  const [connectionIssueId, setConnectionIssueId] = useState<string | null>(null);
+  const connectionIssue = connectionIssueId === id;
   const [now, setNow] = useState(0);
-  const [newEvents, setNewEvents] = useState(0);
+  const [newEventCount, setNewEventCount] = useState<{ id: string; count: number }>({ id, count: 0 });
+  const newEvents = newEventCount.id === id ? newEventCount.count : 0;
   const timelineRef = useRef<HTMLOListElement | null>(null);
   const nearLatest = useRef(true);
   const [usage, setUsage] = useState<{ used: number; perHour: number } | null>(null);
@@ -248,16 +252,12 @@ export function LiveCallView({ id }: { id: string }) {
     let stopped = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
     callRef.current = null;
-    setCall(null);
-    setMissing(false);
-    setConnectionIssue(false);
-    setNewEvents(0);
     async function load() {
       try {
         const res = await fetch(`/api/arena/live/${encodeURIComponent(id)}`, { cache: "no-store" });
         if (stopped) return;
         if (res.status === 404) {
-          setMissing(true);
+          setMissingId(id);
           return;
         }
         if (!res.ok) throw new Error(`Call request failed (${res.status})`);
@@ -266,7 +266,9 @@ export function LiveCallView({ id }: { id: string }) {
           if (stopped) return;
           const previous = callRef.current;
           const added = previous ? Math.max(0, next.turns.length - previous.turns.length) : 0;
-          if (added > 0 && !nearLatest.current) setNewEvents((count) => count + added);
+          if (added > 0 && !nearLatest.current) {
+            setNewEventCount((current) => ({ id, count: (current.id === id ? current.count : 0) + added }));
+          }
           if (added > 0 && nearLatest.current) {
             requestAnimationFrame(() => timelineRef.current?.lastElementChild?.scrollIntoView({
               block: "end",
@@ -274,13 +276,14 @@ export function LiveCallView({ id }: { id: string }) {
             }));
           }
           callRef.current = next;
-          setCall(next);
-          setConnectionIssue(false);
+          setCallEntry({ id, call: next });
+          setMissingId((current) => current === id ? null : current);
+          setConnectionIssueId((current) => current === id ? null : current);
           const nextState = String(next.state);
           if (nextState === "ended" || nextState === "failed" || nextState === "cancelled" || nextState === "canceled" || next.progress?.phase === "failed" || next.progress?.phase === "finished") return;
         }
       } catch {
-        if (!stopped) setConnectionIssue(true);
+        if (!stopped) setConnectionIssueId(id);
       }
       if (!stopped) timer = setTimeout(load, POLL_MS);
     }
@@ -294,7 +297,6 @@ export function LiveCallView({ id }: { id: string }) {
   // Update elapsed time only while the saved call is active.
   useEffect(() => {
     if (!running) return;
-    setNow(Date.now());
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
   }, [running]);
@@ -368,7 +370,7 @@ export function LiveCallView({ id }: { id: string }) {
   );
 
   const start = call.connectedAt ? Date.parse(call.connectedAt) : Date.parse(call.startedAt);
-  const end = call.endedAt ? Date.parse(call.endedAt) : now || (running ? Date.now() : Date.parse(call.startedAt));
+  const end = call.endedAt ? Date.parse(call.endedAt) : now || Date.parse(call.startedAt);
   const duration = Math.max(0, end - start);
   const span = Math.max(duration, ...turns.map((t) => t.at + 500));
   const caught = turns.filter((t) => t.caught);
@@ -378,7 +380,7 @@ export function LiveCallView({ id }: { id: string }) {
   const sourceLabel = call.source.kind === "new" ? "One-off attack" : `${call.source.kind} · ${call.source.id}`;
 
   function returnToLatest() {
-    setNewEvents(0);
+    setNewEventCount({ id, count: 0 });
     const last = timelineRef.current?.lastElementChild;
     last?.scrollIntoView({ block: "end", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
   }
