@@ -1,57 +1,80 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
-import { Badge, Card, PageHeader, StatTile } from "@/components/ui";
-import { ScenarioList } from "./ScenarioList";
-import { scenarioRows } from "./data";
+import { Card, PageHeader, StatTile } from "@/components/ui";
+import { groupWords, readCards, readLatestRun, rowsFor, RUN_COMMANDS, shortPath, stillRunning, when } from "../data";
+import { Progress } from "../Progress";
+import { AutoRefresh, RunButton } from "../RunButton";
+import { ScenarioTable, type TableRow } from "./ScenarioTable";
+import { SuiteGate } from "../SignedIn";
 
 export const metadata = { title: "Scenarios · Safety suite · Aegis" };
 
-async function Scenarios() {
-  await connection();
-  const { rows, run } = await scenarioRows();
-  const passed = rows.filter((r) => r.status === "passed").length;
+export default function ScenariosPage() {
   return (
-    <>
-      {run ? (
-        <section className="mt-8 grid grid-cols-2 gap-3 md:grid-cols-4">
-          <StatTile label="Passed" value={`${passed} / ${rows.length}`} tone="accent" />
-          <StatTile label="Caught" value={run.report.caught} />
-          <StatTile label="Rules broken" value={run.report.broken} tone={run.report.broken === 0 ? "accent" : "stop"} />
-          <StatTile label="Last run" value={<span className="text-xl">{new Date(run.ranAt).toLocaleString()}</span>} hint={run.report.completed ? "Completed" : "Still running"} />
-        </section>
-      ) : (
-        <Card className="mt-8">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div className="max-w-xl">
-              <p className="font-semibold text-ink">No suite run saved yet</p>
-              <p className="mt-1 text-sm text-ink-2">
-                Each card runs three times through the real lock and is scored from the record. A run writes{" "}
-                <span className="font-mono text-xs">results/arena/scenarios/&lt;run&gt;/scoreboard.json</span>, and its results show up here.
-              </p>
-            </div>
-            <span title="Needs the scenario run route (POST /api/arena/run, Role 3)">
-              <button type="button" disabled className="h-9 rounded-full border border-line-strong px-4 text-sm text-ink-3">
-                Run the suite
-              </button>
-            </span>
-          </div>
-          <p className="mt-3 text-xs text-ink-3">
-            <Badge tone="neutral">Coming</Badge> <span className="ml-1">Running from here needs Role 3&apos;s run route; until then: runFixedScenarioSuite() in lib/arena/suite-files.ts.</span>
-          </p>
-        </Card>
-      )}
-      <ScenarioList rows={rows} />
-    </>
+    <SuiteGate>
+      <PageHeader
+        title="Scenarios"
+        description="Scripted callers, each run three times through the real driver, buttons and speech guard, and scored only from the record."
+        actions={<RunButton url="/api/arena/run" label="Run suite" size="md" watchMs={60_000} />}
+      />
+      <Suspense fallback={<p className="mt-8 text-sm text-ink-3">Reading the cards and the latest run…</p>}>
+        <Scenarios />
+      </Suspense>
+    </SuiteGate>
   );
 }
 
-export default function ScenariosPage() {
+async function Scenarios() {
+  await connection(); // A running suite rewrites its scoreboard: never prerender.
+  const [cards, run] = await Promise.all([readCards(), readLatestRun()]);
+  const rows = rowsFor(cards, run);
+  const running = stillRunning(run);
+  const groups = [...new Set(cards.map((c) => c.group))].sort().map((g) => ({ key: g, label: groupWords(g) }));
+
+  const table: TableRow[] = rows.map((r) => ({
+    id: r.card.id,
+    persona: r.card.persona,
+    goal: r.card.goal,
+    group: r.card.group,
+    groupLabel: groupWords(r.card.group),
+    inSuite: r.card.inSuite,
+    status: r.status,
+    caught: r.caught,
+    broken: r.broken,
+    attempts: r.attempts.map((a) => ({ n: a.n, passed: a.passed, failed: a.checks.filter((c) => !c.passed).map((c) => c.id), caught: a.caught, broken: a.broken })),
+  }));
+
   return (
-    <>
-      <PageHeader title="Scenarios" description="The scripted test calls: ordinary patients, people trying to get past identity, leaks, rule-bending and emergencies." />
-      <Suspense fallback={<p className="mt-8 text-sm text-ink-3">Reading the scenario cards…</p>}>
-        <Scenarios />
-      </Suspense>
-    </>
+    <div className="mt-8 flex flex-col gap-6">
+      <AutoRefresh active={running} />
+      {run ? (
+        <>
+          <div className="grid gap-4 sm:grid-cols-4">
+            <StatTile label="Passing 3 of 3" value={`${run.passed} / ${run.outcomes.length}`} tone="accent" hint={`${run.totalScenarios} cards in the suite`} />
+            <StatTile label="Calls" value={run.outcomes.reduce((n, o) => n + o.attempts.length, 0)} />
+            <StatTile label="Caught" value={run.caught} tone="review" hint="Blocked presses and lines" />
+            <StatTile label="Broken" value={run.broken} tone={run.broken === 0 ? "accent" : "stop"} hint="Failed safety checks" />
+          </div>
+          <Card className="flex flex-col gap-2">
+            <Progress done={run.outcomes.length} total={run.totalScenarios} live={running} />
+            <p className="text-xs text-ink-3">
+              Run <span className="font-mono">{run.runId.slice(0, 8)}</span> · scoreboard written {when(run.ranAt)} · {run.runs} saved run{run.runs === 1 ? "" : "s"} ·{" "}
+              <code className="font-mono" title={run.dir}>
+                {shortPath(run.dir)}
+              </code>
+            </p>
+          </Card>
+        </>
+      ) : (
+        <Card className="text-sm text-ink-2">
+          <p className="font-medium text-ink">No scenario run saved yet</p>
+          <p className="mt-1">
+            Run the suite with <code className="font-mono text-xs">{RUN_COMMANDS.suite}</code>. It saves to{" "}
+            <code className="font-mono text-xs">results/arena/scenarios/&lt;run&gt;/</code>, and every card below picks up its result.
+          </p>
+        </Card>
+      )}
+      <ScenarioTable rows={table} groups={groups} />
+    </div>
   );
 }
