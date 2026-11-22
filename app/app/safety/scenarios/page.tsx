@@ -3,7 +3,8 @@ import { connection } from "next/server";
 import { Card, PageHeader, StatTile } from "@/components/ui";
 import { groupWords, readCards, readLatestRun, rowsFor, RUN_COMMANDS, shortPath, stillRunning, when } from "../data";
 import { Progress } from "../Progress";
-import { AutoRefresh, RunButton } from "../RunButton";
+import { ArenaRunControl } from "../ArenaRunControl";
+import { AutoRefresh } from "../RunButton";
 import { ScenarioTable, type TableRow } from "./ScenarioTable";
 import { SuiteGate } from "../SignedIn";
 
@@ -15,7 +16,7 @@ export default function ScenariosPage() {
       <PageHeader
         title="Scenarios"
         description="Scripted callers, each run three times through the real driver, buttons and speech guard, and scored only from the record."
-        actions={<RunButton url="/api/arena/run" label="Run suite" size="md" watchMs={60_000} />}
+        actions={<ArenaRunControl kind="suite" label="Run suite" compact />}
       />
       <Suspense fallback={<p className="mt-8 text-sm text-ink-3">Reading the cards and the latest run…</p>}>
         <Scenarios />

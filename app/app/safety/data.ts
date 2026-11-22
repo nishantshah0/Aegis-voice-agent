@@ -326,7 +326,7 @@ export async function readWhy(dir: string = resultsDir()): Promise<WhyView> {
 }
 
 export const RUN_COMMANDS = {
-  suite: "runFixedScenarioSuite() in lib/arena/suite-files.ts (POST /api/arena/run isn't built yet)",
+  suite: "Run suite above (POST /api/arena/run), or LIVE_SUITE=1 LIVE_AGENT=1 npx vitest run lib/arena/live-suite.run.test.ts",
   why: "node scripts/why.ts",
 } as const;
 
