@@ -45,3 +45,31 @@ describe("send_code is all or nothing", () => {
     expect(await control.codeFor(started.callId)).toBeUndefined();
   });
 });
+
+describe("concurrent presses keep their own events and writes (Trail #83 review)", () => {
+  it("one call's failed press never drops or rolls back another call's code", async () => {
+    const store: Store = createMemoryStore(SEED);
+    const events: StreamEvent[] = [];
+    const control = createControl({ store, emit: (e) => events.push(e), makeCode: () => "112358" });
+    const a = await control.startInboundCall();
+    const b = await control.startInboundCall();
+    const lookA = await control.press(a, "lookup_patient", { name: "Sam Rivera", dob: "1990-03-14", rx_number: "RX-100201" });
+    const lookB = await control.press(b, "lookup_patient", { name: "Jordan Leclair", dob: "1975-07-02", rx_number: "RX-100301" });
+    const idA = lookA.ok ? (lookA.output as { lookup_id: string }).lookup_id : "";
+    const idB = lookB.ok ? (lookB.output as { lookup_id: string }).lookup_id : "";
+    events.length = 0;
+
+    const append = store.appendRecord.bind(store);
+    store.appendRecord = async (entry) => {
+      await new Promise((r) => setTimeout(r, 5));
+      if (entry.callId === b && entry.button === "send_code") throw new Error("disk full");
+      return append(entry);
+    };
+    const [ra, rb] = await Promise.all([control.press(a, "send_code", { lookup_id: idA }), control.press(b, "send_code", { lookup_id: idB })]);
+    expect(ra).toMatchObject({ ok: true });
+    expect(rb).toMatchObject({ ok: false, error: "refused" });
+    expect(events.filter((e) => e.type === "phone" && e.kind === "code").map((e) => (e as { callId: string }).callId)).toEqual([a]);
+    expect(await control.codeFor(a)).toBe("112358");
+    expect(await control.codeFor(b)).toBeUndefined();
+  });
+});
