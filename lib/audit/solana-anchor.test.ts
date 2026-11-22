@@ -67,4 +67,13 @@ describe("prepareSolanaAnchor", () => {
       readZip: async () => deps.files,
     })).rejects.toThrow(/tree size/i);
   });
+
+  it("does not anchor a single-record checkpoint", async () => {
+    const deps = adapters();
+    deps.files.set("proofs/records.json", new TextEncoder().encode(JSON.stringify({ checkpoint: "checkpoints/4.note", tree_size: 1 })));
+    await expect(prepareSolanaAnchor(new Uint8Array([1]), trust, {
+      verify: deps.verify as never,
+      readZip: async () => deps.files,
+    })).rejects.toThrow(/batch/i);
+  });
 });
