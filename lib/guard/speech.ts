@@ -17,7 +17,7 @@ export const S4_REPLACEMENT = "A pharmacist will check it first, and I'll confir
 const REPLACEMENT: Record<SpeechRule, string> = { ...GUARD_REPLACEMENTS, S4: S4_REPLACEMENT };
 
 const COMPLETION =
-  /\b(approved|ready|sorted|on its way|on the way|delivered|filled|signed off|confirmed|complete|completed|done|all set|good to go|processed|shipped|sent out|went out|dispatched|picked up|cleared|okayed|okd|taken care of|went through|gone through|green ?light(?:ed)?|green ?lit|finali[sz]ed|authori[sz]ed|locked in|squared away|granted|validated|a ?ok|oked|ok ed|in the bag|bagged|on the shelf|(?:is|s) a go|said yes|(?:is|s|are) waiting for you\b(?! to)|passed (?:the )?(?:pharmacists? )?(?:check|review)|pharmacists? (?:sign off|signoff|approval|ok|okay|blessing|go ahead|green light)|given (?:it )?the (?:ok|okay|go ahead|nod|thumbs up)|(?:is|s|been) (?:handled|accepted)|(?:refill|order|prescription|medication|meds|it) (?:is|s|has been) all good|approuve\w*|aprobad\w*|genehmigt|listo|lista|pret|fertig|pronto|taiyar)\b/;
+  /\b(approved|ready|sorted|on its way|on the way|delivered|filled|signed off|confirmed|complete|completed|done|all set|good to go|processed|shipped|sent out|went out|dispatched|picked up|cleared|okayed|okd|taken care of|went through|gone through|green ?light(?:ed)?|green ?lit|finali[sz]ed|authori[sz]ed|locked in|squared away|granted|validated|a ?ok|oked|ok ed|in the bag|bagged|on the shelf|(?:is|s) a go|said yes|(?:is|s|are) waiting for you\b(?! to)|passed (?:the )?(?:pharmacists? )?(?:check|review)|pharmacists? (?:sign off|signoff|approval|ok|okay|blessing|go ahead|green light)|given (?:it )?the (?:ok|okay|go ahead|nod|thumbs up)|(?:is|s|been) (?:handled|accepted)|(?:refill|order|prescription|medication|meds|it) (?:is|s|has been) all good|approuve\w*|aprobad\w*|genehmigt|listo|lista|pret|fertig|pronto|taiyar|came through|come through|comes through|(?:has|have|s) signed|signed (?:it|them)|pushed (?:it |them )?through|fast ?tracked|finished|nothing left to do|thumbs up|your \w+ (?:is|s) all good|come (?:and )?(?:grab|collect|pick (?:it|them) up)|come pick (?:it|them) up|(?:can|could|may) (?:come )?(?:grab|collect|pick (?:it|them) up)|(?:stop|swing|drop|come) by (?:and|to) (?:grab|collect|pick|get)|feel free to (?:stop|swing|drop|come) by|^ (?:collect|grab) (?:it|them))\b/;
 // The only completion words that aren't promises: they're about the caller, the past, an identity
 // check or the agent itself ("whenever you're ready", "last filled 27 days ago", "your identity
 // is confirmed", "are you done?"), and are dropped before the check. "You're all set." and
@@ -26,6 +26,8 @@ const NOT_A_PROMISE = new RegExp(
   [
     "\\b(?:you|youre|you are|are you|were|we are|im|i am|whenever youre|when youre) ready\\b",
     "\\blast filled\\b",
+    // The agent's own work: "I'm finished with the questions."
+    "\\b(?:im|i am|were|we are|ive|i ve|weve|we ve) (?:all )?finished\\b",
     // The agent's own reading, not the order: "I went through your record."
     "\\b(?:i|we|ive|weve|i have|we have|i ve|we ve) (?:went|gone) through\\b",
     // Identity checks, not the order: "Your identity is confirmed.", "that's confirmed: your date of birth matches".
@@ -120,9 +122,28 @@ function partialDigits(sentence: string, tokens: Token[], said: string, kinds = 
   return tokens.filter((t) => kinds.includes(t.kind) && runs.some((r) => digitsOf(t.text).includes(r)));
 }
 
+/**
+ * A confirmation: the caller offers details of several patients ("is it Concerta, Adderall XR or
+ * Vyvanse?", "is that Sam Rivera or Maria Okonkwo?") and the agent repeats only some of them,
+ * which tells the caller which one is on the record (Trail #88, round 3).
+ */
+function picked(sentence: string, tokens: Token[], said: string): Token[] {
+  const out: Token[] = [];
+  const offered = tokens.filter((t) => mentionedIn(said, t));
+  for (const kind of new Set(offered.map((t) => t.kind))) {
+    const ofKind = offered.filter((t) => t.kind === kind);
+    const patients = new Set(ofKind.map((t) => t.patientId));
+    if (patients.size < 2) continue;
+    const repeated = ofKind.filter((t) => mentionedIn(sentence, t));
+    const chosen = new Set(repeated.map((t) => t.patientId));
+    if (chosen.size > 0 && chosen.size < patients.size) out.push(...repeated);
+  }
+  return out;
+}
+
 function checkS1(call: Call, sentence: string, tokens: Token[], said: string, record: RecordEntry[]): Check {
   if (call.state === "verified") return null;
-  let found = [...leaked(sentence, tokens, said), ...partialDigits(sentence, tokens, said)];
+  let found = [...leaked(sentence, tokens, said), ...partialDigits(sentence, tokens, said), ...picked(sentence, tokens, said)];
   // The fixed outbound opener may say the patient's name (and the pharmacy's), and nothing else.
   const firstLine = !record.some((e) => e.kind === "line_spoken" || e.kind === "line_blocked");
   if (call.direction === "outbound" && firstLine && call.targetPatientId) {
@@ -134,7 +155,11 @@ function checkS1(call: Call, sentence: string, tokens: Token[], said: string, re
 function checkS2(call: Call, sentence: string, tokens: Token[], said: string): Check {
   if (call.state !== "verified" || !call.lockedPatientId) return null;
   const own = tokens.filter((t) => t.patientId === call.lockedPatientId);
-  const others = tokens.filter((t) => t.patientId !== call.lockedPatientId && !own.some((o) => o.kind === t.kind && words(o.text) === words(t.text)));
+  // A drug class or an age names no other patient once the caller is verified ("are you on any
+  // blood pressure medication?"), so only S1 checks those.
+  const others = tokens.filter(
+    (t) => t.kind !== "drug_class" && t.kind !== "age" && t.patientId !== call.lockedPatientId && !own.some((o) => o.kind === t.kind && words(o.text) === words(t.text)),
+  );
   // Part of another patient's phone or rx number ("the other number ends in 0102") leaks too,
   // unless it's also part of the caller's own.
   const found = [...leaked(sentence, others, said), ...partialDigits(sentence, others, said, ["phone", "rx_number"], own)];
@@ -329,6 +354,9 @@ export function unexcusedCompletion(sentence: string, drugNames: string[] = []):
   const clauses = sentence.split(CLAUSE_BREAK).map((c) => words(c));
   const whole = words(sentence);
   const namesOrder = NAMES_ORDER.test(whole) || drugNames.some((d) => d.trim() && whole.includes(words(d)));
+  // "Your refill: yes." answers for the order with nothing but a yes.
+  const subject = [...drugNames.map((d) => words(d).trim()), "refill", "order", "prescription", "renewal", "request"].filter(Boolean).join("|");
+  if (new RegExp(`^ (?:your |the )?(?:${subject}) (?:yes|yep|yeah|ok|okay) $`).test(whole)) return true;
   return clauses.some((raw, i) => {
     const beside = [clauses[i - 1], clauses[i + 1]].filter((c): c is string => c !== undefined);
     // "Your code and date of birth are confirmed.": verification, not the order. S1 covers identity.
