@@ -56,8 +56,8 @@ export async function loadOutreach(runId?: string): Promise<OutreachLoad> {
 
 export function outreachData(run: SavedRun, runs: RunChoice[] = []): OutreachData {
   const byPatient = new Map(run.population.patients.map((p) => [p.patient.id, p] as const));
-  const calls = run.days.flatMap((d) => d.calls);
-  const refills = run.days.flatMap((d) => d.refills);
+  const calls = Map.groupBy(run.days.flatMap((d) => d.calls), (c) => c.rxId);
+  const refills = Map.groupBy(run.days.flatMap((d) => d.refills), (r) => r.rxId);
   const rows: OutreachRow[] = run.forecast.map((f) => {
     const sp = byPatient.get(f.patientId)!;
     const rx = sp.prescriptions.find(r => r.id === f.rxId);
@@ -71,12 +71,16 @@ export function outreachData(run: SavedRun, runs: RunChoice[] = []): OutreachDat
       stopped: sp.stopped,
       pastCalls: sp.pastCalls.filter((c) => c.rxId === f.rxId),
       sideEffects: sp.sideEffects.filter((s) => s.rxId === f.rxId).map(({ at, text }) => ({ at, text })),
-      windowCalls: calls.filter((c) => c.rxId === f.rxId),
-      windowRefills: refills.filter((r) => r.rxId === f.rxId),
+      windowCalls: calls.get(f.rxId) ?? [],
+      windowRefills: refills.get(f.rxId) ?? [],
       skipRate: history.length ? history.filter((e) => e.status === "skipped" || e.status === "stopped").length / history.length : 0,
     };
   });
-  const days: OutreachDay[] = run.days.map((d) => ({
+  return { summary: run.summary, runs, rows, days: outreachDays(run.days) };
+}
+
+export function outreachDays(days: SavedRun["days"]): OutreachDay[] {
+  return days.map((d) => ({
     date: d.date,
     callsByLane: d.callsByLane,
     calls: d.calls.length,
@@ -87,7 +91,6 @@ export function outreachData(run: SavedRun, runs: RunChoice[] = []): OutreachDat
     withoutMedication: d.withoutMedication,
     rxIds: d.calls.map((c) => c.rxId),
   }));
-  return { summary: run.summary, runs, rows, days };
 }
 
 /** The page's loader: checks the session first, so nothing is read for a signed-out request. */
