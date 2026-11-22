@@ -1,3 +1,4 @@
+import { PHARMACY_NAV } from "../../_shell/nav";
 import { Suspense } from "react";
 import { connection } from "next/server";
 import { Card, Eyebrow, PageHeader, SkeletonRows, SkeletonTiles, StatTile } from "@/components/ui";
@@ -16,7 +17,7 @@ import { SignedOut } from "../_parts/SignedOut";
 import { ReviewBoard, type ReviewListItem } from "./ReviewBoard";
 import { MARK, ReviewCard } from "./ReviewCard";
 
-export const metadata = { title: "Review calls · Pharmacy · Aegis" };
+export const metadata = { title: `${PHARMACY_NAV.quality.label} · Pharmacy · Aegis` };
 const n = (v: number) => v.toLocaleString("en-US");
 
 async function Body() {
@@ -120,7 +121,7 @@ export default function ReviewPage() {
   return (
     <>
       <PageHeader
-        title="Review calls"
+        title={PHARMACY_NAV.quality.label}
         description="Finished calls from the record. Label each one: right outcome, anything promised wrongly, unsafe or advice-like, tone, and whether to keep it as a test."
         actions={<Live />}
       />
