@@ -31,6 +31,6 @@ export default function GatePage() {
 }
 
 async function LatestGate() {
-  const { events, signedIn } = await loadLatestCall();
-  return <StageView embedded="gate" initial={events} signedIn={signedIn} />;
+  const { callId, events, signedIn } = await loadLatestCall();
+  return <StageView embedded="gate" initial={events} lastCallId={callId} signedIn={signedIn} />;
 }

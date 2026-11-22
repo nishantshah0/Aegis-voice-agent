@@ -78,9 +78,10 @@ function PassRow({ pass, fresh }: { pass: Pass; fresh: boolean }) {
 export function StageView({
   embedded,
   initial = [],
+  lastCallId = null,
   signedIn = false,
-}: { embedded?: "gate" | "attacks"; initial?: StreamEvent[]; signedIn?: boolean } = {}) {
-  const [state, dispatch] = useReducer(reduce, initial, replayStage);
+}: { embedded?: "gate" | "attacks"; initial?: StreamEvent[]; lastCallId?: string | null; signedIn?: boolean } = {}) {
+  const [state, dispatch] = useReducer(reduce, initial, (events) => replayStage(events, lastCallId));
   useEffect(() => listenToEvents((event, id) => dispatch({ event, id })), []);
 
   // Caught and Rules broken come only from a hijack batch's score events (Role 3), never

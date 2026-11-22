@@ -15,6 +15,6 @@ export default function StagePage() {
 }
 
 async function LatestStage() {
-  const { events, signedIn } = await loadLatestCall();
-  return <StageView initial={events} signedIn={signedIn} />;
+  const { callId, events, signedIn } = await loadLatestCall();
+  return <StageView initial={events} lastCallId={callId} signedIn={signedIn} />;
 }

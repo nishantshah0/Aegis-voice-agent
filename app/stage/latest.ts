@@ -1,3 +1,4 @@
+import { connection } from "next/server";
 import type { StreamEvent } from "@/lib/contract";
 import { getApprover } from "@/lib/auth/session";
 import { getStore } from "@/app/api/_lib/runtime";
@@ -11,6 +12,8 @@ export type LatestCall = { callId: string | null; events: StreamEvent[]; signedI
  * simply starts empty and waits for the next call.
  */
 export async function loadLatestCall(): Promise<LatestCall> {
+  // The record changes with every call: never prerender this.
+  await connection();
   const signedIn = (await getApprover().catch(() => null)) !== null;
   try {
     const store = getStore();

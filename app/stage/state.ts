@@ -156,7 +156,8 @@ export const latestHijack = (s: StageState): Pass | undefined => s.passes.find(i
  * Replayed ids are negative so they never clash with live event ids, and the call is marked
  * not live until a live event for a real call arrives.
  */
-export function replayStage(events: StreamEvent[]): StageState {
+export function replayStage(events: StreamEvent[], callId?: string | null): StageState {
   const played = events.reduce((s, e, i) => stageReducer(s, e, i - events.length), initialStage());
-  return played.call ? { ...played, call: { ...played.call, live: false } } : played;
+  if (played.call) return { ...played, call: { ...played.call, live: false } };
+  return callId ? { ...played, call: { id: callId, live: false, lines: [] } } : played;
 }
