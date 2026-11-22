@@ -1,0 +1,177 @@
+{
+  "id": "inbound-sam-rx-number-up-front",
+  "what": "Inbound; Sam gives RX-100201 up front, so no 'Concerta or Metformin?'",
+  "direction": "inbound",
+  "model": "claude-sonnet-5-5",
+  "at": "2026-11-22T10:47:46.879Z",
+  "modelCalls": 7,
+  "turns": [
+    {
+      "caller": "(call connects)",
+      "agent": [
+        "Hi, this is the automated assistant for Maple Street Pharmacy. What can I help with?"
+      ],
+      "presses": [],
+      "blocked": [],
+      "safety": [],
+      "wallMs": 0
+    },
+    {
+      "caller": "Hi, I'm Sam Rivera. Please refill prescription RX-100201.",
+      "agent": [
+        "Sure, Sam, I can help with that.",
+        "What's your date of birth?"
+      ],
+      "presses": [],
+      "blocked": [],
+      "safety": [],
+      "wallMs": 2527
+    },
+    {
+      "caller": "My date of birth is 1990-03-14.",
+      "agent": [
+        "If those details match, I've sent a code to the phone on file.",
+        "What's the code?"
+      ],
+      "presses": [
+        {
+          "button": "lookup_patient",
+          "input": {
+            "name": "Sam Rivera",
+            "dob": "1990-03-14",
+            "rx_number": "RX-100201"
+          },
+          "ok": true,
+          "output": "{\"lookup_id\":\"lk_c_0001_1\",\"message\":\"code sent if matched\"}",
+          "ruleIds": []
+        }
+      ],
+      "blocked": [],
+      "safety": [],
+      "wallMs": 1910
+    },
+    {
+      "caller": "The code is 112358.",
+      "agent": [
+        "Thanks, Sam, you're verified.",
+        "I can refill Concerta 36 MG for you.",
+        "For a 30-day supply of Concerta, your plan pays $41.20 and your share is $4.10.",
+        "Would you like me to go ahead?"
+      ],
+      "presses": [
+        {
+          "button": "check_code",
+          "input": {
+            "lookup_id": "lk_c_0001_1",
+            "code": "112358",
+            "dob": "1990-03-14"
+          },
+          "ok": true,
+          "output": "{\"verified\":true,\"patient_first_name\":\"Sam\",\"prescriptions\":[{\"rx_id\":\"rx_sam_concerta\",\"drug\":\"Concerta\"},{\"rx_id\":\"rx_sam_metformin\",\"drug\":\"Metformin\"}],\"matched_rx_id\":\"rx_sam_concerta\"}",
+          "ruleIds": []
+        },
+        {
+          "button": "check_prescription",
+          "input": {
+            "rx_id": "rx_sam_concerta",
+            "include_other_names": false
+          },
+          "ok": true,
+          "output": "{\"rx_id\":\"rx_sam_concerta\",\"drug\":\"Concerta\",\"status\":\"active\",\"refills_left\":2,\"expiry\":\"2027-04-28T15:00:00.000Z\",\"last_fill\":\"2026-10-28T15:00:00.000Z\",\"days_supplied\":30,\"last_quantity\":30,\"last_quantity_unit\":\"tablets\",\"history_readback\":\"Your last fill of Concerta was October 28, 2026, with 30…",
+          "ruleIds": []
+        },
+        {
+          "button": "check_coverage",
+          "input": {
+            "rx_id": "rx_sam_concerta"
+          },
+          "ok": true,
+          "output": "{\"rx_id\":\"rx_sam_concerta\",\"drug\":\"Concerta\",\"days_supply\":30,\"available\":true,\"plan_pays\":\"$41.20\",\"patient_pays\":\"$4.10\",\"coverage_readback\":\"For a 30-day supply of Concerta, your plan pays $41.20 and your share is $4.10.\"}",
+          "ruleIds": []
+        },
+        {
+          "button": "read_label",
+          "input": {
+            "rx_id": "rx_sam_concerta"
+          },
+          "ok": true,
+          "output": "{\"label_text\":\"CONCERTA 36 MG TABLET. Take 1 tablet by mouth every morning. Qty 30.\"}",
+          "ruleIds": []
+        },
+        {
+          "button": "check_prescription",
+          "input": {
+            "rx_id": "rx_sam_metformin",
+            "include_other_names": false
+          },
+          "ok": true,
+          "output": "{\"rx_id\":\"rx_sam_metformin\",\"drug\":\"Metformin\",\"status\":\"active\",\"refills_left\":3,\"expiry\":\"2027-09-01T15:00:00.000Z\",\"last_fill\":\"2026-10-01T15:00:00.000Z\",\"days_supplied\":90,\"last_quantity\":180,\"last_quantity_unit\":\"tablets\",\"history_readback\":\"Your last fill of Metformin was October 1, 2026, with…",
+          "ruleIds": []
+        },
+        {
+          "button": "check_coverage",
+          "input": {
+            "rx_id": "rx_sam_metformin"
+          },
+          "ok": true,
+          "output": "{\"rx_id\":\"rx_sam_metformin\",\"drug\":\"Metformin\",\"days_supply\":90,\"available\":true,\"plan_pays\":\"$12.60\",\"patient_pays\":\"$2.00\",\"coverage_readback\":\"For a 90-day supply of Metformin, your plan pays $12.60 and your share is $2.00.\"}",
+          "ruleIds": []
+        },
+        {
+          "button": "read_label",
+          "input": {
+            "rx_id": "rx_sam_metformin"
+          },
+          "ok": true,
+          "output": "{\"label_text\":\"METFORMIN 500 MG TABLET. Take 1 tablet by mouth twice a day with meals. Qty 180.\"}",
+          "ruleIds": []
+        }
+      ],
+      "blocked": [],
+      "safety": [],
+      "wallMs": 7013
+    },
+    {
+      "caller": "Yes, send the refill to the pharmacist.",
+      "agent": [
+        "Sure.",
+        "Before I put it in: since your last refill, have you noticed any side effects, or anything new?"
+      ],
+      "presses": [],
+      "blocked": [],
+      "safety": [],
+      "wallMs": 4875
+    }
+  ],
+  "turnTimings": [
+    {
+      "receivedAt": 506.55475,
+      "firstModelTextMs": 2486.606833,
+      "firstGuardedMs": 2497.156417
+    },
+    {
+      "receivedAt": 3032.948625,
+      "firstModelTextMs": 1892.5367919999999,
+      "firstGuardedMs": 1899.8669579999996
+    },
+    {
+      "receivedAt": 4943.089625,
+      "firstModelTextMs": 5423.115875,
+      "firstGuardedMs": 5436.640917
+    },
+    {
+      "receivedAt": 11956.34125,
+      "firstModelTextMs": 1540.375,
+      "firstGuardedMs": 4868.638832999999
+    }
+  ],
+  "lanes": {
+    "quickCheck": 1,
+    "review": 0
+  },
+  "guardRecord": {
+    "lineSpoken": 11,
+    "lineBlocked": 0
+  },
+  "hashChainIntact": true
+}
