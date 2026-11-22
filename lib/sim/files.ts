@@ -42,16 +42,15 @@ export async function listRuns(dir = simDir()): Promise<SimSummary[]> {
   } catch {
     return [];
   }
-  const out: SimSummary[] = [];
-  for (const name of names.filter(isRunId)) {
+  const summaries = await Promise.all(names.filter(isRunId).map(async (name): Promise<SimSummary | null> => {
     try {
       const summary = JSON.parse(await readFile(/* turbopackIgnore: true */ join(dir, name, "summary.json"), "utf8")) as SimSummary;
-      if (summary.simulated === true) out.push({ ...summary, runId: name });
+      return summary.simulated === true ? { ...summary, runId: name } : null;
     } catch {
-      // Not a run folder.
+      return null;
     }
-  }
-  return out.sort((a, b) => Date.parse(b.ranAt) - Date.parse(a.ranAt));
+  }));
+  return summaries.filter((summary) => summary !== null).sort((a, b) => Date.parse(b.ranAt) - Date.parse(a.ranAt));
 }
 
 /** One saved run, or null if it doesn't exist or isn't a simulation. */

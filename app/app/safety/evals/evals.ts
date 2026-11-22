@@ -279,7 +279,7 @@ async function readLive(dir: string): Promise<Layer> {
 async function readCrossModel(dir: string): Promise<CrossModel | null> {
   const root = join(dir, "arena", "cross-model");
   const files = (await readdir(root).catch(() => [] as string[])).filter((f) => f.endsWith(".json"));
-  const dated = await Promise.all(files.map(async (f) => ({ f, at: batchTime(f, await mtime(join(root, f))) })));
+  const dated = await Promise.all(files.map(async (f) => ({ f, at: batchTime(f, 0) || await mtime(join(root, f)) })));
   const newest = dated.sort((a, b) => b.at - a.at)[0];
   if (!newest) return null;
   const file = obj(await json(join(root, newest.f)));

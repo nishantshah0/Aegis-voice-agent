@@ -2,10 +2,10 @@ import { Suspense } from "react";
 import { connection } from "next/server";
 import { Card, Eyebrow, PageHeader, SkeletonRows, SkeletonTiles, StatTile } from "@/components/ui";
 import { HistoryNote } from "../_parts/HistoryNote";
-import { scriptedCallIds } from "../_parts/scripted";
+import { historyCallIds } from "@/app/api/_lib/demo-history";
 import { getApprover } from "@/lib/auth/session";
 import { getStore } from "@/app/api/_lib/runtime";
-import { finishedCalls } from "@/app/console/review/calls";
+import { describeFinishedCalls } from "@/app/console/review/calls";
 import {
   judgeAgreement,
   latestLabels,
@@ -24,13 +24,11 @@ async function Body() {
   // Session first: nothing from the record is read for a signed-out request.
   const approver = await getApprover();
   if (!approver) return <SignedOut what="and label finished calls" />;
-  const [calls, labels, scripted] = await Promise.all([
-    finishedCalls(getStore()),
-    readLabels(),
-    scriptedCallIds(getStore()),
-  ]);
+  const store = getStore();
+  const [record, queue, labels] = await Promise.all([store.listRecord(), store.queue(), readLabels()]);
+  const [calls, agreement] = await Promise.all([describeFinishedCalls(store, record, queue), judgeAgreement(labels)]);
+  const scripted = historyCallIds(record);
   const latest = latestLabels(labels);
-  const agreement = await judgeAgreement(labels);
   const list: ReviewListItem[] = calls.map((c) => {
     const forCall = latest.get(c.callId) ?? [];
     return {

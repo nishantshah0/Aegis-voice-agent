@@ -23,7 +23,9 @@ import {
 } from "@/components/ui";
 import { getStore } from "@/app/api/_lib/runtime";
 import { getApprover } from "@/lib/auth/session";
-import { callsOverview, type CallSummary } from "@/app/console/calls/calls";
+import { historyCallIds } from "@/app/api/_lib/demo-history";
+import type { Call, Store } from "@/lib/contract";
+import { findBrokenLink } from "@/lib/store/memory";
 import { itemDetail } from "@/app/console/today/detail";
 import {
   readOvernight,
@@ -33,7 +35,6 @@ import { loadOutreach, type OutreachDay } from "./pharmacy/outreach/data";
 import { readLatestBatch, type BatchView } from "./safety/data";
 import { Live } from "./pharmacy/_parts/Live";
 import { HistoryNote, ScriptedTag } from "./pharmacy/_parts/HistoryNote";
-import { scriptedCallIds } from "./pharmacy/_parts/scripted";
 
 export const metadata = { title: "Home · Aegis" };
 
@@ -55,10 +56,10 @@ const dayName = (key: string) =>
   });
 
 /** Calls per day over the last 14 days, ending today (or at the newest call, if the demo clock runs ahead). */
-function callsPerDay(calls: CallSummary[]) {
+function callsPerDay(calls: { startedAt: string }[]) {
   const newest = Math.max(
     Date.now(),
-    ...calls.map((c) => Date.parse(c.startedAt)).filter(Number.isFinite),
+    calls.reduce((latest, c) => Math.max(latest, Date.parse(c.startedAt)), 0),
   );
   const keys = Array.from({ length: 14 }, (_, i) =>
     dayKey(newest - (13 - i) * 86_400_000),
@@ -278,17 +279,77 @@ function Forecast({
   );
 }
 
-function RecentCalls({ calls, scripted }: { calls: CallSummary[]; scripted: Set<string> }) {
-  const recent = [...calls]
-    .sort((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt))
-    .slice(0, 6);
+type RecentCall = {
+  callId: Call["id"];
+  startedAt: string;
+  direction: Call["direction"];
+  patient?: string;
+  blocked: number;
+};
+
+async function homeCalls(store: Store) {
+  const record = await store.listRecord();
+  const scripted = historyCallIds(record);
+  const starts = new Map<Call["id"], string>();
+  const blockedByCall = new Map<Call["id"], number>();
+  let agentLines = 0;
+  let blocked = 0;
+
+  for (const entry of record) {
+    const id = entry.callId;
+    if (!id) continue;
+    if (entry.kind === "safety" && (entry.input as { check?: string })?.check === "call_start") {
+      starts.set(id, entry.at);
+    }
+    if (entry.kind === "line_spoken" || entry.kind === "line_blocked") agentLines++;
+    if (entry.kind === "line_blocked") {
+      blocked++;
+      blockedByCall.set(id, (blockedByCall.get(id) ?? 0) + 1);
+    }
+  }
+
+  const calls = [...starts].map(([callId, startedAt]) => ({ callId, startedAt }));
+  const recent = await Promise.all(
+    calls.sort((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt)).slice(0, 6)
+      .map(async ({ callId }): Promise<RecentCall | null> => {
+        const call = await store.getCall(callId);
+        if (!call) return null;
+        const patientId = call.lockedPatientId ?? call.targetPatientId;
+        const patient = patientId ? await store.getPatient(patientId) : undefined;
+        return {
+          callId,
+          startedAt: call.startedAt,
+          direction: call.direction,
+          patient: patient ? `${patient.firstName[0]}.${patient.lastName[0]}.` : undefined,
+          blocked: blockedByCall.get(callId) ?? 0,
+        };
+      }),
+  );
+
+  return {
+    perDay: callsPerDay(calls),
+    recent: recent.filter((call) => call !== null),
+    scripted,
+    scriptedCount: calls.filter((call) => scripted.has(call.callId)).length,
+    blocked,
+    agentLines,
+    entries: record.length,
+    brokenAt: findBrokenLink(record),
+  };
+}
+
+function RecentCalls({ recent, scripted, scriptedCount }: {
+  recent: RecentCall[];
+  scripted: Set<string>;
+  scriptedCount: number;
+}) {
   return (
     <Card padded={false}>
       <div className="p-5 pb-3">
         <SectionHeader
           className="mb-0"
           title="Recent calls"
-          description={<HistoryNote count={calls.filter((c) => scripted.has(c.callId)).length} className="mt-1.5" />}
+          description={<HistoryNote count={scriptedCount} className="mt-1.5" />}
           action={
             <Link href="/app/pharmacy/calls" className={linkClass}>
               All calls →
@@ -317,8 +378,8 @@ function RecentCalls({ calls, scripted }: { calls: CallSummary[]; scripted: Set<
                     <span className="text-ink-2"> · {c.patient}</span>
                   )}
                 </span>
-                {c.blocked.length > 0 && (
-                  <Badge tone="stop">{c.blocked.length} blocked</Badge>
+                {c.blocked > 0 && (
+                  <Badge tone="stop">{c.blocked} blocked</Badge>
                 )}
                 <When iso={c.startedAt} className="text-xs text-ink-3" />
               </Link>
@@ -336,13 +397,12 @@ async function Body() {
   // The proxy already requires sign-in for /app; this is the second lock on the data itself.
   if (!(await getApprover())) return null;
   const store = getStore();
-  const [overview, queue, safety, batch, outreach, scripted] = await Promise.all([
-    callsOverview(store),
+  const [overview, queue, safety, batch, outreach] = await Promise.all([
+    homeCalls(store),
     store.queue(),
     readOvernight(),
-    readLatestBatch(),
+    readLatestBatch(undefined, { includeSteps: false }),
     loadOutreach().catch(() => null),
-    scriptedCallIds(store),
   ]);
   const open = queue
     .filter((q) => q.status === "open" && q.lane !== "automatic")
@@ -356,16 +416,10 @@ async function Body() {
       .slice(0, 5)
       .map(async (q) => ({ d: await itemDetail(store, q), at: q.createdAt })),
   );
-  const perDay = callsPerDay(overview.calls);
-  const blocked = overview.calls.reduce((s, c) => s + c.blocked.length, 0);
-  const agentLines = overview.calls.reduce(
-    (s, c) => s + c.transcript.filter((l) => l.who === "agent").length,
-    0,
-  );
-  const routed =
-    overview.lanes.automatic +
-    overview.lanes.quick_check +
-    overview.lanes.review;
+  const { perDay, blocked, agentLines } = overview;
+  const lanes = { automatic: 0, quick_check: 0, review: 0 };
+  for (const item of queue) lanes[item.lane]++;
+  const routed = queue.length;
 
   return (
     <>
@@ -458,7 +512,7 @@ async function Body() {
                         : l === "quick_check"
                           ? "Quick"
                           : "Review",
-                    value: overview.lanes[l],
+                    value: lanes[l],
                     tone: LANE_TONE[l],
                   }))}
                 />
@@ -472,15 +526,15 @@ async function Body() {
             />
             <StatTile
               label="Record entries"
-              value={n(overview.chain.entries)}
+              value={n(overview.entries)}
               hint={
-                overview.chain.verified ? (
+                overview.brokenAt === null ? (
                   <Badge tone="accent" dot>
                     Hash chain verified
                   </Badge>
                 ) : (
                   <Badge tone="stop" dot>
-                    Chain broken at entry {overview.chain.brokenAt}
+                    Chain broken at entry {overview.brokenAt}
                   </Badge>
                 )
               }
@@ -506,7 +560,11 @@ async function Body() {
             </TableEmpty>
           </Card>
         )}
-        <RecentCalls calls={overview.calls} scripted={scripted} />
+        <RecentCalls
+          recent={overview.recent}
+          scripted={overview.scripted}
+          scriptedCount={overview.scriptedCount}
+        />
       </div>
     </>
   );

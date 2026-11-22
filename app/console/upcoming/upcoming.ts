@@ -29,20 +29,22 @@ export type Upcoming = { today: string; rows: UpcomingRow[]; days: { date: strin
 /** A date (YYYY-MM-DD) plus whole days. */
 const addDays = (date: string, days: number) => new Date(Date.parse(`${date}T00:00:00Z`) + days * DAY_MS).toISOString().slice(0, 10);
 
-async function lastCalls(store: Store): Promise<Map<string, NonNullable<UpcomingRow["lastCall"]>>> {
-  const starts = (await store.listRecord()).filter((e) => e.kind === "safety" && (e.input as { check?: string })?.check === "call_start" && e.callId);
+async function lastCalls(store: Store, record: Awaited<ReturnType<Store["listRecord"]>>): Promise<Map<string, NonNullable<UpcomingRow["lastCall"]>>> {
+  const starts = record.filter((e) => e.kind === "safety" && (e.input as { check?: string })?.check === "call_start" && e.callId);
   const latest = new Map<string, NonNullable<UpcomingRow["lastCall"]>>();
-  for (const entry of starts) {
-    const call = await store.getCall(entry.callId as CallId);
-    const patientId = call?.targetPatientId ?? call?.lockedPatientId;
-    if (call && patientId) latest.set(patientId, { callId: call.id, direction: call.direction, state: call.state, startedAt: call.startedAt });
+  for (let i = 0; i < starts.length; i += 16) {
+    const calls = await Promise.all(starts.slice(i, i + 16).map((entry) => store.getCall(entry.callId as CallId)));
+    for (const call of calls) {
+      const patientId = call?.targetPatientId ?? call?.lockedPatientId;
+      if (call && patientId) latest.set(patientId, { callId: call.id, direction: call.direction, state: call.state, startedAt: call.startedAt });
+    }
   }
   return latest;
 }
 
 const ORDER_STATE: Record<string, string> = { queued: "queued", waiting_for_pharmacist: "waiting for a pharmacist", approved: "approved" };
 
-async function nextReminder(store: Store, patient: Patient, rx: Prescription, preview: Preview, left: number, runOut: string): Promise<string> {
+async function nextReminder(store: Parameters<typeof outboundPreview>[0] & Parameters<typeof refillOnItsWay>[0], patient: Patient, rx: Prescription, preview: Preview, left: number, runOut: string): Promise<string> {
   const order = await refillOnItsWay(store, patient.id, rx.id);
   if (order) return `refill ${ORDER_STATE[order.state] ?? "on its way"}`; // AUDIT fix 14: no reminder
   if (!patient.optedInToCalls) return "not opted in";
@@ -54,29 +56,44 @@ async function nextReminder(store: Store, patient: Patient, rx: Prescription, pr
 }
 
 export async function upcoming(store: Store): Promise<Upcoming> {
-  const now = await store.now();
+  const [now, record, policy, cards, patients, orders] = await Promise.all([
+    store.now(), store.listRecord(), store.policy(), store.listCards(), store.listPatients(), store.listOrders(),
+  ]);
   const today = now.slice(0, 10);
-  const calls = await lastCalls(store);
+  const ordersByPatient = Map.groupBy(orders, (order) => order.patientId);
+  const previewStore = {
+    now: async () => now,
+    policy: async () => policy,
+    listRecord: async () => record,
+    listCards: async () => cards,
+    listOrders: async (patientId: string) => ordersByPatient.get(patientId) ?? [],
+  };
+  const calls = await lastCalls(store, record);
   const rows: UpcomingRow[] = [];
 
-  for (const patient of await store.listPatients()) {
-    for (const rx of await store.getPrescriptions(patient.id)) {
-      const left = daysLeft(rx, now);
-      if (left > WINDOW_DAYS) continue;
-      const preview = await refillPreview(store, patient, rx);
-      const runOut = addDays(today, left);
-      rows.push({
-        patientId: patient.id,
-        rxId: rx.id,
-        initials: `${patient.firstName[0]}.${patient.lastName[0]}.`,
-        drug: `${rx.drug} ${rx.strength}`,
-        controlled: rx.controlled,
-        daysLeft: left,
-        runOut,
-        preview,
-        lastCall: calls.get(patient.id),
-        nextReminder: await nextReminder(store, patient, rx, preview, left, runOut),
-      });
+  for (let i = 0; i < patients.length; i += 16) {
+    const batch = await Promise.all(patients.slice(i, i + 16).map(async (patient) => ({
+      patient, prescriptions: await store.getPrescriptions(patient.id),
+    })));
+    for (const { patient, prescriptions } of batch) {
+      for (const rx of prescriptions) {
+        const left = daysLeft(rx, now);
+        if (left > WINDOW_DAYS) continue;
+        const preview = await refillPreview(previewStore, patient, rx);
+        const runOut = addDays(today, left);
+        rows.push({
+          patientId: patient.id,
+          rxId: rx.id,
+          initials: `${patient.firstName[0]}.${patient.lastName[0]}.`,
+          drug: `${rx.drug} ${rx.strength}`,
+          controlled: rx.controlled,
+          daysLeft: left,
+          runOut,
+          preview,
+          lastCall: calls.get(patient.id),
+          nextReminder: await nextReminder(previewStore, patient, rx, preview, left, runOut),
+        });
+      }
     }
   }
   rows.sort((a, b) => a.daysLeft - b.daysLeft);

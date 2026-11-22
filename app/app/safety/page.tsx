@@ -2,7 +2,7 @@ import { Suspense, type ReactNode } from "react";
 import Link from "next/link";
 import { connection } from "next/server";
 import { Badge, Card, Eyebrow, PageHeader, SkeletonRows, SkeletonTiles, When, cn, linkClass } from "@/components/ui";
-import { readOvernight, type Source } from "@/app/console/overnight/results";
+import { readHammerAndOvernight, type Source } from "@/app/console/overnight/results";
 import { readLatestBatch, readLatestRun, stillRunning } from "./data";
 import { listLiveCalls } from "@/app/api/_lib/live-calls";
 import { RecentLiveCalls } from "./live-calls/RecentLiveCalls";
@@ -136,7 +136,7 @@ const brokenOf = <T extends { broken: number }>(s: Source<T>) => (s.state === "o
 
 async function Overview() {
   await connection(); // Files change between runs: never prerender.
-  const [view, run, batch, live] = await Promise.all([readOvernight(), readLatestRun(), readLatestBatch(), listLiveCalls(5)]);
+  const [view, run, batch, live] = await Promise.all([readHammerAndOvernight(), readLatestRun(), readLatestBatch(undefined, { includeSteps: false }), listLiveCalls(5)]);
   const { hammer, overnight } = view;
   const running = stillRunning(run);
 

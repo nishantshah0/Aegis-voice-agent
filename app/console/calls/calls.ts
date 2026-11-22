@@ -51,46 +51,54 @@ function timingOf(source: TimingSource | undefined, callId: CallId): CallTiming 
 
 export async function callsOverview(store: Store, { driver }: { driver?: TimingSource } = {}): Promise<CallsOverview> {
   const all = await store.listRecord();
+  return summarizeCalls(store, all, await laneTotals(store), driver);
+}
+
+export async function summarizeCalls(store: Store, all: RecordEntry[], lanes: LaneTotals, driver?: TimingSource): Promise<CallsOverview> {
   const starts = all.filter((e) => e.kind === "safety" && (e.input as { check?: string })?.check === "call_start" && e.callId).reverse();
+  const entriesByCall = Map.groupBy(all, (entry) => entry.callId);
+  const patients = new Map((await store.listPatients()).map((patient) => [patient.id, patient]));
   const calls: CallSummary[] = [];
 
-  for (const start of starts) {
-    const call = await store.getCall(start.callId as CallId);
-    if (!call) continue;
-    const entries = all.filter((e) => e.callId === call.id);
-    const patientId = call.lockedPatientId ?? call.targetPatientId;
-    const patient = patientId ? await store.getPatient(patientId) : undefined;
-    calls.push({
-      callId: call.id,
-      direction: call.direction,
-      state: call.state,
-      startedAt: call.startedAt,
-      ...(call.endedAt ? { endedAt: call.endedAt } : {}),
-      ...(patient ? { patient: `${patient.firstName[0]}.${patient.lastName[0]}.` } : {}),
-      transcript: entries.flatMap((e): Line[] => {
-        if (e.kind === "caller_line") return [{ who: "caller", text: text(e) }];
-        if (e.kind === "line_spoken") return [{ who: "agent", text: text(e) }];
-        if (e.kind === "line_blocked") return [{ who: "agent", text: text(e), blocked: (e.output as { rule: SpeechRule }).rule }];
-        return [];
-      }),
-      presses: entries
-        .filter((e) => e.kind === "button" && e.button)
-        .map((e) => ({ button: e.button!, outcome: OUTCOME[e.decision ?? "allowed"] ?? "allowed", ruleIds: e.ruleIds ?? [], ...(e.lane ? { lane: e.lane } : {}) })),
-      blocked: entries
-        .filter((e) => e.kind === "line_blocked")
-        .map((e) => {
-          const out = e.output as { rule: SpeechRule; replacement: string };
-          return { rule: out.rule, original: text(e), replacement: out.replacement };
+  for (let i = 0; i < starts.length; i += 16) {
+    const batch = await Promise.all(starts.slice(i, i + 16).map((start) => store.getCall(start.callId as CallId)));
+    for (const call of batch) {
+      if (!call) continue;
+      const entries = entriesByCall.get(call.id) ?? [];
+      const patientId = call.lockedPatientId ?? call.targetPatientId;
+      const patient = patientId ? patients.get(patientId) : undefined;
+      calls.push({
+        callId: call.id,
+        direction: call.direction,
+        state: call.state,
+        startedAt: call.startedAt,
+        ...(call.endedAt ? { endedAt: call.endedAt } : {}),
+        ...(patient ? { patient: `${patient.firstName[0]}.${patient.lastName[0]}.` } : {}),
+        transcript: entries.flatMap((e): Line[] => {
+          if (e.kind === "caller_line") return [{ who: "caller", text: text(e) }];
+          if (e.kind === "line_spoken") return [{ who: "agent", text: text(e) }];
+          if (e.kind === "line_blocked") return [{ who: "agent", text: text(e), blocked: (e.output as { rule: SpeechRule }).rule }];
+          return [];
         }),
-      record: { entries: entries.length },
-      ...(timingOf(driver, call.id) ? { timing: timingOf(driver, call.id) } : {}),
-    });
+        presses: entries
+          .filter((e) => e.kind === "button" && e.button)
+          .map((e) => ({ button: e.button!, outcome: OUTCOME[e.decision ?? "allowed"] ?? "allowed", ruleIds: e.ruleIds ?? [], ...(e.lane ? { lane: e.lane } : {}) })),
+        blocked: entries
+          .filter((e) => e.kind === "line_blocked")
+          .map((e) => {
+            const out = e.output as { rule: SpeechRule; replacement: string };
+            return { rule: out.rule, original: text(e), replacement: out.replacement };
+          }),
+        record: { entries: entries.length },
+        ...(timingOf(driver, call.id) ? { timing: timingOf(driver, call.id) } : {}),
+      });
+    }
   }
 
   const brokenAt = findBrokenLink(all);
   return {
     calls,
-    lanes: await laneTotals(store),
+    lanes,
     chain: { entries: all.length, verified: brokenAt === null, brokenAt, headHash: all.at(-1)?.hash ?? "" },
   };
 }

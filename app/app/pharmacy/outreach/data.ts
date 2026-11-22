@@ -56,8 +56,8 @@ export async function loadOutreach(runId?: string): Promise<OutreachLoad> {
 
 export function outreachData(run: SavedRun, runs: RunChoice[] = []): OutreachData {
   const byPatient = new Map(run.population.patients.map((p) => [p.patient.id, p] as const));
-  const calls = run.days.flatMap((d) => d.calls);
-  const refills = run.days.flatMap((d) => d.refills);
+  const calls = Map.groupBy(run.days.flatMap((d) => d.calls), (c) => c.rxId);
+  const refills = Map.groupBy(run.days.flatMap((d) => d.refills), (r) => r.rxId);
   const rows: OutreachRow[] = run.forecast.map((f) => {
     const sp = byPatient.get(f.patientId)!;
     const rx = sp.prescriptions.find(r => r.id === f.rxId);
@@ -71,8 +71,8 @@ export function outreachData(run: SavedRun, runs: RunChoice[] = []): OutreachDat
       stopped: sp.stopped,
       pastCalls: sp.pastCalls.filter((c) => c.rxId === f.rxId),
       sideEffects: sp.sideEffects.filter((s) => s.rxId === f.rxId).map(({ at, text }) => ({ at, text })),
-      windowCalls: calls.filter((c) => c.rxId === f.rxId),
-      windowRefills: refills.filter((r) => r.rxId === f.rxId),
+      windowCalls: calls.get(f.rxId) ?? [],
+      windowRefills: refills.get(f.rxId) ?? [],
       skipRate: history.length ? history.filter((e) => e.status === "skipped" || e.status === "stopped").length / history.length : 0,
     };
   });
