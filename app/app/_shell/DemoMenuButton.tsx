@@ -40,7 +40,7 @@ export function DemoMenuButton({ patients }: { patients: Patient[] }) {
 
   async function run(path: string, describe: (body: Record<string, unknown>) => string) {
     setBusy(true);
-    setStatus("");
+    setStatus("Working…");
     const res = await fetch(path, { method: "POST" }).catch(() => null);
     const body = (await res?.json().catch(() => ({}))) as Record<string, unknown> | undefined;
     setBusy(false);
@@ -82,6 +82,22 @@ export function DemoMenuButton({ patients }: { patients: Patient[] }) {
           >
             <Icon name="home" className="size-4 text-ink-3" />
             Reset demo
+          </button>
+          {/* Trail #74: 40 scripted calls over the week before the demo clock, each through the real driver, buttons, guard and record. Idempotent; Reset demo clears it. */}
+          <button
+            type="button"
+            role="menuitem"
+            disabled={busy}
+            className={ROW}
+            onClick={() =>
+              run("/api/demo/history", (b) => {
+                const calls = Number(b.calls ?? 0);
+                return b.seeded ? `Seeded ${calls} scripted calls from the past week.` : `The week is already seeded (${calls} calls).`;
+              })
+            }
+          >
+            <Icon name="calendar" className="size-4 text-ink-3" />
+            Seed a week of calls
           </button>
           <button
             type="button"
