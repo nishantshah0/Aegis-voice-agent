@@ -4,11 +4,11 @@
 import { PGlite } from "@electric-sql/pglite";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { Approver, RecordEntry, StreamEvent, Store } from "@/lib/contract";
-import { createControl } from "@/lib/control";
+import { applyApprovedCard, createControl } from "@/lib/control";
 import { createSafetyCheck, createSpeechGuard } from "@/lib/guard";
 import { IDS, SEED } from "@/lib/seed";
 import { createMemoryStore, findBrokenLink } from "./memory";
-import { createPostgresStore, fromPGlite } from "./postgres";
+import { createPostgresStore, fromPGlite, type SqlDb } from "./postgres";
 
 const pharmacist: Approver = { id: "auth0|test-pharmacist", name: "Test Pharmacist", role: "pharmacist" };
 
@@ -30,6 +30,27 @@ describe.each(Object.entries(factories))("%s store", (_name, make) => {
   beforeEach(async () => {
     store = make();
     await store.reset(SEED);
+  });
+
+  it("approving a rule card is all or nothing: if the record write fails, no card goes live, and a retry works (Trail #78)", async () => {
+    let failRecord = true;
+    const flaky: Store = {
+      ...store,
+      appendRecord: async (entry) => {
+        if (failRecord) throw new Error("record write failed");
+        return store.appendRecord(entry);
+      },
+    };
+    const draft = { ...SEED.cards[0], id: "w1", wording: "Any antibiotic refill needs a pharmacist.", when: [{ field: "drug.class" as const, op: "=" as const, value: "antibiotic" }], then: "route" as const, approvedBy: "", approvedAt: "", live: false };
+    await expect(applyApprovedCard(flaky, draft, pharmacist)).rejects.toThrow("record write failed");
+    expect(await store.listCards()).toEqual(SEED.cards);
+    expect((await store.listRecord()).filter((e) => e.kind === "rule_change")).toEqual([]);
+
+    failRecord = false;
+    const retry = await applyApprovedCard(flaky, draft, pharmacist);
+    expect(retry).toMatchObject({ ok: true, card: { id: "w1", live: true } });
+    expect((await store.listCards()).filter((c) => c.id === "w1")).toHaveLength(1);
+    expect((await store.listRecord()).filter((e) => e.kind === "rule_change").map((e) => e.ruleIds)).toEqual([["w1"]]);
   });
 
   it("adds an approved rule card after the seed's, refuses a duplicate id, and reset drops it (AUDIT #9)", async () => {
@@ -177,5 +198,56 @@ describe("creating a Postgres store (Trail #33)", () => {
     expect(calls).toBe(0);
     await store.listCards().catch(() => {});
     expect(calls).toBeGreaterThan(0);
+  });
+});
+
+// Trail #78 review (medium): with a real pool, a read from outside an open transaction sees only
+// committed rows. PGlite has one connection and makes that read wait for COMMIT, so this wrapper
+// models a pool: during an open transaction, an outside read of the card list gets the last
+// committed answer. The card approved inside must still be in listCards once it commits.
+describe("an approved card after COMMIT, with reads from outside the transaction (Trail #78)", () => {
+  it("isn't hidden by a card list cached from outside while the transaction was open", async () => {
+    const base = fromPGlite(pg);
+    let open = false;
+    const committed = new Map<string, { rows: unknown[] }>();
+    const db: SqlDb = {
+      query: (async (text: string, params?: unknown[]) => {
+        if (open && text.includes("from rg_cards") && committed.has(text)) return committed.get(text);
+        const result = await base.query(text, params);
+        if (text.includes("from rg_cards")) committed.set(text, result);
+        return result;
+      }) as SqlDb["query"],
+      transaction: async (fn) => {
+        open = true;
+        try {
+          return await base.transaction(fn);
+        } finally {
+          open = false;
+        }
+      },
+    };
+    const store = createPostgresStore(db, SEED);
+    await store.reset(SEED);
+    await store.listCards(); // cached from outside, before the approval
+
+    let release!: () => void;
+    const held = new Promise<void>((r) => (release = r));
+    let reached!: () => void;
+    const inWrite = new Promise<void>((r) => (reached = r));
+    const holding: Store = {
+      ...store,
+      appendRecord: async (entry) => {
+        reached();
+        await held;
+        return store.appendRecord(entry);
+      },
+    };
+    const draft = { ...SEED.cards[0], id: "w1", wording: "Any antibiotic refill needs a pharmacist.", when: [{ field: "drug.class" as const, op: "=" as const, value: "antibiotic" }], then: "route" as const, approvedBy: "", approvedAt: "", live: false };
+    const approving = applyApprovedCard(holding, draft, pharmacist);
+    await inWrite;
+    await store.listCards(); // an outside read in the window: the uncommitted card isn't visible yet
+    release();
+    expect(await approving).toMatchObject({ ok: true });
+    expect((await store.listCards()).map((c) => c.id)).toContain("w1");
   });
 });

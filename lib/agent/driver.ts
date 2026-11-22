@@ -41,8 +41,10 @@ import {
   outboundOpener,
   pickLine,
   sideEffectQuestion,
+  sideEffectQuestionBeforeRefill,
 } from "./lines";
 import type { AgentModel, ModelTurn, PressForModel } from "./model";
+import { STAY_ON_TASK_NOTE, asksForAPersona } from "./persona";
 import { pickStyle, systemPrompt, type CallStyle } from "./prompt";
 import { createSentenceSplitter } from "./sentences";
 import { BUTTON_TOOLS, isButtonName } from "./tools";
@@ -102,6 +104,21 @@ type CallState = {
   awaitingSideEffect?: RxId;
   /** Caller lines still read as side-effect answers: the answer, then at most one follow-up. */
   sideEffectLinesLeft?: number;
+  /** 1.x: check_code verified this call. */
+  verified?: boolean;
+  /** 1.x: whether each prescription can be refilled today, from check_prescription on this call. */
+  refillable: Map<RxId, boolean>;
+  /** 1.x: each prescription's label text, from read_label on this call, so the question needs no second press. */
+  labels: Map<RxId, string>;
+  /** 1.x: prescriptions with a side-effect note this call ("*" for a note naming none). */
+  sideEffectNoted: Set<RxId | "*">;
+  /**
+   * 1.x: a refill the model asked for, not placed yet: the side-effect question comes first,
+   * and the driver places it, through the lock, when the caller answers.
+   */
+  heldRefill?: { rxId: RxId; input: unknown };
+  /** 1.x: what the caller heard from the agent on the current caller line. */
+  turnSaid: string[];
   /** One entry per caller line: when it arrived, first model text, first guarded sentence. */
   timings: ServerTurnTiming[];
   /** 1.x: this call's voice and its wording of the fixed handover line. */
@@ -159,6 +176,10 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
       callNote: callNote(callId, opts, deliverySlots),
       notes: [],
       askedSideEffects: new Set(),
+      refillable: new Map(),
+      labels: new Map(),
+      sideEffectNoted: new Set(),
+      turnSaid: [],
       timings: [],
       style: pickStyle(random),
       handover: pickLine(HANDOVER_LINES, random),
@@ -180,6 +201,7 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
       );
       yield { type: "blocked_line", rule: guarded.rule, original: guarded.original, replacement: guarded.speak };
     }
+    state.get(callId)?.turnSaid.push(guarded.speak);
     emit({ type: "line", callId, who: "agent", text: guarded.speak });
     yield { type: "line", text: guarded.speak };
   }
@@ -241,6 +263,7 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
         ["read_label", { rx_id: rxId }],
       ] as const) {
         const r = await press(callId, button, input);
+        learn(call, button, input, r);
         events.push({ type: "press", button, input, result: r });
         checked.push({ button, rx_id: rxId, ...forModel(r) });
       }
@@ -248,16 +271,46 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
     return { events, checked };
   }
 
+  /** What the driver learns from a press: which prescriptions can be refilled, their labels, side-effect notes. */
+  function learn(call: CallState | undefined, name: string, input: unknown, result: ButtonResult) {
+    if (!call || !result.ok) return;
+    if (name === "check_code" && (result.output as { verified?: boolean }).verified) call.verified = true;
+    const rxId = (input as { rx_id?: unknown })?.rx_id;
+    if (name === "check_prescription" && typeof rxId === "string") call.refillable.set(rxId, (result.output as { refillable_today: boolean }).refillable_today);
+    if (name === "read_label" && typeof rxId === "string") call.labels.set(rxId, (result.output as { label_text: string }).label_text);
+    if (name === "note_for_pharmacist" && (input as { kind?: unknown })?.kind === "side_effect") {
+      call.sideEffectNoted.add(typeof rxId === "string" ? rxId : "*");
+      // The side effect is recorded: later lines aren't side-effect answers any more.
+      call.awaitingSideEffect = undefined;
+    }
+  }
+
+  const noted = (call: CallState, rxId: RxId) => call.sideEffectNoted.has(rxId) || call.sideEffectNoted.has("*");
+
+  /**
+   * 1.x: hold a refill until the side-effect question is answered, when the call is verified,
+   * check_prescription hasn't said it can't be refilled today, and no side effect is on record
+   * for it yet. Before verification, or for a refill the rules would refuse, the press goes to
+   * the lock as before, so the lock still decides and records every attempt.
+   */
+  function shouldHold(call: CallState | undefined, name: string, input: unknown): call is CallState {
+    if (!call || name !== "request_refill") return false;
+    const rxId = (input as { rx_id?: unknown })?.rx_id;
+    if (!call.verified || typeof rxId !== "string" || call.refillable.get(rxId) === false) return false;
+    return !call.askedSideEffects.has(rxId) && !noted(call, rxId) && (!call.heldRefill || call.heldRefill.rxId === rxId);
+  }
+
   /** One button press for the model, through the lock. A name that isn't a button never reaches it. */
   async function pressOne(callId: CallId, name: string, input: unknown, refilled: RxId[]): Promise<{ events: AgentEvent[]; content: string; isError: boolean }> {
     if (!isButtonName(name)) return { events: [], content: JSON.stringify({ error: "no such button" }), isError: true };
+    const call = state.get(callId);
+    if (shouldHold(call, name, input)) {
+      call.heldRefill = { rxId: (input as { rx_id: RxId }).rx_id, input };
+      return { events: [], content: JSON.stringify(HELD), isError: false };
+    }
     const result: ButtonResult = await press(callId, name, input);
     const rxId = (input as { rx_id?: unknown })?.rx_id;
-    if (name === "note_for_pharmacist" && result.ok && (input as { kind?: unknown })?.kind === "side_effect") {
-      // The side effect is recorded: later lines aren't side-effect answers any more.
-      const call = state.get(callId);
-      if (call) call.awaitingSideEffect = undefined;
-    }
+    learn(call, name, input, result);
     if (name === "request_refill" && result.ok && typeof rxId === "string") {
       if (REFILL_GOING_AHEAD.has((result.output as { state: string }).state)) refilled.push(rxId);
     }
@@ -288,7 +341,8 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
    * question is built from the record and the press is in it.
    */
   async function* askSideEffects(callId: CallId, call: CallState, refilled: RxId[]): AsyncIterable<AgentEvent> {
-    const rxId = refilled.find((id) => !call.askedSideEffects.has(id));
+    // Never ask about something the caller already told us (Nishant, after the live demo call).
+    const rxId = refilled.find((id) => !call.askedSideEffects.has(id) && !noted(call, id));
     if (!rxId) return;
     call.askedSideEffects.add(rxId);
     const label = yield* pressFixed(callId, "read_label", { rx_id: rxId });
@@ -297,6 +351,46 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
     pushSaid(call, question);
     call.awaitingSideEffect = rxId;
     call.sideEffectLinesLeft = 2;
+  }
+
+  /**
+   * 1.x: the model asked for a refill and it is held. If a side effect is already on
+   * record, place it now. Otherwise ask the side-effect question first: the caller's
+   * answer places it (placeHeld).
+   */
+  async function* afterHeld(callId: CallId, call: CallState, refilled: RxId[]): AsyncIterable<AgentEvent> {
+    const held = call.heldRefill;
+    if (!held || call.askedSideEffects.has(held.rxId)) return;
+    if (noted(call, held.rxId)) {
+      const result = yield* placeHeld(callId, call, refilled);
+      if (result) call.notes.push(`The refill you asked for is now placed: ${JSON.stringify(forModel(result))}. Confirm it in a few words.`);
+      return;
+    }
+    call.askedSideEffects.add(held.rxId);
+    // The model already asked it this turn (live run side-effects-first): one question, not two.
+    if (!call.turnSaid.some((line) => /side[- ]?effects?/i.test(line))) {
+      const label = call.labels.get(held.rxId) ?? (yield* labelFor(callId, held.rxId));
+      const question = sideEffectQuestionBeforeRefill(label);
+      yield* speak(callId, question);
+      pushSaid(call, question);
+    }
+    call.awaitingSideEffect = held.rxId;
+    call.sideEffectLinesLeft = 2;
+  }
+
+  async function* labelFor(callId: CallId, rxId: RxId): AsyncGenerator<AgentEvent, string> {
+    const label = yield* pressFixed(callId, "read_label", { rx_id: rxId });
+    return label.ok ? label.output.label_text : "";
+  }
+
+  /** Place the held refill through the lock, as the model asked for it. */
+  async function* placeHeld(callId: CallId, call: CallState, refilled: RxId[]): AsyncGenerator<AgentEvent, ButtonResult<"request_refill"> | undefined> {
+    const held = call.heldRefill;
+    if (!held) return undefined;
+    call.heldRefill = undefined;
+    const result = yield* pressFixed(callId, "request_refill", held.input as ButtonInputs["request_refill"]);
+    if (result.ok && REFILL_GOING_AHEAD.has(result.output.state)) refilled.push(held.rxId);
+    return result;
   }
 
   /** One fixed line, through the guard, into the history as the agent's own words. */
@@ -358,14 +452,16 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
         return;
       }
       emit({ type: "line", callId, who: "caller", text });
+      call.turnSaid = [];
       const timing: ServerTurnTiming = { receivedAt: now() };
       call.timings.push(timing);
 
       const safety = await checkCallerLine(callId, text);
       if (safety.action !== "continue") {
         // The safety check has already queued this line for a pharmacist, so it isn't a side-effect answer,
-        // and the next line isn't either.
+        // and the next line isn't either. A held refill isn't placed: a pharmacist looks at the call first.
         call.awaitingSideEffect = undefined;
+        call.heldRefill = undefined;
         yield { type: "safety", result: safety };
         pushUser(call, text);
         call.messages.push({ role: "assistant", content: safety.script });
@@ -373,15 +469,21 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
         return;
       }
 
+      const refilled: RxId[] = [];
       if (call.awaitingSideEffect && (call.sideEffectLinesLeft ?? 0) > 0) {
         const followUp = call.sideEffectLinesLeft === 1;
+        // The caller is answering the question asked before the refill: place it now, so a
+        // side effect they mention goes onto it (the note moves it to Review).
+        const placed = call.heldRefill?.rxId === call.awaitingSideEffect ? yield* placeHeld(callId, call, refilled) : undefined;
+        if (placed) call.notes.push(refillPlacedNote(placed));
         call.notes.push(followUp ? sideEffectFollowUpNote(call.awaitingSideEffect) : sideEffectNote(call.awaitingSideEffect));
         call.sideEffectLinesLeft = (call.sideEffectLinesLeft ?? 1) - 1;
         if (call.sideEffectLinesLeft === 0) call.awaitingSideEffect = undefined;
       }
+      // 1.x: a persona or off-task request gets a reminder on that line (it decides nothing).
+      if (asksForAPersona(text)) call.notes.push(STAY_ON_TASK_NOTE);
       pushUser(call, text);
       const system = systemFor(call);
-      const refilled: RxId[] = [];
 
       for (let step = 0; step < maxSteps; step++) {
         const splitter = createSentenceSplitter();
@@ -419,6 +521,7 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
         }
         call.messages.push({ role: "assistant", content: turn.content } as MessageParam);
         if (turn.stop_reason !== "tool_use") {
+          yield* afterHeld(callId, call, refilled);
           yield* askSideEffects(callId, call, refilled);
           return;
         }
@@ -439,6 +542,8 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
 
     async endCall(callId) {
       const call = state.get(callId);
+      // The caller said yes and hung up before answering the side-effect question: place it anyway.
+      if (call?.heldRefill) for await (const event of placeHeld(callId, call, [])) void event;
       if (call) call.ended = true;
       model.endCall?.(callId);
       await calls.endCall(callId);
@@ -453,11 +558,23 @@ function forModel(result: ButtonResult): Record<string, unknown> {
   return { error: result.error, rule_ids: result.ruleIds };
 }
 
+/** 1.x: what the model sees when it asks for a refill that the driver holds until the side-effect question is answered. */
+const HELD = {
+  held: true,
+  message:
+    "Not placed yet. The phone system asks the side-effect question itself, right after you stop, and places this refill when the caller answers. Don't ask it yourself, and don't say the refill is in: at most a short acknowledgement such as \"Sure.\" If they already told you about a side effect on this call, press note_for_pharmacist with it first.",
+};
+
+/** 1.x: the held refill went through the lock when the caller answered. */
+function refillPlacedNote(result: ButtonResult<"request_refill">): string {
+  return `The refill they said yes to is now placed: ${JSON.stringify(forModel(result))}. After the side effects, confirm the refill in a few words.`;
+}
+
 /** How the model should treat the caller's answer to the side-effect question. */
 function sideEffectNote(rxId: RxId): string {
   return [
     `The caller is answering the side-effect question about rx_id ${rxId}.`,
-    "If they mention anything at all, find out when it started and whether it's mild or severe, asking once if they haven't said.",
+    "If they mention anything at all, find out when it started and whether it's mild or severe, asking once only for what they haven't already said.",
     `Then press note_for_pharmacist with kind side_effect, rx_id ${rxId}: what they noticed, since when, and how bad, in their own words.`,
     `Then say: "${SIDE_EFFECT_PASSED_ON}" No advice: don't say what it might mean or what to do about it.`,
     "If they noticed nothing, carry on.",

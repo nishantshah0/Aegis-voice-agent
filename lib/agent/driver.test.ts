@@ -43,8 +43,10 @@ describe("1.2: Sam's typed outbound call through the real lock", () => {
     // "It's 112358, and I was born March 14, 1990." Outbound calls confirm the date of birth with the code.
     { tools: [{ name: "check_code", input: { lookup_id: lookup, code: CODE, dob: "1990-03-14" } }] },
     { text: ["Thanks, Sam. ", "Would you like me to order a refill of your Concerta?"] },
-    // "Yes please."
+    // "Yes please." The driver holds the refill and asks the side-effect question first.
     { tools: [{ name: "request_refill", input: { rx_id: IDS.samConcerta } }] },
+    { text: ["Sure."] },
+    // "No side effects." The driver places the held refill before this turn.
     { text: ["Your Concerta refill is approved. ", "Is there anything else?"] },
   ];
 
@@ -55,12 +57,13 @@ describe("1.2: Sam's typed outbound call through the real lock", () => {
     const turn1 = await collect(t.driver.callerSays(callId, "Yes, this is Sam."));
     const turn2 = await collect(t.driver.callerSays(callId, `It's ${CODE}, and I was born March 14, 1990.`));
     const turn3 = await collect(t.driver.callerSays(callId, "Yes please."));
+    const turn4 = await collect(t.driver.callerSays(callId, "No side effects."));
     await t.driver.endCall(callId);
-    return { ...t, callId, opener, turn1, turn2, turn3 };
+    return { ...t, callId, opener, turn1, turn2, turn3, turn4 };
   }
 
   it("verifies Sam, sends his refill to Quick check, and guards every sentence", async () => {
-    const { store, events, control, model, callId, opener, turn1, turn2, turn3 } = await samsCall();
+    const { store, events, control, model, callId, opener, turn1, turn2, turn3, turn4 } = await samsCall();
     expect(callId).toBe("c_0001");
     expect(model.remaining()).toBe(0);
 
@@ -75,17 +78,21 @@ describe("1.2: Sam's typed outbound call through the real lock", () => {
     expect(presses(turn2)[0].result).toMatchObject({ ok: true, output: { verified: true, patient_first_name: "Sam" } });
     expect(lines(turn2)).toEqual(["Thanks, Sam.", "Would you like me to order a refill of your Concerta?"]);
 
-    const refill = presses(turn3)[0];
+    // 1.x (Nishant, after the live demo call): the side-effect question first, then the refill on the answer.
+    expect(presses(turn3)).toEqual([]);
+    expect(lines(turn3).at(-1)).toMatch(/^Before I put it in: .*side effects/);
+    const refill = presses(turn4)[0];
+    expect(refill.button).toBe("request_refill");
     expect(refill.result).toMatchObject({ ok: true, lane: "quick_check", ruleIds: ["4"], output: { state: "waiting_for_pharmacist" } });
     // S4: "approved" isn't true yet, so the caller hears the guard's line instead.
-    const blocked = turn3.find((e) => e.type === "blocked_line");
+    const blocked = turn4.find((e) => e.type === "blocked_line");
     expect(blocked).toMatchObject({ rule: "S4", original: "Your Concerta refill is approved." });
-    expect(lines(turn3)).not.toContain("Your Concerta refill is approved.");
+    expect(lines(turn4)).not.toContain("Your Concerta refill is approved.");
 
     // Every line the agent spoke is in the record, through the guard.
     const record = await store.listRecord(callId);
     const spokenOrBlocked = record.filter((e) => e.kind === "line_spoken" || e.kind === "line_blocked").length;
-    expect(spokenOrBlocked).toBe([...opener, ...turn1, ...turn2, ...turn3].filter((e) => e.type === "line").length);
+    expect(spokenOrBlocked).toBe([...opener, ...turn1, ...turn2, ...turn3, ...turn4].filter((e) => e.type === "line").length);
     expect(findBrokenLink(await store.listRecord())).toBeNull();
     expect((await store.queue("quick_check")).map((q) => q.patientId)).toEqual([IDS.sam]);
     expect((await store.getCall(callId))?.state).toBe("ended");
@@ -109,7 +116,8 @@ describe("1.2: Sam's typed outbound call through the real lock", () => {
   it("tells the model what the caller heard when the guard replaced a line", async () => {
     const t = setup([...script, { text: ["Bye for now."] }]);
     const callId = await t.driver.startCall({ direction: "outbound", patientId: IDS.sam, rxId: IDS.samConcerta });
-    for (const said of ["Yes, this is Sam.", `It's ${CODE}.`, "Yes please.", "No, that's all."]) await collect(t.driver.callerSays(callId, said));
+    // The side-effect answer places the refill, then the line the guard replaces; the next line carries the note.
+    for (const said of ["Yes, this is Sam.", `It's ${CODE}.`, "Yes please.", "No side effects.", "No, that's all."]) await collect(t.driver.callerSays(callId, said));
     const last = t.model.requests.at(-1)!.messages;
     const note = last.at(-1);
     expect(note?.role).toBe("system");

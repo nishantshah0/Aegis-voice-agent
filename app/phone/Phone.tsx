@@ -4,7 +4,7 @@ import { useEffect, useReducer, useRef, useState, type FormEvent } from "react";
 import type { StreamEvent } from "@/lib/contract";
 import { listenToEvents } from "@/lib/events/client";
 import type { ListenerMode } from "@/lib/voice/listener";
-import { TURN_TARGET_MS, createPhoneTiming } from "@/lib/voice/timing";
+import { createPhoneTiming } from "@/lib/voice/timing";
 import { phoneApi } from "./api";
 import { RULE_LABEL, initialPhone, phoneListener, phoneReducer, type PhoneState, type TranscriptItem } from "./state";
 import { scrollToEnd } from "./scroll";
@@ -269,13 +269,12 @@ export function VoiceBar({ on, mode, hearing, speaking, onToggle, onMode, onHold
   );
 }
 
-/** Median time from the caller stopping to the agent's first word (task 1.6). */
+/** Median time from the caller stopping to the agent's first word (task 1.6): the measured figure only (audit #1). */
 export function TurnTime({ medianMs }: { medianMs?: number }) {
   if (medianMs === undefined) return null;
-  const fast = medianMs <= TURN_TARGET_MS;
   return (
-    <p data-testid="turn-time" className={`mx-auto mb-3 w-fit rounded-full bg-[#f3f3ef] px-3 py-1 text-center font-mono text-[11px] ${fast ? "text-green-700" : "text-amber-700"}`}>
-      Median turn {(medianMs / 1000).toFixed(2)} s (target {(TURN_TARGET_MS / 1000).toFixed(1)} s)
+    <p data-testid="turn-time" className="mx-auto mb-3 w-fit rounded-full bg-[#f3f3ef] px-3 py-1 text-center font-mono text-[11px] text-neutral-600">
+      Median turn {(medianMs / 1000).toFixed(2)} s
     </p>
   );
 }

@@ -68,8 +68,19 @@ describe("1.x: proactive, not pushy", () => {
     expect(inbound).toMatch(/no refills left[^.]*renewal|renewal[^.]*no refills left/i);
   });
 
-  it("leaves the side-effect question to the phone system right after a refill", () => {
-    expect(inbound).toMatch(/phone system asks the side-effect question/i);
+  it("leaves the side-effect question to the phone system, before the refill is placed", () => {
+    // Nishant, after the live demo call: ask first, then place the refill.
+    for (const prompt of [inbound, outbound]) {
+      expect(prompt).toMatch(/phone system first asks the side-effect question[^.]*places the refill when the caller answers/i);
+      expect(prompt).not.toMatch(/right after a refill goes in/i);
+    }
+  });
+
+  it("never asks for something the caller already said", () => {
+    for (const prompt of [inbound, outbound]) {
+      expect(prompt).toMatch(/never ask for something the caller already told you/i);
+      expect(prompt).toMatch(/already mentioned a side effect, press note_for_pharmacist with it before request_refill/i);
+    }
   });
 });
 
@@ -103,6 +114,21 @@ describe("1.x: real conversation on the phone", () => {
   it("reads back once before a refill, not three times", () => {
     expect(inbound).toMatch(/once, and wait for a yes/i);
     expect(inbound).toMatch(/one read-back is enough/i);
+  });
+});
+
+describe("1.x: the ready day from ready_label (main e62c554)", () => {
+  it("says the ready day after a refill and on a status check, in the form S4 backs", () => {
+    for (const prompt of [inbound, outbound]) {
+      expect(prompt).toMatch(/ready_label/);
+      expect(prompt).toMatch(/after a refill and on a status check/i);
+      expect(prompt).toContain('"It should be ready Thursday once it\'s approved."');
+      expect(prompt).toMatch(/only the day ready_label gave/i);
+    }
+  });
+
+  it("keeps 'I don't have a ready time yet' for when no button gave a day", () => {
+    expect(inbound).toMatch(/no button has given you a ready_label[^.]*I don't have a ready time yet/i);
   });
 });
 
@@ -180,7 +206,7 @@ describe("1.x: every call gets its own voice", () => {
     const started = await control.startOutboundCall(IDS.sam, IDS.samConcerta);
     if (!started.ok) throw new Error("rule 7 refused the call");
     await control.press(started.callId, "send_code", { lookup_id: started.lookupId });
-    await control.press(started.callId, "check_code", { lookup_id: started.lookupId, code: "135791" });
+    await control.press(started.callId, "check_code", { lookup_id: started.lookupId, code: "135791", dob: "1990-03-14" });
     await control.press(started.callId, "request_refill", { rx_id: IDS.samConcerta });
     for (const style of CALL_STYLES) {
       for (const direction of ["inbound", "outbound"] as const) {

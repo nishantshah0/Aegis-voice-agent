@@ -136,7 +136,7 @@ describe("POST /api/arena/run (the fixed scenario suite)", () => {
     expect(typeof options.makeSession).toBe("function");
 
     const during = await read();
-    expect(during.running).toMatchObject({ kind: "suite", state: "running", done: 2, total: 28 * 3 });
+    expect(during.running).toMatchObject({ kind: "suite", state: "running", done: 2, total: 37 * 3 });
 
     run.open();
     await tick();

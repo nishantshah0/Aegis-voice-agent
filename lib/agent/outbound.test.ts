@@ -8,7 +8,7 @@ import { EMERGENCY_SCRIPT, createSafetyCheck, createSpeechGuard } from "@/lib/gu
 import { IDS, SEED } from "@/lib/seed";
 import { createMemoryStore, findBrokenLink } from "@/lib/store/memory";
 import { createAgentDriver } from "./driver";
-import { SIDE_EFFECT_PASSED_ON, inboundGreeting, outboundOpener, sideEffectQuestion } from "./lines";
+import { SIDE_EFFECT_PASSED_ON, inboundGreeting, outboundOpener, sideEffectQuestionBeforeRefill } from "./lines";
 import { collect, scriptedModel, type ScriptStep } from "./testing/scripted-model";
 
 const CODE = "112358";
@@ -50,9 +50,9 @@ const verifyAndOffer = (lookupId: string): ScriptStep[] => [
   // "It's 112358, and my birthday is March 14, 1990."
   { tools: [{ name: "check_code", input: { lookup_id: lookupId, code: CODE, dob: SAM_DOB_SENT } }] },
   { text: ["Thanks, Sam. ", "It's a controlled medication, so a pharmacist has to approve your Concerta. ", "Want me to send it to them now?"] },
-  // "Yes please."
+  // "Yes please." The driver holds the refill and asks the side-effect question first (Nishant, after the live demo call).
   { tools: [{ name: "request_refill", input: { rx_id: IDS.samConcerta } }] },
-  { text: ["I've sent it to the pharmacist. ", "A pharmacist will check it first, and I'll confirm once it's approved."] },
+  { text: ["Sure."] },
 ];
 
 describe("1.3: the outbound opening", () => {
@@ -105,9 +105,9 @@ describe("1.3: Sam's outbound call ends in Review with his side-effect note", ()
     const t = await ring([]);
     const steps: ScriptStep[] = [
       ...verifyAndOffer(t.lookupId),
-      // "I've had some mild headaches in the afternoon."
+      // "I've had some mild headaches in the afternoon." The driver places the held refill first.
       { tools: [{ name: "note_for_pharmacist", input: { rx_id: IDS.samConcerta, text: "Mild headaches in the afternoon since the last refill", kind: "side_effect" } }] },
-      { text: [SIDE_EFFECT_PASSED_ON] },
+      { text: [SIDE_EFFECT_PASSED_ON, " A pharmacist will check it first, and it should be ready Thursday once it's approved."] },
     ];
     const model = scriptedModel(steps);
     const driver = createAgentDriver({
@@ -127,19 +127,26 @@ describe("1.3: Sam's outbound call ends in Review with his side-effect note", ()
     return { ...t, model, opening, code, yes, answer };
   }
 
-  it("verifies, sends the refill to a pharmacist, asks the label's side-effect question, and notes the answer", async () => {
+  it("verifies, asks the label's side-effect question before the refill, then places it with the note", async () => {
     const { store, model, opening, code, yes, answer } = await samsCall();
     expect(model.remaining()).toBe(0);
     for (const turn of [opening, code, yes, answer]) expect(blocked(turn)).toEqual([]);
 
     expect(presses(code)[0].result).toMatchObject({ ok: true, output: { verified: true } });
-    expect(presses(yes).map((p) => p.button)).toEqual(["request_refill", "read_label"]);
-    expect(presses(yes)[0].result).toMatchObject({ ok: true, output: { state: "waiting_for_pharmacist" } });
-    // The question is built from the label the read_label press returned.
-    expect(lines(yes).at(-1)).toBe(sideEffectQuestion(LABEL));
+    // "Yes please": nothing is placed yet, and the question is asked from the label read after verification.
+    expect(presses(yes)).toEqual([]);
+    expect(lines(yes).at(-1)).toBe(sideEffectQuestionBeforeRefill(LABEL));
 
-    expect(presses(answer).map((p) => p.button)).toEqual(["note_for_pharmacist"]);
-    expect(lines(answer)).toEqual([SIDE_EFFECT_PASSED_ON]);
+    // The answer places the refill through the lock, then the model notes the side effect.
+    expect(presses(answer).map((p) => p.button)).toEqual(["request_refill", "note_for_pharmacist"]);
+    expect(presses(answer)[0].result).toMatchObject({ ok: true, output: { state: "waiting_for_pharmacist", ready_label: "Thursday" } });
+    expect(lines(answer)).toEqual([SIDE_EFFECT_PASSED_ON, "A pharmacist will check it first, and it should be ready Thursday once it's approved."]);
+    // The question was said before the refill was placed, in the record too.
+    const record = await store.listRecord();
+    const asked = record.findIndex((e) => e.kind === "line_spoken" && (e.input as { text?: string }).text === sideEffectQuestionBeforeRefill(LABEL));
+    const placed = record.findIndex((e) => e.button === "request_refill");
+    expect(asked).toBeGreaterThan(-1);
+    expect(placed).toBeGreaterThan(asked);
 
     const review = await store.queue("review");
     const note = review.find((q) => q.signals.includes("side_effect"));
@@ -155,7 +162,9 @@ describe("1.3: Sam's outbound call ends in Review with his side-effect note", ()
     expect(answerTurn.at(-1)?.role).toBe("system");
     expect(String(answerTurn.at(-1)?.content)).toContain(`answering the side-effect question about rx_id ${IDS.samConcerta}`);
     // The question is in the history as the agent's own words.
-    expect(answerTurn.some((m) => m.role === "assistant" && m.content === sideEffectQuestion(LABEL))).toBe(true);
+    expect(answerTurn.some((m) => m.role === "assistant" && m.content === sideEffectQuestionBeforeRefill(LABEL))).toBe(true);
+    // And that the refill they said yes to is now placed.
+    expect(String(answerTurn.at(-1)?.content)).toContain("now placed");
     // The note isn't repeated on the next turn.
     expect(model.requests[5].messages.filter((m) => m.role === "system")).toHaveLength(1);
   });
@@ -172,8 +181,10 @@ describe("1.3: Sam's outbound call ends in Review with his side-effect note", ()
     const first = await collect(t.driver.callerSays(t.callId, "Yes please."));
     await collect(t.driver.callerSays(t.callId, "No side effects."));
     const again = await collect(t.driver.callerSays(t.callId, "Can you order the Concerta again?"));
-    expect(presses(first).map((p) => p.button)).toContain("read_label");
-    expect(presses(again).map((p) => p.button)).not.toContain("read_label");
+    expect(lines(first).at(-1)).toBe(sideEffectQuestionBeforeRefill(LABEL));
+    // The second request goes straight to the lock, with no second question.
+    expect(presses(again).map((p) => p.button)).toEqual(["request_refill"]);
+    expect(lines(again).some((l) => /side effects/.test(l))).toBe(false);
   });
 });
 
@@ -209,6 +220,9 @@ describe("1.3: a safety line clears the side-effect question (Trail #15 finding)
     await collect(t.driver.callerSays(t.callId, "What's my copay?"));
     const last = t.model.requests.at(-1)!.messages;
     expect(JSON.stringify(last)).not.toContain("answering the side-effect question");
+    // The held refill isn't placed after a safety line: a pharmacist looks at the call first.
+    await t.driver.endCall(t.callId);
+    expect((await t.store.listRecord(t.callId)).some((e) => e.button === "request_refill")).toBe(false);
   });
 });
 
