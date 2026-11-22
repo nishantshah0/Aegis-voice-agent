@@ -8,11 +8,18 @@ const LANE_ORDER: Record<QueueItem["lane"], number> = { review: 0, quick_check: 
 const RECENT = 10;
 
 export type TodayItem = ItemDetail & { createdAt: string; decidedAt?: string };
-export type Today = { appointments: { slotId: string; label: string; patient: string }[]; totals: LaneTotals; waiting: TodayItem[]; automatic: TodayItem[]; decided: TodayItem[] };
+export type Today = {
+  appointments: { slotId: string; label: string; patient: string }[];
+  totals: LaneTotals;
+  waiting: TodayItem[];
+  automatic: TodayItem[];
+  decided: TodayItem[];
+  linked?: TodayItem;
+};
 
 const at = (i: QueueItem) => Date.parse(i.decidedAt ?? i.createdAt);
 
-export async function today(store: Store): Promise<Today> {
+export async function today(store: Store, itemId?: string): Promise<Today> {
   const [items, totals, bookings, policy, now] = await Promise.all([
     store.queue(), laneTotals(store), store.listAppointments(), store.policy(), store.now(),
   ]);
@@ -34,6 +41,14 @@ export async function today(store: Store): Promise<Today> {
     .filter((i) => i.status !== "open" && i.lane !== "automatic")
     .sort((a, b) => at(b) - at(a))
     .slice(0, RECENT);
-  const [w, a, d] = await Promise.all([Promise.all(waiting.map(view)), Promise.all(automatic.map(view)), Promise.all(decided.map(view))]);
-  return { appointments, totals, waiting: w, automatic: a, decided: d };
+  const linked = itemId && ![...waiting, ...automatic, ...decided].some((item) => item.id === itemId)
+    ? items.find((item) => item.id === itemId)
+    : undefined;
+  const [w, a, d, extra] = await Promise.all([
+    Promise.all(waiting.map(view)),
+    Promise.all(automatic.map(view)),
+    Promise.all(decided.map(view)),
+    linked ? view(linked) : undefined,
+  ]);
+  return { appointments, totals, waiting: w, automatic: a, decided: d, ...(extra ? { linked: extra } : {}) };
 }
