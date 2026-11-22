@@ -28,13 +28,13 @@ describe("resetRuntimeForTests guard", () => {
 
 describe("vitest setup", () => {
   it("clears DATABASE_URL before tests run", () => {
-    const env = { DATABASE_URL: FAKE, DATABASE_CA_FILE: "ca.pem", OTHER: "kept" } as NodeJS.ProcessEnv;
+    const env = { DATABASE_URL: FAKE, DATABASE_CA_FILE: "ca.pem", OTHER: "kept" } as unknown as NodeJS.ProcessEnv;
     clearTestDatabase(env);
     expect(env).toEqual({ OTHER: "kept" });
   });
 
   it("keeps it only for the opt-in live database test (LIVE_DB=1, its own schema)", () => {
-    const env = { DATABASE_URL: FAKE, LIVE_DB: "1" } as NodeJS.ProcessEnv;
+    const env = { DATABASE_URL: FAKE, LIVE_DB: "1" } as unknown as NodeJS.ProcessEnv;
     clearTestDatabase(env);
     expect(env.DATABASE_URL).toBe(FAKE);
   });
