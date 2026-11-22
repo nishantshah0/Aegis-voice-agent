@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { AppFrame } from "./_shell/AppFrame";
 import { Account } from "./_shell/Account";
+import { PhoneCard } from "./_shell/PhoneCard";
 import { RequireSignIn } from "./_shell/RequireSignIn";
 
 export const metadata = { title: "Aegis" };
@@ -19,12 +20,17 @@ function Loading() {
   );
 }
 
-export default function AppLayout({ children }: LayoutProps<"/app">) {
+export default function AppLayout({ children }: LayoutProps<"/dashboard">) {
   return (
     <AppFrame
       account={
         <Suspense fallback={null}>
           <Account />
+        </Suspense>
+      }
+      phone={
+        <Suspense fallback={null}>
+          <PhoneCard compact />
         </Suspense>
       }
     >

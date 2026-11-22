@@ -3,17 +3,20 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   /* config options here */
   cacheComponents: true,
-  // The console moved into the signed-in app (/app). Old links, DEMO.md and bookmarks
-  // keep working. /stage stays the full-screen projector view; /phone stays the device.
+  // The console and the stage moved into the signed-in dashboard. Old links, DEMO.md and
+  // bookmarks keep working. Exact pages only: /api/* and /console/review/labels stay put.
   async redirects() {
     return [
-      { source: "/console", destination: "/app/pharmacy/today", permanent: false },
-      { source: "/console/today", destination: "/app/pharmacy/today", permanent: false },
-      { source: "/console/upcoming", destination: "/app/pharmacy/upcoming", permanent: false },
-      { source: "/console/calls", destination: "/app/pharmacy/calls", permanent: false },
-      { source: "/console/review", destination: "/app/pharmacy/review", permanent: false },
-      { source: "/console/rules", destination: "/app/safety/rules", permanent: false },
-      { source: "/console/overnight", destination: "/app/safety/overnight", permanent: false },
+      { source: "/console", destination: "/dashboard/calls", permanent: false },
+      { source: "/console/today", destination: "/dashboard/calls", permanent: false },
+      { source: "/console/upcoming", destination: "/dashboard/calls/upcoming", permanent: false },
+      { source: "/console/calls", destination: "/dashboard/calls/history", permanent: false },
+      { source: "/console/review", destination: "/dashboard/calls/review", permanent: false },
+      { source: "/console/overnight", destination: "/dashboard/suite/overnight", permanent: false },
+      { source: "/console/rules", destination: "/dashboard/suite/rules", permanent: false },
+      { source: "/stage", destination: "/dashboard/suite/live", permanent: false },
+      { source: "/app", destination: "/dashboard", permanent: false },
+      { source: "/app/:path*", destination: "/dashboard", permanent: false },
     ];
   },
   partialPrefetching: true,

@@ -7,6 +7,7 @@ import { callsOverview } from "@/app/console/calls/calls";
 import { itemDetail } from "@/app/console/today/detail";
 import { readOvernight } from "@/app/console/overnight/results";
 import { Icon } from "./_shell/Icon";
+import { PhoneCard } from "./_shell/PhoneCard";
 import { AREAS } from "./_shell/nav";
 
 export const metadata = { title: "Overview · Aegis" };
@@ -37,7 +38,7 @@ async function Pharmacy() {
             <p className="font-semibold">Needs a pharmacist now</p>
             <p className="text-sm text-ink-3">{open.length === 0 ? "Nothing waiting." : `${open.length} waiting, Review first.`}</p>
           </div>
-          <Link href="/app/pharmacy/today" className={buttonClass(open.length ? "primary" : "secondary", "sm")}>
+          <Link href="/dashboard/calls" className={buttonClass(open.length ? "primary" : "secondary", "sm")}>
             Open Today
           </Link>
         </div>
@@ -75,7 +76,7 @@ async function Safety() {
         <p className="flex items-center gap-2 font-semibold">
           <Icon name="gate" className="size-[18px] text-accent" /> Safety suite
         </p>
-        <Link href="/app/safety/overnight" className="text-sm text-ink-2 hover:text-ink">
+        <Link href="/dashboard/suite" className="text-sm text-ink-2 hover:text-ink">
           Details →
         </Link>
       </div>
@@ -107,25 +108,6 @@ async function Safety() {
   );
 }
 
-function PhoneCard() {
-  return (
-    <Card>
-      <p className="flex items-center gap-2 font-semibold">
-        <Icon name="phone" className="size-[18px] text-accent" /> Patient phone
-      </p>
-      <p className="mt-2 text-sm text-ink-2">The patient&apos;s side of the call, as its own device. Pair it to a patient from Today, then open it on that phone.</p>
-      <div className="mt-4 flex flex-wrap gap-2">
-        <a href="/phone" target="_blank" rel="noopener" className={buttonClass("primary", "sm")}>
-          Open phone <span aria-hidden>↗</span>
-        </a>
-        <Link href="/app/pharmacy/today#pair" className={buttonClass("secondary", "sm")}>
-          Pair a phone
-        </Link>
-      </div>
-    </Card>
-  );
-}
-
 export default function OverviewPage() {
   return (
     <>
@@ -142,14 +124,18 @@ export default function OverviewPage() {
           <Suspense fallback={<div className="h-64 animate-pulse rounded-card bg-sunken" />}>
             <Safety />
           </Suspense>
-          <PhoneCard />
+          <Card>
+            <Suspense fallback={null}>
+              <PhoneCard />
+            </Suspense>
+          </Card>
         </div>
       </div>
 
       <Eyebrow className="mb-3 mt-10">Go to</Eyebrow>
       <div className="grid gap-3 md:grid-cols-2">
         {AREAS.map((a) => (
-          <Card key={a.key} padded={false} className={cn(a.key === "safety" && "theme-dark theme-safety bg-canvas text-ink")}>
+          <Card key={a.key} padded={false} className={cn(a.key === "suite" && "theme-dark theme-safety bg-canvas text-ink")}>
             <p className="px-5 pt-4 font-semibold">{a.label}</p>
             <ul className="grid grid-cols-1 gap-0.5 p-2 sm:grid-cols-2">
               {a.items.map((item) => (

@@ -84,8 +84,8 @@ const SPEECH = [
 ];
 
 const PAGES = [
-  { href: "/app/pharmacy/today", title: "Pharmacy calls", body: "For the pharmacist: today's queue with Review first, upcoming refills, every call with its record. Sign in to approve." },
-  { href: "/app/safety/gate", title: "Safety suite", body: "The live gate, attacks from a compromised AI, scripted scenarios, overnight results and every rule with why it's there." },
+  { href: "/dashboard/calls", title: "Pharmacy calls", body: "For the pharmacist: today's queue with Review first, upcoming refills, every call with its record. Sign in to approve." },
+  { href: "/dashboard/suite", title: "Safety suite", body: "The live gate, attacks from a compromised AI, scripted scenarios, overnight results and every rule with why it's there." },
   { href: "/phone", title: "Patient phone", body: "The patient's side, on its own device. Answer the pharmacy's call, give the code, and try to talk it into something it shouldn't do." },
 ];
 
