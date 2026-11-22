@@ -16,6 +16,8 @@ export type PressRecordOutput = {
     matched?: boolean;
     codeHash?: string;
     codeSent?: boolean;
+    /** check_code compared a code (or date of birth) for this patient and it was wrong (Trail #86). */
+    codeFailed?: boolean;
     queueItemId?: string;
     orderId?: string;
   };

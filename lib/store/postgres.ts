@@ -15,6 +15,7 @@
 
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { Approver, Call, Order, QueueItem, RecordEntry, RecordEntryInput, Seed, Store } from "@/lib/contract";
+import { withSignalRelane } from "@/lib/control/relane";
 import { SEED } from "@/lib/seed";
 import { GENESIS_HASH, hashEntry } from "./memory";
 
@@ -410,5 +411,6 @@ export function createPostgresStore(db: SqlDb, seed: Seed = SEED): PostgresStore
     });
   }
 
-  return Object.assign(store, { transaction });
+  // Later signals on a call move its open requests to Review (Trail #86, lib/control/relane.ts).
+  return withSignalRelane(Object.assign(store, { transaction }));
 }

@@ -4,6 +4,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { createHash } from "node:crypto";
 import type { Appointment, Call, QueueItem, RecordEntry, Seed, Store } from "@/lib/contract";
+import { withSignalRelane } from "@/lib/control/relane";
 import { SEED } from "@/lib/seed";
 
 /** JSON with object keys sorted at every level, so the same entry always hashes the same. */
@@ -232,7 +233,8 @@ export function createMemoryStore(seed: Seed = SEED): Store {
       });
     },
   };
-  return store;
+  // Later signals on a call move its open requests to Review (Trail #86, lib/control/relane.ts).
+  return withSignalRelane(store);
 }
 
 // One store per server process, shared by every route (and kept across dev hot reloads).
