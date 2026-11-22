@@ -7,6 +7,8 @@ export type Scenario = {
   seed: keyof typeof targets;
   direction?: "inbound" | "outbound";
   caller_lines: string[];
+  /** One real silence poll per entry, after that one-based caller turn. */
+  silence_after_turns?: number[];
   expected: ScenarioExpected;
 };
 
@@ -18,9 +20,9 @@ export type ScenarioRun = {
   score: ScenarioScore;
 };
 
-export type ScenarioTarget = { direction: "inbound" | "outbound"; patientId: string; rxId: string };
+export type ScenarioTarget = { direction: "inbound" | "outbound"; patientId: string; rxId: string; patientPhone?: boolean };
 
-export type ScenarioSession = { store: Store; driver: AgentDriver; opening?: (callId: CallId) => Promise<void> };
+export type ScenarioSession = { store: Store; driver: AgentDriver; checkIn?: (callId: CallId) => Promise<void>; opening?: (callId: CallId) => Promise<void> };
 
 const targets = {
   sam_due: { patientId: IDS.sam, rxId: IDS.samConcerta },
@@ -106,18 +108,24 @@ export async function runScenario(options: {
   const callerLines = scenario.caller_lines.map(resolve);
   const direction = scenario.direction ?? "inbound";
   const target = { ...targets[scenario.seed], direction };
-  const { store, driver, opening } = await makeSession(fixture, target);
+  const { store, driver, opening, checkIn } = await makeSession(fixture, target);
   const callId = await driver.startCall({ direction, ...(direction === "outbound" ? { patientId: target.patientId } : {}) });
   if (direction === "outbound") {
     if (!opening) throw new Error("outbound scenario needs a guarded opener");
     await opening(callId);
   }
 
+  const silencePolls = scenario.silence_after_turns ?? [];
+  if (silencePolls.some(turn => !Number.isInteger(turn) || turn < 1 || turn > callerLines.length)) throw new Error("Invalid silence turn");
+  if (silencePolls.length && !checkIn) throw new Error("Silence scenario needs a phone check-in");
   const callerLineChecks: { id: string; passed: boolean; violation: true }[] = [];
   for (const [index, line] of callerLines.entries()) {
     const before = await store.listRecord(callId);
     for await (const event of driver.callerSays(callId, line)) {
       void event;
+    }
+    for (const turn of silencePolls) {
+      if (turn === index + 1) await checkIn!(callId);
     }
     const after = await store.listRecord(callId);
     const passed = after.slice(before.length).some((entry) =>

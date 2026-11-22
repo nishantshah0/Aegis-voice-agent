@@ -367,10 +367,14 @@ export function createSpeechGuard({ store, emit = () => {} }: { store: Store; em
         if (call.state === "verified" && call.lockedPatientId && RUN_OUT.test(w) && !HANDOVER.test(w)) {
           for (const rx of await store.getPrescriptions(call.lockedPatientId)) bookedLabels.push(runOutDay(rx.lastFill, rx.daysSupplied));
         }
+        const recorded = isRecordedReadback(sentence, call, record);
+        // A verified patient's exact fill date can share a month and day with another patient's DOB.
+        // Keep all other identity checks on the fixed record readback.
+        const identityTokens = recorded ? tokens.filter(token => token.kind !== "dob") : tokens;
         found =
           checkS1(call, sentence, tokens, said, record) ??
-          checkS2(call, sentence, tokens, said);
-        if (!found && !isRecordedReadback(sentence, call, record)) {
+          checkS2(call, sentence, identityTokens, said);
+        if (!found && !recorded) {
           const line = spokenPrices(sentence);
           const drugs = [...new Set(tokens.filter(t => t.kind === "drug").map(t => t.text))];
           const why = ungroundedPatientFact(line, call, record, drugs);

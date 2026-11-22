@@ -110,7 +110,7 @@ export function ScenarioTable({ rows, groups }: { rows: TableRow[]; groups: { ke
                   <div className="min-w-0 flex-1 basis-72">
                     <p className="flex items-center gap-2 text-[15px] font-medium">
                       {words(r.id)}
-                      {!r.inSuite && <Badge>Not in the 28-card suite</Badge>}
+                      {!r.inSuite && <Badge>Not in the fixed suite</Badge>}
                     </p>
                     <p className="truncate text-xs text-ink-3" title={r.goal}>
                       {r.groupLabel} · {r.persona}

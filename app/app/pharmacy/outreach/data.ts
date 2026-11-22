@@ -2,7 +2,7 @@
 // Nothing here is typed in: no saved run means "no run yet" and the command that makes one.
 
 import { getApprover } from "@/lib/auth/session";
-import { listRuns, readRun, type ForecastRow, type LaneCounts, type SimCall, type SimRefill, type SimSummary } from "@/lib/sim";
+import { listRuns, readRun, type SavedRun, type ForecastRow, type LaneCounts, type SimCall, type SimRefill, type SimSummary } from "@/lib/sim";
 import type { FillEvent, PastCall, PreferredCallTime, StoppedMed } from "@/lib/seed/population";
 
 export const SIM_COMMAND = "SIM=1 npx vitest run scripts/sim.run.test.ts";
@@ -10,6 +10,7 @@ export const SIM_COMMAND = "SIM=1 npx vitest run scripts/sim.run.test.ts";
 export type OutreachRow = ForecastRow & {
   preferredCallTime: PreferredCallTime;
   dob: string;
+  prescription?: { number: string; lastFill: string; days: number; quantity?: number; unit?: string; plan: string; patient: string };
   history: FillEvent[];
   stopped: StoppedMed[];
   pastCalls: PastCall[];
@@ -50,16 +51,22 @@ export async function loadOutreach(runId?: string): Promise<OutreachLoad> {
   const run = await readRun(id);
   if (!run) return { state: "missing", runId: id, runs };
 
+  return { state: "ok", data: outreachData(run, runs) };
+}
+
+export function outreachData(run: SavedRun, runs: RunChoice[] = []): OutreachData {
   const byPatient = new Map(run.population.patients.map((p) => [p.patient.id, p] as const));
   const calls = run.days.flatMap((d) => d.calls);
   const refills = run.days.flatMap((d) => d.refills);
   const rows: OutreachRow[] = run.forecast.map((f) => {
     const sp = byPatient.get(f.patientId)!;
+    const rx = sp.prescriptions.find(r => r.id === f.rxId);
     const history = sp.history[f.rxId] ?? [];
     return {
       ...f,
       preferredCallTime: sp.preferredCallTime,
       dob: sp.patient.dob,
+      ...(rx && { prescription: { number: rx.rxNumber, lastFill: rx.lastFill, days: rx.daysSupplied, quantity: rx.lastDispensedQuantity?.count, unit: rx.lastDispensedQuantity?.unit, plan: rx.planPays, patient: rx.patientPays } }),
       history,
       stopped: sp.stopped,
       pastCalls: sp.pastCalls.filter((c) => c.rxId === f.rxId),
@@ -80,7 +87,7 @@ export async function loadOutreach(runId?: string): Promise<OutreachLoad> {
     withoutMedication: d.withoutMedication,
     rxIds: d.calls.map((c) => c.rxId),
   }));
-  return { state: "ok", data: { summary: run.summary, runs, rows, days } };
+  return { summary: run.summary, runs, rows, days };
 }
 
 /** The page's loader: checks the session first, so nothing is read for a signed-out request. */

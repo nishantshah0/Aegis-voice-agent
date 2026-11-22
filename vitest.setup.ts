@@ -5,6 +5,8 @@
 // opts in with LIVE_DB=1 and works in its own schema.
 
 export function clearTestDatabase(env: NodeJS.ProcessEnv = process.env): void {
+  // Simulation tests use isolated local files and PGlite, even on a host with a live archive configured.
+  delete env.AEGIS_DEMO_STORAGE_URL;
   if (env.LIVE_DB === "1") return;
   delete env.DATABASE_URL;
   delete env.DATABASE_CA_FILE;

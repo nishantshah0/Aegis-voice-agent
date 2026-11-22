@@ -51,3 +51,25 @@ export function speakReplayLine(line: ReplayLine, signal: AbortSignal): Promise<
     catch (error) { finish(); reject(error); }
   });
 }
+
+/** Reuse rendered clips only for this call. Every media element and object URL ends with its turn. */
+export async function playClip(blob: Blob, signal: AbortSignal): Promise<void> {
+  if (signal.aborted) return;
+  const url = URL.createObjectURL(blob);
+  const audio = new Audio(url);
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const done = () => {
+        audio.onended = audio.onerror = null;
+        signal.removeEventListener("abort", stop);
+      };
+      const stop = () => { done(); audio.pause(); resolve(); };
+      audio.onended = () => { done(); resolve(); };
+      audio.onerror = () => { done(); reject(new Error("Could not play the generated audio.")); };
+      signal.addEventListener("abort", stop, { once: true });
+      void audio.play().catch((error) => { done(); reject(error); });
+    });
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}

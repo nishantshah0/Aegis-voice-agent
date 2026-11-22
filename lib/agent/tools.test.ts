@@ -35,6 +35,20 @@ describe("1.2: the 12 buttons as tools", () => {
     }
   });
 
+  it.each(["check_coverage", "request_refill"] as const)("sends a strict integer schema for %s and enforces positive days in control", (name) => {
+    const tool = BUTTON_TOOLS.find((candidate) => candidate.name === name)!;
+    const fields = tool.input_schema.properties as Record<string, Prop>;
+    const field = fields.days_supply;
+    expect(tool.strict).toBe(true);
+    expect(field).toMatchObject({ type: "integer" });
+    expect(field).not.toHaveProperty("minimum"); // The Messages API rejects this keyword on strict integer inputs.
+    expect(tool.input_schema.required).not.toContain("days_supply");
+    for (const days_supply of [0, -1, 1.5, "7"]) {
+      expect(checkInput(name, { rx_id: "rx_demo", days_supply }).ok).toBe(false);
+    }
+    expect(checkInput(name, { rx_id: "rx_demo", days_supply: 7 }).ok).toBe(true);
+  });
+
   it("describe what a button does without listing what it refuses", () => {
     for (const tool of BUTTON_TOOLS) expect(tool.description ?? "").not.toMatch(/\b(never|must not|forbidden|refuse)/i);
   });

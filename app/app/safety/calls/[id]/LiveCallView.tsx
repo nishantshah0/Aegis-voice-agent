@@ -2,7 +2,7 @@
 
 import { useEffectEvent, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { replayLines, speakReplayLine } from "@/lib/voice/replay";
+import { playClip, replayLines, speakReplayLine } from "@/lib/voice/replay";
 import type { LiveCall, LiveTurn } from "@/app/api/_lib/live-calls";
 import { ruleWords } from "@/app/stage/attacks";
 import { Badge, Button, RuleTag, TableEmpty, cn } from "@/components/ui";
@@ -64,28 +64,6 @@ function tick(ctx: AudioContext): Promise<void> {
   osc.start();
   osc.stop(ctx.currentTime + 0.09);
   return new Promise((r) => setTimeout(r, 160));
-}
-
-/** Reuse rendered clips only for this call. Every media element and object URL ends with its turn. */
-async function playClip(blob: Blob, signal: AbortSignal): Promise<void> {
-  if (signal.aborted) return;
-  const url = URL.createObjectURL(blob);
-  const audio = new Audio(url);
-  try {
-    await new Promise<void>((resolve, reject) => {
-      const done = () => {
-        audio.onended = audio.onerror = null;
-        signal.removeEventListener("abort", stop);
-      };
-      const stop = () => { done(); audio.pause(); resolve(); };
-      audio.onended = () => { done(); resolve(); };
-      audio.onerror = () => { done(); reject(new Error("Could not play the generated audio.")); };
-      signal.addEventListener("abort", stop, { once: true });
-      void audio.play().catch((error) => { done(); reject(error); });
-    });
-  } finally {
-    URL.revokeObjectURL(url);
-  }
 }
 
 function useVoice(callId: string) {

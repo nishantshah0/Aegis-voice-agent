@@ -2,13 +2,16 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui";
-import { replayLines, speakReplayLine, type ReplayEntry } from "@/lib/voice/replay";
+import { playClip, replayLines, speakReplayLine, type ReplayEntry, type ReplayLine } from "@/lib/voice/replay";
 
-type Props = { entries: ReplayEntry[]; recordingUrl?: string; verdict?: string };
+type Props = { entries: ReplayEntry[]; recordingUrl?: string; tickets?: Record<number, string>; verdict?: string };
 
 /** Mount with a key for the selected call, so switching calls stops any pending voice. */
-export function CallReplay({ entries, recordingUrl, verdict }: Props) {
+export function CallReplay({ entries, recordingUrl, tickets, verdict }: Props) {
   const lines = useMemo(() => replayLines(entries), [entries]);
+  const clips = useRef(new Map<string, Blob>());
+  const browserOnly = useRef(!tickets);
+  const [browserVoice, setBrowserVoice] = useState(!tickets);
   const active = useRef<AbortController | null>(null);
   const [cursor, setCursor] = useState(0);
   const [playing, setPlaying] = useState(false);
@@ -21,6 +24,32 @@ export function CallReplay({ entries, recordingUrl, verdict }: Props) {
     active.current = null;
     setPlaying(false);
   };
+  async function playLine(line: ReplayLine, signal: AbortSignal) {
+    const ticket = tickets?.[line.seq];
+    if (ticket && !browserOnly.current) {
+      try {
+        let audio = clips.current.get(ticket);
+        if (!audio) {
+          const res = await fetch("/api/calls/replay/speak", {
+            method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ticket }), signal,
+          });
+          if (res.status === 401 || res.status === 403) throw new DOMException("Reopen the call to refresh playback access.", "SecurityError");
+          if (!res.ok) throw new Error("ElevenLabs is unavailable.");
+          audio = await res.blob();
+          if (signal.aborted) return;
+          clips.current.set(ticket, audio);
+        }
+        await playClip(audio, signal);
+        return;
+      } catch (error) {
+        if (signal.aborted) return;
+        if (error instanceof DOMException && error.name === "SecurityError") throw error;
+        browserOnly.current = true;
+        setBrowserVoice(true);
+      }
+    }
+    await speakReplayLine(line, signal);
+  }
   async function play(start: number) {
     active.current?.abort();
     const run = new AbortController();
@@ -31,7 +60,7 @@ export function CallReplay({ entries, recordingUrl, verdict }: Props) {
     try {
       for (let i = start; i < lines.length; i++) {
         setCursor(i);
-        await speakReplayLine(lines[i], run.signal);
+        await playLine(lines[i], run.signal);
         if (run.signal.aborted) return;
       }
       setCursor(lines.length);
@@ -54,7 +83,7 @@ export function CallReplay({ entries, recordingUrl, verdict }: Props) {
             {playing ? "Pause" : complete ? "Replay again" : started ? "Resume replay" : "Play call aloud"}
           </Button>
           {cursor > 0 && !complete && <Button size="sm" variant="secondary" onClick={() => void play(0)}>Restart</Button>}
-          <span className="text-xs text-ink-2">{lines.length ? "Transcript read by browser voices" : "No spoken lines in this record"}</span>
+          <span className="text-xs text-ink-2">{!lines.length ? "No spoken lines in this record" : browserVoice ? "Transcript read by browser voices" : "Transcript voiced by ElevenLabs"}</span>
         </>}
       </div>
       {recordingUnavailable && <p className="mt-2 text-xs text-ink-2">The original recording is unavailable.</p>}

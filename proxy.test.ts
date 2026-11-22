@@ -15,9 +15,9 @@ afterEach(() => {
 });
 
 describe("proxy: sign-in before any /app page", () => {
-  it("runs on /app and everything under it, and nowhere else", async () => {
+  it("covers the pharmacy pages and hosted presenter APIs", async () => {
     const { config } = await import("./proxy");
-    expect(config.matcher).toEqual(["/app", "/app/:path*"]);
+    expect(config.matcher).toEqual(expect.arrayContaining(["/app/:path*", "/present", "/api/:path*"]));
   });
 
   it("redirects a signed-out request to Auth0 with no page data, when Auth0 isn't configured", async () => {

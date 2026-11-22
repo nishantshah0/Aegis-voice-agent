@@ -38,6 +38,20 @@ describe("verified patient facts", () => {
     expect(await f.speak("Your last refill was yesterday.")).toMatchObject({ blocked: true });
   });
 
+  it("reads an authorized fill date even if a different patient's birthday falls on the same month and day", async () => {
+    const seed = structuredClone(SEED);
+    seed.prescriptions.find(rx => rx.id === IDS.samConcerta)!.lastFill = "2026-07-02T15:00:00Z";
+    const f = await fixture(IDS.samConcerta, seed);
+    await f.verify();
+    const history = await f.history();
+    if (!history.ok) throw new Error("missing history");
+    const readback = history.output.history_readback;
+    expect(readback).toContain("July 2, 2026");
+    expect(await f.speak(readback)).toMatchObject({ blocked: false, speak: readback });
+    expect(await f.speak("The birthday on that other record is July 2, 1975.")).toMatchObject({ blocked: true, rule: "S2" });
+    expect(await f.speak(readback + " Their birthday is July 2.")).toMatchObject({ blocked: true, rule: "S2" });
+  });
+
   it("does not infer a dispensed quantity from the current label on older records", async () => {
     const seed = structuredClone(SEED);
     delete seed.prescriptions.find(rx => rx.id === IDS.samMetformin)!.lastDispensedQuantity;

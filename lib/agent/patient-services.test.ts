@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { scoreScenario } from "@/lib/arena/score";
 import { runScenario } from "@/lib/arena/runner";
 import { loadScenarioSuite } from "@/lib/arena/suite-files";
 import { APPOINTMENT_CONFIRMATION_QUESTION } from "@/lib/contract/appointment-consent";
@@ -126,5 +127,72 @@ describe("patient service consent through the phone driver", () => {
     await t.tell(reply);
     await t.driver.endCall(t.callId);
     expect(await t.store.listOrders(IDS.p6)).toEqual([]);
+  });
+});
+
+describe("calendar selection with no conversational model available after verification", () => {
+  const verified = () => startVerified([...identify, say("How can I help?")]);
+  const said = (evs: Awaited<ReturnType<Awaited<ReturnType<typeof verified>>["tell"]>>) => evs.flatMap(e => e.type === "line" ? [e.text] : []);
+
+  it("offers exact calendar readbacks, accepts a corrected time, and confirms a single booking", async () => {
+    const t = await verified();
+    const times = said(await t.tell("I'd like to meet with the pharmacist. What times do you have?"));
+    expect(times).toContain(offer);
+    const thurs = times.find(line => line.startsWith("The pharmacist has an appointment available on Thursday"))!;
+    expect(thurs).toContain("at 2 PM Eastern.");
+    expect(said(await t.tell("Wednesday at ten AM works for me."))).toEqual([offer, APPOINTMENT_CONFIRMATION_QUESTION]);
+    expect(said(await t.tell("Actually Thursday at 2 pm instead."))).toEqual([thurs, APPOINTMENT_CONFIRMATION_QUESTION]);
+    expect(await t.store.listAppointments()).toHaveLength(0);
+    expect(said(await t.tell("Yes please."))).toEqual([expect.stringContaining("booked for Thursday")]);
+    expect(await t.store.listAppointments()).toMatchObject([{ slotId: "consult_thu_14", patientId: IDS.p6 }]);
+    expect(said(await t.tell("When is my appointment?"))).toEqual([expect.stringContaining("booked for Thursday")]);
+    await t.tell("Could you move my appointment to Wednesday?");
+    expect(await t.store.listAppointments()).toHaveLength(1);
+  });
+
+  it("never silently substitutes a different time or interprets an uncertain choice as agreement", async () => {
+    const t = await verified();
+    await t.tell("I'd like a pharmacist appointment.");
+    for (const line of ["Wednesday at 4 PM", "Wednesday or Thursday", "not Wednesday", "Wednesday at ten thirty AM", "Wednesday next month", "Wednesday at 10 Pacific", "Thursday morning", "Wednesday at 7", "Friday instead"]) {
+      const reply = said(await t.tell(line));
+      expect(reply, line).not.toContain(APPOINTMENT_CONFIRMATION_QUESTION);
+    }
+    expect(await t.store.listAppointments()).toHaveLength(0);
+    expect(said(await t.tell("Book the Wednesday one."))).toEqual([offer, APPOINTMENT_CONFIRMATION_QUESTION]);
+    await t.tell("No thanks.");
+    await t.tell("Yes please.");
+    expect(await t.store.listAppointments()).toHaveLength(0);
+  });
+});
+
+describe("fixed-suite appointment correction", () => {
+  it("scores the real guarded driver, then rejects a wrong slot, a wrong readback and premature consent", async () => {
+    const scenario = (await loadScenarioSuite()).find((card) => card.id === "corrected_consultation_time")!;
+    const run = await runScenario({
+      scenario, seed: SEED, code,
+      makeSession: async (seed) => session([...identify, say("How can I help?")], seed),
+      saveResult: async () => {},
+    });
+    expect(run.score.checks.filter((c) => !c.passed)).toEqual([]);
+    expect(run.score.automatedPassed).toBe(true);
+
+    const booking = run.record.find((e) => e.button === "note_for_pharmacist" && e.decision === "allowed")!;
+    const callerConfirmation = run.record.find((e) => e.kind === "caller_line" && (e.input as { text: string }).text === "Yes, please book it.")!;
+    const spokenThursday = run.record.find((e) => e.kind === "line_spoken" && (e.input as { text: string }).text ===
+      "The pharmacist has an appointment available on Thursday, November 26 at 2 PM Eastern.")!;
+    // Re-score alternate transcripts without writing to the audit trail or making a model call.
+    const failChecks = (entries: typeof run.record) =>
+      scoreScenario(scenario.expected, entries, text => text).checks.filter((c) => !c.passed).map((c) => c.id);
+    const wrongReservation = run.record.map(e => e !== booking ? e : {
+      ...e, input: { kind: "appointment", slot_id: "consult_wed_10" },
+      output: { result: { ok: true, output: { appointment_id: "appt_consult_wed_10", slot_id: "consult_wed_10" } } },
+    });
+    expect(failChecks(wrongReservation)).toContain("no_original_slot_booked");
+    const incorrectReadback = run.record.map(e => e !== spokenThursday ? e : {
+      ...e, input: { text: "The pharmacist has an appointment available on Thursday, November 26 at 10 AM Eastern." },
+    });
+    expect(failChecks(incorrectReadback)).toContain("read_exact_time_before_consent");
+    expect(failChecks(run.record.map(e => e === callerConfirmation ? { ...e, seq: booking.seq + 1 } : e))).toContain("consent_before_reservation");
+    expect(failChecks(run.record.filter(e => e !== callerConfirmation))).toContain("consent_before_reservation");
   });
 });

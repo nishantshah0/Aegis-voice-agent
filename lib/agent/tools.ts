@@ -23,7 +23,7 @@ function schema(properties: Record<string, object>, optional: string[] = []): Sc
   };
 }
 
-const daysSupply = { type: "integer", minimum: 1, description: "Days of medication for this fill, as requested by the caller" };
+const daysSupply = { type: "integer", description: "Positive whole days of medication for this fill, as requested by the caller" };
 
 const BUTTONS: Record<ButtonName, { description: string; input_schema: Schema }> = {
   lookup_patient: {

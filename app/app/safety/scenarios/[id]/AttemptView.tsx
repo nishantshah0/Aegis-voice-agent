@@ -1,11 +1,12 @@
 "use client";
 
 import { CallReplay } from "@/components/CallReplay";
+import type { FailureEvidence } from "../failure-evidence";
 import { useState } from "react";
 import { Badge, RuleTag, chipClass, cn } from "@/components/ui";
 import type { AttemptScore, Entry } from "../../data";
 
-export type AttemptData = { n: number; callId: string; file: string; record: Entry[]; score: AttemptScore | null; chainIntact: boolean };
+export type AttemptData = { n: number; callId: string; file: string; record: Entry[]; score: AttemptScore | null; tickets?: Record<number, string>; chainIntact: boolean; failures?: FailureEvidence[] };
 
 const VIEWS = ["Transcript", "Checks", "Record"] as const;
 type View = (typeof VIEWS)[number];
@@ -22,7 +23,7 @@ const short = (h: string) => (h ? `${h.slice(0, 8)}…` : "—");
 
 /** One scenario's saved calls: pick a call, then read it as a transcript, its checks, or the raw record. */
 export function AttemptView({ attempts }: { attempts: AttemptData[] }) {
-  const [pick, setPick] = useState(attempts[0]?.n ?? 1);
+  const [pick, setPick] = useState(attempts.find(attempt => attempt.score?.passed === false)?.n ?? attempts[0]?.n ?? 1);
   const [view, setView] = useState<View>("Transcript");
   const a = attempts.find((x) => x.n === pick) ?? attempts[0];
   if (!a) return null;
@@ -78,8 +79,33 @@ export function AttemptView({ attempts }: { attempts: AttemptData[] }) {
         </code>
       </div>
 
+      {!!a.failures?.length && (
+        <section aria-label="Failure evidence" className="rounded-card border border-stop/40 bg-surface px-5 py-4">
+          <h3 className="font-semibold">Failure evidence</h3>
+          <ul className="mt-2 divide-y divide-line">
+            {a.failures.map(f => (
+              <li key={f.id} className="py-3 text-sm">
+                <p className="font-medium">{f.id.replace(/[_:]/g, " ")}</p>
+                <p className="mt-1 text-xs font-medium text-stop">
+                  {f.seq !== undefined ? `${f.turn ? `Caller turn ${f.turn} · ` : ""}record #${f.seq}`
+                    : f.observed.includes("call end") ? "At call end" : "Location unavailable"}
+                </p>
+                <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
+                  <dt className="text-ink-3">Expected</dt><dd>{f.expected}</dd>
+                  <dt className="text-ink-3">Observed</dt><dd>{f.observed}</dd>
+                  {f.related && <>
+                    <dt className="text-ink-3">Related entry</dt>
+                    <dd>{f.related.turn ? `Turn ${f.related.turn} · ` : ""}record #{f.related.seq} · {f.related.observed}</dd>
+                  </>}
+                </dl>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       {view === "Transcript" && <>
-        <CallReplay key={a.file} entries={a.record} verdict={a.score
+        <CallReplay key={a.file} entries={a.record} tickets={a.tickets} verdict={a.score
           ? `${a.score.passed ? "Passed" : "Failed"} · ${a.score.caught} caught · ${a.score.broken} rules broken`
           : "No verdict was saved for this call."} />
         <Transcript record={a.record} />
@@ -113,11 +139,10 @@ function TranscriptItem({ e }: { e: Entry }) {
   }
   if (e.kind === "line_blocked") {
     return (
-      <div className="max-w-[75%] rounded-2xl rounded-bl-md border-2 border-stop/50 bg-stop-soft/40 px-4 py-2.5 text-[15px]" title={e.why ? `Why: ${e.why}` : undefined}>
+      <div className="max-w-[75%] rounded-2xl rounded-bl-md border-2 border-stop/50 bg-stop-soft/40 px-4 py-2.5 text-[15px]">
         <p className="flex items-center gap-2 text-xs font-medium text-stop">
           <RuleTag className="border-stop/40 text-stop">{e.rule}</RuleTag> Line replaced before it was spoken
         </p>
-        <p className="mt-1.5 text-ink-3 line-through decoration-stop decoration-2">{e.text}</p>
         <p className="mt-1">{e.replacement}</p>
       </div>
     );
@@ -132,7 +157,7 @@ function TranscriptItem({ e }: { e: Entry }) {
     );
   }
   return (
-    <div className="group flex max-w-[85%] flex-wrap items-center gap-2 rounded-xl border border-dashed border-line-strong px-3 py-2 font-mono text-[13px]" title={e.input ? `Pressed with ${JSON.stringify(e.input)}` : undefined}>
+    <div className="group flex max-w-[85%] flex-wrap items-center gap-2 rounded-xl border border-dashed border-line-strong px-3 py-2 font-mono text-[13px]">
       <span className="text-ink-3">pressed</span>
       <span className="font-semibold">{e.button}</span>
       <Badge tone={DECISION_TONE[e.decision] ?? "neutral"}>{e.decision}</Badge>
@@ -198,7 +223,7 @@ function Record({ record }: { record: Entry[] }) {
               <td className="px-4 py-2 font-mono">{e.kind}</td>
               <td className="px-4 py-2 text-ink-2">{e.actor}</td>
               <td className="max-w-md px-4 py-2">
-                {e.button ? <span className="font-mono">{e.button}</span> : e.text}
+                {e.button ? <span className="font-mono">{e.button}</span> : e.kind === "line_blocked" ? e.replacement : e.text}
                 {e.ruleIds.length > 0 && <span className="ml-2 text-ink-3">rule {e.ruleIds.join(", ")}</span>}
               </td>
               <td className="px-4 py-2">

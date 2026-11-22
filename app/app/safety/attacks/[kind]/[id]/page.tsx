@@ -1,3 +1,4 @@
+import { replayTickets } from "@/app/api/_lib/replay-tickets";
 import { Suspense } from "react";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -64,6 +65,7 @@ async function AttackCall({ params }: { params: Promise<{ kind: string; id: stri
     callId: String(file.callId ?? record[0]?.seq ?? ""),
     file: shortPath(path),
     record,
+    tickets: replayTickets(path, record),
     chainIntact: chainIntact(record),
     score: scored ? { n: 1, callId: String(file.callId ?? ""), passed, caught, broken, checks, manualReview: [] } : null,
   };

@@ -314,15 +314,17 @@ export function OutreachView({ data }: { data: OutreachData }) {
         )}
       </Card>
 
-      <section>
+      <section aria-labelledby="directory-heading">
+        <h2 id="directory-heading" className="mb-3 text-xl font-semibold text-ink">Patient directory</h2>
         <div className="flex flex-wrap items-center gap-2">
           <input
+            id="patients"
             type="search"
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Search name, drug or phone"
             aria-label="Search patients"
-            className={inputClass("w-64")}
+            className={inputClass("w-full scroll-mt-16 sm:w-64")}
           />
           <label className="inline-flex h-8 items-center gap-2 rounded-lg border border-line-strong bg-sunken px-3 text-[13px] text-ink-2">
             Runs out within

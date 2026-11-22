@@ -1,3 +1,5 @@
+import { calendarIntent, chooseCalendarOffer } from "./appointments";
+import { collectIdentity, GREETING_ONLY, LIMITED_MENU, PHONE_MENU, readCode, type LocalIdentity } from "./limited-service";
 import { APPOINTMENT_CONFIRMATION_QUESTION, confirmsBooking } from "@/lib/contract/appointment-consent";
 // The real agent (tasks 1.2 and 1.3): an AgentDriver on Claude with the 12 buttons as tools.
 //
@@ -69,6 +71,7 @@ export type CallLifecycle = {
 };
 
 export type AgentDriverOptions = {
+  patientPhone?: boolean;
   calls: CallLifecycle;
   press: PressFn;
   guardSentence: GuardSentenceFn;
@@ -121,6 +124,9 @@ type CallState = {
   heldRefill?: { rxId: RxId; input: unknown };
   facts: ReturnType<typeof newFactContext>;
   appointmentSlots: Map<string, string>;
+  choosingAppointment?: boolean;
+  checkedIn?: boolean;
+  limited?: LocalIdentity;
   pendingAppointment?: { input: ButtonInputs["note_for_pharmacist"]; offer: string; asked: boolean };
   /** 1.x: what the caller heard from the agent on the current caller line. */
   turnSaid: string[];
@@ -290,6 +296,7 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
     if (name === "order_status" && (input as ButtonInputs["order_status"]).include_appointments) {
       const { appointment_slots } = result.output as { appointment_slots?: { slot_id: string; availability_text: string }[] };
       call.appointmentSlots = new Map((appointment_slots ?? []).map((slot) => [slot.slot_id, slot.availability_text]));
+      call.choosingAppointment = !!appointment_slots?.length;
     }
     if (name === "read_label" && typeof rxId === "string") call.labels.set(rxId, (result.output as { label_text: string }).label_text);
     if (name === "note_for_pharmacist" && (input as { kind?: unknown })?.kind === "side_effect") {
@@ -428,6 +435,47 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
     yield* speak(callId, state.get(callId)?.handover ?? HANDOVER_LINE);
   }
 
+  async function* limitedReply(callId: CallId, call: CallState, text: string): AsyncIterable<AgentEvent> {
+    const identity = call.limited ??= {};
+    if (/^(?:please )?(?:(?:get|give|connect|transfer) me (?:to )?(?:a |the )?|(?:i (?:want|need) (?:to (?:speak|talk) to )?)(?:a |the )?)?(?:pharmacist|human|person)(?: please)?[!. ]*$/i.test(text)) {
+      yield* handOver(callId, "The caller asked for a pharmacist.");
+      return;
+    }
+    if (call.verified) {
+      yield* speakFixed(callId, LIMITED_MENU);
+      return;
+    }
+    const code = readCode(text);
+    if (identity.lookupId && code) {
+      const input = { lookup_id: identity.lookupId, code };
+      const r = yield* pressFixed(callId, "check_code", input);
+      learn(call, "check_code", input, r);
+      if (call.verified) {
+        yield* speakFixed(callId, "Thank you. What would you like to know about your fill history or insurance price?");
+      } else {
+        yield* speakFixed(callId, r.ok && "locked_until" in r.output ? "Verification is locked. Please call back later." : "I couldn't verify that code. Please check the message on your phone.");
+      }
+      return;
+    }
+    if ((call.direction === "inbound" && /\b(?:refill|record|history|price|cost|insurance|prescription|rx|sim)\b|\d{4}-\d{2}-\d{2}/i.test(text)) || identity.rx_number || identity.dob) {
+      const lookup = collectIdentity(identity, text);
+      if (lookup) {
+        const r = yield* pressFixed(callId, "lookup_patient", lookup);
+        if (r.ok) {
+          identity.lookupId = r.output.lookup_id;
+          delete identity.dob;
+          delete identity.name;
+          delete identity.rx_number;
+          yield* speakFixed(callId, "If those details match, I've sent a code to the phone on file.");
+          return;
+        }
+      }
+      yield* speakFixed(callId, "For a record lookup, give your full name, date of birth as year-month-day, and the prescription number on the bottle.");
+      return;
+    }
+    yield* speakFixed(callId, LIMITED_MENU);
+  }
+
   return {
     async startCall(opts) {
       const callId = await calls.startCall(opts);
@@ -464,7 +512,12 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
 
     speakLine: speakFixed,
 
-    checkIn: (callId) => speakFixed(callId, STILL_THERE),
+    async *checkIn(callId) {
+      const call = state.get(callId);
+      if (!call || call.ended || call.checkedIn) return;
+      call.checkedIn = true;
+      yield* speakFixed(callId, STILL_THERE);
+    },
 
     async *callerSays(callId, text) {
       const call = state.get(callId);
@@ -474,6 +527,7 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
       }
       emit({ type: "line", callId, who: "caller", text });
       call.turnSaid = [];
+      call.checkedIn = false;
       const timing: ServerTurnTiming = { receivedAt: now() };
       call.timings.push(timing);
 
@@ -491,12 +545,18 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
         return;
       }
 
+      if (options.patientPhone && call.direction === "inbound" && !call.awaitingSideEffect && !call.pendingAppointment && GREETING_ONLY.test(text.trim())) {
+        pushUser(call, text);
+        yield* speakFixed(callId, PHONE_MENU);
+        return;
+      }
       const appointment = call.pendingAppointment;
       if (appointment?.asked) {
         call.pendingAppointment = undefined;
         if (confirmsBooking(text)) {
           pushUser(call, text);
           const result = yield* pressFixed(callId, "note_for_pharmacist", appointment.input);
+          call.choosingAppointment = false;
           const confirmation = result.ok && "confirmation_text" in result.output && typeof result.output.confirmation_text === "string"
             ? result.output.confirmation_text : "I couldn't book that time.";
           yield* speakFixed(callId, confirmation);
@@ -505,6 +565,53 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
         call.notes.push("That appointment was not booked. Follow the caller's latest request. If they want to book, select an available slot and confirm again.");
       }
 
+      if (call.verified && call.direction === "inbound" && !call.awaitingSideEffect && !call.heldRefill) {
+        const intent = calendarIntent(text, !!call.choosingAppointment || !!appointment);
+        call.choosingAppointment = false;
+        if (intent) {
+          pushUser(call, text);
+          if (intent === "decline" || intent === "other-person") {
+            yield* speakFixed(callId, intent === "decline" ? "Okay, I'll leave it there." : "I can only help with your own appointments.");
+            return;
+          }
+          const status = yield* pressFixed(callId, "order_status", { include_appointments: true });
+          if (!status.ok) {
+            yield* speakFixed(callId, "I couldn't retrieve the pharmacist's calendar.");
+            return;
+          }
+          const slots = status.output.appointment_slots ?? [];
+          const bookings = status.output.appointments ?? [];
+          if (intent === "status" || intent === "manage" || bookings.length) {
+            for (const booked of bookings) yield* speakFixed(callId, booked.confirmation_text);
+            if (!bookings.length) yield* speakFixed(callId, "I don't see an upcoming consultation on your record.");
+            if (intent === "manage") yield* speakFixed(callId, "A pharmacist can help change or cancel an existing time.");
+            return;
+          }
+          if (!slots.length) {
+            yield* speakFixed(callId, "I don't see any open consultation times.");
+            return;
+          }
+          call.choosingAppointment = true;
+          const selection = chooseCalendarOffer(text, slots);
+          if (!selection) {
+            for (const slot of slots) yield* speakFixed(callId, slot.availability_text);
+            yield* speakFixed(callId, "Which of those times would you like?");
+            return;
+          }
+          yield* speakFixed(callId, selection.availability_text);
+          if (call.turnSaid.at(-1) === selection.availability_text) {
+            yield* speakFixed(callId, APPOINTMENT_CONFIRMATION_QUESTION);
+            if (call.turnSaid.at(-1) === APPOINTMENT_CONFIRMATION_QUESTION) {
+              call.pendingAppointment = {
+                input: { kind: "appointment", slot_id: selection.slot_id },
+                offer: selection.availability_text,
+                asked: true,
+              };
+            }
+          }
+          return;
+        }
+      }
       if (call.heldRefill && changesRefill(text)) {
         call.heldRefill = undefined;
         if (call.awaitingSideEffect) call.askedSideEffects.delete(call.awaitingSideEffect);
@@ -544,6 +651,10 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
       // 1.x: a persona or off-task request gets a reminder on that line (it decides nothing).
       if (asksForAPersona(text)) call.notes.push(STAY_ON_TASK_NOTE);
       pushUser(call, text);
+      if (call.limited) {
+        yield* limitedReply(callId, call, text);
+        return;
+      }
       const system = systemFor(call);
 
       for (let step = 0; step < maxSteps; step++) {
@@ -551,7 +662,9 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
         let turn: ModelTurn | undefined;
         // Presses made by a model that runs its own tool steps (the Agent SDK), yielded in order.
         const pressed: AgentEvent[] = [];
+        let attemptedPress = false;
         const pressForModel: PressForModel = async (name, input) => {
+          attemptedPress = true;
           const r = await pressOne(callId, name, input, refilled);
           pressed.push(...r.events);
           return { content: r.content, isError: r.isError };
@@ -570,6 +683,11 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
           // The model is unavailable (usage cap, SDK error, network): say so through the guard and get a person.
           for (const sentence of splitter.flush()) yield* speak(callId, sentence);
           yield* pressed.splice(0);
+          if (options.patientPhone && call.direction === "inbound" && !call.heldRefill && !call.awaitingSideEffect && !call.pendingAppointment && !refilled.length && step === 0 && !attemptedPress && !call.turnSaid.length) {
+            model.endCall?.(callId);
+            yield* limitedReply(callId, call, text);
+            return;
+          }
           yield* handOver(callId, error instanceof UsageCapError ? "The assistant reached its usage limit." : "The assistant could not continue this call.");
           return;
         }

@@ -1,3 +1,4 @@
+import { replayTickets } from "@/app/api/_lib/replay-tickets";
 import { readFile } from "node:fs/promises";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -234,7 +235,7 @@ async function Body({ params }: { params: PageProps<"/app/pharmacy/calls/[id]">[
         <section>
           <Eyebrow>What happened, from the record</Eyebrow>
           <div className="mt-3">
-            <CallReplay key={call.callId} entries={call.timeline} recordingUrl={call.hasRecording ? `/api/calls/${encodeURIComponent(call.callId)}/recording` : undefined} />
+            <CallReplay key={call.callId} entries={call.timeline} tickets={replayTickets(call.callId + call.startedAt, call.timeline)} recordingUrl={call.hasRecording ? `/api/calls/${encodeURIComponent(call.callId)}/recording` : undefined} />
             <Timeline events={call.timeline} />
           </div>
         </section>

@@ -62,6 +62,7 @@ const INDEX = [
   { page: "A2", href: "/app/pharmacy/today", title: "Pharmacy calls", body: "Today's queue, Review first. Approve with the reason and the record beside it." },
   { page: "A3", href: "/app/safety/gate", title: "Safety suite", body: "The live gate, attacks from a compromised AI, scenarios, overnight runs and every rule." },
   { page: "A4", href: "/phone", title: "The patient's phone", body: "Answer the pharmacy's call. Read back the code. Try to talk it into something." },
+  { page: "A6", href: "/simulation", title: "Patient simulation", body: "Explore fictional patient records, modeled calls and the Gemini evaluation." },
   { page: "A5", href: "/stage", title: "The stage", body: "The projector view: presses, blocked lines and the scoreboard, live." },
 ];
 
@@ -114,6 +115,7 @@ export default function Home() {
             <a href="#attacks" className="hover:text-accent">Attack log</a>
             <a href="#buttons" className="hover:text-accent">12 buttons</a>
             <a href="#numbers" className="hover:text-accent">Numbers</a>
+            <Link href="/simulation" className="hover:text-accent">Simulation</Link>
             <a href="#index" className="hover:text-accent">Inside</a>
           </nav>
           <div className="ml-auto flex items-center gap-3">

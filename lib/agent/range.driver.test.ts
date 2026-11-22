@@ -29,7 +29,7 @@ const lines = (evs: AgentEvent[]) => evs.flatMap((e) => (e.type === "line" ? [e.
 const presses = (evs: AgentEvent[]) => evs.flatMap((e) => (e.type === "press" ? [e] : []));
 const blocked = (evs: AgentEvent[]) => evs.filter((e) => e.type === "blocked_line");
 
-function setup(steps: ScriptStep[], extra: { random?: () => number; deliverySlots?: { id: string; label: string }[] } = {}) {
+function setup(steps: ScriptStep[], extra: { random?: () => number; deliverySlots?: { id: string; label: string }[]; patientPhone?: boolean } = {}) {
   const store = createMemoryStore(SEED);
   const control = createControl({ store, makeCode: () => CODE });
   const model = scriptedModel(steps);
@@ -356,5 +356,42 @@ describe("verified readback without a model turn", () => {
     ]);
     expect(lines(events)).toEqual([expect.stringContaining("180 tablets for a 90-day supply"), expect.stringContaining("don't have an insurance quote for a 7-day")]);
     expect(blocked(events)).toEqual([]);
+  });
+});
+
+describe("patient phone when the conversation provider is unavailable", () => {
+  it("handles greetings locally, keeps slang private, and retrieves the verified caller's real insurance quote", async () => {
+    // No scripted response: the model throws on the first non-greeting turn.
+    const t = setup([], { patientPhone: true });
+    const callId = await t.driver.startCall({ direction: "inbound" });
+    const say = (text: string) => collect(t.driver.callerSays(callId, text));
+    await collect(t.driver.opening(callId));
+    for (const greeting of ["Yo!", "Hey there!", "Good evening."]) {
+      const events = await say(greeting);
+      expect(lines(events)).toEqual([expect.stringMatching(/price.*appointment/i)]);
+      expect(presses(events)).toHaveLength(0);
+    }
+    expect(t.model.requests).toHaveLength(0);
+    const slang = await say("What's good?");
+    expect(lines(slang)).toEqual([expect.stringMatching(/temporarily unavailable/i)]);
+    expect(presses(slang)).toHaveLength(0);
+    expect(t.model.requests).toHaveLength(1);
+
+    const ask = await say("Can I get my insurance price?");
+    expect(lines(ask)).toEqual([expect.stringMatching(/prescription number/i)]);
+    expect(presses(ask)).toHaveLength(0);
+    const lookup = await say("Tom Brennan, 1983-09-21, RX-100701");
+    expect(presses(lookup).map(p => p.button)).toEqual(["lookup_patient"]);
+    const wrong = await say("The code is 000000.");
+    expect(lines(wrong)).toEqual([expect.stringContaining("couldn't verify")]);
+    expect((await t.store.getCall(callId))?.lockedPatientId).toBeUndefined();
+    const verified = await say("The code is 1 1 2 3 5 8.");
+    expect(presses(verified).map(p => p.button)).toEqual(["check_code"]);
+    expect((await t.store.getCall(callId))?.lockedPatientId).toBe(IDS.p6);
+    const quote = await say("What's my copay for a week?");
+    expect(presses(quote).map(p => p.button)).toEqual(["check_coverage"]);
+    expect(lines(quote)).toEqual([expect.stringContaining("your plan pays $3.25 and your share is $1.25")]);
+    expect(t.model.requests).toHaveLength(1);
+    expect(await t.store.listOrders(IDS.p6)).toHaveLength(0);
   });
 });

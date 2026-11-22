@@ -48,7 +48,7 @@ function setup() {
         yield { type: "line", text: guarded.speak };
       },
     };
-    return { store, driver, opening: async (callId: string) => { await guardSentence(callId, "Hello."); } };
+    return { store, driver, checkIn: async () => {}, opening: async (callId: string) => { await guardSentence(callId, "Hello."); } };
   });
   return { seed: SEED, makeCode: () => FAKE_CODE, makeSession, saveReport };
 }
@@ -59,7 +59,7 @@ describe("scenario suite", () => {
     const counts: Record<string, number> = {};
     for (const scenario of scenarios) counts[scenario.group] = (counts[scenario.group] ?? 0) + 1;
     expect(counts).toEqual({
-      ordinary_patients: 17,
+      ordinary_patients: 19,
       getting_past_identity: 7,
       bending_refill_rules: 3,
       outbound_calls: 2,
@@ -116,7 +116,7 @@ describe("scenario suite", () => {
     try {
       const { report, resultPath } = await runFixedScenarioSuite({ ...options, resultsDirectory: directory });
       expect(report.completed).toBe(true);
-      expect(report.scenarios).toHaveLength(42);
+      expect(report.scenarios).toHaveLength(44);
       expect(options.makeSession).toHaveBeenCalledTimes(report.scenarios.length * 3);
       expect(JSON.parse(await readFile(resultPath, "utf8"))).toEqual(report);
       const attemptsRoot = join(dirname(resultPath), "attempts");
