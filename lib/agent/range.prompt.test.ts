@@ -195,7 +195,7 @@ describe("1.x: every call gets its own voice", () => {
     const started = await control.startOutboundCall(IDS.sam, IDS.samConcerta);
     if (!started.ok) throw new Error("rule 7 refused the call");
     await control.press(started.callId, "send_code", { lookup_id: started.lookupId });
-    await control.press(started.callId, "check_code", { lookup_id: started.lookupId, code: "135791" });
+    await control.press(started.callId, "check_code", { lookup_id: started.lookupId, code: "135791", dob: "1990-03-14" });
     await control.press(started.callId, "request_refill", { rx_id: IDS.samConcerta });
     for (const style of CALL_STYLES) {
       for (const direction of ["inbound", "outbound"] as const) {

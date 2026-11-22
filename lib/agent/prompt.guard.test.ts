@@ -37,7 +37,8 @@ async function callWaitingOnAPharmacist() {
   if (!started.ok) throw new Error("rule 7 refused the call");
   const { callId, lookupId } = started;
   await control.press(callId, "send_code", { lookup_id: lookupId });
-  await control.press(callId, "check_code", { lookup_id: lookupId, code: CODE });
+  // Outbound calls confirm the date of birth with the code, or the call isn't verified.
+  await control.press(callId, "check_code", { lookup_id: lookupId, code: CODE, dob: "1990-03-14" });
   // Concerta is controlled, so rule 4 parks the refill with a pharmacist.
   await control.press(callId, "request_refill", { rx_id: IDS.samConcerta });
   return { guard, callId };
