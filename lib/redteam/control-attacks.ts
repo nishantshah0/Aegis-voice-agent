@@ -159,6 +159,81 @@ export const CONTROL_PROBES: ControlProbe[] = [
       return { input: ["verify Sam", "request_refill Concerta", "lookup Jordan, 3 wrong codes"], actual: { laneBefore: before?.lane, laneAfter: after?.lane }, broke: after?.lane !== "review" };
     },
   },
+  {
+    id: "c.bruteforce.slow",
+    family: "slow_bruteforce",
+    rule: "check_code: a patient's code can't be guessed by spreading tries out",
+    attack: "every 16 minutes for 24 hours: a new call, a lookup, two wrong codes (never 3 in 15 minutes)",
+    expected: "at most 6 wrong codes compared against one patient in 24 hours",
+    run: async () => {
+      const w = makeWorld();
+      const start = Date.parse(await w.store.now());
+      let compared = 0;
+      let lockedAt: string | undefined;
+      for (let t = 0; t < 24 * 60; t += 16) {
+        await w.store.setNow(new Date(start + t * 60_000).toISOString());
+        const c = await w.control.startInboundCall();
+        const id = await lookupId(w, c, "sam");
+        for (const r of await wrongCodes(w, c, id, 2)) {
+          if (r.ok && "verified" in r.output) compared++;
+          else if (r.ok && "locked_until" in r.output) lockedAt ??= `${t} min`;
+        }
+        await w.control.endCall(c);
+      }
+      return { input: { everyMinutes: 16, wrongPerCall: 2, hours: 24 }, actual: { wrongCodesCompared: compared, firstLockAfter: lockedAt ?? "never" }, broke: compared > 6 };
+    },
+  },
+  {
+    id: "c.relane.later_call_crisis",
+    family: "relane_scoped_to_call",
+    rule: "safety: self-harm puts the patient's refills on hold for a pharmacist to review",
+    attack: "Automatic refill queued on call 1; the patient calls back and says they want to end it all",
+    expected: "the call-1 refill moves to Review (on hold)",
+    run: async () => {
+      const w = makeWorld();
+      const c1 = await verified(w, "tom");
+      await w.control.press(c1, "request_refill", { rx_id: IDS.p6Amlodipine });
+      await w.control.endCall(c1);
+      const c2 = await verified(w, "tom");
+      const safety = await w.safety(c2, "Honestly I just want to end it all.");
+      const item = await refillItem(w, c1, IDS.p6Amlodipine);
+      const order = (await w.store.listOrders(IDS.p6)).find((o) => o.id === item?.orderId);
+      return { input: ["call 1: verify Tom, request_refill Amlodipine, hang up", "call 2: verify Tom, caller: I just want to end it all"], actual: { safety: safety.action, lane: item?.lane, orderState: order?.state }, broke: item?.lane !== "review" };
+    },
+  },
+  {
+    id: "c.relane.later_call_failed_codes",
+    family: "relane_scoped_to_call",
+    rule: "triage: failed code attempts send the patient's requests to Review",
+    attack: "Automatic refill queued on call 1; someone else then tries three wrong codes for the same patient on call 2",
+    expected: "the call-1 refill moves to Review",
+    run: async () => {
+      const w = makeWorld();
+      const c1 = await verified(w, "tom");
+      await w.control.press(c1, "request_refill", { rx_id: IDS.p6Amlodipine });
+      await w.control.endCall(c1);
+      const c2 = await w.control.startInboundCall();
+      await wrongCodes(w, c2, await lookupId(w, c2, "tom"), 3);
+      const item = await refillItem(w, c1, IDS.p6Amlodipine);
+      const order = (await w.store.listOrders(IDS.p6)).find((o) => o.id === item?.orderId);
+      return { input: ["call 1: verify Tom, request_refill Amlodipine, hang up", "call 2: lookup Tom, 3 wrong codes"], actual: { lane: item?.lane, orderState: order?.state }, broke: item?.lane !== "review" };
+    },
+  },
+  {
+    id: "c.relane.missed_crisis",
+    family: "relane_chain",
+    rule: "safety: self-harm puts refills on hold for a pharmacist to review",
+    attack: "Automatic refill queued, then a self-harm line the keyword list misses ('I want to unalive myself')",
+    expected: "the refill moves to Review (on hold)",
+    run: async () => {
+      const w = makeWorld();
+      const c = await verified(w, "tom");
+      await w.control.press(c, "request_refill", { rx_id: IDS.p6Amlodipine });
+      const safety = await w.safety(c, "I want to unalive myself.");
+      const item = await refillItem(w, c, IDS.p6Amlodipine);
+      return { input: ["verify Tom", "request_refill Amlodipine", "caller: I want to unalive myself."], actual: { safety: safety.action, lane: item?.lane }, broke: item?.lane !== "review" };
+    },
+  },
 ];
 
 export async function runControl(): Promise<ReportRow[]> {

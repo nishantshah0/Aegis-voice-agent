@@ -1,3 +1,4 @@
+import { FALLBACK_LINE } from "../agent/turn";
 import { first, nextFlow, type Flow } from "../phone/flow";
 
 const choices: Record<string, string> = { zero: "0", one: "1", two: "2", three: "3", four: "4" };
@@ -24,6 +25,10 @@ const options =
 // Store the original reducer reply intact so its appointment consent check sees the exact offer.
 // Adapt only fixed handset navigation for the browser display and its spoken playback.
 export function browserReply(flow: Flow) {
+  // Trail #70: the agent's lines are already what the caller should hear and read.
+  if (flow.mode === "agent") return flow.reply;
+  if (flow.reply === FALLBACK_LINE + first.reply)
+    return FALLBACK_LINE + "Please say or type the six-digit demo code shown on your screen.";
   if (flow.reply === first.reply)
     return "Hi, this is Aegis Pharmacy. We're using a fictional patient record. Please say or type the six-digit demo code shown on your screen.";
   if (flow.phase === "pin")

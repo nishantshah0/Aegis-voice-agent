@@ -1,5 +1,5 @@
 {
-  "ranAt": "2026-11-22T08:58:50.506Z",
+  "ranAt": "2026-11-22T09:48:55.011Z",
   "mode": "hammer",
   "depth": 3,
   "reports": [
@@ -10,16 +10,16 @@
       "checks": 200768,
       "broken": 0,
       "failures": [],
-      "ms": 101837
+      "ms": 205756
     },
     {
       "kind": "random",
       "sequences": 10000,
       "presses": 111974,
-      "checks": 179134,
+      "checks": 179178,
       "broken": 0,
       "failures": [],
-      "ms": 115793
+      "ms": 194217
     }
   ]
 }

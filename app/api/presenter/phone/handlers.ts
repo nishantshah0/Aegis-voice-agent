@@ -14,13 +14,15 @@ import {
   turnToken,
   uuid,
 } from "./config";
-import { nextFlow } from "./flow";
+import { DEMO_PATIENT, DEMO_PATIENT_INBOUND } from "../agent/agent";
+import { assistantOf, nextTurn, openFlow } from "../agent/turn";
 import {
   getAudio,
   getCall,
   isActive,
   reserve,
   saveAudio,
+  setFirstFlow,
   turn,
   updateState,
   type PhoneRow,
@@ -53,6 +55,7 @@ const details: Record<State, string> = {
   unconfirmed:
     "The provider did not confirm the dial request. Check the Twilio call log before starting another call.",
 };
+const inboundAgent = (flow: PhoneRow["flow"]) => flow.mode === "agent" && flow.callKind === "inbound";
 function view(row: PhoneRow) {
   const stale = isActive(row.status) && Date.now() - new Date(row.created_at).getTime() > 5 * 60_000;
   const status = stale ? "unconfirmed" : row.status;
@@ -62,7 +65,12 @@ function view(row: PhoneRow) {
       status,
       updatedAt: row.updated_at,
       message: details[status] + (row.provider_error ? ` Provider code ${row.provider_error}.` : ""),
-      ...(isActive(status) && !stale && !row.flow.verified ? { demoCode: demoCode(row.id) } : {}),
+      ...(isActive(status) && !stale && !row.flow.verified && !(inboundAgent(row.flow) && !row.flow.codeSent) ? { demoCode: demoCode(row.id) } : {}),
+      // Trail #70: which assistant is answering, who it's for until they're verified, and why a call is inbound.
+      assistant: assistantOf(row.flow),
+      ...(row.flow.mode === "agent" ? { callKind: row.flow.callKind ?? "outbound" } : {}),
+      ...(row.flow.notice ? { notice: row.flow.notice } : {}),
+      ...(isActive(status) && !stale && !row.flow.verified && row.flow.mode === "agent" ? { demoPatient: inboundAgent(row.flow) ? DEMO_PATIENT_INBOUND : DEMO_PATIENT } : {}),
       refillRequested: row.flow.requested,
       appointmentBooked: row.flow.appointmentBooked,
     },
@@ -106,6 +114,8 @@ export async function start(request: Request) {
     if (!claim) return fail(429, "Six demo calls have started this hour. Try later.");
     if (!claim.dial) return view(claim.row);
     const { id } = claim.row;
+    // The agent's guarded opener is ready before Twilio dials, so step 0 only plays it.
+    claim.row = (await setFirstFlow(id, await openFlow(id, "phone"))) ?? claim.row;
     const body = new URLSearchParams({
       From: process.env.TWILIO_PHONE_NUMBER!,
       To: process.env.TEST_PATIENT_PHONE!,
@@ -273,11 +283,12 @@ export async function twiml(request: Request) {
     const linked = await updateState(call.id, call.sid, "in-progress");
     if (!linked || !isActive(linked.status)) return response("<Hangup/>");
     const row = await turn(call.id, call.sid, step, (s) =>
-      nextFlow(
+      nextTurn(
         call.id,
         s,
         (call.fields.Digits ?? "").slice(0, 8),
         (call.fields.SpeechResult ?? "").slice(0, 300),
+        "phone",
       ),
     );
     if (!row) return response("<Hangup/>");
@@ -287,7 +298,9 @@ export async function twiml(request: Request) {
     const options =
       row.flow.phase === "pin"
         ? 'input="speech dtmf" numDigits="6" speechTimeout="2"'
-        : 'input="speech dtmf" numDigits="1" speechTimeout="auto"';
+        : row.flow.phase === "agent"
+          ? 'input="speech dtmf" speechTimeout="auto" finishOnKey="#"'
+          : 'input="speech dtmf" numDigits="1" speechTimeout="auto"';
     const outside = row.flow.phase === "appointment";
     return response(
       (outside ? spoken : "") +

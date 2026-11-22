@@ -31,7 +31,7 @@ async function outboundCall() {
   const { callId, lookupId } = started;
   const verify = async () => {
     await control.press(callId, "send_code", { lookup_id: lookupId });
-    await control.press(callId, "check_code", { lookup_id: lookupId, code: CODE });
+    await control.press(callId, "check_code", { lookup_id: lookupId, code: CODE, dob: "1990-03-14" });
   };
   return { store, control, guard, callId, verify };
 }

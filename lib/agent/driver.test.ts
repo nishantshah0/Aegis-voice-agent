@@ -94,7 +94,9 @@ describe("1.2: Sam's typed outbound call through the real lock", () => {
     const spokenOrBlocked = record.filter((e) => e.kind === "line_spoken" || e.kind === "line_blocked").length;
     expect(spokenOrBlocked).toBe([...opener, ...turn1, ...turn2, ...turn3, ...turn4].filter((e) => e.type === "line").length);
     expect(findBrokenLink(await store.listRecord())).toBeNull();
-    expect((await store.queue("quick_check")).map((q) => q.patientId)).toEqual([IDS.sam]);
+    // Trail #86: the replaced false promise after the refill moves it from Quick check to Review.
+    expect((await store.queue("quick_check")).map((q) => q.patientId)).toEqual([]);
+    expect((await store.queue("review")).filter((q) => q.kind === "refill")).toMatchObject([{ patientId: IDS.sam, signals: expect.arrayContaining(["speech_guard_replacement"]) }]);
     expect((await store.getCall(callId))?.state).toBe("ended");
   });
 

@@ -51,6 +51,7 @@ import { factQuestion, newFactContext } from "./fact-questions";
 import { STAY_ON_TASK_NOTE, asksForAPersona } from "./persona";
 import { pickStyle, systemPrompt, type CallStyle } from "./prompt";
 import { createSentenceSplitter } from "./sentences";
+import { fromSnapshot, toSnapshot } from "./snapshot";
 import { BUTTON_TOOLS, isButtonName } from "./tools";
 import { UsageCapError } from "./usage";
 
@@ -160,6 +161,10 @@ export type ClaudeAgentDriver = AgentDriver & {
   checkIn(callId: CallId): AsyncIterable<AgentEvent>;
   /** Turn timing for this call (task 1.6): one entry per caller line. */
   turnTimings(callId: CallId): ServerTurnTiming[];
+  /** Hosted (serverless, Trail #70): this call's state as plain JSON, or undefined if it isn't held here. */
+  exportCall(callId: CallId): unknown;
+  /** Hosted: take a call's exported state back, so this instance continues the same call. */
+  importCall(callId: CallId, snapshot: unknown): void;
 };
 
 export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDriver {
@@ -734,6 +739,15 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
 
     turnTimings(callId) {
       return (state.get(callId)?.timings ?? []).map((t) => ({ ...t }));
+    },
+
+    exportCall(callId) {
+      const call = state.get(callId);
+      return call ? toSnapshot(call) : undefined;
+    },
+
+    importCall(callId, snapshot) {
+      state.set(callId, fromSnapshot(snapshot) as CallState);
     },
 
     async endCall(callId) {

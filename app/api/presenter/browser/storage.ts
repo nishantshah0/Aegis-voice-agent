@@ -57,13 +57,13 @@ async function database() {
   return db;
 }
 
-export async function openSession() {
+export async function openSession(sessionId: string = randomUUID(), flow: Flow = first) {
   const db = await database();
   await db.query("DELETE FROM aegis_presenter_browser_turns WHERE expires_at <= now()");
   const result = await db.query<BrowserTurn>(
     `INSERT INTO aegis_presenter_browser_turns (session_id, step, turn_id, flow, expires_at)
      VALUES ($1,0,$2,$3,now() + interval '15 minutes') RETURNING *`,
-    [randomUUID(), randomUUID(), first],
+    [sessionId, randomUUID(), flow],
   );
   return result.rows[0];
 }

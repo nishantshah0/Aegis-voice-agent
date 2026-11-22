@@ -31,7 +31,7 @@ async function samsCallEvents(): Promise<StreamEvent[]> {
     guardSentence: createSpeechGuard({ store, emit }),
     checkCallerLine: createSafetyCheck({ store, emit }),
     model: scriptedModel([
-      { tools: [{ name: "check_code", input: { lookup_id: lookupId, code: CODE } }] },
+      { tools: [{ name: "check_code", input: { lookup_id: lookupId, code: CODE, dob: "1990-03-14" } }] },
       { text: ["Thanks, Sam. ", "Want me to send your Concerta refill to the pharmacist now?"] },
       { tools: [{ name: "request_refill", input: { rx_id: IDS.samConcerta } }] },
       { text: ["Your refill is approved."] },

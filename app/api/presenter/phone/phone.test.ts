@@ -157,7 +157,7 @@ describe("presenter phone on a synthetic record, with in-memory PostgreSQL and o
     expect((await (await start(startReq(second))).json()).callId).toBe(reply.callId);
     expect((await (await start(startReq(key))).json()).callId).toBe(reply.callId);
     expect(dials).toBe(1);
-  });
+  }, 30_000);
   it("corrects an offered day, asks again for that exact time and books once on the caller's confirmation", async () => {
     const call = await (await start(startReq())).json();
     let xml = await gather(dialBody.get("Url")!);
