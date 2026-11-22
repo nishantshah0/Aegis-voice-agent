@@ -14,6 +14,10 @@ Hands-on audit of the whole product, Saturday 21 November 2026, evening (Eastern
 
 Legend: **works** · **partial** · **broken** · **missing**. Owner names follow the session map in the task (ROLE-0 owners are the ui-overhaul, suite-area and phone-line sessions).
 
+## Top finding, urgent and already being fixed: tests reset the shared demo database
+
+`resetRuntimeForTests()` in `app/api/_lib/runtime.ts` calls `getStore().reset(SEED)`, and `getStore()` is the shared Tiger Data Postgres whenever `DATABASE_URL` is set. About ten API test files call it in `beforeEach`, so `npm test` with `DATABASE_URL` set wipes the live demo data back to the seed. Until suite-area's fix is on main (vitest clears `DATABASE_URL`, plus a guard that throws on Postgres), run the gate as `DATABASE_URL= npm test`. If anything looked reset or empty during a demo or an audit, this is the likely cause. In this audit the gate ran with `DATABASE_URL=` empty, the audit server used the memory store (its `.env` had no `DATABASE_URL`), and the shared store was only read through :3001, so nothing here touched it.
+
 ## Top 15 fixes, in the order a judge would notice them
 
 | # | Fix | Why a judge sees it | Owner |
@@ -32,7 +36,16 @@ Legend: **works** · **partial** · **broken** · **missing**. Owner names follo
 | 12 | Live gate is blank unless a call is running while it is open. After Sam's call it shows "0 events · Waiting for the first press…", "Rules broken —", "Attacks caught —". No replay of the last call or batch. | The page named in the demo script | suite-area (ROLE-0) |
 | 13 | Numbers that do not belong to this demo. Calls tiles "Model calls (log) 123 / Cost (log) $0.5707" are the whole `results/agent-usage.jsonl`, while the call page says 10 model calls, $0.0070. Call page "TURN TIMING: No timing: this call didn't run on the real agent in this server process" and "First guarded line –" although the call was live (the phone shows its own median). | Looks disconnected | ui-overhaul (labels), Role 2/Role 1 (timing across route/page module instances) |
 | 14 | Daily check and Upcoming logic. The daily check rings 2 patients (Sam and Grace); Grace's call c_0002 stays "code sent · Nothing requested" forever. After Sam's refill is approved Upcoming still says S.R. "Next reminder: today". Hijack attack calls are all saved as `c_0001` (the same id as Sam's real call). | Looks wrong to a careful judge | Role 2 (daily check, Upcoming), Role 3 (hijack call ids) |
-| 15 | Polish: Outreach overflows at 390 px (page width 442); unknown call id shows a bare Next.js 404 with no shell (HTTP 200); dev-only "1 Issue" overlay (`new Date()` while prerendering in `getApprover` for `/app/safety/calls/[id]`); `next build` prints 4 warnings (3× "Dynamic filesystem access causes tracing of the whole project" from `lib/arena/suite-files.ts`, plus `metadataBase` not set); dev servers full-reload every ~3 s because other agents edit files under the same Turbopack root (use `next start` for demos and audits). | Small, but seen | ui-overhaul, Role 3 (suite-files), top session (demo on `next start`) |
+| 15 | Everything else a judge can hit by clicking around: (a) slow first loads: `/app/safety/overnight` 1.7 s and `/app/safety/rules` 1.1 s in production, 6.8 s for Overnight on the dev server with Tiger Data; (b) the phone's first `GET /api/call/:id/code` returns 403, then 200 (console error); (c) the Demo menu's pairing link is plain text, not clickable or copyable; (d) Outreach overflows at 390 px (page width 442); (e) an unknown call id shows a bare Next.js 404 with no shell (HTTP 200); (f) dev-only "1 Issue" overlay (`new Date()` while prerendering in `getApprover` for `/app/safety/calls/[id]`); (g) `next build` prints 4 warnings (3× "Dynamic filesystem access causes tracing of the whole project" from `lib/arena/suite-files.ts`, plus `metadataBase` not set); (h) dev servers full-reload every ~3 s because other agents edit files under the same Turbopack root (demo and audit on `next start`). | Small, but seen | ui-overhaul (c, d, e, f), Role 3 (a Overnight, g), suite-area (a Rules), Role 1/Role 2 (b), top session (h) |
+
+## Status on main (checked against `8c9aa23`, nothing newer on main)
+
+**Already fixed on main since I first looked:** the stale "Review 2" lane tiles on Today (the new shell dropped the tiles); the Call detail page overflowing at 390 px; the Safety Overview totals disagreeing with the run cards; the shell's page list scrolling off-screen on a phone; the live-call tests no longer touching the shared database (`bcd3b85`, live and run tests only).
+
+**Not fixed yet (fixes 1 to 15 above, all posted as REQUESTs on the channel):** every row in the top 15, plus the urgent test-reset finding, which suite-area is fixing.
+
+**Checked and fine:** signed-out access (all `/app/*` redirect, all mutating routes 401), no dead buttons or links found, no page-level console errors in production, Today/Home/Calls/call page/Review numbers agree, mobile fits at 390 except Outreach.
+
 
 ## 1. Inventory and connection, by area
 
