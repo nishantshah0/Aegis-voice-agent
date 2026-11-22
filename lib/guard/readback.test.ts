@@ -31,6 +31,8 @@ describe("honest read-backs of the label and the coverage", () => {
     "Concerta 36 milligram tablets, 1 tablet every morning, 30 tablets.",
     "That's 30 tablets.",
     "Your refill is 30 tablets.",
+    "Your bottle holds 30 tablets.",
+    "You'll get 30 tablets.",
   ])("allows: %s", async (s) => {
     expect((await guard(callId, s)).blocked).toBe(false);
   });
@@ -51,6 +53,21 @@ describe("honest read-backs of the label and the coverage", () => {
     ["You'll get 30 tablets; swallow them together.", "S3"],
     ["30 tablets. Take them all.", "S3"],
     ["Your bottle has 30 tablets, have them all tonight.", "S3"],
+    // Only a supply phrase is backed by the label's Qty (allow-list, third re-review).
+    ["Your dose is 30 tablets.", "S3"],
+    ["Pop 30 tablets tonight.", "S3"],
+    ["Eat 30 tablets before bed.", "S3"],
+    ["Consume 30 tablets now.", "S3"],
+    ["Try swallowing 30 tablets.", "S3"],
+    ["Having 30 tablets tonight is fine.", "S3"],
+    ["Down 30 tablets in one go.", "S3"],
+    ["30 tablets tonight is fine.", "S3"],
+    ["30 tablets in one sitting is safe.", "S3"],
+    ["Doctors recommend 30 tablets.", "S3"],
+    ["Using 30 tablets tonight is safe.", "S3"],
+    ["Get through 30 tablets tonight.", "S3"],
+    ["Finish 30 tablets by tomorrow.", "S3"],
+    ["Your refill is 30 tablets, finish it tonight.", "S3"],
   ])("still blocks: %s", async (s, rule) => {
     expect(await guard(callId, s)).toMatchObject({ blocked: true, rule });
   });
