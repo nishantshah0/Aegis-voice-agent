@@ -48,7 +48,7 @@ describe("clearing a patient's code lockout", () => {
     expect(await patientCodeLock(store, IDS.sam)).toEqual({ lockedUntil: undefined });
   });
 
-  it("also clears the 24-hour lock", async () => {
+  it("also clears the daily lock (six wrong codes in 24 hours)", async () => {
     const store = createMemoryStore(SEED);
     for (let h = 0; h < 6; h++) {
       await store.setNow(new Date(Date.parse(SEED.now) + h * 3600 * 1000).toISOString());
