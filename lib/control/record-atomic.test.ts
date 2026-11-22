@@ -50,7 +50,8 @@ describe("concurrent presses keep their own events and writes (Trail #83 review)
   it("one call's failed press never drops or rolls back another call's code", async () => {
     const store: Store = createMemoryStore(SEED);
     const events: StreamEvent[] = [];
-    const control = createControl({ store, emit: (e) => events.push(e), makeCode: () => "112358" });
+    let n = 0;
+    const control = createControl({ store, emit: (e) => events.push(e), makeCode: () => String(++n).repeat(6) });
     const a = await control.startInboundCall();
     const b = await control.startInboundCall();
     const lookA = await control.press(a, "lookup_patient", { name: "Sam Rivera", dob: "1990-03-14", rx_number: "RX-100201" });
@@ -69,7 +70,9 @@ describe("concurrent presses keep their own events and writes (Trail #83 review)
     expect(ra).toMatchObject({ ok: true });
     expect(rb).toMatchObject({ ok: false, error: "refused" });
     expect(events.filter((e) => e.type === "phone" && e.kind === "code").map((e) => (e as { callId: string }).callId)).toEqual([a]);
-    expect(await control.codeFor(a)).toBe("112358");
-    expect(await control.codeFor(b)).toBeUndefined();
+    // A's code is the one its send_code made; B keeps the live code from its lookup, untouched by
+    // its failed send_code.
+    expect(["333333", "444444"]).toContain(await control.codeFor(a));
+    expect(await control.codeFor(b)).toBe("222222");
   });
 });
