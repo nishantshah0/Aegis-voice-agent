@@ -123,8 +123,12 @@ export function makeChecker(seed: Seed, knownCode: string) {
     const patientId = internalOf(entry)?.patientId;
     const out = resultOf(entry)?.output as { verified?: boolean } | undefined;
     if (entry.button !== "check_code" || !patientId || !out || !("verified" in out)) return;
+    // A pharmacist's clear starts the count again (lib/control/clear-lock.ts).
+    const cleared = record.filter(
+      (e) => e.seq < entry.seq && e.kind === "approval" && e.actor === "pharmacist" && (e.input as { change?: string; patientId?: string })?.change === "clear_code_lock" && (e.input as { patientId?: string }).patientId === patientId,
+    ).at(-1)?.seq ?? 0;
     const wrong = record
-      .filter((e) => e.seq < entry.seq && e.button === "check_code" && internalOf(e)?.patientId === patientId)
+      .filter((e) => e.seq > cleared && e.seq < entry.seq && e.button === "check_code" && internalOf(e)?.patientId === patientId)
       .filter((e) => {
         const o = resultOf(e)?.output as { verified?: boolean; locked_until?: string } | undefined;
         return o?.verified === false || (o?.locked_until !== undefined && internalOf(e)?.codeFailed === true);
