@@ -106,6 +106,21 @@ describe("1.x: real conversation on the phone", () => {
   });
 });
 
+describe("1.x: the ready day from ready_label (main e62c554)", () => {
+  it("says the ready day after a refill and on a status check, in the form S4 backs", () => {
+    for (const prompt of [inbound, outbound]) {
+      expect(prompt).toMatch(/ready_label/);
+      expect(prompt).toMatch(/after a refill and on a status check/i);
+      expect(prompt).toContain('"It should be ready Thursday once it\'s approved."');
+      expect(prompt).toMatch(/only the day ready_label gave/i);
+    }
+  });
+
+  it("keeps 'I don't have a ready time yet' for when no button gave a day", () => {
+    expect(inbound).toMatch(/no button has given you a ready_label[^.]*I don't have a ready time yet/i);
+  });
+});
+
 describe("1.x: fixes from live run range-2", () => {
   it("says the code line word for word after lookup_patient", () => {
     // Live: "If those details match our records, a verification code has been texted..."

@@ -281,6 +281,34 @@ describe("1.x: the flows the prompt teaches pass the real guard", () => {
     expect(presses(second)[0].result.ok).toBe(true);
   });
 
+  it("after a refill, the ready day from ready_label passes the real guard", async () => {
+    const t2 = await samOutbound([
+      verifySam(LOOKUP),
+      { text: ["Thanks, Sam. ", "Want me to send the refill to the pharmacist?"] },
+      { tools: [{ name: "request_refill", input: { rx_id: IDS.samConcerta } }] },
+      { text: ["A pharmacist will check it first, and it should be ready Thursday once it's approved."] },
+    ]);
+    await collect(t2.driver.callerSays(t2.callId, `${CODE}, March 14 1990.`));
+    const evs = await collect(t2.driver.callerSays(t2.callId, "Yes please."));
+    expect(presses(evs)[0].result).toMatchObject({ ok: true, output: { state: "waiting_for_pharmacist", ready_label: "Thursday" } });
+    expect(blocked(evs)).toEqual([]);
+    expect(lines(evs)[0]).toBe("A pharmacist will check it first, and it should be ready Thursday once it's approved.");
+  });
+
+  it("on a status check, the ready day from order_status passes the real guard", async () => {
+    const t = await verifiedInbound("Lena Moreau", "1994-12-03", "RX-100801", [
+      { tools: [{ name: "order_status", input: {} }] },
+      { text: ["Your Sertraline order is queued. ", "It should be ready Wednesday once it's approved."] },
+    ]);
+    const evs = await collect(t.driver.callerSays(t.callId, "When will my order be ready?"));
+    // Lena's order went in a day before the demo clock, so its day is Wednesday, not Thursday.
+    expect(presses(evs)[0].result).toMatchObject({ ok: true, output: { orders: [{ order_id: IDS.p7Order, ready_label: "Wednesday" }] } });
+    expect(blocked(evs)).toEqual([]);
+    expect(lines(evs)).toEqual(["Your Sertraline order is queued.", "It should be ready Wednesday once it's approved."]);
+    // Only the day the button gave: any other is replaced.
+    expect(await t.guard(t.callId, "It should be ready Thursday once it's approved.")).toMatchObject({ blocked: true, rule: "S4" });
+  });
+
   it("order status, then moving the delivery to a window from the call note", async () => {
     const t = await verifiedInbound("Lena Moreau", "1994-12-03", "RX-100801", [
       { tools: [{ name: "order_status", input: {} }] },
