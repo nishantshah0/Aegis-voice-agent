@@ -18,6 +18,10 @@ const nextConfig: NextConfig = {
   },
   partialPrefetching: true,
   turbopack: {
+    // Pin the root to this checkout. Without it, Turbopack picks the topmost lockfile, so a
+    // worktree under .claude/worktrees/ watches the whole repo (every agent's checkout) and
+    // reloads the page each time any agent writes a file.
+    root: import.meta.dirname,
     rules: {
       "*.css": {
         loaders: ["@tailwindcss/turbopack"],
