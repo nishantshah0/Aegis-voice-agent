@@ -16,7 +16,9 @@ export type Assistant = "agent" | "fallback" | "menu";
 export const assistantOf = (flow: Flow): Assistant => flow.mode ?? "menu";
 
 function fallback(reason: unknown): Flow {
-  if (!(reason instanceof AgentUnavailable)) console.warn(`presenter agent: ${reason instanceof Error ? reason.message : "unknown error"}`);
+  // The reason only (rules, caps, timeouts, model errors), never what anyone said.
+  const kind = reason instanceof AgentUnavailable ? "unavailable" : "error";
+  console.warn(`presenter agent: falling back to the menu (${kind}: ${reason instanceof Error ? reason.message : "unknown"})`);
   return { ...first, mode: "fallback", reply: FALLBACK_LINE + first.reply };
 }
 
