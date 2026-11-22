@@ -5,6 +5,7 @@ import { Badge, Button, chipClass } from "@/components/ui";
 import { CallPlayback } from "../simulation/call-playback";
 import { clipsFor, clipsFromEvents } from "../simulation/live-clips";
 import { SUITE_CARDS, SUITE_CATEGORIES, type SuiteCategory } from "../simulation/suite-cards";
+import { compareRuns, metricsFor, summarizeRun, type CallMetrics, type RunSummary, type TimedEvent } from "../simulation/call-metrics";
 import { readTestEvents, requestTest, type TestEvent } from "../simulation/live-events";
 import { AssistantLine, type Assistant, type DemoPatient } from "./assistant";
 
@@ -113,7 +114,58 @@ export function PhoneControl() {
 }
 
 type Phase = "Ready" | "Queued" | "Running" | "Passed" | "Failed" | "Interrupted" | "Waiting";
-type ScenarioState = { phase: Phase; events: TestEvent[] };
+type ScenarioState = { phase: Phase; events: TimedEvent[] };
+
+const LAST_RUN = "aegis.business.lastRun";
+const seconds = (ms: number | null) => (ms === null ? "—" : `${(ms / 1000).toFixed(1)} s`);
+const percent = (r: number | null) => (r === null ? "—" : `${Math.round(r * 100)}%`);
+
+/** One call's Hamming-style score, from the record's checks and the stream's timing. */
+function CallScore({ m }: { m: CallMetrics }) {
+  return <p className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-ink-2">
+    <span className={m.passed === false ? "font-semibold text-stop" : m.passed ? "font-semibold text-accent" : ""}>{m.decidedBy}</span>
+    {m.passed !== null && <span>Task {m.taskCompleted ? "completed" : "not completed"} · {m.safe ? "safe" : "a rule broke"}</span>}
+    <span>{m.turns} turns</span>
+    <span title="Caller line to the pharmacy's reply, measured as lines arrive">median {seconds(m.medianLatencyMs)} · max {seconds(m.maxLatencyMs)}</span>
+    <span>first word {seconds(m.firstWordMs)}</span>
+    <span>{m.replacements} line{m.replacements === 1 ? "" : "s"} replaced by the guard</span>
+    <span>{m.handovers} handover{m.handovers === 1 ? "" : "s"}</span>
+  </p>;
+}
+
+/** The run at a glance, and what changed since the last run in this browser. */
+function RunScore({ summary, previous }: { summary: RunSummary; previous: RunSummary | null }) {
+  const delta = compareRuns(summary, previous);
+  const failures = Object.entries(summary.failuresByCategory);
+  const sign = (n: number) => (n > 0 ? "+" : n < 0 ? "−" : "±");
+  return <div className="mt-4 grid gap-3 rounded-card border border-line bg-surface p-4 sm:grid-cols-4" aria-label="Run summary">
+    <div>
+      <p className="text-xs text-ink-3">Pass rate</p>
+      <p className="text-2xl font-semibold tabular-nums">{percent(summary.passRate)}</p>
+      <p className="text-xs text-ink-3">{summary.passed} of {summary.scored} scored{summary.calls > summary.scored ? ` · ${summary.calls - summary.scored} not finished` : ""}</p>
+    </div>
+    <div>
+      <p className="text-xs text-ink-3">Average reply time</p>
+      <p className="text-2xl font-semibold tabular-nums">{seconds(summary.avgLatencyMs)}</p>
+      <p className="text-xs text-ink-3">mean of each call&apos;s median</p>
+    </div>
+    <div>
+      <p className="text-xs text-ink-3">Failures by category</p>
+      <p className="text-sm">{failures.length ? failures.map(([k, n]) => `${SUITE_CATEGORIES.find(c => c.key === k)?.label ?? k} ${n}`).join(" · ") : "None"}</p>
+    </div>
+    <div>
+      <p className="text-xs text-ink-3">Compared with the last run</p>
+      {delta ? <p className="text-sm tabular-nums">
+        {delta.passRate === null ? "" : `pass rate ${sign(delta.passRate)}${Math.abs(Math.round(delta.passRate * 100))} pts`}
+        {delta.avgLatencyMs === null ? "" : ` · reply ${sign(delta.avgLatencyMs)}${seconds(Math.abs(delta.avgLatencyMs))}`}
+        {delta.changed.length
+          ? <span className="block text-xs text-ink-2">{delta.changed.map(c => `${SUITE_CARDS.find(x => x.id === c.id)?.name ?? c.id}: ${c.was ? "pass" : "fail"} → ${c.now ? "pass" : "fail"}`).join(" · ")}</span>
+          : <span className="block text-xs text-ink-3">No test changed result</span>}
+      </p> : <p className="text-sm text-ink-3">First run in this browser</p>}
+    </div>
+  </div>;
+}
+
 const phaseTone = (phase: Phase): "neutral" | "quick" | "accent" | "stop" => {
   if (phase === "Passed") return "accent";
   if (phase === "Failed" || phase === "Interrupted") return "stop";
@@ -158,6 +210,7 @@ export function SuiteControl() {
   const [live, setLive] = useState(true);
   const [muted, setMutedState] = useState(false);
   const [player, setPlayer] = useState(() => new CallPlayback());
+  const [previous, setPrevious] = useState<RunSummary | null>(null);
   const request = useRef<AbortController | null>(null);
   useEffect(() => () => request.current?.abort(), []);
   useEffect(() => () => player.dispose(), [player]);
@@ -183,6 +236,11 @@ export function SuiteControl() {
     const ids = SUITE_CARDS.filter(c => selected.has(c.id)).map(c => c.id);
     const controller = new AbortController();
     request.current = controller;
+    // The last finished run in this browser is what this one is compared with.
+    try {
+      const saved = window.localStorage.getItem(LAST_RUN);
+      setPrevious(saved ? (JSON.parse(saved) as RunSummary) : null);
+    } catch { setPrevious(null); }
     setOrder(ids);
     setRows(Object.fromEntries(ids.map(id => [id, { phase: "Queued", events: [] }])));
     setRunning(true);
@@ -195,7 +253,7 @@ export function SuiteControl() {
     // The click is the user's gesture, so the browser allows sound from here on.
     if (live) playback.play();
     const update = (id: string, phase: Phase, event?: TestEvent) =>
-      setRows(previous => ({ ...previous, [id]: { phase, events: event ? [...(previous[id]?.events ?? []), event] : previous[id]?.events ?? [] } }));
+      setRows(previous => ({ ...previous, [id]: { phase, events: event ? [...(previous[id]?.events ?? []), { ...event, at: Date.now() }] : previous[id]?.events ?? [] } }));
     try {
       for (const [index, id] of ids.entries()) {
         if (controller.signal.aborted) break;
@@ -227,7 +285,28 @@ export function SuiteControl() {
     }
   }
 
+  // When a run ends, keep its summary for the next comparison (the one shown compares with the one before).
+  const savedFor = useRef("");
+  useEffect(() => {
+    if (!ended || running) return;
+    const scoredNow = order.flatMap(id => {
+      const row = rows[id];
+      const card = SUITE_CARDS.find(c => c.id === id);
+      return row && card && row.events.length ? [{ id, category: card.category, metrics: metricsFor(row.events) }] : [];
+    });
+    const key = order.join(",") + ":" + scoredNow.length;
+    if (!scoredNow.length || savedFor.current === key) return;
+    savedFor.current = key;
+    try { window.localStorage.setItem(LAST_RUN, JSON.stringify(summarizeRun(scoredNow))); } catch { /* storage full or off */ }
+  }, [ended, running, order, rows]);
+
   const ran = order.map(id => rows[id]).filter((r): r is ScenarioState => Boolean(r));
+  const scored = order.flatMap(id => {
+    const row = rows[id];
+    const card = SUITE_CARDS.find(c => c.id === id);
+    return row && card && row.events.length ? [{ id, category: card.category, metrics: metricsFor(row.events) }] : [];
+  });
+  const summary = scored.length ? summarizeRun(scored) : null;
   const count = (phase: Phase) => ran.filter(r => r.phase === phase).length;
   return <section id="suite" className="presenter-card" aria-labelledby="suite-heading" aria-busy={running}>
     <div className="flex flex-wrap items-start justify-between gap-3">
@@ -271,6 +350,7 @@ export function SuiteControl() {
       </p>
     </div>
     {notice && <p role="alert" className="presenter-error">{notice}</p>}
+    {summary && <RunScore summary={summary} previous={previous} />}
 
     <SuiteAudio player={player} live={live} setLive={setLive} muted={muted} setMuted={setMuted} />
 
@@ -285,6 +365,7 @@ export function SuiteControl() {
           {!running && row.events.some(e => e.type === "line") && <Button size="sm" variant="ghost" onClick={() => replay(row.events)}>Replay call</Button>}
         </div>
         {last && <p className="presenter-latest"><EventLine event={last} /></p>}
+        {row.events.length > 0 && <CallScore m={metricsFor(row.events)} />}
         {row.events.length > 1 && <details><summary>View call events ({row.events.length})</summary>
           <ul>{row.events.map((event, i) => <li key={i}><EventLine event={event} /></li>)}</ul>
         </details>}
