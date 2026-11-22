@@ -65,7 +65,8 @@ describe("verified fact questions", () => {
   });
 
   it("1.x: still asks how many days when two lengths come with no correction", () => {
-    for (const text of ["How much for one week or two weeks?", "What's the price for 7 days and 14 days?"]) {
+    // "A month" isn't a whole number of days to quote, so it asks too.
+    for (const text of ["How much for one week or two weeks?", "What's the price for 7 days and 14 days?", "What's the price for a month?"]) {
       const state = newFactContext();
       state.prescriptions = [prescriptions[1]];
       expect(factQuestion(state, text), text).toMatchObject({ line: "How many whole days of medication should I check the price for?" });
