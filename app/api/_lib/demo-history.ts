@@ -1,10 +1,10 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { createAgentDriver } from "@/lib/agent";
 import type { AgentModel, ModelEvent } from "@/lib/agent";
-import type { Approver, ButtonName, CallId, Lane, RecordEntry, Store } from "@/lib/contract";
+import type { AppointmentSlot, Approver, ButtonName, CallId, Lane, RecordEntry, Store } from "@/lib/contract";
 import { createControl, type Control } from "@/lib/control";
 import { createSafetyCheck, createSpeechGuard } from "@/lib/guard";
-import { IDS, PHARMACY_NAME } from "@/lib/seed";
+import { IDS, PHARMACY_NAME, SEED } from "@/lib/seed";
 
 // "Seed a week of calls": about 40 calls over the 7 days before the demo clock, so the
 // dashboard shows a working pharmacy instead of one call. Everything is a call: each one
@@ -19,6 +19,16 @@ export const DEMO_HISTORY_SOURCE = "scripted demo history";
 export const DEMO_HISTORY_CHECK = "demo_history";
 /** The pharmacist who decides the history's queue items. Named as scripted, never a person. */
 export const HISTORY_APPROVER: Approver = { id: "scripted_demo_history", name: "Scripted demo pharmacist", role: "pharmacist" };
+
+/** Scenarios of the demo morning start with this: calls left open for the pharmacist. */
+export const TODAY_PREFIX = "today: ";
+
+/** The ids of the demo morning's calls (scripted history on the demo day, left open). */
+export function todayCallIds(record: RecordEntry[]): Set<CallId> {
+  return new Set(
+    record.flatMap((e) => (isHistoryMarker(e) && e.callId && String((e.input as { scenario?: unknown }).scenario ?? "").startsWith(TODAY_PREFIX) ? [e.callId] : [])),
+  );
+}
 
 /** Whether a record entry marks its call as scripted demo history. */
 export function isHistoryMarker(e: RecordEntry): boolean {
@@ -247,7 +257,7 @@ export function historyPlan(): HistoryCall[] {
     D(3, "15:05", "order status", [...verifyInbound(jordan), status(jordan), bye]),
     D(3, "16:40", "side effect", [...verifyInbound(robin), sideEffect(robin, "Muscle aches in my legs this week."), bye]),
     D(2, "09:08", "routine refill with delivery", [...verifyInbound(tom), refill(tom), noSideEffects, delivery("addr_tom_home"), bye]),
-    D(2, "10:30", "controlled refill on schedule", [...verifyInbound(priya), refill(priya), noSideEffects, bye]),
+    D(2, "10:30", "price check", [...verifyInbound(priya), price(priya), bye]),
     D(2, "11:45", "question for the pharmacist", [...verifyInbound(dev), question(dev, "Can I get a 60-day supply next time?"), bye]),
     D(2, "14:15", "failed verification", failedCode(maria)),
     D(2, "15:55", "order status", [...verifyInbound(priyaMetoprolol), status(priyaMetoprolol), bye]),
@@ -256,6 +266,55 @@ export function historyPlan(): HistoryCall[] {
     D(1, "11:50", "refills left", [...verifyInbound(jordan), refillsLeft(jordan), bye]),
     D(1, "14:30", "order status", [...verifyInbound(tom), status(tom), bye]),
     D(1, "16:15", "renewal follow-up", [...verifyInbound(maria), status(maria), bye]),
+  ];
+}
+
+// ---------- The demo morning: left open for the pharmacist, plus upcoming bookings ----------
+
+const slot = (id: string): AppointmentSlot => SEED.policy.appointmentSlots!.find((s) => s.id === id)!;
+
+/**
+ * The driver's own calendar flow (no model): ask for times, it reads each free slot back; name
+ * one, it offers it and asks "Would you like me to book that appointment?"; say yes, and the
+ * lock's reserveAppointment books it and the driver reads the confirmation back.
+ */
+const book = (s: AppointmentSlot, why: string, choice: string): Turn[] => [
+  { caller: `I'd like to meet with the pharmacist ${why}. What times do you have?`, agent: [] },
+  { caller: `${choice} works for me.`, agent: [] },
+  { caller: "Yes, please.", agent: [] },
+];
+
+/** A line the safety check hands to a pharmacist: the driver stops the call there. */
+const handover = (text: string): Turn => ({ caller: text, agent: say("I'm handing you to the pharmacist now.") });
+
+/**
+ * The demo day before the demo clock (10 AM): seven calls whose items wait for the pharmacist,
+ * each for a reason the rules or the safety check gave, and five bookings for later in the week.
+ * Nobody decides these: the dashboard opens on them. Sam is never in it, and Wednesday 10 AM
+ * stays free.
+ */
+export function todayPlan(): HistoryCall[] {
+  // Handovers go to patients with no routine refill still open from the week: the safety check
+  // moves a patient's open items to Review, which would add items with no reason of their own.
+  const { jordan, maria, dev, grace, lena, priya } = P;
+  const T = (time: string, scenario: string, turns: Turn[], more: Partial<HistoryCall> = {}) => D(0, time, `${TODAY_PREFIX}${scenario}`, turns, more);
+  return [
+    T("07:42", "booking: medication review", [...verifyInbound(dev), ...book(slot("consult_thu_14"), "for a medication review", "Thursday at 2 pm"), bye]),
+    T("08:05", "controlled refill on schedule (rule 4)", [...verifyInbound(priya), refill(priya), noSideEffects, bye]),
+    T("08:18", "side effect: headaches and poor sleep", [
+      ...verifyInbound(lena),
+      sideEffect(lena, "Since Saturday I've had headaches most mornings, and last night I barely slept. I'd call it moderate, maybe six out of ten."),
+      bye,
+    ]),
+    T("08:31", "early refill: travelling (rule 3)", [...verifyInbound(jordan), refill(jordan, "I'm travelling for three weeks from Friday"), bye]),
+    T("08:44", "booking: blood pressure check", [...verifyInbound(maria), ...book(slot("consult_fri_11"), "for a blood pressure check", "Friday at 11 am"), bye]),
+    T("08:52", "renewal: no refills on file", [...verifyInbound(maria), refill(maria), renewal(maria), bye]),
+    T("09:06", "possible small overdose: double dose", [...verifyInbound(dev), handover("I think I took my dose twice this morning by mistake. Is that dangerous?")]),
+    T("09:14", "booking: thyroid follow-up", [...verifyInbound(grace), ...book(slot("consult_fri_15"), "about my thyroid dose", "Friday at 3 pm"), bye]),
+    T("09:21", "crisis handover", [...verifyInbound(maria), handover("Honestly I've been so low lately that I don't want to be here anymore.")]),
+    T("09:33", "booking: statin review", [...verifyInbound(jordan), ...book(slot("consult_mon_09"), "to go over my cholesterol medication", "Monday at 9 am"), bye]),
+    T("09:40", "asked for a pharmacist", [...verifyInbound(grace), handover("Can I talk to the pharmacist please? It's about changing my thyroid dose.")]),
+    T("09:48", "booking: new prescription questions", [...verifyInbound(priya), ...book(slot("consult_tue_13"), "about starting a new medication", "Tuesday at 1 pm"), bye]),
   ];
 }
 
@@ -316,7 +375,7 @@ async function run(store: Store): Promise<HistorySummary> {
   };
 
   try {
-    for (const call of historyPlan()) {
+    for (const call of [...historyPlan(), ...todayPlan()]) {
       const at = historyTime(now, call.day, call.time);
       await store.setNow(at);
       let callId: CallId;
@@ -341,7 +400,8 @@ async function run(store: Store): Promise<HistorySummary> {
       await driver.endCall(callId);
 
       // The scripted pharmacist decides what this call sent them, 90 minutes later.
-      const open = (await store.queue()).filter((q) => q.callId === callId && q.status === "open" && q.lane !== "automatic");
+      // The demo morning is left open: the dashboard opens on it.
+      const open = call.day === 0 ? [] : (await store.queue()).filter((q) => q.callId === callId && q.status === "open" && q.lane !== "automatic");
       if (open.length) {
         await store.setNow(new Date(Date.parse(at) + 90 * 60 * 1000).toISOString());
         for (const item of open) {
