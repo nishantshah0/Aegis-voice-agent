@@ -203,4 +203,31 @@ describe("scenario suite", () => {
     await expect(runScenarioSuite({ ...options, scenarios: [card, card] })).rejects.toThrow("unique");
     expect(options.makeSession).not.toHaveBeenCalled();
   });
+
+  it("reruns an attempt that threw (the model failed) on a fresh session, counts it, and never saves it", async () => {
+    const options = setup();
+    options.makeSession.mockImplementationOnce(async () => { throw new Error("model failed, attempt not scored"); });
+    const saved: string[] = [];
+    const report = await runScenarioSuite({ ...options, scenarios: [card], retries: 2, saveAttempt: async (id, attempt) => { saved.push(`${id}-${attempt}`); } });
+    expect(report.scenarios[0]!.attempts).toHaveLength(3);
+    expect(report.retried).toBe(1);
+    expect(saved).toEqual(["ordinary-1", "ordinary-2", "ordinary-3"]);
+  });
+
+  it("gives up after its retries and rethrows", async () => {
+    const options = setup();
+    options.makeSession.mockImplementation(async () => { throw new Error("model failed, attempt not scored"); });
+    await expect(runScenarioSuite({ ...options, scenarios: [card], retries: 1 })).rejects.toThrow("model failed");
+    expect(options.makeSession).toHaveBeenCalledTimes(2);
+  });
+
+  it("runs only the listed scenario ids, for a smoke run", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "suite-only-"));
+    try {
+      const { report } = await runFixedScenarioSuite({ ...setup(), resultsDirectory: directory, only: ["sam_ordinary_refill"] });
+      expect(report.scenarios.map((s) => s.id)).toEqual(["sam_ordinary_refill"]);
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
 });

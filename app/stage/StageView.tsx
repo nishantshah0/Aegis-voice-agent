@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useReducer } from "react";
+import { useEffect, useReducer, type ReactNode } from "react";
 import type { StreamEvent } from "@/lib/contract";
 import { listenToEvents } from "@/lib/events/client";
 import { Logo, cn } from "@/components/ui";
@@ -49,7 +49,9 @@ function PassRow({ pass, fresh }: { pass: Pass; fresh: boolean }) {
   return (
     <li className={cn("rounded-xl border border-l-4 border-line bg-surface px-5 py-3.5", TONE[pass.decision], fresh && MOTION[pass.decision])}>
       <div className="flex items-center gap-4">
-        <span className={cn("w-36 shrink-0 rounded-full px-2.5 py-1 text-center text-xs font-semibold", PILL[pass.decision])}>{DECISION_WORDS[pass.decision]}</span>
+        <span className={cn("w-36 shrink-0 rounded-full px-2.5 py-1 text-center text-xs font-semibold", PILL[pass.decision])}>
+          {DECISION_WORDS[pass.decision]}
+        </span>
         <span className="min-w-0 flex-1 truncate font-mono text-lg text-ink">{describePass(pass)}</span>
         <span className="font-mono text-xs text-ink-3">{pass.callId}</span>
       </div>
@@ -68,7 +70,11 @@ function PassRow({ pass, fresh }: { pass: Pass; fresh: boolean }) {
   );
 }
 
-export function StageView() {
+/**
+ * The stage. On its own (/stage) it is the full-screen projector view. Inside the app,
+ * `embedded` drops the page chrome and shows one part: the gate feed or the hijack.
+ */
+export function StageView({ embedded }: { embedded?: "gate" | "attacks" } = {}) {
   const [state, dispatch] = useReducer(reduce, undefined, initialStage);
   useEffect(() => listenToEvents((event, id) => dispatch({ event, id })), []);
 
@@ -79,7 +85,7 @@ export function StageView() {
   const newest = state.passes[0]?.id;
 
   return (
-    <main className="theme-dark min-h-screen bg-canvas px-10 py-8 text-ink xl:px-14">
+    <Frame embedded={Boolean(embedded)}>
       <style>{`
         @keyframes stage-through { from { transform: translateX(-40px); opacity: 0 } to { transform: none; opacity: 1 } }
         @keyframes stage-aside { 0% { transform: translateX(-40px); opacity: 0 } 60% { transform: translateX(8px) } 100% { transform: none; opacity: 1 } }
@@ -91,22 +97,24 @@ export function StageView() {
         ${GATE_CSS}
       `}</style>
 
-      <header className="flex items-center justify-between border-b border-line pb-6">
-        <div className="flex items-center gap-4">
-          <Logo size="lg" />
-          <span className="h-6 w-px bg-line-strong" aria-hidden />
-          <span className="text-lg text-ink-2">The lock, live</span>
-        </div>
-        <div className="flex items-center gap-4">
-          {state.now && <span className="font-mono text-sm text-ink-3">{new Date(state.now).toLocaleString()}</span>}
-          <span className="inline-flex items-center gap-2 rounded-full bg-accent-soft px-3 py-1 text-sm font-medium text-accent">
-            <span className="size-2 rounded-full bg-accent rg-ring" aria-hidden />
-            Live
-          </span>
-        </div>
-      </header>
+      {!embedded && (
+        <header className="flex items-center justify-between border-b border-line pb-6">
+          <div className="flex items-center gap-4">
+            <Logo size="lg" />
+            <span className="h-6 w-px bg-line-strong" aria-hidden />
+            <span className="text-lg text-ink-2">The lock, live</span>
+          </div>
+          <div className="flex items-center gap-4">
+            {state.now && <span className="font-mono text-sm text-ink-3">{new Date(state.now).toLocaleString()}</span>}
+            <span className="inline-flex items-center gap-2 rounded-full bg-accent-soft px-3 py-1 text-sm font-medium text-accent">
+              <span className="size-2 rounded-full bg-accent rg-ring" aria-hidden />
+              Live
+            </span>
+          </div>
+        </header>
+      )}
 
-      <section className="mt-8 grid grid-cols-2 gap-4 md:grid-cols-5" aria-live="polite">
+      <section className={embedded ? "grid grid-cols-2 gap-4 md:grid-cols-5" : "mt-8 grid grid-cols-2 gap-4 md:grid-cols-5"} aria-live="polite">
         <Counter label="Rules broken" value={broken} hero tone={broken === 0 ? "text-accent" : broken === "—" ? "text-ink-3" : "text-stop"} />
         <Counter label="Attacks caught" value={caught} tone="text-ink" />
         <Counter label="Stopped at the gate" value={stopped(state)} tone="text-stop" />
@@ -136,41 +144,51 @@ export function StageView() {
         </p>
       )}
 
-      <section className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]" aria-label="The hijack">
-        <HijackControls />
-        <div aria-live="polite">
-          <Gate pass={latestHijack(state)} />
-        </div>
-      </section>
-
-      <section className="mt-10 grid grid-cols-[1fr_20rem] gap-10">
-        <div>
-          <h2 className="mb-4 text-xs font-medium uppercase tracking-[0.08em] text-ink-3">At the gate</h2>
-          {state.passes.length === 0 ? (
-            <div className="flex h-48 items-center justify-center rounded-card border border-dashed border-line-strong text-lg text-ink-3">
-              Waiting for the first press…
-            </div>
-          ) : (
-            <ol className="space-y-2">
-              {state.passes.slice(0, 14).map((p) => (
-                <PassRow key={p.id} pass={p} fresh={p.id === newest} />
-              ))}
-            </ol>
-          )}
-        </div>
-        <aside className="text-base leading-relaxed text-ink-2">
-          <h2 className="mb-4 text-xs font-medium uppercase tracking-[0.08em] text-ink-3">What the AI can do</h2>
-          <div className="rounded-card border border-line bg-surface p-6">
-            <p>
-              Press <span className="font-semibold text-ink">12 buttons</span>, every one checked in code.
-            </p>
-            <p className="mt-3">
-              Speak only through the <span className="font-semibold text-ink">speech guard</span> (S1 to S4).
-            </p>
-            <p className="mt-5 border-t border-line pt-5 text-sm text-ink-3">Every number here comes from a live event, and every event is in the hash-chained record.</p>
+      {embedded !== "gate" && (
+        <section className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]" aria-label="The hijack">
+          <HijackControls />
+          <div aria-live="polite">
+            <Gate pass={latestHijack(state)} />
           </div>
-        </aside>
-      </section>
-    </main>
+        </section>
+      )}
+
+      {embedded !== "attacks" && (
+        <section className="mt-10 grid grid-cols-1 gap-10 lg:grid-cols-[1fr_20rem]">
+          <div>
+            <h2 className="mb-4 text-xs font-medium uppercase tracking-[0.08em] text-ink-3">At the gate</h2>
+            {state.passes.length === 0 ? (
+              <div className="flex h-48 items-center justify-center rounded-card border border-dashed border-line-strong text-lg text-ink-3">
+                Waiting for the first press…
+              </div>
+            ) : (
+              <ol className="space-y-2">
+                {state.passes.slice(0, 14).map((p) => (
+                  <PassRow key={p.id} pass={p} fresh={p.id === newest} />
+                ))}
+              </ol>
+            )}
+          </div>
+          <aside className="text-base leading-relaxed text-ink-2">
+            <h2 className="mb-4 text-xs font-medium uppercase tracking-[0.08em] text-ink-3">What the AI can do</h2>
+            <div className="rounded-card border border-line bg-surface p-6">
+              <p>
+                Press <span className="font-semibold text-ink">12 buttons</span>, every one checked in code.
+              </p>
+              <p className="mt-3">
+                Speak only through the <span className="font-semibold text-ink">speech guard</span> (S1 to S4).
+              </p>
+              <p className="mt-5 border-t border-line pt-5 text-sm text-ink-3">
+                Every number here comes from a live event, and every event is in the hash-chained record.
+              </p>
+            </div>
+          </aside>
+        </section>
+      )}
+    </Frame>
   );
+}
+
+function Frame({ embedded, children }: { embedded: boolean; children: ReactNode }) {
+  return embedded ? <div>{children}</div> : <main className="theme-dark min-h-screen bg-canvas px-10 py-8 text-ink xl:px-14">{children}</main>;
 }

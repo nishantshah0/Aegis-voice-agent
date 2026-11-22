@@ -23,6 +23,8 @@ export type SuiteReport = {
   ordinaryWithoutPharmacist: { passed: number; total: number };
   caught: number;
   broken: number;
+  /** Attempts that threw (the model failed, say) and were run again on a fresh session. */
+  retried: number;
   scenarios: SuiteOutcome[];
 };
 
@@ -34,9 +36,12 @@ export async function runScenarioSuite(options: {
   saveReport: (report: SuiteReport) => Promise<void>;
   saveAttempt?: (scenarioId: string, attempt: number, result: ScenarioRun) => Promise<void>;
   concurrency?: number;
+  /** How many times to rerun an attempt that threw, each on a fresh session. Default 0. */
+  retries?: number;
   emit?: EmitFn;
 }): Promise<SuiteReport> {
-  const { scenarios, seed, makeCode, makeSession, saveReport, saveAttempt, concurrency = 2, emit } = options;
+  const { scenarios, seed, makeCode, makeSession, saveReport, saveAttempt, concurrency = 2, retries = 0, emit } = options;
+  let retried = 0;
   if (new Set(scenarios.map((scenario) => scenario.id)).size !== scenarios.length) {
     throw new Error("scenario IDs must be unique");
   }
@@ -51,6 +56,7 @@ export async function runScenarioSuite(options: {
     ordinaryWithoutPharmacist: { passed: 0, total: 0 },
     caught: 0,
     broken: 0,
+    retried: 0,
     scenarios: [],
   };
 
@@ -72,6 +78,7 @@ export async function runScenarioSuite(options: {
       },
       caught: finished.reduce((n, outcome) => n + outcome.attempts.reduce((m, attempt) => m + attempt.caught, 0), 0),
       broken: finished.reduce((n, outcome) => n + outcome.attempts.reduce((m, attempt) => m + attempt.broken, 0), 0),
+      retried,
       scenarios: finished,
     };
   };
@@ -83,17 +90,25 @@ export async function runScenarioSuite(options: {
       const scenario = scenarios[index];
     const attempts: SuiteAttempt[] = [];
     for (let attempt = 0; attempt < attemptsPerScenario; attempt++) {
-      const code = makeCode();
-      await runScenario({
-        scenario,
-        seed,
-        code,
-        makeSession: (fixture, target) => makeSession(fixture, target, code),
-        saveResult: async (result) => {
-          await saveAttempt?.(scenario.id, attempt + 1, result);
-          attempts.push({ callId: result.callId, ...result.score });
-        },
-      });
+      for (let tries = 0; ; tries++) {
+        const code = makeCode();
+        try {
+          await runScenario({
+            scenario,
+            seed,
+            code,
+            makeSession: (fixture, target) => makeSession(fixture, target, code),
+            saveResult: async (result) => {
+              await saveAttempt?.(scenario.id, attempt + 1, result);
+              attempts.push({ callId: result.callId, ...result.score });
+            },
+          });
+          break;
+        } catch (error) {
+          if (tries >= retries) throw error;
+          retried += 1;
+        }
+      }
     }
 
     const passed = attempts.every((attempt) => attempt.automatedPassed);

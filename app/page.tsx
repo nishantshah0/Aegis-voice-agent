@@ -1,7 +1,9 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { ButtonLink, Card, Eyebrow, LaneBadge, Logo, Mark, RuleTag, SiteHeader, type NavLink } from "@/components/ui";
 import { ProductPreview } from "@/components/landing/ProductPreview";
 import { fmt, hammerTotals } from "@/components/landing/hammer";
+import { AuthButton, SignInLink } from "@/components/landing/AuthButton";
 
 const REPO = "https://github.com/nishantshah0/namereserve";
 
@@ -82,9 +84,9 @@ const SPEECH = [
 ];
 
 const PAGES = [
-  { href: "/phone", title: "Patient phone", body: "Answer the pharmacy's call, give the code, ask for the refill. Try to talk it into something it shouldn't do." },
-  { href: "/console/today", title: "Pharmacist console", body: "The Review lane first. Every item shows the rule, the side effects and what the patient was told." },
-  { href: "/stage", title: "The stage", body: "Every press and every sentence at the gate, live. What got through, what went to a pharmacist, what was stopped." },
+  { href: "/app/pharmacy/today", title: "Pharmacy calls", body: "For the pharmacist: today's queue with Review first, upcoming refills, every call with its record. Sign in to approve." },
+  { href: "/app/safety/gate", title: "Safety suite", body: "The live gate, attacks from a compromised AI, scripted scenarios, overnight results and every rule with why it's there." },
+  { href: "/phone", title: "Patient phone", body: "The patient's side, on its own device. Answer the pharmacy's call, give the code, and try to talk it into something it shouldn't do." },
 ];
 
 function Arrow() {
@@ -102,7 +104,19 @@ export default function Home() {
 
   return (
     <div className="theme-dark flex min-h-screen flex-col bg-canvas text-ink">
-      <SiteHeader links={LANDING_LINKS} right={<ButtonLink href="#demo" size="sm">Try the demo</ButtonLink>} />
+      <SiteHeader
+        links={LANDING_LINKS}
+        right={
+          <>
+            <a href="#demo" className="hidden rounded-full px-3 py-1.5 text-sm text-ink-2 hover:text-ink sm:inline">
+              See it live
+            </a>
+            <Suspense fallback={<SignInLink />}>
+              <AuthButton />
+            </Suspense>
+          </>
+        }
+      />
 
       <main className="flex-1">
         {/* Hero */}
@@ -127,11 +141,11 @@ export default function Home() {
                   Aegis calls patients before their medication runs out, handles the refill, and sends only the tricky calls to a pharmacist. Everything the AI tries passes through rules written in code.
                 </p>
                 <div className="rg-rise rg-rise-3 mt-8 flex flex-wrap gap-3">
-                  <ButtonLink href="/phone" size="lg">
+                  <Suspense fallback={<SignInLink size="lg" />}>
+                    <AuthButton size="lg" />
+                  </Suspense>
+                  <ButtonLink href="/phone" size="lg" variant="secondary">
                     Take the call <Arrow />
-                  </ButtonLink>
-                  <ButtonLink href="#safety" size="lg" variant="secondary">
-                    How it stays safe
                   </ButtonLink>
                 </div>
                 <dl className="rg-rise rg-rise-4 mt-12 grid max-w-md grid-cols-2 gap-6 border-t border-line pt-6">
@@ -259,7 +273,7 @@ export default function Home() {
           <div className="mx-auto max-w-6xl px-5 py-20 md:px-8 md:py-28">
             <Eyebrow>The demo</Eyebrow>
             <h2 className="mt-3 text-4xl font-medium tracking-[-0.045em] md:text-6xl">See it take a call.</h2>
-            <p className="mt-4 max-w-xl text-lg text-ink-2">Open the three screens side by side and run the daily check. Demo data only.</p>
+            <p className="mt-4 max-w-xl text-lg text-ink-2">Two product areas behind one sign-in, plus the patient&apos;s own phone. Demo data only.</p>
             <ul className="mt-12 grid gap-4 md:grid-cols-3">
               {PAGES.map((p) => (
                 <li key={p.href}>
