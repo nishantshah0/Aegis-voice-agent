@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { emit } from "@/lib/events";
 import { resetBusForTests } from "@/lib/events/bus";
+import { createSpeechGuard } from "@/lib/guard";
 import { resetSpeechBudgetForTests } from "./_lib/phone";
 import { getStore, resetRuntimeForTests } from "./_lib/runtime";
 import { POST as startCall } from "./call/start/route";
@@ -70,6 +72,21 @@ describe("POST /api/call/:id/speak (1.5 support)", () => {
     expect((await speak(req({ text: "Your code is 1 1 2, 3 5 8." }, phoneToken), params(callId))).status).toBe(200);
     expect((await speak(req({ text: "Your code is 112358." }, phoneToken), params(callId))).status).toBe(200);
     expect((await speak(req({ text: "Your refill is approved." }, other.phoneToken), params(other.callId))).status).toBe(200);
+  });
+
+  it("voices the guard's replacement for a blocked line, never the blocked original (Role 3, 2.9)", async () => {
+    const { callId, phoneToken } = await call();
+    const other = await call();
+    const guarded = await createSpeechGuard({ store: getStore(), emit })(callId, "Your Concerta refill is approved.");
+    expect(guarded.blocked).toBe(true);
+    const replacement = guarded.speak;
+    // The original never reaches the voice, on this call or any other.
+    expect((await speak(req({ text: "Your Concerta refill is approved." }, phoneToken), params(callId))).status).toBe(403);
+    // The replacement was only said on this call.
+    expect((await speak(req({ text: replacement }, other.phoneToken), params(other.callId))).status).toBe(403);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect((await speak(req({ text: replacement }, phoneToken), params(callId))).status).toBe(200);
+    expect(JSON.parse(String((fetchMock.mock.calls[0] as [string, RequestInit])[1].body))).toMatchObject({ text: replacement });
   });
 
   it("caps the voice at 20,000 characters an hour across every call", async () => {

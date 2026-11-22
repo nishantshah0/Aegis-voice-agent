@@ -8,9 +8,10 @@ import { getStore } from "../../../_lib/runtime";
 // The phone sends the line it's about to say (the guard's speak text, rewritten for speech
 // by lib/voice); the server turns it into audio with ElevenLabs, so the key never leaves
 // the server. Only the call's own phone token (or staff) may ask, and only for a line the
-// speech guard let the agent say on this call (a line_spoken entry in its record, as written
-// or as forSpeech rewrote it): the pharmacy's voice never says anything the guard didn't pass
-// (Trail #47 finding). Limits per request, per call and per hour across the server keep the
+// speech guard let the agent say on this call (a line_spoken entry in its record, or the
+// replacement saved on a line_blocked entry, as written or as forSpeech rewrote it): the
+// pharmacy's voice never says anything the guard didn't pass, and never a blocked original
+// (Trail #47 finding; replacements: Role 3's 2.9 REQUEST). Limits per request, per call and per hour across the server keep the
 // bill bounded. Needs ELEVENLABS_API_KEY and ELEVENLABS_VOICE_ID in the server's .env.
 
 const MODEL_ID = "eleven_flash_v2_5"; // listed by GET /v1/models with can_do_text_to_speech
@@ -18,10 +19,20 @@ const MAX_CHARS = 500;
 const MAX_PER_CALL = 60;
 const MAX_CHARS_PER_HOUR = 20_000;
 
-/** Whether `text` is a line the guard let the agent say, as written or as spoken. */
+/**
+ * The line the agent actually said for a record entry: a line the guard passed, or the
+ * replacement it said in place of a blocked line. Never the blocked original.
+ */
+function said(e: RecordEntry): unknown {
+  if (e.kind === "line_spoken") return (e.input as { text?: unknown } | undefined)?.text;
+  if (e.kind === "line_blocked") return (e.output as { replacement?: unknown } | undefined)?.replacement;
+  return undefined;
+}
+
+/** Whether `text` is a line the agent said on this call, as written or as spoken. */
 function saidOnCall(record: RecordEntry[], text: string): boolean {
   return record.some((e) => {
-    const line = e.kind === "line_spoken" ? (e.input as { text?: unknown } | undefined)?.text : undefined;
+    const line = said(e);
     return typeof line === "string" && (line.trim() === text || forSpeech(line).trim() === text);
   });
 }

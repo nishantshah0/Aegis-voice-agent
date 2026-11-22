@@ -5,6 +5,7 @@ import { connection } from "next/server";
 import { Badge, Card, Eyebrow } from "@/components/ui";
 import { groupWords, readAttempts, readCards, readLatestRun, RUN_COMMANDS, shortPath, when, type Entry } from "../../data";
 import { AttemptView, type AttemptData } from "./AttemptView";
+import { RunLiveCallButton } from "../../live-calls/RunLiveCallButton";
 import { SignInCard, signedIn } from "../../SignedIn";
 
 export const metadata = { title: "Scenario · Safety suite · Aegis" };
@@ -67,6 +68,7 @@ async function Scenario({ params }: { params: Promise<{ id: string }> }) {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {card.inSuite && <RunLiveCallButton source={{ kind: "scenario", id: card.id }} />}
           {!card.inSuite && <Badge>Not in the 28-card suite</Badge>}
           <Badge>{card.direction === "outbound" ? "Outbound call" : "Inbound call"}</Badge>
           {outcome ? (
