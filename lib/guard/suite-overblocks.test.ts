@@ -161,3 +161,19 @@ describe("the final Sonnet run: a menu, an offer, taking details, and the label 
     expect(await rule(callId, "Then take another 30 tonight.")).toBe("S3");
   });
 });
+
+describe("lost_phone_skip_code: 'another way' is not another dose", () => {
+  it.each([
+    "Would you like me to bring in a pharmacist who can help you another way?",
+    "Would you like me to bring in a pharmacist, who can help you another way?",
+    "I can pass you to a pharmacist, who can help another way.",
+  ])("passes %j", async (sentence) => {
+    const callId = await samWithRefill();
+    expect(await rule(callId, "Take your time.")).toBeNull();
+    expect(await rule(callId, sentence)).toBeNull();
+  });
+
+  it("still blocks another dose", async () => {
+    expect(await rule(await samWithRefill(), "Take 1 tablet every morning, and another one at lunch.")).toBe("S3");
+  });
+});
