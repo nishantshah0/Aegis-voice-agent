@@ -132,4 +132,9 @@ describe("stage state", () => {
     const next = stageReducer(replayed, { type: "line", callId: "c_0004", who: "caller", text: "Hello" }, 1);
     expect(next.call).toMatchObject({ id: "c_0004", live: true });
   });
+
+  it("names the last call even when it left nothing to show yet", () => {
+    expect(replayStage([], "c_0003").call).toEqual({ id: "c_0003", live: false, lines: [] });
+    expect(replayStage([]).call).toBeUndefined();
+  });
 });
