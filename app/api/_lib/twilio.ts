@@ -1,4 +1,4 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 
 // Twilio's REST API and webhooks, for the real phone line on a trial account's shared number
 // (Trail #70). The account, the numbers and the token come only from .env and are never logged
@@ -46,7 +46,41 @@ export async function signedTwilioFields(request: Request, env: NodeJS.ProcessEn
   const local = new URL(request.url);
   const expected = Buffer.from(twilioSignature(token, `${origin}${local.pathname}${local.search}`, fields));
   const actual = Buffer.from(given);
-  return expected.length === actual.length && timingSafeEqual(expected, actual) ? fields : null;
+  const valid = expected.length === actual.length && timingSafeEqual(expected, actual);
+  if (!valid && env.VOICE_LLM_DEBUG === "1") {
+    // Names only, never values: enough to see why Twilio's signature didn't match.
+    console.log(`twilio: bad signature on ${local.pathname} type=${request.headers.get("content-type")} query=${[...local.searchParams.keys()].join(",")} fields=${Object.keys(fields).sort().join(",")}`);
+  }
+  return valid ? fields : null;
+}
+
+/** A fresh token for one call's TwiML URL. */
+export function newUrlToken(): string {
+  return randomBytes(24).toString("base64url");
+}
+
+/** Constant-time check of a URL token. */
+export function tokenMatches(given: string | null, expected: string | undefined): boolean {
+  if (!given || !expected) return false;
+  const a = createHash("sha256").update(given).digest();
+  const b = createHash("sha256").update(expected).digest();
+  return timingSafeEqual(a, b) && given === expected;
+}
+
+/**
+ * The form fields of a request that carries this URL's token (when `token` is given) or Twilio's
+ * signature, or null. A One Console trial fetches the call's Url through its trial flow, whose
+ * signature doesn't match our auth token, so that URL also holds a per-call token.
+ */
+export async function twilioFields(request: Request, token: string | undefined, env: NodeJS.ProcessEnv = process.env): Promise<Record<string, string> | null> {
+  if (token && tokenMatches(new URL(request.url).searchParams.get("t"), token)) {
+    try {
+      return Object.fromEntries(new URLSearchParams(await request.text()));
+    } catch {
+      return null;
+    }
+  }
+  return signedTwilioFields(request, env);
 }
 
 export type TwilioCall = { ok: true; sid?: string } | { ok: false; status: number; code?: number; message?: string };

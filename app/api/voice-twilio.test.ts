@@ -120,7 +120,7 @@ describe("POST /api/voice/outbound on a Twilio trial number", () => {
     const form = new URLSearchParams(init.body as URLSearchParams);
     expect(form.get("To")).toBe(TO);
     expect(form.get("From")).toBe(FROM);
-    expect(form.get("Url")).toBe(`${PUBLIC}/api/voice/twiml?call=${callId}`);
+    expect(form.get("Url")).toMatch(new RegExp(`^${PUBLIC}/api/voice/twiml\\?call=${callId}&t=[A-Za-z0-9_-]{32}$`));
     expect(form.get("StatusCallback")).toBe(`${PUBLIC}/api/voice/twilio-status?call=${callId}`);
     // A One Console trial refuses these with "trial accounts have limited parameter access" (code 0).
     // Twilio's defaults are what we want anyway: POST, and the status callback on completion.
@@ -154,12 +154,14 @@ describe("POST /api/voice/twiml (Twilio asks what to do when the call connects)"
   async function placed() {
     twilioLine();
     realDriver();
-    return ((await (await outbound()).json()) as { callId: string }).callId;
+    const callId = ((await (await outbound()).json()) as { callId: string }).callId;
+    const url = new URLSearchParams(sent("/Calls.json")[0][1].body as URLSearchParams).get("Url")!;
+    return { callId, path: url.slice(PUBLIC.length) };
   }
 
   it("registers the call with ElevenLabs, with our id and the guarded opener, and returns its TwiML", async () => {
-    const callId = await placed();
-    const res = await twiml(fromTwilio(`/api/voice/twiml?call=${callId}`, { CallSid: "CA_test", From: FROM, To: TO, CallStatus: "in-progress" }));
+    const { callId, path } = await placed();
+    const res = await twiml(fromTwilio(path, { CallSid: "CA_test", From: FROM, To: TO, CallStatus: "in-progress" }));
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toContain("xml");
     expect(await res.text()).toBe(TWIML);
@@ -173,17 +175,26 @@ describe("POST /api/voice/twiml (Twilio asks what to do when the call connects)"
     expect(body.conversation_initiation_client_data.conversation_config_override.agent.first_message).toBe(outboundOpener(PHARMACY_NAME, "Sam Rivera"));
   });
 
-  it("refuses anything Twilio didn't sign, or signed for another URL", async () => {
-    const callId = await placed();
+  it("needs the call's own URL token or Twilio's signature, and a token works only for its call", async () => {
+    const { callId, path } = await placed();
     const fields = { CallSid: "CA_test", From: FROM, To: TO };
-    expect((await twiml(fromTwilio(`/api/voice/twiml?call=${callId}`, fields, "wrong-token"))).status).toBe(403);
-    const unsigned = new Request(`http://localhost:3070/api/voice/twiml?call=${callId}`, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: new URLSearchParams(fields) });
-    expect((await twiml(unsigned)).status).toBe(403);
-    // Signed for one call id, replayed against another.
-    const signed = fromTwilio(`/api/voice/twiml?call=${callId}`, fields);
-    const moved = new Request(`http://localhost:3070/api/voice/twiml?call=c_9999`, { method: "POST", headers: signed.headers, body: new URLSearchParams(fields) });
-    expect((await twiml(moved)).status).toBe(403);
-    expect(sent("register-call")).toHaveLength(0);
+    const post = (p: string, headers: Record<string, string> = {}) =>
+      twiml(new Request(`http://localhost:3070${p}`, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded", ...headers }, body: new URLSearchParams(fields) }));
+    // A One Console trial fetches the Url with a signature our token doesn't match: the URL token is enough.
+    expect((await post(path, { "X-Twilio-Signature": "not-ours" })).status).toBe(200);
+    await runtime.resetRuntimeForTests();
+    resetVoiceLineForTests();
+    fetchMock.mockClear();
+    const again = await placed();
+    expect((await post(`/api/voice/twiml?call=${again.callId}`)).status).toBe(403);
+    expect((await post(`/api/voice/twiml?call=${again.callId}&t=${"x".repeat(32)}`)).status).toBe(403);
+    // A token for one call, moved to another call id.
+    const token = new URL(`http://x${again.path}`).searchParams.get("t");
+    expect((await post(`/api/voice/twiml?call=c_9999&t=${token}`)).status).toBe(403);
+    // Twilio's own signature still works without the token.
+    expect((await twiml(fromTwilio(`/api/voice/twiml?call=${again.callId}`, fields))).status).toBe(200);
+    expect((await twiml(fromTwilio(`/api/voice/twiml?call=${again.callId}`, fields, "wrong-token"))).status).toBe(403);
+    expect(callId).toBeTruthy();
   });
 
   it("hangs up (never a spoken <Say>) for a call the phone line doesn't know", async () => {
