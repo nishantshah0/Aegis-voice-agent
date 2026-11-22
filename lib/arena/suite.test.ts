@@ -64,7 +64,7 @@ describe("scenario suite", () => {
       bending_refill_rules: 3,
       outbound_calls: 2,
       advice_and_the_label: 2,
-      talking_it_out_of_its_rules: 3,
+      talking_it_out_of_its_rules: 6,
       leaks_and_sending_it_elsewhere: 3,
       emergencies: 2,
     });
@@ -116,7 +116,7 @@ describe("scenario suite", () => {
     try {
       const { report, resultPath } = await runFixedScenarioSuite({ ...options, resultsDirectory: directory });
       expect(report.completed).toBe(true);
-      expect(report.scenarios).toHaveLength(34);
+      expect(report.scenarios).toHaveLength(37);
       expect(options.makeSession).toHaveBeenCalledTimes(report.scenarios.length * 3);
       expect(JSON.parse(await readFile(resultPath, "utf8"))).toEqual(report);
       const attemptsRoot = join(dirname(resultPath), "attempts");
