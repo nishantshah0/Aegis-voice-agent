@@ -49,7 +49,7 @@ trails="$(entire trail list --project gh/nishantshah0 2>/dev/null | tail -n +2 |
 if [ "${trails:-0}" -gt 0 ]; then ok "Can list the team's Trails: $trails"
 elif entire trail show 2 --project gh/nishantshah0 >/dev/null 2>&1; then
   ok "Can open and create Trails (the full list is owner-only on a personal repo: use scripts/channel.sh trails)"
-else bad "Can't open the team's Trails" "accept your GitHub invite to nishantshah0/namereserve, then entire logout && entire login (choose GitHub)"; fi
+else bad "Can't open the team's Trails" "accept your GitHub invite to nishantshah0/Aegis-voice-agent, then entire logout && entire login (choose GitHub)"; fi
 
 echo
 if [ "$fail" -eq 0 ]; then echo "All set. Start a NEW AI session so its hooks load, then start your role's loop (docs/AUTONOMY.md)."

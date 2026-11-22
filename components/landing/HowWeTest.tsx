@@ -4,7 +4,7 @@ import { getApprover } from "@/lib/auth/session";
 import { hammerTotals, hijackBatch, overnightScore, suiteScore } from "./evidence";
 import { Eyebrow } from "@/components/ui";
 
-const EVALS_DOC = "https://github.com/nishantshah0/namereserve/blob/main/docs/EVALS.md";
+const EVALS_DOC = "https://github.com/nishantshah0/Aegis-voice-agent/blob/main/docs/EVALS.md";
 const fmt = (n: number) => n.toLocaleString("en-US");
 
 type Layer = { name: string; body: string; figure?: string };

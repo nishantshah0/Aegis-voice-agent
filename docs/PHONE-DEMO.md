@@ -32,8 +32,8 @@ It takes about 30 minutes the first time, and two commands after that.
 ## 2. Get the code
 
 ```bash
-git clone https://github.com/nishantshah0/namereserve.git
-cd namereserve
+git clone https://github.com/nishantshah0/Aegis-voice-agent.git
+cd Aegis-voice-agent
 npm ci
 ```
 
@@ -103,7 +103,7 @@ AUTH0_SECRET=...                # any 64 hex characters: node -e "console.log(re
 
 ## 6. Start it (every time)
 
-Open two terminals in the `namereserve` folder.
+Open two terminals in the `Aegis-voice-agent` folder.
 
 **Terminal 1: the tunnel**
 

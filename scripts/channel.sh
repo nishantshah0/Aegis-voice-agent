@@ -27,7 +27,7 @@
 # Your own messages never show up in your inbox.
 set -euo pipefail
 
-REPO="${AGENT_CHANNEL_REPO:-nishantshah0/namereserve}"
+REPO="${AGENT_CHANNEL_REPO:-nishantshah0/Aegis-voice-agent}"
 ISSUE="${AGENT_CHANNEL_ISSUE:-1}"
 URGENT_ISSUE="${AGENT_URGENT_ISSUE:-11}"
 TYPES="CLAIM STATUS DECISION OBJECT REQUEST REPLY HANDOFF BLOCKED REVIEW MERGED HUMAN"
