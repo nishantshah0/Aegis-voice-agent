@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { Badge, Button, Card, Eyebrow, RuleTag } from "@/components/ui";
+import { Badge, Button, Card, Eyebrow, RuleTag, inputClass } from "@/components/ui";
 import type { RuleCard } from "@/lib/contract";
 import type { RuleDraft } from "@/lib/arena/rule-writer";
 
@@ -70,7 +70,7 @@ export function RuleWriter({ canWrite }: { canWrite: boolean }) {
           rows={2}
           maxLength={500}
           disabled={!canWrite}
-          className="mt-2 w-full rounded-xl border border-line-strong bg-surface px-3 py-2 text-[15px] text-ink"
+          className={inputClass("mt-2 h-auto w-full py-2 text-[15px]")}
         />
         <div className="mt-3 flex flex-wrap items-center gap-3">
           <Button onClick={write} disabled={!canWrite || pending || !text.trim()}>

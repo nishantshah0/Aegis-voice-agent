@@ -3,7 +3,7 @@ import { connection } from "next/server";
 import { Card, Eyebrow, PageHeader, SkeletonRows } from "@/components/ui";
 import { getApprover } from "@/lib/auth/session";
 import { getStore } from "@/app/api/_lib/runtime";
-import { SuiteGate } from "../SignedIn";
+import { SignInCard, SuiteGate, signedIn } from "../SignedIn";
 import { RuleWriter } from "./RuleWriter";
 
 export const metadata = { title: "Rule writer · Safety suite · Aegis" };
@@ -14,6 +14,7 @@ export const metadata = { title: "Rule writer · Safety suite · Aegis" };
 
 async function Writer() {
   await connection();
+  if (!(await signedIn())) return <SignInCard />;
   const approver = await getApprover();
   const written = (await getStore().listCards()).filter((c) => c.author.startsWith("rule writer"));
   return (

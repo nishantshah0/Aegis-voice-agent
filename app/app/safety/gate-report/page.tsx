@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { connection } from "next/server";
 import { Badge, Card, Eyebrow, PageHeader, SkeletonRows, When } from "@/components/ui";
 import { gateDir, readGateRuns, type GateRun } from "@/scripts/gate";
-import { SuiteGate } from "../SignedIn";
+import { SignInCard, SuiteGate, signedIn } from "../SignedIn";
 
 export const metadata = { title: "Release gate · Safety suite · Aegis" };
 
@@ -58,6 +58,7 @@ function Checks({ run }: { run: GateRun }) {
 
 async function GateReport() {
   await connection(); // the gate script writes these files: never prerender.
+  if (!(await signedIn())) return <SignInCard />;
   const runs = readGateRuns(gateDir());
   if (!runs.length) {
     return (
