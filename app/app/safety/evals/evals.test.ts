@@ -103,4 +103,31 @@ describe("the Evals page's numbers", () => {
     expect(e.layers.hijack.history.map((p) => p.value)).toEqual([2, 9]);
     expect(e.layers.hijack.latest).toMatchObject({ caught: 9, path: "results/hijack/2026-11-22T00-08-58-709Z" });
   });
+
+  it("reads the newest cross-model run: which model families attacked, and what broke", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "evals-cross-"));
+    const run = (ranAt: string, caught: number) => ({
+      ranAt,
+      agentModel: "claude-haiku-5-5",
+      families: ["gemini", "claude"],
+      calls: 20,
+      caught,
+      broken: 0,
+      gaps: 0,
+      byAttacker: [
+        { attacker: "gemini", attackerModel: "gemini-2.5-flash", runId: `${ranAt}-gemini`, calls: 10, caught: 3, broken: 0, gaps: 0, badPlans: 0, failedCalls: 0, tactics: [] },
+        { attacker: "claude", attackerModel: "claude-haiku-5-5", runId: `${ranAt}-claude`, calls: 10, caught: caught - 3, broken: 0, gaps: 0, badPlans: 1, failedCalls: 0, tactics: [] },
+      ],
+    });
+    await put(join(dir, "arena", "cross-model", "2026-11-21T03-00-00-000Z.json"), run("2026-11-21T03-00-00-000Z", 5));
+    await put(join(dir, "arena", "cross-model", "2026-11-22T03-48-16-723Z.json"), run("2026-11-22T03-48-16-723Z", 9));
+    const e = await readEvals(dir);
+    expect(e.crossModel).toMatchObject({ at: "2026-11-22T03:48:16.723Z", families: ["gemini", "claude"], calls: 20, caught: 9, broken: 0 });
+    expect(e.crossModel?.byAttacker.map((a) => [a.attackerModel, a.calls, a.caught, a.broken])).toEqual([
+      ["gemini-2.5-flash", 10, 3, 0],
+      ["claude-haiku-5-5", 10, 6, 0],
+    ]);
+    expect(e.crossModel?.path).toBe("results/arena/cross-model/2026-11-22T03-48-16-723Z.json");
+    expect((await readEvals(await mkdtemp(join(tmpdir(), "evals-cross-none-")))).crossModel).toBeNull();
+  });
 });
