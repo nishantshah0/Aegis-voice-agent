@@ -14,12 +14,6 @@ const SAFETY = "/app/safety/gate";
 
 export default function Home() {
   const run = hammerTotals();
-  const runDate = new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    timeZone: "UTC",
-  }).format(new Date(run.ranAt));
 
   return (
     <div className="landing-page">
@@ -78,7 +72,6 @@ export default function Home() {
                 <dd>{fmt(run.sequences)}</dd>
               </div>
             </dl>
-            <p>Saved control-layer stress test · <time dateTime={run.ranAt}>{runDate} UTC</time></p>
           </div>
         </section>
 
