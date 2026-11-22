@@ -1,5 +1,5 @@
-// Demo glue: the home page signs you in and links the two product areas and the phone;
-// the old console URLs still land in the right place.
+// Demo glue: the home page signs you in to the dashboard and links its two product areas and
+// the phone; the old URLs still land in the right place.
 import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 
@@ -7,7 +7,7 @@ describe("demo navigation", () => {
   it("the home page links sign-in, both product areas and the phone", async () => {
     const { default: Home } = await import("./page");
     const html = renderToStaticMarkup(Home());
-    for (const href of ["/app/pharmacy/today", "/app/safety/gate", "/phone", "/api/auth/login?returnTo=%2Fapp"]) expect(html).toContain(`href="${href}"`);
+    for (const href of ["/dashboard/calls", "/dashboard/suite", "/phone", "/api/auth/login?returnTo=%2Fdashboard"]) expect(html).toContain(`href="${href}"`);
     expect(html).not.toContain("Pages coming");
   });
 
@@ -23,17 +23,21 @@ describe("demo navigation", () => {
     expect(digest).toContain("/console/today");
   });
 
-  it("old console URLs redirect into the app; /stage and /phone stay where they are", async () => {
+  it("old URLs redirect into the dashboard; /phone stays the device", async () => {
     const { default: config } = await import("../next.config");
     const redirects = await config.redirects!();
     const to = (source: string) => redirects.find((r) => r.source === source)?.destination;
-    expect(to("/console/today")).toBe("/app/pharmacy/today");
-    expect(to("/console/upcoming")).toBe("/app/pharmacy/upcoming");
-    expect(to("/console/calls")).toBe("/app/pharmacy/calls");
-    expect(to("/console/review")).toBe("/app/pharmacy/review");
-    expect(to("/console/rules")).toBe("/app/safety/rules");
-    expect(to("/console/overnight")).toBe("/app/safety/overnight");
-    expect(to("/stage")).toBeUndefined();
+    expect(to("/console")).toBe("/dashboard/calls");
+    expect(to("/console/today")).toBe("/dashboard/calls");
+    expect(to("/console/upcoming")).toBe("/dashboard/calls/upcoming");
+    expect(to("/console/calls")).toBe("/dashboard/calls/history");
+    expect(to("/console/review")).toBe("/dashboard/calls/review");
+    expect(to("/console/overnight")).toBe("/dashboard/suite/overnight");
+    expect(to("/console/rules")).toBe("/dashboard/suite/rules");
+    expect(to("/stage")).toBe("/dashboard/suite/live");
+    expect(to("/app")).toBe("/dashboard");
     expect(to("/phone")).toBeUndefined();
+    // Only exact pages move: the review page's label route and every API route stay put.
+    expect(redirects.some((r) => r.source.startsWith("/api") || r.source.startsWith("/console/review/"))).toBe(false);
   });
 });
