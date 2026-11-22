@@ -36,26 +36,42 @@ function AreaTile({ area, className }: { area: Area; className?: string }) {
 function AreaSwitcher({ current }: { current: Area }) {
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     if (!open) return;
-    const close = (e: MouseEvent | KeyboardEvent) => {
-      if (e instanceof KeyboardEvent ? e.key === "Escape" : !box.current?.contains(e.target as Node)) setOpen(false);
+    box.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
+    const onDown = (e: MouseEvent) => !box.current?.contains(e.target as Node) && setOpen(false);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setOpen(false);
+        trigger.current?.focus();
+        return;
+      }
+      if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+      const items = Array.from(box.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? []);
+      const at = items.indexOf(document.activeElement as HTMLElement);
+      e.preventDefault();
+      items[(at + (e.key === "ArrowDown" ? 1 : items.length - 1)) % items.length]?.focus();
     };
-    document.addEventListener("mousedown", close);
-    document.addEventListener("keydown", close);
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
     return () => {
-      document.removeEventListener("mousedown", close);
-      document.removeEventListener("keydown", close);
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
     };
   }, [open]);
   return (
     <div ref={box} className="relative">
       <button
+        ref={trigger}
         type="button"
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center gap-2.5 rounded-lg border border-line bg-surface px-2 py-1.5 text-left transition-colors hover:border-line-strong"
+        className={cn(
+          "flex w-full items-center gap-2.5 rounded-lg border bg-surface px-2 py-1.5 text-left transition-colors hover:border-line-strong",
+          open ? "border-line-strong" : "border-line",
+        )}
       >
         <AreaTile area={current} />
         <span className="min-w-0 flex-1">
@@ -65,21 +81,28 @@ function AreaSwitcher({ current }: { current: Area }) {
         <Icon name="chevrons" className="size-4 text-ink-3" />
       </button>
       {open && (
-        <div role="menu" aria-label="Product area" className="absolute inset-x-0 top-full z-40 mt-1.5 rounded-lg border border-line-strong bg-raised p-1 shadow-pop">
+        // Opens beside the sidebar on a desktop (so it never sits over the page list), below the button on a phone.
+        <div
+          role="menu"
+          aria-label="Product area"
+          className="absolute inset-x-0 top-full z-50 mt-1.5 rounded-xl border border-line-strong bg-raised p-1.5 shadow-pop lg:inset-x-auto lg:left-full lg:top-0 lg:ml-3 lg:mt-0 lg:w-80"
+        >
+          <p className="px-2 pb-1 pt-1 text-[11px] font-medium uppercase tracking-[0.08em] text-ink-3">Switch area</p>
           {AREAS.map((a) => (
             <Link
               key={a.key}
               role="menuitem"
               href={a.home}
               onClick={() => setOpen(false)}
-              className="flex items-center gap-2.5 rounded-md px-2 py-2 transition-colors hover:bg-sunken"
+              aria-current={a.key === current.key ? "true" : undefined}
+              className="flex items-center gap-3 rounded-lg px-2 py-2 outline-none transition-colors hover:bg-sunken focus-visible:bg-sunken"
             >
               <AreaTile area={a} />
               <span className="min-w-0 flex-1">
                 <span className="block text-[13px] font-medium text-ink">{a.label}</span>
-                <span className="block truncate text-[11px] text-ink-3">{a.hint}</span>
+                <span className="block text-xs text-ink-3">{a.hint}</span>
               </span>
-              {a.key === current.key && <Icon name="check" className="size-4 text-ink-2" />}
+              {a.key === current.key && <Icon name="check" className="size-4 text-accent" />}
             </Link>
           ))}
         </div>
@@ -92,7 +115,7 @@ function AreaSwitcher({ current }: { current: Area }) {
  * The signed-in app: one dark theme. The sidebar has the area switcher at the top, the
  * overview and the current area's pages under it, and the account at the bottom. The top
  * bar says where you are and holds the Demo controls menu. On a phone the sidebar becomes
- * a header with the pages in a row.
+ * a header with the pages wrapped onto as many rows as they need (nothing hides off-screen).
  */
 export function AppFrame({ account, demo, children }: { account: ReactNode; demo?: ReactNode; children: ReactNode }) {
   const pathname = usePathname() ?? "/app";
@@ -103,7 +126,7 @@ export function AppFrame({ account, demo, children }: { account: ReactNode; demo
 
   return (
     <div className={cn("theme-dark theme-app min-h-screen bg-canvas text-ink lg:flex", inArea?.key === "safety" && "theme-safety")}>
-      <aside className="border-b border-line bg-canvas lg:fixed lg:inset-y-0 lg:flex lg:w-60 lg:flex-col lg:border-b-0 lg:border-r">
+      <aside className="relative z-40 border-b border-line bg-canvas lg:fixed lg:inset-y-0 lg:flex lg:w-60 lg:flex-col lg:border-b-0 lg:border-r">
         <div className="flex h-14 items-center px-4">
           <Link href="/app" aria-label="Aegis overview" className="rounded-md">
             <Logo />
@@ -115,7 +138,7 @@ export function AppFrame({ account, demo, children }: { account: ReactNode; demo
         </div>
 
         <nav aria-label={area.label} className="px-3 pb-3 pt-3 lg:flex-1 lg:overflow-y-auto">
-          <ul className="flex gap-0.5 overflow-x-auto lg:flex-col lg:overflow-visible">
+          <ul className="flex flex-wrap gap-1 lg:flex-col lg:flex-nowrap lg:gap-0.5">
             <li>
               <NavLink item={OVERVIEW} active={isActive(OVERVIEW.href)} />
             </li>
