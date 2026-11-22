@@ -79,6 +79,9 @@ export function sessionOptions(opts: { system: string; tools: ButtonTool[]; mode
     systemPrompt: opts.system,
     model: opts.model,
     effort: "low" as const,
+    // AGENT_THINKING=off: no hidden reasoning before each reply, the biggest part of a phone
+    // turn's delay. The lock (12 buttons, guardSentence) holds either way; only helpfulness can move.
+    ...(process.env.AGENT_THINKING === "off" ? { thinking: { type: "disabled" as const } } : {}),
     tools: [] as string[],
     allowedTools: opts.tools.map((t) => `mcp__buttons__${t.name}`),
     mcpServers: { buttons: server },
