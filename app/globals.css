@@ -74,6 +74,16 @@
   color-scheme: dark;
 }
 
+/* The Safety suite: the dark tokens with its own accent, so it reads as a separate product.
+ * Use together with .theme-dark: class="theme-dark theme-safety". */
+.theme-safety {
+  --rg-accent: #5cd0f5;
+  --rg-accent-strong: #8fe0fa;
+  --rg-accent-soft: rgb(92 208 245 / 0.12);
+  --rg-accent-ink: #5cd0f5;
+  --rg-focus: #5cd0f5;
+}
+
 .theme-light {
   color-scheme: light;
 }
