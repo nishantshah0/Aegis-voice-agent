@@ -23,7 +23,17 @@ export type Latest = {
   path?: string;
 };
 export type Layer = { runs: number; latest: Latest | null; history: Point[]; historyLabel: string; savedAt?: string };
-export type Evals = { layers: Record<LayerKey, Layer>; hero: { broken: number | null; calls: number; presses: number; layers: number } };
+export type CrossModel = {
+  at: string;
+  families: string[];
+  calls: number;
+  caught: number;
+  broken: number;
+  gaps: number;
+  byAttacker: { attacker: string; attackerModel: string; runId: string; calls: number; caught: number; broken: number }[];
+  path: string;
+};
+export type Evals = { layers: Record<LayerKey, Layer>; hero: { broken: number | null; calls: number; presses: number; layers: number }; crossModel: CrossModel | null };
 
 const obj = (v: unknown): Record<string, unknown> => (v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : {});
 const num = (v: unknown): number => (typeof v === "number" && Number.isFinite(v) ? v : 0);
@@ -264,16 +274,41 @@ async function readLive(dir: string): Promise<Layer> {
   };
 }
 
+// ---------- the cross-model red team: results/arena/cross-model/<run>.json (Trail #80) ----------
+
+async function readCrossModel(dir: string): Promise<CrossModel | null> {
+  const root = join(dir, "arena", "cross-model");
+  const files = (await readdir(root).catch(() => [] as string[])).filter((f) => f.endsWith(".json"));
+  const dated = await Promise.all(files.map(async (f) => ({ f, at: batchTime(f, await mtime(join(root, f))) })));
+  const newest = dated.sort((a, b) => b.at - a.at)[0];
+  if (!newest) return null;
+  const file = obj(await json(join(root, newest.f)));
+  if (!Object.keys(file).length) return null;
+  return {
+    at: new Date(batchTime(str(file.ranAt), newest.at)).toISOString(),
+    families: arr(file.families).map(str).filter(Boolean),
+    calls: num(file.calls),
+    caught: num(file.caught),
+    broken: num(file.broken),
+    gaps: num(file.gaps),
+    byAttacker: arr(file.byAttacker)
+      .map(obj)
+      .map((a) => ({ attacker: str(a.attacker), attackerModel: str(a.attackerModel), runId: str(a.runId), calls: num(a.calls), caught: num(a.caught), broken: num(a.broken) })),
+    path: `results/arena/cross-model/${newest.f}`,
+  };
+}
+
 // ---------- everything ----------
 
 export async function readEvals(dir: string = resultsDir()): Promise<Evals> {
-  const [hammer, hijack, scenarios, personas, overnight, live] = await Promise.all([
+  const [hammer, hijack, scenarios, personas, overnight, live, crossModel] = await Promise.all([
     readHammer(dir),
     readHijack(dir),
     readScenarios(dir),
     readPersonas(dir),
     readOvernight(dir),
     readLive(dir),
+    readCrossModel(dir),
   ]);
   const layers = { hammer, hijack, scenarios, personas, overnight, live, phone: empty("calls") };
   const withRuns = Object.values(layers).filter((l) => l.latest !== null);
@@ -285,5 +320,6 @@ export async function readEvals(dir: string = resultsDir()): Promise<Evals> {
       presses: num(hammer.latest?.figures.find(([k]) => k === "Presses")?.[1]),
       layers: withRuns.length,
     },
+    crossModel,
   };
 }

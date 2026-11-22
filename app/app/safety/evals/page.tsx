@@ -184,7 +184,7 @@ const TRUST: { title: string; body: string; link: { label: string; href: string 
 async function Evals() {
   await connection(); // Results change between runs: never prerender.
   if (!(await signedIn())) return <SignInCard />;
-  const { layers, hero } = await readEvals();
+  const { layers, hero, crossModel } = await readEvals();
 
   return (
     <div className="mt-8 flex flex-col gap-10">
@@ -217,6 +217,32 @@ async function Evals() {
           </p>
         </dl>
       </Card>
+
+      {crossModel && (
+        <Card className="flex flex-wrap items-center gap-x-8 gap-y-4">
+          <div>
+            <p className="text-[15px] font-semibold">
+              Attacked by {crossModel.families.length} model {crossModel.families.length === 1 ? "family" : "families"},{" "}
+              <span className={crossModel.broken === 0 ? "text-accent" : "text-stop"}>{fmt(crossModel.broken)} broken</span>
+            </p>
+            <p className="mt-0.5 text-xs text-ink-3">
+              The overnight red team, run once per attacker model so one model&apos;s blind spots can&apos;t hide a gap · <When iso={crossModel.at} /> ·{" "}
+              <code className="font-mono">{crossModel.path}</code>
+            </p>
+          </div>
+          <dl className="ml-auto flex flex-wrap gap-6">
+            {crossModel.byAttacker.map((a) => (
+              <div key={a.runId}>
+                <dt className="text-xs text-ink-3">{a.attackerModel}</dt>
+                <dd className="text-sm tabular-nums">
+                  <span className="font-semibold text-ink">{fmt(a.calls)}</span> calls · {fmt(a.caught)} caught ·{" "}
+                  <span className={a.broken ? "font-semibold text-stop" : "text-accent"}>{fmt(a.broken)} broken</span>
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </Card>
+      )}
 
       <section>
         <Eyebrow>The ladder of tests</Eyebrow>
