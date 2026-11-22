@@ -26,6 +26,10 @@ vi.mock("./_lib/runtime", async (importOriginal) => {
   const real = await importOriginal<typeof import("./_lib/runtime")>();
   return { ...real, getDriver: () => swap.driver ?? real.getDriver() };
 });
+vi.mock("next/server", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/server")>()),
+  connection: async () => {},
+}));
 vi.mock("@/lib/auth/session", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/auth/session")>()),
   getApprover: async () => null,
