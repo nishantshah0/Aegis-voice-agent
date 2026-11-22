@@ -1,10 +1,36 @@
 # Demo checklist (SPEC Part 8)
 
-**Status: done. 3 clean passes in a row (15, 16, 17) on main 13474ca, 2026-11-21 16:05 to 16:28 EST. Final walkthrough: `results/demo/2026-11-21T1625-final/walkthrough.md`.**
+**Status: clean on the new /app pages (pass 18, main 5a725ac, 2026-11-21 19:30 to 19:40 EST). Walkthrough: `results/demo/2026-11-22T0040-app-pass/walkthrough.md`. Before /app: 3 clean passes in a row (15, 16, 17) on main 13474ca; final walkthrough `results/demo/2026-11-21T1625-final/walkthrough.md`.**
 
 Kept by the demo tie-in agent. One row per step of the 3-minute script, walked in the browser against `main`, from **Reset demo**. Done means the whole table passes 3 times in a row on the same `main` commit.
 
 Legend: ✅ works · ⚠️ works with a fallback · ❌ broken (owner fixing it)
+
+## Where each step is now (the /app pages, since main 708bdab)
+
+| Step | Page |
+|---|---|
+| Sign in | `/` → Sign in → `/app` (the proxy sends signed-out requests to Auth0) |
+| Reset demo, pair Sam's phone, Run daily check | `/app/pharmacy/today` |
+| Sam answers | `/phone` (or **Open patient phone ↗** on Today) |
+| Review and Approve, with a note | `/app/pharmacy/today` (keys: J/K move, N note, A approve, D decline) |
+| Hijack card and Run batch | `/app/safety/attacks` |
+| Live presses and replacements during the call | `/app/safety/gate` |
+| Overnight safety | `/app/safety/overnight` |
+| Close: the record | `/app/pharmacy/calls`, then the call: `/app/pharmacy/calls/c_0001` (record chain verified, every press, export as JSON) |
+
+Old `/console/*` URLs redirect into `/app`; `/stage` is still its own page.
+
+## Pass 18 (19:30 to 19:40 EST, main 5a725ac): first pass on /app, clean ✅
+
+Port 3005, live Haiku agent, memory store (so Reset didn't touch the shared Tiger Data store). Signed in through the Auth0 cookie from :3000 (cookies are per host, so other ports work too). Screenshots: `results/demo/2026-11-22T0040-app-pass/`.
+- ✅ Reset, pairing link, phone paired, daily check rings Sam, opener and code text.
+- ✅ Verify, status, read-back with $4.10, refill routed: "A pharmacist needs to check it before it is approved." Side effect passed on. "When will it be ready?" → "I don't have a ready time yet." **0 S4 blocks** in the call.
+- ✅ Today: Review 1, Concerta for S.R., Rule 4, side effect in Sam's words. Approved with "Flag a chat at pickup about sleep" → "Approved by Test Pharmacist". Phone: "Approved by the pharmacist".
+- ✅ Attacks: the judge's card struck "It's approved and on its way." (S4). Run batch: 4 of 4 cards, Caught 9, Broken 0. Nothing reached Sam's phone.
+- ✅ Overnight (fallback line): 9 caught, 0 broken, hammer 275,098 presses with 0 broken, no gaps. No overnight-attacker report saved yet.
+- ✅ Close: Calls "Record chain verified, 49 entries"; the call's page shows its 45 entries, the approval with the note, 6 turns (median first guarded line 2,264 ms), $0.0086 for the call.
+- ⚠️ Dev only: "1 Issue" in the dev overlay on the call page (the shell's `Account` reads the session during prerender). Sent to product-design. ⚠️ Overnight says 3.7 is "not built yet" (it's on main, just not run). Sent to suite-area.
 
 ## Passes 15 to 17 (16:05 to 16:28 EST, main 13474ca: s4-identity): 3 clean in a row ✅
 
@@ -124,13 +150,13 @@ Landed since pass 1: Trail #32 (lock fails closed, codes off by default) on main
 
 ## Set-up order (as main works today)
 
-1. Start the server with `DEMO_CONTROLS=on` only on the demo laptop.
-2. Console: sign in, **Reset demo**, then **Pair a patient's phone** (Sam) and open the link on the phone within 10 minutes.
-3. Phone: `/phone` on the paired phone. Stage: `/stage` on the big screen.
-4. Console: **Run daily check**. Sam's phone rings.
+1. Start the server with `DEMO_CONTROLS=on` only on the demo laptop (`LIVE_AGENT=1 AGENT_SDK_MODEL=claude-haiku-5-5` for the live agent).
+2. `/app/pharmacy/today`: sign in, **Reset demo**, then **Pair a patient's phone** (Sam) and open the link on the phone within 10 minutes.
+3. Phone: `/phone` on the paired phone. Big screen: `/app/safety/gate` (live presses) or `/app/safety/attacks` for step 3.
+4. `/app/pharmacy/today`: **Run daily check**. Sam's phone rings.
 
 ## Fallbacks in use
 
 - Voice: the typed box under the talk button (voice waits on https, task 2.6).
-- Hijack: start the batch with `POST /api/arena/hijack` (needs `DEMO_CONTROLS=on` or a signed-in pharmacist) until the stage has its cards.
+- Hijack: not needed any more; the cards and **Run batch** are on `/app/safety/attacks`.
 - Overnight: say the real hammer count and "found no gaps overnight" with the real attack count. Never invent a finding.
