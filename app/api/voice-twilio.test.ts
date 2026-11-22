@@ -122,6 +122,9 @@ describe("POST /api/voice/outbound on a Twilio trial number", () => {
     expect(form.get("From")).toBe(FROM);
     expect(form.get("Url")).toBe(`${PUBLIC}/api/voice/twiml?call=${callId}`);
     expect(form.get("StatusCallback")).toBe(`${PUBLIC}/api/voice/twilio-status?call=${callId}`);
+    // A One Console trial refuses these with "trial accounts have limited parameter access" (code 0).
+    // Twilio's defaults are what we want anyway: POST, and the status callback on completion.
+    expect([...form.keys()].sort()).toEqual(["From", "StatusCallback", "To", "Url"]);
     expect((await runtime.getStore().getCall(callId))?.targetPatientId).toBe(IDS.sam);
   });
 
@@ -132,6 +135,7 @@ describe("POST /api/voice/outbound on a Twilio trial number", () => {
     expect(res.status).toBe(502);
     const body = await res.text();
     expect(body).toContain("21219");
+    expect(body).toContain("The number <number> is unverified.");
     expect(body).not.toContain(TO);
     const callId = (await runtime.getStore().listRecord()).find((e) => e.callId)!.callId!;
     expect((await runtime.getStore().getCall(callId))?.state).toBe("ended");
