@@ -211,4 +211,10 @@ export interface Store {
 
   /** Clears calls, orders made since seed, queue and record, then loads the seed. */
   reset(seed: Seed): Promise<void>;
+  /**
+   * Run fn so its writes all stay or none do: if fn throws, every write it made is undone and the
+   * error is rethrown (AUDIT fix 4b). Optional until the Postgres store has one; the control
+   * layer runs each press and its record entry inside it when present.
+   */
+  transaction?<T>(fn: () => Promise<T>): Promise<T>;
 }
