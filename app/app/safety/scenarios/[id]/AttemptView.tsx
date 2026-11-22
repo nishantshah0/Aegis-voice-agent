@@ -2,8 +2,8 @@
 
 import { CallReplay } from "@/components/CallReplay";
 import type { FailureEvidence } from "../failure-evidence";
-import { useState } from "react";
-import { Badge, RuleTag, chipClass, cn } from "@/components/ui";
+import { useEffect, useState } from "react";
+import { Badge, RuleTag, chipClass, cn, linkClass } from "@/components/ui";
 import type { AttemptScore, Entry } from "../../data";
 
 export type AttemptData = { n: number; callId: string; file: string; record: Entry[]; score: AttemptScore | null; tickets?: Record<number, string>; chainIntact: boolean; failures?: FailureEvidence[] };
@@ -23,10 +23,29 @@ const short = (h: string) => (h ? `${h.slice(0, 8)}…` : "—");
 
 /** One scenario's saved calls: pick a call, then read it as a transcript, its checks, or the raw record. */
 export function AttemptView({ attempts }: { attempts: AttemptData[] }) {
-  const [pick, setPick] = useState(attempts.find(attempt => attempt.score?.passed === false)?.n ?? attempts[0]?.n ?? 1);
-  const [view, setView] = useState<View>("Transcript");
+  const firstFailed = attempts.find((attempt) => attempt.score?.passed === false);
+  const [pick, setPick] = useState(firstFailed?.n ?? attempts[0]?.n ?? 1);
+  const [view, setView] = useState<View>(firstFailed ? "Checks" : "Transcript");
+  const [jumpTo, setJumpTo] = useState<number | null>(null);
   const a = attempts.find((x) => x.n === pick) ?? attempts[0];
+
+  useEffect(() => {
+    if (view !== "Record" || jumpTo === null) return;
+    const frame = window.requestAnimationFrame(() => {
+      const target = document.getElementById(`record-entry-${jumpTo}`);
+      target?.scrollIntoView({ behavior: "smooth", block: "center" });
+      target?.focus({ preventScroll: true });
+      setJumpTo(null);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [jumpTo, view]);
+
   if (!a) return null;
+
+  const openRecordEntry = (seq: number) => {
+    setJumpTo(seq);
+    setView("Record");
+  };
 
   return (
     <div className="flex flex-col gap-4">
@@ -81,25 +100,39 @@ export function AttemptView({ attempts }: { attempts: AttemptData[] }) {
 
       {!!a.failures?.length && (
         <section aria-label="Failure evidence" className="rounded-card border border-stop/40 bg-surface px-5 py-4">
-          <h3 className="font-semibold">Failure evidence</h3>
+          <h3 className="font-semibold">Why this attempt failed</h3>
           <ul className="mt-2 divide-y divide-line">
-            {a.failures.map(f => (
+            {a.failures.map((f) => {
+              const related = f.related;
+              const seq = f.seq;
+              return (
               <li key={f.id} className="py-3 text-sm">
                 <p className="font-medium">{f.id.replace(/[_:]/g, " ")}</p>
                 <p className="mt-1 text-xs font-medium text-stop">
-                  {f.seq !== undefined ? `${f.turn ? `Caller turn ${f.turn} · ` : ""}record #${f.seq}`
+                  {seq !== undefined ? `${f.turn ? `Caller turn ${f.turn} · ` : ""}record #${seq}`
                     : f.observed.includes("call end") ? "At call end" : "Location unavailable"}
                 </p>
                 <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
                   <dt className="text-ink-3">Expected</dt><dd>{f.expected}</dd>
                   <dt className="text-ink-3">Observed</dt><dd>{f.observed}</dd>
-                  {f.related && <>
+                  {related && <>
                     <dt className="text-ink-3">Related entry</dt>
-                    <dd>{f.related.turn ? `Turn ${f.related.turn} · ` : ""}record #{f.related.seq} · {f.related.observed}</dd>
+                    <dd>
+                      {related.turn ? `Turn ${related.turn} · ` : ""}{related.observed} · {" "}
+                      <button type="button" className={linkClass} onClick={() => openRecordEntry(related.seq)}>
+                        Open record entry #{related.seq}
+                      </button>
+                    </dd>
                   </>}
                 </dl>
+                {seq !== undefined && (
+                  <button type="button" className={cn(linkClass, "mt-2")} onClick={() => openRecordEntry(seq)}>
+                    Open record entry #{seq}
+                  </button>
+                )}
               </li>
-            ))}
+              );
+            })}
           </ul>
         </section>
       )}
@@ -218,7 +251,7 @@ function Record({ record }: { record: Entry[] }) {
         </thead>
         <tbody>
           {record.map((e) => (
-            <tr key={`${e.seq}-${e.hash}`} className="border-t border-line align-top hover:bg-sunken/60">
+            <tr id={`record-entry-${e.seq}`} key={`${e.seq}-${e.hash}`} tabIndex={-1} className="border-t border-line align-top hover:bg-sunken/60 focus:outline focus:outline-2 focus:outline-accent">
               <td className="px-4 py-2 tabular-nums text-ink-3">{e.seq}</td>
               <td className="px-4 py-2 font-mono">{e.kind}</td>
               <td className="px-4 py-2 text-ink-2">{e.actor}</td>

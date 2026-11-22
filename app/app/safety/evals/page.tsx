@@ -6,7 +6,7 @@ import { SignInCard, signedIn } from "../SignedIn";
 import { readEvals, readHammerChart, type Layer, type LayerKey } from "./evals";
 import { FINDINGS, REPO, commitUrl, trailUrl } from "./findings";
 
-export const metadata = { title: "How we know it holds · Safety suite · Aegis" };
+export const metadata = { title: "Evaluations · Safety suite · Aegis" };
 
 const fmt = (n: number) => n.toLocaleString("en-US");
 const code = (path: string) => `${REPO}/blob/main/${path}`;
@@ -15,11 +15,11 @@ export default function EvalsPage() {
   return (
     <>
       <PageHeader
-        title="How we know it holds"
-        description="Seven layers of tests, from fuzzing the lock with no AI at all to a real phone line. Every number here is read from a run saved under results/."
+        title="Evaluations"
+        description="Review the latest saved result for each test layer. Every result keeps its run date, source, scope, and next step together."
         actions={
           <a href={code("docs/EVALS.md")} className={linkClass}>
-            The method, in plain words →
+            Scoring method →
           </a>
         }
       />
@@ -117,52 +117,59 @@ async function HammerHistory({ layer }: { layer: Layer }) {
 function RungCard({ n, rung, layer }: { n: number; rung: Rung; layer: Layer }) {
   const l = layer.latest;
   return (
-    <Card as="section" className="grid gap-5 md:grid-cols-[minmax(0,1fr)_17rem]">
-      <div>
-        <div className="flex items-center gap-3">
-          <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-accent-soft font-mono text-xs font-semibold text-accent">{n}</span>
-          <h2 className="text-[22px] leading-tight">{rung.title}</h2>
-        </div>
-        <p className="mt-3 text-sm text-ink-2">{rung.proves}</p>
-        <p className="mt-2 text-sm text-ink-3">
-          <span className="font-medium text-ink-2">How it&apos;s scored: </span>
-          {rung.scored}
-        </p>
-      </div>
-      <div className="flex flex-col gap-3 rounded-xl border border-line bg-sunken/40 p-4">
+    <Card as="section" id={`layer-${rung.key}`} className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-accent-soft font-mono text-xs font-semibold text-accent">{n}</span>
+        <h2 className="min-w-0 flex-1 text-[20px] leading-tight">{rung.title}</h2>
         {l ? (
-          <>
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-xs text-ink-3">
-                Latest run <When iso={l.at} />
-              </span>
-              <Badge tone={l.broken === 0 ? "accent" : "stop"} dot>{`${fmt(l.broken)} broken`}</Badge>
-            </div>
-            <dl className="grid grid-cols-3 gap-2">
-              {l.figures.map(([label, value]) => (
-                <div key={label}>
-                  <dt className="text-[11px] text-ink-3">{label}</dt>
-                  <dd className="text-base font-semibold tabular-nums">{typeof value === "number" ? fmt(value) : value}</dd>
-                </div>
-              ))}
-            </dl>
-            {rung.key === "hammer" ? (
-              <Suspense fallback={null}><HammerHistory layer={layer} /></Suspense>
-            ) : <HistoryChart layer={layer} />}
-            <p className="flex flex-wrap items-center justify-between gap-2 text-xs">
-              <Link href={l.href} className={linkClass}>
-                See the run →
-              </Link>
-              {l.path && <code className="truncate font-mono text-[11px] text-ink-3" title={l.path}>{l.path}</code>}
-            </p>
-          </>
+          <Badge tone={l.broken === 0 ? "accent" : "stop"} dot>
+            {l.broken === 0 ? "No rules broken" : `${fmt(l.broken)} broken`}
+          </Badge>
         ) : (
-          <p className="text-sm text-ink-3">
-            <span className="block font-medium text-ink-2">No run saved yet</span>
-            {rung.noRun}
-          </p>
+          <Badge tone="neutral">{layer.savedAt ? "Saved files · no score" : "No saved run"}</Badge>
         )}
       </div>
+
+      {l ? (
+        <>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-3">
+            <span>Latest result <When iso={l.at} /></span>
+            <span>{layer.runs} saved run{layer.runs === 1 ? "" : "s"} in this layer</span>
+            {l.path && <code className="font-mono" title={l.path}>{l.path}</code>}
+          </div>
+        <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {l.figures.map(([label, value]) => (
+            <div key={label} className="rounded-xl border border-line bg-sunken/40 px-3 py-2">
+              <dt className="text-[11px] text-ink-3">{label}</dt>
+              <dd className="text-base font-semibold tabular-nums">{typeof value === "number" ? fmt(value) : value}</dd>
+            </div>
+          ))}
+        </dl>
+        {rung.key === "hammer" ? (
+          <Suspense fallback={null}><HammerHistory layer={layer} /></Suspense>
+        ) : <HistoryChart layer={layer} />}
+        <Link href={l.href} className={linkClass}>
+          Open {rung.title.toLowerCase()} results →
+        </Link>
+        </>
+      ) : (
+        <div className="flex flex-wrap items-start justify-between gap-3 text-sm text-ink-2">
+          <p className="max-w-2xl">
+            {layer.savedAt ? <>Saved files found <When iso={layer.savedAt} />; no scored result is available.</> : rung.noRun}
+          </p>
+          <Link href={rung.key === "scenarios" ? "/app/safety/scenarios" : rung.key === "hijack" ? "/app/safety/attacks" : "/app/safety/overnight"} className={linkClass}>
+            Open workspace →
+          </Link>
+        </div>
+      )}
+
+      <details className="border-t border-line pt-3 text-sm">
+        <summary className="cursor-pointer font-medium text-ink-2">What this layer checks</summary>
+        <div className="mt-2 max-w-3xl text-ink-3">
+          <p>{rung.proves}</p>
+          <p className="mt-2"><span className="font-medium text-ink-2">How it&apos;s scored: </span>{rung.scored}</p>
+        </div>
+      </details>
     </Card>
   );
 }
@@ -194,69 +201,86 @@ const TRUST: { title: string; body: string; link: { label: string; href: string 
 async function Evals() {
   await connection(); // Results change between runs: never prerender.
   if (!(await signedIn())) return <SignInCard />;
-  const { layers, hero, crossModel } = await readEvals();
+  const { layers, crossModel } = await readEvals();
+  const needsAttention: { title: string; at: string; broken: number; href: string; path?: string }[] = LADDER.flatMap((rung) => {
+    const latest = layers[rung.key].latest;
+    return latest && latest.broken > 0 ? [{ title: rung.title, at: latest.at, broken: latest.broken, href: latest.href, path: latest.path }] : [];
+  });
+  if (crossModel && crossModel.broken > 0) {
+    needsAttention.push({ title: "Cross-model red team", at: crossModel.at, broken: crossModel.broken, href: "#cross-model-run", path: crossModel.path });
+  }
 
   return (
-    <div className="mt-8 flex flex-col gap-10">
-      <Card className="grid gap-6 p-7 md:grid-cols-[auto_minmax(0,1fr)] md:items-center">
-        <div>
-          <p className="text-sm font-medium text-ink-2">Rules broken, every layer</p>
-          <p className={cn("text-[7rem] leading-none font-semibold tabular-nums tracking-[-0.06em]", hero.broken === null ? "text-ink-3" : hero.broken === 0 ? "text-accent" : "text-stop")}>
-            {hero.broken === null ? "—" : fmt(hero.broken)}
+    <div className="mt-8 flex flex-col gap-8">
+      {needsAttention.length > 0 ? (
+        <Card className="border-stop/50" aria-labelledby="evals-attention-title">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <Eyebrow>Actionable exceptions</Eyebrow>
+              <h2 id="evals-attention-title" className="mt-1 text-xl font-semibold">Needs attention</h2>
+              <p className="mt-1 text-sm text-ink-2">These are separate latest saved runs. Open the matching suite to trace its failed checks.</p>
+            </div>
+            <Badge tone="stop" dot>{needsAttention.length} saved result{needsAttention.length === 1 ? "" : "s"}</Badge>
+          </div>
+          <ul className="mt-4 divide-y divide-line rounded-xl border border-line bg-surface">
+            {needsAttention.map((item) => (
+              <li key={item.title} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
+                <Link href={item.href} className="min-w-40 flex-1 font-medium text-ink hover:text-accent">{item.title}</Link>
+                <Badge tone="stop">{fmt(item.broken)} broken</Badge>
+                <span className="text-xs text-ink-3"><When iso={item.at} /></span>
+                {item.path && <code className="max-w-full break-all font-mono text-[11px] text-ink-3">{item.path}</code>}
+              </li>
+            ))}
+          </ul>
+        </Card>
+      ) : (
+        <Card className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-ink-2">
+            {LADDER.some((rung) => layers[rung.key].latest)
+              ? "No broken rules appear in the latest saved runs. Each test layer below has its own date, scope, and result."
+              : "No scored runs are saved yet. Choose a test workspace below to start one."}
           </p>
-        </div>
-        <dl className="grid grid-cols-3 gap-4 md:border-l md:border-line md:pl-8">
-          <div>
-            <dt className="text-xs text-ink-3">Layers with a saved run</dt>
-            <dd className="text-3xl font-semibold tabular-nums">
-              {hero.layers} <span className="text-base text-ink-3">of 7</span>
-            </dd>
-          </div>
-          <div>
-            <dt className="text-xs text-ink-3">Calls in the latest runs</dt>
-            <dd className="text-3xl font-semibold tabular-nums">{fmt(hero.calls)}</dd>
-          </div>
-          <div>
-            <dt className="text-xs text-ink-3">Presses fuzzed by the hammer</dt>
-            <dd className="text-3xl font-semibold tabular-nums">{fmt(hero.presses)}</dd>
-          </div>
-          <p className="col-span-3 text-xs text-ink-3">
-            {hero.broken !== null && hero.broken > 0
-              ? "A real result from a saved run: open the layer below to see which rule and why."
-              : "Each layer's latest saved run, added up. A layer with nothing saved adds nothing and says so."}
-          </p>
-        </dl>
-      </Card>
+          <Badge tone="neutral">Independent test runs</Badge>
+        </Card>
+      )}
 
       {crossModel && (
-        <Card className="flex flex-wrap items-center gap-x-8 gap-y-4">
-          <div>
-            <p className="text-[15px] font-semibold">
-              Attacked by {crossModel.families.length} model {crossModel.families.length === 1 ? "family" : "families"},{" "}
-              <span className={crossModel.broken === 0 ? "text-accent" : "text-stop"}>{fmt(crossModel.broken)} broken</span>
-            </p>
-            <p className="mt-0.5 text-xs text-ink-3">
-              The overnight red team, run once per attacker model so one model&apos;s blind spots can&apos;t hide a gap · <When iso={crossModel.at} /> ·{" "}
-              <code className="font-mono">{crossModel.path}</code>
-            </p>
+        <Card id="cross-model-run" className="flex flex-col gap-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <Eyebrow>Separate saved run · cross-model red team</Eyebrow>
+              <h2 className="mt-1 text-lg font-semibold">Attacker-model breakdown</h2>
+              <p className="mt-1 text-xs text-ink-3">{crossModel.families.length} model families · {fmt(crossModel.calls)} calls · {fmt(crossModel.caught)} caught · {fmt(crossModel.gaps)} gaps · saved <When iso={crossModel.at} /></p>
+            </div>
+            <Badge tone={crossModel.broken === 0 ? "accent" : "stop"} dot>
+              {crossModel.broken === 0 ? "No rules broken" : `${fmt(crossModel.broken)} broken`}
+            </Badge>
           </div>
-          <dl className="ml-auto flex flex-wrap gap-6">
-            {crossModel.byAttacker.map((a) => (
-              <div key={a.runId}>
-                <dt className="text-xs text-ink-3">{a.attackerModel}</dt>
-                <dd className="text-sm tabular-nums">
-                  <span className="font-semibold text-ink">{fmt(a.calls)}</span> calls · {fmt(a.caught)} caught ·{" "}
-                  <span className={a.broken ? "font-semibold text-stop" : "text-accent"}>{fmt(a.broken)} broken</span>
-                </dd>
-              </div>
-            ))}
-          </dl>
+          <div className="overflow-x-auto rounded-xl border border-line">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-sunken/40 text-xs text-ink-3">
+                <tr><th className="px-3 py-2 font-medium">Attacker model</th><th className="px-3 py-2 font-medium">Calls</th><th className="px-3 py-2 font-medium">Caught</th><th className="px-3 py-2 font-medium">Broken</th><th className="px-3 py-2 font-medium">Run ID</th></tr>
+              </thead>
+              <tbody>
+                {crossModel.byAttacker.map((a) => (
+                  <tr key={a.runId} className="border-t border-line">
+                    <td className="px-3 py-2">{a.attackerModel}</td>
+                    <td className="px-3 py-2 tabular-nums">{fmt(a.calls)}</td>
+                    <td className="px-3 py-2 tabular-nums">{fmt(a.caught)}</td>
+                    <td className={cn("px-3 py-2 tabular-nums", a.broken > 0 && "font-semibold text-stop")}>{fmt(a.broken)}</td>
+                    <td className="px-3 py-2 font-mono text-xs">{a.runId}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="text-xs text-ink-3">Source: <code className="break-all font-mono">{crossModel.path}</code></p>
         </Card>
       )}
 
       <section>
-        <Eyebrow>The ladder of tests</Eyebrow>
-        <p className="mt-1 text-sm text-ink-2">Each layer is harder to fool than the last, and each catches what the one before can&apos;t see.</p>
+        <Eyebrow>Latest results by test layer</Eyebrow>
+        <p className="mt-1 text-sm text-ink-2">Runs stay separate because each suite has its own cases and scoring scope.</p>
         <ol className="mt-3 flex flex-col gap-3">
           {LADDER.map((rung, i) => (
             <li key={rung.key}>
@@ -266,52 +290,46 @@ async function Evals() {
         </ol>
       </section>
 
-      <section>
-        <Eyebrow>Why you can trust the score</Eyebrow>
-        <div className="mt-3 grid gap-3 md:grid-cols-2">
-          {TRUST.map((t) => (
-            <Card key={t.title} className="flex flex-col gap-2">
-              <h3 className="text-[15px] font-semibold">{t.title}</h3>
-              <p className="text-sm text-ink-2">{t.body}</p>
-              <span className="mt-auto flex flex-wrap items-center justify-between gap-2">
-                <a href={t.link.href} className={cn(linkClass, "font-mono text-xs")}>
-                  {t.link.label}
-                </a>
-                {t.page && (
-                  <Link href={t.page.href} className={cn(linkClass, "text-xs")}>
-                    {t.page.label}
-                  </Link>
-                )}
-              </span>
-            </Card>
-          ))}
+      <details className="rounded-card border border-line bg-surface p-5">
+        <summary className="cursor-pointer font-medium">Scoring method and past fixes</summary>
+        <div className="mt-5 flex flex-col gap-8">
+          <section>
+            <Eyebrow>How the scores are produced</Eyebrow>
+            <div className="mt-3 grid gap-3 md:grid-cols-2">
+              {TRUST.map((t) => (
+                <Card key={t.title} className="flex flex-col gap-2">
+                  <h3 className="text-[15px] font-semibold">{t.title}</h3>
+                  <p className="text-sm text-ink-2">{t.body}</p>
+                  <span className="mt-auto flex flex-wrap items-center justify-between gap-2">
+                    <a href={t.link.href} className={cn(linkClass, "font-mono text-xs")}>{t.link.label}</a>
+                    {t.page && <Link href={t.page.href} className={cn(linkClass, "text-xs")}>{t.page.label}</Link>}
+                  </span>
+                </Card>
+              ))}
+            </div>
+          </section>
+          <section>
+            <Eyebrow>Past fixes from saved tests</Eyebrow>
+            <ul className="mt-3 overflow-hidden rounded-card border border-line bg-surface">
+              {FINDINGS.map((f) => (
+                <li key={f.title} className="grid gap-2 border-t border-line px-5 py-4 first:border-t-0 md:grid-cols-[minmax(0,1fr)_16rem]">
+                  <div>
+                    <p className="text-[15px] font-medium">{f.title}</p>
+                    <p className="mt-1 text-sm text-ink-2">{f.fix}</p>
+                    <p className="mt-1 text-xs text-ink-3">Found by: {f.foundBy}</p>
+                  </div>
+                  <div className="flex flex-wrap content-start items-center gap-1.5 md:justify-end">
+                    {f.commits.map((c) => (
+                      <a key={c.sha} href={commitUrl(c.sha)} title={c.label} className="rounded-md border border-line-strong px-1.5 font-mono text-[11px] leading-5 text-ink-2 hover:border-accent hover:text-ink">{c.sha}</a>
+                    ))}
+                    <a href={f.link.href} className={cn(linkClass, "text-xs")}>{f.link.label}</a>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
         </div>
-      </section>
-
-      <section>
-        <Eyebrow>What the tests found tonight, and the fix</Eyebrow>
-        <ul className="mt-3 overflow-hidden rounded-card border border-line bg-surface">
-          {FINDINGS.map((f) => (
-            <li key={f.title} className="grid gap-2 border-t border-line px-5 py-4 first:border-t-0 md:grid-cols-[minmax(0,1fr)_16rem]">
-              <div>
-                <p className="text-[15px] font-medium">{f.title}</p>
-                <p className="mt-1 text-sm text-ink-2">{f.fix}</p>
-                <p className="mt-1 text-xs text-ink-3">Found by: {f.foundBy}</p>
-              </div>
-              <div className="flex flex-wrap content-start items-center gap-1.5 md:justify-end">
-                {f.commits.map((c) => (
-                  <a key={c.sha} href={commitUrl(c.sha)} title={c.label} className="rounded-md border border-line-strong px-1.5 font-mono text-[11px] leading-5 text-ink-2 hover:border-accent hover:text-ink">
-                    {c.sha}
-                  </a>
-                ))}
-                <a href={f.link.href} className={cn(linkClass, "text-xs")}>
-                  {f.link.label}
-                </a>
-              </div>
-            </li>
-          ))}
-        </ul>
-      </section>
+      </details>
     </div>
   );
 }
