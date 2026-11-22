@@ -103,7 +103,9 @@ function unbackedHistory(sentence: string, call: Call, record: RecordEntry[]): b
 export function ungroundedPatientFact(sentence: string, call: Call, record: RecordEntry[], drugNames: string[]): string | null {
   const normalized = canonical(sentence);
   if (unbackedHistory(sentence, call, record)) return "fill history differs from the recorded readback";
-  if (appointment.test(sentence) && (appointmentClaim.test(sentence) || quantityOrDate.test(normalized))) {
+  // Clause by clause: "what you're calling about today, like a refill, a price, or an appointment?"
+  // names an appointment in one clause and a day in another (live suite, greeting_slang_recovery).
+  if (sentence.split(HISTORY_CLAUSE).some((c) => appointment.test(c) && (appointmentClaim.test(c) || quantityOrDate.test(canonical(c))))) {
     return "appointment differs from the recorded offer or booking";
   }
   const supplyQuestion = /^would you like (?:me to request |to request )?(?:a |the )?\d+ day supply(?: of [a-z ]+)?$/i.test(normalized.trim().replace(/[.?]$/, ""));
