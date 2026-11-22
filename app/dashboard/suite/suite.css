@@ -1,0 +1,44 @@
+/*
+ * The Safety suite's own accent (indigo), so it reads as a separate product from the
+ * pharmacy calls (Refill green). Only the accent tokens change; lanes and stop colours
+ * keep their meaning. Applies inside .suite-theme, including the dark stage view.
+ */
+.suite-theme {
+  --rg-accent: #4338ca;
+  --rg-accent-strong: #3730a3;
+  --rg-accent-soft: #ecebfd;
+  --rg-accent-ink: #312e81;
+  --rg-focus: #4338ca;
+}
+
+.suite-theme .theme-dark,
+.suite-theme.theme-dark {
+  --rg-accent: #8b8dff;
+  --rg-accent-strong: #a5a7ff;
+  --rg-accent-soft: rgb(139 141 255 / 0.14);
+  --rg-accent-ink: #a5a7ff;
+  --rg-focus: #8b8dff;
+}
+
+/* The live gate is the stage view; inside the suite it fills the content column, not the screen. */
+.suite-theme .suite-embed > main {
+  min-height: 0;
+  border-radius: 1rem;
+}
+
+@keyframes suite-pulse {
+  0% { box-shadow: 0 0 0 0 rgb(99 102 241 / 0.45); }
+  70% { box-shadow: 0 0 0 10px rgb(99 102 241 / 0); }
+  100% { box-shadow: 0 0 0 0 rgb(99 102 241 / 0); }
+}
+.suite-pulse { animation: suite-pulse 1.6s ease-out infinite; }
+
+@keyframes suite-bar {
+  from { background-position: 0 0; }
+  to { background-position: 40px 0; }
+}
+.suite-bar-live {
+  background-image: linear-gradient(45deg, rgb(255 255 255 / 0.25) 25%, transparent 25%, transparent 50%, rgb(255 255 255 / 0.25) 50%, rgb(255 255 255 / 0.25) 75%, transparent 75%);
+  background-size: 40px 40px;
+  animation: suite-bar 1s linear infinite;
+}
