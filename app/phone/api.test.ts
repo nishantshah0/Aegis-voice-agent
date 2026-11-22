@@ -31,3 +31,19 @@ describe("1.4: the phone sends its call's token", () => {
     expect(await phoneApi.say("c_1", "hi")).toEqual({ ok: false, problem: "This phone can't speak on that call" });
   });
 });
+
+describe("Trail #70: a code sent to this paired phone during a real phone call", () => {
+  it("asks /api/phone/code with no token (the pairing cookie goes by itself)", async () => {
+    const calls = capture(200, { code: "112358" });
+    expect(await phoneApi.deviceCode()).toEqual({ ok: true, value: { code: "112358" } });
+    expect(calls[0].url).toBe("/api/phone/code");
+    expect((calls[0].init.headers as Record<string, string> | undefined)?.["x-phone-token"]).toBeUndefined();
+  });
+
+  it("reads 204 as no code, and a refusal as a problem (so an unpaired phone stops asking)", async () => {
+    vi.stubGlobal("fetch", async () => new Response(null, { status: 204 }));
+    expect(await phoneApi.deviceCode()).toEqual({ ok: true, value: {} });
+    capture(401, { error: "Only a paired phone can read its codes" });
+    expect(await phoneApi.deviceCode()).toEqual({ ok: false, problem: "Only a paired phone can read its codes" });
+  });
+});
