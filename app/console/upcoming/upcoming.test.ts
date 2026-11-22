@@ -63,4 +63,16 @@ describe("upcoming (2.9a)", () => {
     const sam = rows.find((r) => r.rxId === IDS.samConcerta)!;
     expect(sam.lastCall).toMatchObject({ direction: "outbound", state: "code_sent" });
   });
+
+  // Audit fix 14: after Sam's call, Upcoming said "Next reminder: today" though rule 7
+  // (one call per 3 days) won't let the daily check ring him again.
+  it("doesn't promise a reminder today once rule 7 would refuse the call, and still writes nothing", async () => {
+    await runDailyCheck();
+    const before = (await getStore().listRecord()).length;
+    const { rows } = await upcoming(getStore());
+    const sam = rows.find((r) => r.rxId === IDS.samConcerta)!;
+    expect(sam.nextReminder).not.toBe("today");
+    expect(sam.nextReminder).toMatch(/rule 7/);
+    expect((await getStore().listRecord()).length).toBe(before);
+  });
 });
