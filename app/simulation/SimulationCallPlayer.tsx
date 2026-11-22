@@ -5,6 +5,7 @@ import { Badge, Button, cn } from "@/components/ui";
 import type { EvidenceLine, FailureCase } from "./failure-cases";
 import { CallPlayback, type PlaybackState } from "./call-playback";
 import { readTestEvents, requestTest, type TestEvent, type TestSource } from "./live-events";
+import { demoScenarios } from "./demo-scenarios";
 import { replayClips } from "./replay-clips";
 
 type FocusAudio = (player: CallPlayback) => void;
@@ -73,13 +74,6 @@ export function SavedCallPlayer({ item, focus }: { item: FailureCase; focus: Foc
     </div>
   );
 }
-
-const CARDS = [
-  { id: "family_callback", name: "Family member callback and privacy" },
-  { id: "greeting_slang_recovery", name: "Greetings and slang" },
-  { id: "sam_ordinary_refill", name: "Ordinary refill" },
-  { id: "corrected_consultation_time", name: "Corrected appointment time" },
-];
 
 type Status = "idle" | "starting" | "running" | "finished" | "stopped" | "failed" | "empty";
 type Row = { event: TestEvent; line?: number };
@@ -164,7 +158,7 @@ export function LiveTestPlayer({ focus, preferred }: { focus: FocusAudio; prefer
           <select value={scenario} disabled={busy} onChange={event => {
             player.stop(); setChoice({ preferred, id: event.target.value }); setRows([]); setProblem(""); setRunStatus("idle");
           }} className="ml-2 rounded border border-line-strong bg-surface px-2 py-1">
-            {CARDS.map(card => <option key={card.id} value={card.id}>{card.name}</option>)}
+            {demoScenarios.map(card => <option key={card.id} value={card.id}>{card.name}</option>)}
           </select>
         </label>
         <Button size="sm" disabled={busy} onClick={() => void run("live")}>{!saved && runStatus === "failed" ? "Retry live test" : "Run test live"}</Button>
@@ -173,7 +167,7 @@ export function LiveTestPlayer({ focus, preferred }: { focus: FocusAudio; prefer
         <span role="status"><Badge tone={runStatus === "failed" ? "stop" : busy ? "accent" : "neutral"}>{statusLabel}</Badge></span>
       </div>
       {runStatus !== "idle" && <>
-        <p className="mb-2 text-sm font-medium">{CARDS.find(card => card.id === ran)?.name}</p>
+        <p className="mb-2 text-sm font-medium">{demoScenarios.find(card => card.id === ran)?.name}</p>
         {runStatus === "empty" && <p role="status" className="text-sm text-ink-2">No completed test is saved for this case. Run the test live to save its first attempt.</p>}
         {saved && rows.length > 0 && <p className="mb-2 text-xs text-ink-2">Saved test · ElevenLabs voices reenact this attempt’s recorded dialogue. Events appear in their original order.</p>}
         {(busy || speechRows.length > 0) && (!missingAudio || voiceRows.length > 0) && <VoiceControls player={player} focus={focus} idleLabel="Listen to test" available={voiceRows.length > 0} />}

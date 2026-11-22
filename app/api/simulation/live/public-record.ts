@@ -1,5 +1,8 @@
 import { join } from "node:path";
 import type { RecordEntry } from "@/lib/contract";
+import type { DemoScenarioId } from "@/app/simulation/demo-scenarios";
+import copay from "@/scenarios/copay.json";
+import oneWeekSupply from "@/scenarios/one-week-supply.json";
 import ordinaryRefill from "@/scenarios/sam-ordinary-refill.json";
 import familyCallback from "./family-callback.json";
 import greeting from "@/scenarios/greeting-slang-recovery.json";
@@ -7,12 +10,18 @@ import appointment from "@/scenarios/corrected-consultation-time.json";
 import { replayTickets } from "../../_lib/replay-tickets";
 
 export const scenarios = {
+  copay,
+  one_week_supply: oneWeekSupply,
   family_callback: familyCallback,
   greeting_slang_recovery: greeting,
   sam_ordinary_refill: ordinaryRefill,
   corrected_consultation_time: appointment,
-};
-export type DemoScenarioId = keyof typeof scenarios;
+} satisfies Record<DemoScenarioId, { caller_lines: string[] }>;
+export type { DemoScenarioId };
+
+export function startsWithIdentity(id: DemoScenarioId) {
+  return id !== "greeting_slang_recovery" && id !== "family_callback";
+}
 export function isDemoScenario(id: unknown): id is DemoScenarioId {
   return typeof id === "string" && Object.hasOwn(scenarios, id);
 }

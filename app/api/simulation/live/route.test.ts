@@ -2,6 +2,7 @@ import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { ModelRequest } from "@/lib/agent/model";
 import { scriptedModel } from "@/lib/agent/testing/scripted-model";
 import type { RecordEntry } from "@/lib/contract";
 import { verifiedReplayTicket } from "../../_lib/replay-tickets";
@@ -22,7 +23,7 @@ const speak = (text: string) => ({ text: [text] });
 let root: string;
 beforeEach(async () => {
   root = await mkdtemp(join(tmpdir(), "live-simulation-"));
-  vi.stubGlobal("__simulationLiveRuns", { active: false, starts: [] });
+  vi.stubGlobal("__simulationLiveRuns", { active: 0, starts: [] });
   vi.stubEnv("PATIENT_SIMULATION", "community-demo");
   vi.stubEnv("DATABASE_URL", "");
   vi.stubEnv("ANTHROPIC_API_KEY", "test-api-key");
@@ -49,7 +50,7 @@ describe("the fixed local simulation stream", () => {
     expect(JSON.parse(saved).events.at(-1)).toEqual(events.at(-1));
   });
 
-  it("only runs the three listed scenarios in an isolated local demo", async () => {
+  it("only runs listed scenarios in an isolated local demo", async () => {
     for (const payload of [{ scenarioId: "__proto__" }, { scenarioId: id, text: "freeform" }, {}]) {
       expect((await POST(req(payload))).status).toBe(400);
     }
@@ -63,12 +64,57 @@ describe("the fixed local simulation stream", () => {
     expect(factory).not.toHaveBeenCalled();
   });
 
-  it("rejects overlap and counts starts in the rolling hour", async () => {
-    vi.stubGlobal("__simulationLiveRuns", { active: true, starts: [] });
+  it("streams two calls independently and releases only the slot of a completed call", async () => {
+    const held = Promise.withResolvers<void>();
+    const quick = Promise.withResolvers<void>();
+    const replacement = Promise.withResolvers<void>();
+    function delayedModel(gate: Promise<void>, reply: string) {
+      const model = scriptedModel([speak(reply), speak("How can I help?")]);
+      return { async *turn(request: ModelRequest) {
+        await gate;
+        yield* model.turn(request);
+      } };
+    }
+    factory.mockImplementationOnce(() => delayedModel(held.promise, "Can you repeat that?"));
+    factory.mockImplementationOnce(() => delayedModel(quick.promise, "Can you say that again?"));
+    factory.mockImplementationOnce(() => delayedModel(replacement.promise, "What can I help with?"));
+    const first = await POST(req({ scenarioId: id }));
+    const second = await POST(req({ scenarioId: id }));
+    try {
+      expect([first.status, second.status]).toEqual([200, 200]);
+      expect((await POST(req({ scenarioId: id }))).status).toBe(429);
+      expect(factory).toHaveBeenCalledTimes(2);
+
+      quick.resolve();
+      const secondText = await second.text();
+      expect(secondText).toContain("Can you say that again?");
+      expect(secondText).not.toContain("Can you repeat that?");
+      expect(secondText).toContain('"type":"verdict"');
+
+      const next = await POST(req({ scenarioId: id }));
+      expect(next.status).toBe(200);
+      expect((await POST(req({ scenarioId: id }))).status).toBe(429);
+      replacement.resolve();
+      expect(await next.text()).toContain('"type":"verdict"');
+    } finally {
+      replacement.resolve();
+      quick.resolve();
+      held.resolve();
+      const firstText = await first.text();
+      expect(firstText).toContain("Can you repeat that?");
+      expect(firstText).not.toContain("Can you say that again?");
+    }
+  });
+
+  it("retains the six-start rolling budget across concurrent and finished calls", async () => {
+    const now = Date.now();
+    vi.stubGlobal("__simulationLiveRuns", { active: 0, starts: [now - 3_600_001, ...Array(5).fill(now)] });
+    const admitted = await POST(req({ scenarioId: id }));
+    expect(admitted.status).toBe(200);
     expect((await POST(req({ scenarioId: id }))).status).toBe(429);
-    vi.stubGlobal("__simulationLiveRuns", { active: false, starts: Array(6).fill(Date.now()) });
+    await admitted.text();
     expect((await POST(req({ scenarioId: id }))).status).toBe(429);
-    expect(factory).not.toHaveBeenCalled();
+    expect(factory).toHaveBeenCalledTimes(1);
   });
 
   it("aborts an active provider request on stream cancellation and releases the run slot", async () => {
@@ -87,16 +133,17 @@ describe("the fixed local simulation stream", () => {
     const upstream = await started.promise;
     await reader.cancel();
     expect(upstream.aborted).toBe(true);
-    await vi.waitFor(() => expect((globalThis as { __simulationLiveRuns?: { active: boolean } }).__simulationLiveRuns?.active).toBe(false));
+    await vi.waitFor(() => expect((globalThis as { __simulationLiveRuns?: { active: number } }).__simulationLiveRuns?.active).toBe(0));
     expect(await readdir(root)).toEqual([]);
   });
 
   it("reports an upstream failure without exposing its details or emitting a verdict", async () => {
-    factory.mockImplementation(() => { throw new Error("PRIVATE UPSTREAM LOG"); });
+    factory.mockImplementationOnce(() => { throw new Error("PRIVATE UPSTREAM LOG"); });
     const response = await POST(req({ scenarioId: id }));
     const text = await response.text();
     expect(text).toContain('"type":"error"');
     expect(text).not.toMatch(/PRIVATE UPSTREAM LOG|"type":"verdict"/);
+    expect((globalThis as { __simulationLiveRuns?: { active: number } }).__simulationLiveRuns?.active).toBe(0);
   });
 
   it("streams only the provider status when a model request is rejected", async () => {

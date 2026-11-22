@@ -5,6 +5,9 @@ import { Badge, Button } from "@/components/ui";
 import { readTestEvents, requestTest, type TestEvent } from "../simulation/live-events";
 import { AssistantLine, type Assistant, type DemoPatient } from "./assistant";
 
+import { demoScenarios as scenarios } from "../simulation/demo-scenarios";
+import { runSuiteQueue } from "./suite-queue";
+
 interface PhoneSession {
   callId: string;
   status: string;
@@ -109,14 +112,9 @@ export function PhoneControl() {
   </section>;
 }
 
-const scenarios = [
-  { id: "greeting_slang_recovery", name: "Greetings and slang" },
-  { id: "sam_ordinary_refill", name: "Ordinary refill" },
-  { id: "corrected_consultation_time", name: "Corrected appointment time" },
-];
-
+type ScenarioId = typeof scenarios[number]["id"];
 type ScenarioState = {
-  phase: "Ready" | "Queued" | "Running" | "Passed" | "Failed" | "Interrupted";
+  phase: "Ready" | "Skipped" | "Queued" | "Running" | "Passed" | "Failed" | "Interrupted";
   events: TestEvent[];
 };
 const phaseTone = (phase: ScenarioState["phase"]): "neutral" | "quick" | "accent" | "stop" => {
@@ -139,20 +137,22 @@ function EventLine({ event }: { event: TestEvent }) {
 export function SuiteControl() {
   const [rows, setRows] = useState<ScenarioState[]>(() => makeRows("Ready"));
   const [running, setRunning] = useState(false);
+  const [mode, setMode] = useState<"sequential" | "concurrent">("sequential");
+  const [selected, setSelected] = useState<ScenarioId[]>(() => scenarios.map(item => item.id));
   const [ended, setEnded] = useState(false);
   const request = useRef<AbortController | null>(null);
   useEffect(() => () => request.current?.abort(), []);
 
   async function run() {
-    if (request.current) return;
+    if (request.current || !selected.length) return;
     const controller = new AbortController();
     request.current = controller;
-    setRows(makeRows("Queued"));
+    const calls = scenarios.map((scenario, index) => ({ scenario, index })).filter(({ scenario }) => selected.includes(scenario.id));
+    setRows(scenarios.map(({ id }) => ({ phase: selected.includes(id) ? "Queued" : "Skipped", events: [] })));
     setRunning(true);
     setEnded(false);
     try {
-      for (const [index, scenario] of scenarios.entries()) {
-        if (controller.signal.aborted) break;
+      await runSuiteQueue(calls, mode, controller.signal, async ({ scenario, index }) => {
         function update(phase: ScenarioState["phase"], event?: TestEvent) {
           setRows(previous => previous.map((row, i) => index === i ? { phase, events: event ? [...row.events, event] : row.events } : row));
         }
@@ -167,7 +167,7 @@ export function SuiteControl() {
         } catch (e) {
           if (!controller.signal.aborted) update("Interrupted", { type: "error", message: describe(e) });
         }
-      }
+      });
     } finally {
       request.current = null;
       if (!controller.signal.aborted) { setRunning(false); setEnded(true); }
@@ -178,7 +178,7 @@ export function SuiteControl() {
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div>
         <h2 id="suite-heading">Scripted call suite</h2>
-        <p>Runs three synthetic patient calls in order through the pharmacy workflow.</p>
+        <p>Each selected call starts with fresh synthetic patient records.</p>
       </div>
       <Badge tone={running ? "quick" : ended ? (rows.some(row => row.phase === "Failed" || row.phase === "Interrupted") ? "stop" : "accent") : "neutral"} dot>
         {running ? "Running" : ended ? "Finished" : "Ready"}
@@ -186,22 +186,34 @@ export function SuiteControl() {
     </div>
 
     <div className="mt-4 rounded-card border border-line bg-sunken/40 p-4">
-      <p className="text-xs font-medium uppercase tracking-wide text-ink-3">Configured tests</p>
-      <ul className="mt-2 grid gap-2 text-sm sm:grid-cols-2">
-        {scenarios.map(({ id, name }) => <li key={id} className="flex flex-wrap items-baseline gap-x-2">
-          <span className="font-medium text-ink">{name}</span>
-          <code className="font-mono text-[11px] text-ink-3">{id}</code>
-        </li>)}
-      </ul>
-      <p className="mt-3 text-xs text-ink-3">Synthetic test data · three calls · results stream below and are not a saved release-gate run.</p>
+      <fieldset disabled={running}>
+        <legend className="text-xs font-medium uppercase tracking-wide text-ink-3">Select tests</legend>
+        <div className="mt-2 grid gap-2 text-sm sm:grid-cols-2">
+          {scenarios.map(({ id, name }) => <label key={id} className="flex items-start gap-2">
+            <input type="checkbox" className="mt-1" checked={selected.includes(id)} onChange={e => {
+              const checked = e.target.checked;
+              setSelected(previous => checked ? [...previous, id] : previous.filter(value => value !== id));
+            }} />
+            {name}
+          </label>)}
+        </div>
+      </fieldset>
+      <fieldset className="mt-4" disabled={running}>
+        <legend className="text-xs font-medium uppercase tracking-wide text-ink-3">Run mode</legend>
+        <div className="mt-2 flex flex-wrap gap-x-5 gap-y-2 text-sm">
+          <label><input type="radio" name="suite-mode" checked={mode === "sequential"} onChange={() => setMode("sequential")} /> Sequential</label>
+          <label><input type="radio" name="suite-mode" checked={mode === "concurrent"} onChange={() => setMode("concurrent")} /> Concurrent (2 at a time)</label>
+        </div>
+      </fieldset>
+      <p className="mt-3 text-xs text-ink-3">Each server instance allows six live call starts per hour.</p>
     </div>
 
     <div className="mt-4 flex flex-wrap items-center gap-3">
-      <Button onClick={run} disabled={running} aria-busy={running}>
+      <Button onClick={run} disabled={running || !selected.length} aria-busy={running}>
         {running ? "Running suite…" : "Run scripted suite"}
       </Button>
       <p className="text-sm text-ink-2" role="status" aria-live="polite">
-        {running ? "Each call runs in sequence; this control is disabled until the run finishes." : ended ? `Finished · ${rows.filter(r => r.phase === "Passed").length} passed · ${rows.filter(r => r.phase === "Failed").length} failed · ${rows.filter(r => r.phase === "Interrupted").length} interrupted` : "Ready to run the three configured calls."}
+        {running ? `${rows.filter(r => r.phase === "Running").length} running · ${rows.filter(r => r.phase === "Queued").length} queued` : ended ? `Finished · ${rows.filter(r => r.phase === "Passed").length} passed · ${rows.filter(r => r.phase === "Failed").length} failed · ${rows.filter(r => r.phase === "Interrupted").length} interrupted` : `${selected.length} of ${scenarios.length} calls selected.`}
       </p>
     </div>
 

@@ -6,7 +6,7 @@ import { rootCertificates } from "node:tls";
 import { Pool } from "pg";
 import { z } from "zod";
 import { fromPgPool, poolConfig, type SqlDb } from "@/lib/store/postgres";
-import { liveResultsDirectory, redactPublicText, type DemoScenarioId } from "./public-record";
+import { liveResultsDirectory, redactPublicText, startsWithIdentity, type DemoScenarioId } from "./public-record";
 
 const caption = z.string().trim().min(1).max(256);
 const count = z.number().int().nonnegative();
@@ -31,7 +31,7 @@ function completed(raw: unknown, id: DemoScenarioId): SavedRun | undefined {
   const checks = dialogue.filter(e => e.type === "check");
   if (!checks.length || !dialogue.some(e => e.type === "line") || dialogue.some(e => e.type === "start" || e.type === "verdict")) return;
   if (checks.every(check => check.passed) !== verdict.passed) return;
-  let identityPhase = id !== "greeting_slang_recovery" && id !== "family_callback";
+  let identityPhase = startsWithIdentity(id);
   for (const event of events) {
     if (event.type === "action" && event.label === "Verified caller identity") identityPhase = false;
     if (event.type === "line") event.text = redactPublicText(event.text, event.speaker === "caller", identityPhase);

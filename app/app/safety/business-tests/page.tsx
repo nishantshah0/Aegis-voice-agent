@@ -13,7 +13,7 @@ export default function BusinessTests() {
     <section className="mt-8" aria-labelledby="run-configuration-heading">
       <Eyebrow>Test configuration and run controls</Eyebrow>
       <h2 id="run-configuration-heading" className="mt-1 text-xl font-semibold tracking-tight">Choose a synthetic workflow</h2>
-      <p className="mt-1 max-w-3xl text-sm text-ink-2">The scripted suite streams three fixed calls in sequence. Workflow checks run separately against synthetic records. Each result stays in its own lane.</p>
+      <p className="mt-1 max-w-3xl text-sm text-ink-2">Choose which calls to run and watch their transcripts and verdicts as they arrive.</p>
       <div className="workspace-controls mt-4 grid items-start gap-5 xl:grid-cols-2">
         <SuiteControl />
         <WorkflowChecks />

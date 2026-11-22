@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { demoScenarios } from "@/app/simulation/demo-scenarios";
 import { replayTickets } from "../../_lib/replay-tickets";
 import { POST } from "./route";
 
@@ -18,8 +19,8 @@ beforeEach(() => {
 });
 afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); render.mockClear(); });
 
-it("voices the signed synthetic utterance", async () => {
-  const result = await request({ ticket: ticket(scope) }, { origin: "http://localhost:3002" });
+it.each(demoScenarios)("voices the signed synthetic utterance for $id", async ({ id }) => {
+  const result = await request({ ticket: ticket("public-simulation/" + id) }, { origin: "http://localhost:3002" });
   expect(result.status).toBe(200);
   expect(result.headers.get("content-type")).toBe("audio/mpeg");
   expect(render).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ body: expect.stringContaining('"text":"Hey"') }));

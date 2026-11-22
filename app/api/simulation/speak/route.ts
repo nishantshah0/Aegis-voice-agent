@@ -1,12 +1,13 @@
 import { createHash } from "node:crypto";
+import { demoScenarios } from "@/app/simulation/demo-scenarios";
 import { forSpeech } from "@/lib/voice/spoken";
 import { fail, readObject } from "../../_lib/http";
 import { replaySpeech } from "../../_lib/replay-speech";
 import { verifiedReplayTicket } from "../../_lib/replay-tickets";
 import { simulationAccessRefused } from "../access";
 
-const publicScopes = new Set(["family_callback", "greeting_slang_recovery", "corrected_consultation_time", "sam_ordinary_refill"].map(scenario =>
-  createHash("sha256").update("public-simulation/" + scenario).digest("hex"),
+const publicScopes = new Set(demoScenarios.map(({ id }) =>
+  createHash("sha256").update("public-simulation/" + id).digest("hex"),
 ));
 
 export async function POST(request: Request) {
