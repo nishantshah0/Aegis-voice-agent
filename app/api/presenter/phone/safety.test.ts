@@ -29,7 +29,7 @@ describe("the presenter menu runs the safety check first", () => {
     const crisis = await nextFlow(id, menu, "", "I want to kill myself.");
     expect(crisis.reply).toBe(CRISIS_SCRIPT);
     expect(crisis.phase).not.toBe("end"); // stay on the line with them
-    expect((await nextFlow(id, menu, "", "I took the whole bottle.")).reply).toBe(EMERGENCY_SCRIPT);
+    expect((await nextFlow(id, menu, "", "I swallowed the whole bottle and I took too many pills.")).reply).toBe(EMERGENCY_SCRIPT);
     const human = await nextFlow(id, menu, "", "Can I talk to a pharmacist?");
     expect(human.reply).toBe(HANDOVER_SCRIPT);
     expect(human.phase).toBe("end");
