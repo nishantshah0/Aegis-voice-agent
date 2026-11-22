@@ -216,17 +216,18 @@ describe("1.x: the flows the prompt teaches pass the real guard", () => {
       { tools: [{ name: "check_coverage", input: { rx_id: IDS.samMetformin } }] },
       { tools: [{ name: "request_refill", input: { rx_id: IDS.samMetformin } }] },
       { tools: [{ name: "set_delivery", input: { order_id: order, slot_id: "slot_wed_pm", address_id: "pickup" } }] },
-      { text: ["You pay $2.00 for your Metformin. ", "The refill is queued. ", "Pickup is booked for Wednesday 1 to 5."] },
+      { text: ["You pay $2.00 for your Metformin. ", "A pharmacist will check the refill first. ", "Pickup is booked for Wednesday 1 to 5."] },
     ]);
     await collect(t2.driver.callerSays(t2.callId, `${CODE}, March 14 1990.`));
     const evs = await collect(t2.driver.callerSays(t2.callId, "Refill my metformin, what's my copay on it, and can I pick it up Wednesday afternoon?"));
 
     expect(presses(evs).map((p) => p.button)).toEqual(["check_coverage", "request_refill", "set_delivery", "read_label"]);
-    expect(presses(evs)[1].result).toMatchObject({ ok: true, output: { state: "queued", order_id: order } });
+    // Metformin is 60% through its supply, so a pharmacist checks it first (rule 3).
+    expect(presses(evs)[1].result).toMatchObject({ ok: true, output: { state: "waiting_for_pharmacist", order_id: order } });
     expect(presses(evs)[2].result).toMatchObject({ ok: true, output: { ok: true } });
     expect(blocked(evs)).toEqual([]);
     const said = lines(evs);
-    expect(said.slice(0, 3)).toEqual(["You pay $2.00 for your Metformin.", "The refill is queued.", "Pickup is booked for Wednesday 1 to 5."]);
+    expect(said.slice(0, 3)).toEqual(["You pay $2.00 for your Metformin.", "A pharmacist will check the refill first.", "Pickup is booked for Wednesday 1 to 5."]);
     // Then the side-effect question, once, from the driver.
     expect(said).toHaveLength(4);
     expect(said[3]).toMatch(/side effects/);
@@ -238,14 +239,15 @@ describe("1.x: the flows the prompt teaches pass the real guard", () => {
       { text: ["Thanks, Sam. ", "Want me to send the refill to the pharmacist?"] },
       { tools: [{ name: "request_refill", input: { rx_id: IDS.samConcerta } }] },
       { text: ["A pharmacist will check it first, and I'll confirm once it's approved."] },
-      { text: ["Good to hear. ", "Would you like it delivered, or would you rather pick it up?"] },
+      // Not "delivered" or "picked up": S4 hears those as done-words before anything is booked.
+      { text: ["Good to hear. ", "Would you like delivery, or would you rather pick it up?"] },
     ]);
     await collect(t2.driver.callerSays(t2.callId, `${CODE}, March 14 1990.`));
     await collect(t2.driver.callerSays(t2.callId, "Yes please."));
     const evs = await collect(t2.driver.callerSays(t2.callId, "No, nothing."));
     expect(blocked(evs)).toEqual([]);
     const seen = JSON.stringify(t2.model.requests.at(-1)?.messages.slice(-2));
-    expect(seen).toMatch(/delivered or picked up/);
+    expect(seen).toMatch(/Would you like delivery, or would you rather pick it up\?/);
   });
 
   it("no refills left: the refill is refused and a renewal is requested", async () => {

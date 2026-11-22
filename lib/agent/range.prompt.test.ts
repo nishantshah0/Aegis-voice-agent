@@ -31,7 +31,8 @@ describe("1.x: the prompt covers every call type", () => {
     ["label questions: food, alcohol, a missed dose", /food[^.]*alcohol[^.]*missed dose/i],
     ["only what the label says", /only what the label says/i],
     ["a renewal when no refills are left", /request_renewal/],
-    ["delivery or pickup", /delivered or[^.]*pick/i],
+    // Worded "delivery ... pick it up": "delivered" and "picked up" are S4 done-words.
+    ["delivery or pickup", /Would you like delivery, or would you rather pick it up\?/],
     ["changing a delivery time", /change a delivery time|move a delivery/i],
     ["the slot ids in the call notes", /slot id/i],
     ["a side effect: when it started and how bad", /when it started and how bad/i],
@@ -62,7 +63,7 @@ describe("1.x: several requests, several prescriptions", () => {
 
 describe("1.x: proactive, not pushy", () => {
   it("offers delivery after a refill, and a renewal when a refill can't go ahead", () => {
-    expect(inbound).toMatch(/delivered or[^.]*pick/i);
+    expect(inbound).toMatch(/Would you like delivery, or would you rather pick it up\?/);
     expect(inbound).toMatch(/no refills left[^.]*renewal|renewal[^.]*no refills left/i);
   });
 
