@@ -230,6 +230,21 @@ describe("the trial-safe turn loop: Gather, our driver, Play", () => {
     expect(voiced().length).toBe(before);
   });
 
+  it("says no filler line unless VOICE_FILLER_MS is set, however slow the turn", async () => {
+    const slow = scriptedModel([{ text: ["Thanks. What's the code?"] }]);
+    const { callId, token } = await placed([], {
+      ...slow,
+      async *turn(request) {
+        await new Promise((r) => setTimeout(r, 1400));
+        yield* slow.turn(request);
+      },
+    });
+    const v = verbs(await (await turn(post(`/api/voice/turn?call=${callId}&t=${token}`, { SpeechResult: "Hello?" }))).text());
+    expectListeningReply(v);
+    const spoken = (await runtime.getStore().listRecord(callId)).filter((e) => e.kind === "line_spoken").map((e) => (e.input as { text?: string }).text);
+    expect(spoken).not.toContain(FILLER_LINE);
+  });
+
   it("says the guarded filler line on a slow turn, then plays the answer on the resumed request", async () => {
     vi.stubEnv("VOICE_FILLER_MS", "20");
     const slow = scriptedModel([{ text: ["Thanks. What's the code?"] }]);

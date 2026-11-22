@@ -27,7 +27,7 @@ describe("the code the caller read back", () => {
   });
 
   it("is only on with a Verify service, the Twilio account and the patient's phone", () => {
-    expect(verifyConfigured({})).toBe(false);
-    expect(verifyConfigured({ TWILIO_VERIFY_SERVICE_SID: "VA_test", TWILIO_ACCOUNT_SID: "AC_test", TWILIO_AUTH_TOKEN: "t", TEST_PATIENT_PHONE: "+15555550101" })).toBe(true);
+    expect(verifyConfigured({} as NodeJS.ProcessEnv)).toBe(false);
+    expect(verifyConfigured({ TWILIO_VERIFY_SERVICE_SID: "VA_test", TWILIO_ACCOUNT_SID: "AC_test", TWILIO_AUTH_TOKEN: "t", TEST_PATIENT_PHONE: "+15555550101" } as NodeJS.ProcessEnv)).toBe(true);
   });
 });
