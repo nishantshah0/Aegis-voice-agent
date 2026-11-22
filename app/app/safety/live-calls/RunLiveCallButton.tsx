@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui";
+import { getAttacker } from "../AttackerPicker";
 
 export type LiveSourceInput =
   | { kind: "card" | "scenario" | "custom"; id: string }
@@ -11,7 +12,7 @@ export type LiveSourceInput =
 /** Starts a live attack call (POST /api/arena/live) and opens its call view. */
 export async function startLiveCall(source: LiveSourceInput): Promise<{ id: string } | { error: string }> {
   try {
-    const res = await fetch("/api/arena/live", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ source }) });
+    const res = await fetch("/api/arena/live", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ source, model: getAttacker() }) });
     const body = (await res.json().catch(() => ({}))) as { id?: string; error?: string };
     if (res.ok && body.id) return { id: body.id };
     return { error: body.error ?? `Request failed (${res.status})` };

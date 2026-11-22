@@ -3,13 +3,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button, When, cn, inputClass } from "@/components/ui";
+import { ATTACKER_LABEL, AttackerPicker, getAttacker } from "./AttackerPicker";
 
 // Starts the scenario suite or the overnight attacker through POST /api/arena/run or
 // /api/arena/overnight, then follows it with GET /api/arena/run every two seconds. Every
 // number here is what the server reports; the saved results re-read as the run writes them.
 
 type Kind = "suite" | "overnight";
-type Run = { kind: Kind; state: "running" | "done" | "failed"; startedAt: string; finishedAt?: string; done: number; total: number; caught: number; broken: number; message?: string };
+type Run = { kind: Kind; state: "running" | "done" | "failed"; startedAt: string; finishedAt?: string; done: number; total: number; caught: number; broken: number; message?: string; attacker?: "claude" | "gemini" };
 type Status = { running: Run | null; last: Partial<Record<Kind, Run>>; usage: { used: number; perHour: number } };
 
 const URL_FOR: Record<Kind, string> = { suite: "/api/arena/run", overnight: "/api/arena/overnight" };
@@ -66,7 +67,7 @@ export function ArenaRunControl({ kind, label, compact = false }: { kind: Kind; 
       const res = await fetch(URL_FOR[kind], {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify(kind === "overnight" ? { calls } : {}),
+        body: JSON.stringify(kind === "overnight" ? { calls, model: getAttacker() } : {}),
       });
       if (!res.ok) setError(((await res.json().catch(() => ({}))) as { error?: string }).error ?? `Request failed (${res.status})`);
       await load();
@@ -84,6 +85,7 @@ export function ArenaRunControl({ kind, label, compact = false }: { kind: Kind; 
 
   return (
     <div className={cn("flex flex-col gap-2", compact ? "items-end text-right" : "")}>
+      {kind === "overnight" && !mine && <AttackerPicker />}
       <div className="flex items-center gap-2">
         {kind === "overnight" && !mine && (
           <select
@@ -110,6 +112,7 @@ export function ArenaRunControl({ kind, label, compact = false }: { kind: Kind; 
           <div className="flex justify-between text-xs text-ink-3">
             <span>
               Started <When iso={mine.startedAt} />
+              {mine.attacker ? ` · ${ATTACKER_LABEL[mine.attacker]} attacking` : ""}
             </span>
             <span className="tabular-nums">
               {mine.done} of {mine.total} {UNIT[kind]}
@@ -139,6 +142,7 @@ export function ArenaRunControl({ kind, label, compact = false }: { kind: Kind; 
           ) : (
             <>
               Last run finished <When iso={last.finishedAt} />: {last.done} {UNIT[kind]}, {last.caught} caught, {last.broken} broken
+              {last.attacker ? ` · attacker ${ATTACKER_LABEL[last.attacker]}` : ""}
             </>
           )}
         </p>

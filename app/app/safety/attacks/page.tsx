@@ -6,6 +6,7 @@ import { readLatestBatch, shortPath } from "../data";
 import { BATCH_ORDER } from "./progress";
 import { AttackDesk } from "./AttackDesk";
 import { RunLiveCallButton } from "../live-calls/RunLiveCallButton";
+import { AttackerPicker } from "../AttackerPicker";
 import Link from "next/link";
 import { SuiteGate } from "../SignedIn";
 
@@ -24,6 +25,7 @@ export default function AttacksPage() {
       <section className="mt-10">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <Eyebrow>Or ring the real agent with an attacker AI</Eyebrow>
+          <AttackerPicker />
           <Link href="/app/safety/live-calls" className="text-xs text-ink-2 underline hover:text-ink">
             Create your own attack →
           </Link>

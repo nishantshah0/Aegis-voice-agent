@@ -90,7 +90,7 @@ export type LiveCall = {
   record?: RecordEntry[];
 };
 
-export type LiveSummary = Pick<LiveCall, "id" | "title" | "source" | "state" | "startedAt" | "endedAt" | "message"> & { turns: number; caught: number; broken: number; recordVerified: boolean | null };
+export type LiveSummary = Pick<LiveCall, "id" | "title" | "source" | "state" | "startedAt" | "endedAt" | "message" | "attacker" | "attackerModel"> & { turns: number; caught: number; broken: number; recordVerified: boolean | null };
 
 type Holder = { current: LiveCall | null; calls: Map<string, LiveCall> };
 const g = globalThis as typeof globalThis & { __aegisLiveCalls?: Holder };
@@ -435,6 +435,9 @@ export function summarize(call: LiveCall): LiveSummary {
     source,
     state,
     startedAt,
+    // Calls saved before the attacker could be chosen were all Claude.
+    attacker: call.attacker ?? "claude",
+    ...(call.attackerModel ? { attackerModel: call.attackerModel } : {}),
     ...(endedAt ? { endedAt } : {}),
     ...(message ? { message } : {}),
     turns: call.turns.filter((t) => t.kind === "caller_line" || t.kind === "safety").length,

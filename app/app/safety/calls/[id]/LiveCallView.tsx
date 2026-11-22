@@ -319,7 +319,7 @@ export function LiveCallView({ id }: { id: string }) {
                 )}
               </p>
               <p className="text-xs text-ink-3">
-                Simulated line: no phone network, both sides are AI on this server · {call.model ?? "Haiku"} · {call.title}
+                Simulated line: no phone network, both sides are AI on this server · attacker {call.attacker === "gemini" ? "Gemini" : "Claude"}{call.attackerModel ? ` (${call.attackerModel})` : ""} · pharmacy {call.model ?? "Haiku"} · {call.title}
               </p>
             </div>
           </div>
