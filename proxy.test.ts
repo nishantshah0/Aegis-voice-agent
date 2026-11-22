@@ -44,4 +44,24 @@ describe("proxy: sign-in before any /app page", () => {
       expect(await res.text()).toBe("");
     }
   });
+
+  it("sends a signed-in account with no role to the no-access page, not back to sign-in (which would loop)", async () => {
+    const secret = "a-test-secret-that-is-at-least-32-characters-long";
+    vi.stubEnv("AUTH0_DOMAIN", "example.auth0.com");
+    vi.stubEnv("AUTH0_CLIENT_ID", "test-client");
+    vi.stubEnv("AUTH0_CLIENT_SECRET", "test-secret");
+    vi.stubEnv("AUTH0_SECRET", secret);
+    vi.stubEnv("APP_BASE_URL", "http://localhost:3000");
+    const { generateSessionCookie } = await import("@auth0/nextjs-auth0/testing");
+    const now = Math.floor(Date.now() / 1000);
+    const cookie = await generateSessionCookie(
+      { user: { sub: "local|no-role", name: "Someone Else" }, tokenSet: { accessToken: "x", expiresAt: now + 3600 }, internal: { sid: "s", createdAt: now } },
+      { secret },
+    );
+    const { proxy } = await import("./proxy");
+    const res = await proxy(new NextRequest("http://localhost:3000/app/pharmacy/today", { headers: { cookie: `__session=${cookie}` } }));
+    expect(res.status).toBe(307);
+    expect(new URL(res.headers.get("location")!).pathname).toBe("/no-access");
+    expect(await res.text()).toBe("");
+  });
 });
