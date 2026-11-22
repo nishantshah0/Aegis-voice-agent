@@ -129,7 +129,8 @@ async function defaultGeminiClient(): Promise<GeminiClient> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("GEMINI_API_KEY isn't set. Add it to .env to run the Gemini attacker.");
   const { GoogleGenAI } = await import("@google/genai");
-  return new GoogleGenAI({ apiKey }) as unknown as GeminiClient;
+  // v1beta: the SDK's default v1 refuses systemInstruction ("Developer instruction is not enabled").
+  return new GoogleGenAI({ apiKey, apiVersion: "v1beta" }) as unknown as GeminiClient;
 }
 
 export function createGeminiAttacker({
