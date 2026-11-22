@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { connection } from "next/server";
 import { Badge, Card, Eyebrow, LaneBadge, PageHeader, RuleTag, StatTile, buttonClass, cn } from "@/components/ui";
 import { getStore } from "@/app/api/_lib/runtime";
+import { getApprover } from "@/lib/auth/session";
 import { callsOverview } from "@/app/console/calls/calls";
 import { itemDetail } from "@/app/console/today/detail";
 import { readOvernight } from "@/app/console/overnight/results";
@@ -16,6 +17,8 @@ const LANE_ORDER = { review: 0, quick_check: 1, automatic: 2 } as const;
 // Everything here is read from the store, the record and results/. Nothing is typed in.
 async function Pharmacy() {
   await connection();
+  // The proxy already requires sign-in for /app; this is the second lock on the data itself.
+  if (!(await getApprover())) return null;
   const store = getStore();
   const [overview, queue] = await Promise.all([callsOverview(store), store.queue()]);
   const open = queue
@@ -64,6 +67,7 @@ async function Pharmacy() {
 
 async function Safety() {
   await connection();
+  if (!(await getApprover())) return null;
   const o = await readOvernight();
   const hammer = o.hammer.state === "ok" ? o.hammer : null;
   const hijack = o.hijack.state === "ok" ? o.hijack : null;

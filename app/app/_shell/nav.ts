@@ -1,7 +1,7 @@
 // The app's two product areas and their pages. One list drives the sidebar, the area
 // switcher and the overview's quick links.
 
-export type IconName = "home" | "today" | "calendar" | "calls" | "review" | "gate" | "attack" | "flask" | "moon" | "book" | "phone";
+export type IconName = "home" | "today" | "calendar" | "outreach" | "calls" | "review" | "gate" | "attack" | "flask" | "moon" | "book" | "phone";
 export type NavItem = { href: string; label: string; icon: IconName; hint: string };
 export type Area = { key: "pharmacy" | "safety"; label: string; short: string; home: string; items: NavItem[] };
 
@@ -16,6 +16,7 @@ export const AREAS: Area[] = [
     items: [
       { href: "/app/pharmacy/today", label: "Today", icon: "today", hint: "Approve what needs a pharmacist" },
       { href: "/app/pharmacy/upcoming", label: "Upcoming", icon: "calendar", hint: "Refills due in the next 14 days" },
+      { href: "/app/pharmacy/outreach", label: "Outreach", icon: "outreach", hint: "Who we'll call, and when" },
       { href: "/app/pharmacy/calls", label: "Calls", icon: "calls", hint: "Every call, press and line" },
       { href: "/app/pharmacy/review", label: "Review calls", icon: "review", hint: "Label finished calls" },
     ],
