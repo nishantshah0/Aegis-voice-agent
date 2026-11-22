@@ -2,8 +2,8 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
-import { Badge, Card, Eyebrow } from "@/components/ui";
-import { groupWords, readAttempts, readCards, readLatestRun, RUN_COMMANDS, shortPath, when, type Entry } from "../../data";
+import { Badge, Card, Eyebrow, Skeleton, SkeletonRows, When } from "@/components/ui";
+import { groupWords, readAttempts, readCards, readLatestRun, RUN_COMMANDS, shortPath, type Entry } from "../../data";
 import { AttemptView, type AttemptData } from "./AttemptView";
 import { RunLiveCallButton } from "../../live-calls/RunLiveCallButton";
 import { SignInCard, signedIn } from "../../SignedIn";
@@ -22,7 +22,14 @@ export default function ScenarioPage({ params }: { params: Promise<{ id: string 
       <Link href="/app/safety/scenarios" className="text-sm text-ink-2 hover:text-ink">
         ← Every scenario
       </Link>
-      <Suspense fallback={<p className="mt-6 text-sm text-ink-3">Reading the scenario…</p>}>
+      <Suspense
+        fallback={
+          <div className="mt-6 flex flex-col gap-4">
+            <Skeleton className="h-9 w-72" />
+            <SkeletonRows rows={6} />
+          </div>
+        }
+      >
         <Scenario params={params} />
       </Suspense>
     </>
@@ -83,7 +90,14 @@ async function Scenario({ params }: { params: Promise<{ id: string }> }) {
 
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <section>
-          <Eyebrow>{run ? `Latest run · ${when(run.ranAt)}` : "Latest run"}</Eyebrow>
+          <Eyebrow>
+            Latest run{run && (
+              <>
+                {" · "}
+                <When iso={run.ranAt} />
+              </>
+            )}
+          </Eyebrow>
           <div className="mt-2">
             {attempts.length ? (
               <AttemptView attempts={attempts} />

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import type { LiveCall, LiveTurn } from "@/app/api/_lib/live-calls";
 import { ruleWords } from "@/app/stage/attacks";
-import { Badge, Button, RuleTag, cn } from "@/components/ui";
+import { Badge, Button, RuleTag, TableEmpty, cn } from "@/components/ui";
 import { RunLiveCallButton, type LiveSourceInput } from "../../live-calls/RunLiveCallButton";
 
 // One live attack call: the attacker AI against the real pharmacy agent, on a simulated
@@ -386,7 +386,7 @@ export function LiveCallView({ id }: { id: string }) {
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
         <section aria-live="polite">
           {turns.length === 0 ? (
-            <p className="rounded-card border border-dashed border-line-strong p-10 text-center text-ink-3">{call.state === "ringing" ? "Ringing…" : "Waiting for the first line…"}</p>
+            <TableEmpty>{call.state === "ringing" ? "Ringing…" : "Waiting for the first line…"}</TableEmpty>
           ) : (
             <ol className="flex flex-col gap-3 rounded-card border border-line bg-surface p-5">
               {turns.map((t, i) => (

@@ -57,7 +57,8 @@ async function throughTwilio(call: VoiceCall): Promise<Response> {
   const placed = await placeTwilioCall(`${origin}/api/voice/twiml?call=${id}`, `${origin}/api/voice/twilio-status?call=${id}`);
   if (!placed.ok) {
     await endVoiceCall(call);
-    return Response.json({ error: `Twilio refused the call${placed.code ? ` (error ${placed.code})` : ` (HTTP ${placed.status})`}`, twilioCode: placed.code }, { status: 502 });
+    const why = `error ${placed.code ?? "none"}, HTTP ${placed.status}`;
+    return Response.json({ error: `Twilio refused the call (${why})${placed.message ? `: ${placed.message}` : ""}`, twilioCode: placed.code }, { status: 502 });
   }
   return ok({ callId: call.callId, twilioCallSid: placed.sid });
 }
