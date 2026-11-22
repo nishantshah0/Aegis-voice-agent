@@ -27,7 +27,7 @@ function Heading({ call }: { call: StageCall | undefined }) {
       ) : (
         <span className="text-ink-2">Last call · waiting for the next call</span>
       )}
-      <span className="font-mono text-sm text-ink-3">{call.id}</span>
+      <span className="font-mono text-ink-3">{call.id}</span>
     </span>
   );
 }
@@ -35,7 +35,7 @@ function Heading({ call }: { call: StageCall | undefined }) {
 export function Transcript({ call, signedIn }: { call: StageCall | undefined; signedIn: boolean }) {
   return (
     <div className="flex min-h-64 flex-col rounded-card border border-line bg-surface p-6">
-      <h2 className="text-base font-medium">
+      <h2 className="rg-eyebrow">
         <Heading call={call} />
       </h2>
       {call && call.lines.length > 0 ? (
@@ -74,7 +74,7 @@ export function Transcript({ call, signedIn }: { call: StageCall | undefined; si
 export function QueuePanel({ queue }: { queue: QueueItem[] }) {
   return (
     <div className="rounded-card border border-line bg-surface p-6">
-      <h2 className="text-base font-medium text-ink-2">Waiting for a pharmacist</h2>
+      <h2 className="rg-eyebrow text-ink-3">Waiting for a pharmacist</h2>
       {queue.length === 0 ? (
         <p className="mt-6 text-lg text-ink-3">Nothing waiting.</p>
       ) : (

@@ -102,7 +102,7 @@ function RungCard({ n, rung, layer }: { n: number; rung: Rung; layer: Layer }) {
       <div>
         <div className="flex items-center gap-3">
           <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-accent-soft font-mono text-xs font-semibold text-accent">{n}</span>
-          <h2 className="text-[17px] font-semibold tracking-[-0.01em]">{rung.title}</h2>
+          <h2 className="text-[22px] leading-tight">{rung.title}</h2>
         </div>
         <p className="mt-3 text-sm text-ink-2">{rung.proves}</p>
         <p className="mt-2 text-sm text-ink-3">

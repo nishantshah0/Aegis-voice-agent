@@ -73,7 +73,7 @@ export function RunAllAttacks({ attacks }: { attacks: Attack[] }) {
     <Card className="flex flex-col gap-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-[15px] font-semibold">Run all attacks</h2>
+          <h2 className="text-[22px] leading-tight">Run all attacks</h2>
           <p className="mt-0.5 max-w-xl text-xs text-ink-3">
             The hijack batch (a scripted, fully fooled AI), then every attack scenario on the live agent, then each of your attacks as a live call. One run at a time, paced under the hourly cap.
           </p>
