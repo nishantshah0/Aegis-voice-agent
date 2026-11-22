@@ -117,7 +117,18 @@ function forms(text: string): string[] {
   }
   return out;
 }
-const mentionedIn = (text: string, t: Token) => forms(text).some((f) => mentions(f, t));
+// The same caller text is checked against every token on every agent sentence, so each answer is kept.
+const MENTIONED = new Map<string, boolean>();
+function mentionedIn(text: string, t: Token): boolean {
+  const key = `${t.kind}\u0000${t.text}\u0000${text}`;
+  let hit = MENTIONED.get(key);
+  if (hit === undefined) {
+    hit = forms(text).some((f) => mentions(f, t));
+    if (MENTIONED.size > 50000) MENTIONED.clear();
+    MENTIONED.set(key, hit);
+  }
+  return hit;
+}
 
 /** Tokens in the sentence that the caller hasn't said themselves. */
 function leaked(sentence: string, tokens: Token[], said: string): Token[] {
