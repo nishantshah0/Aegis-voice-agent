@@ -24,7 +24,7 @@ const NOT_A_PROMISE = new RegExp(
     "\\b(?:you|youre|you are|are you|were|we are|im|i am|whenever youre|when youre) ready\\b",
     "\\blast filled\\b",
     // Identity checks, not the order: "Your identity is confirmed.", "that's confirmed: your date of birth matches".
-    "\\b(?:your identity|your date of birth|your dob|your details|your code|that code|the code) (?:is |are |s |has been |have been |was )?confirmed\\b",
+    "\\b(?:your identity|your date of birth|your dob|your details|(?!its\\b)\\w+s details|your code|that code|the code) (?:is |are |s |has been |have been |was )?confirmed\\b",
     // Questions to the caller, and the agent's own state: "Are you done?", "I'm all set to help."
     "\\bare you (?:all )?(?:done|all set|set)\\b",
     "\\b(?:im|i am) (?:all set|done)\\b",
