@@ -1,15 +1,30 @@
 import { Suspense } from "react";
+import { connection } from "next/server";
 import { PageHeader } from "@/components/ui";
-import { Upcoming } from "@/app/console/upcoming/UpcomingView";
+import { getApprover } from "@/lib/auth/session";
+import { getStore } from "@/app/api/_lib/runtime";
+import { upcoming } from "@/app/console/upcoming/upcoming";
+import { Live } from "../_parts/Live";
+import { SignedOut } from "../_parts/SignedOut";
+import { UpcomingTable } from "./UpcomingTable";
 
 export const metadata = { title: "Upcoming · Pharmacy · Aegis" };
+
+async function Body() {
+  await connection(); // Live data: never prerender.
+  const approver = await getApprover();
+  if (!approver) return <SignedOut what="upcoming refills" />;
+  const canCall = approver.role === "pharmacist" || process.env.DEMO_CONTROLS === "on";
+  return <UpcomingTable data={await upcoming(getStore())} canCall={canCall} />;
+}
 
 export default function UpcomingPage() {
   return (
     <>
-      <PageHeader title="Upcoming" description="Refills due in the next 14 days, and where each would land." />
-      <Suspense fallback={<p className="mt-6 text-sm text-ink-3">Loading…</p>}>
-        <Upcoming />
+      <PageHeader title="Upcoming" description="Who runs out when, where each refill would land, and who the daily check rings next." actions={<Live />} />
+      <div className="mt-6" />
+      <Suspense fallback={<p className="text-sm text-ink-3">Loading…</p>}>
+        <Body />
       </Suspense>
     </>
   );
