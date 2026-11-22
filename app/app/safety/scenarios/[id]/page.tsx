@@ -5,20 +5,26 @@ import { connection } from "next/server";
 import { Badge, Card, Eyebrow } from "@/components/ui";
 import { groupWords, readAttempts, readCards, readLatestRun, RUN_COMMANDS, shortPath, when, type Entry } from "../../data";
 import { AttemptView, type AttemptData } from "./AttemptView";
-import { SuiteGate } from "../../SignedIn";
+import { SignInCard, signedIn } from "../../SignedIn";
 
 export const metadata = { title: "Scenario · Safety suite · Aegis" };
 
+// One page per card in scenarios/, known at build time (the shell reads the path, so a
+// route with unknown params can't prerender its frame).
+export async function generateStaticParams() {
+  return (await readCards()).map((card) => ({ id: card.id }));
+}
+
 export default function ScenarioPage({ params }: { params: Promise<{ id: string }> }) {
   return (
-    <SuiteGate>
+    <>
       <Link href="/app/safety/scenarios" className="text-sm text-ink-2 hover:text-ink">
         ← Every scenario
       </Link>
       <Suspense fallback={<p className="mt-6 text-sm text-ink-3">Reading the scenario…</p>}>
         <Scenario params={params} />
       </Suspense>
-    </SuiteGate>
+    </>
   );
 }
 
@@ -34,6 +40,7 @@ const words = (id: string) => {
 
 async function Scenario({ params }: { params: Promise<{ id: string }> }) {
   await connection(); // Saved runs change: never prerender.
+  if (!(await signedIn())) return <SignInCard />; // Checked here too, not only in the shell's layout.
   const { id } = await params;
   const [cards, run] = await Promise.all([readCards(), readLatestRun()]);
   const card = cards.find((c) => c.id === decodeURIComponent(id));

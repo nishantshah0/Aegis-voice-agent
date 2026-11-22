@@ -5,10 +5,19 @@ import { Card } from "@/components/ui";
 
 const LOGIN = `${AUTH_ROUTES.login}?returnTo=${encodeURIComponent("/app/safety")}`;
 
+/** Is a pharmacist or reviewer signed in? Check this before reading saved results. */
+export async function signedIn(): Promise<boolean> {
+  return auth0Configured() ? (await getApprover()) !== null : false;
+}
+
 /** Every suite page needs a signed-in pharmacist or reviewer. Nobody else sees saved results. */
 export async function RequireSignIn({ children }: { children: ReactNode }) {
-  const approver = auth0Configured() ? await getApprover() : null;
-  if (approver) return <>{children}</>;
+  if (await signedIn()) return <>{children}</>;
+  return <SignInCard />;
+}
+
+/** What a signed-out visitor sees instead of a Safety page. */
+export function SignInCard() {
   return (
     <Card className="mx-auto mt-10 max-w-lg text-center">
       <h1 className="text-2xl font-semibold tracking-[-0.02em]">Sign in to open the Safety suite</h1>
