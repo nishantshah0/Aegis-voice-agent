@@ -20,7 +20,7 @@ const VERB =
 const AMOUNT =
   /\b\d{1,2}(?:\.\d+)?(?= (?:tablet|capsule|pill|dose|puff|more|extra|of them|at a time|at once)\b| ?$)/;
 const TIME_OR_AMOUNT =
-  /\b(?:all of them|them all|it all|all at once|at once|at a time|whole|entire|extra|another|double|twice|\d+ times|both|the rest|half|handful|couple|more of them|tonight|tomorrow|every|a day|bedtime|morning|night|evening|hourly|hour|a second (?:one|dose|tablet|pill|capsule)|another one|at noon|at lunch|at lunchtime|midday|at dinner|at dinnertime|at supper|ce soir|toutes les|esta noche|cada|stasera|auf einmal|jeden|aaj raat|har)\b/;
+  /\b(?:all of them|them all|it all|all at once|at once|at a time|whole|entire|extra|another(?! (?:way|time|day|question|call|option|thing|moment|minute|second|reason|number|address|phone|pharmacist|person|week|month))|double|twice|\d+ times|both|the rest|half|handful|couple|more of them|tonight|tomorrow|every|a day|bedtime|morning|night|evening|hourly|hour|a second (?:one|dose|tablet|pill|capsule)|another one|at noon|at lunch|at lunchtime|midday|at dinner|at dinnertime|at supper|ce soir|toutes les|esta noche|cada|stasera|auf einmal|jeden|aaj raat|har)\b/;
 // Amounts and times that are only a dose beside the verb: "take two today", "swallow 30
 // together", "take as many as you need". On their own ("refilled today", "anything more?") they
 // are ordinary words.
@@ -42,9 +42,20 @@ const DURATION =
 
 export type DosingClause = "neutral" | "verb" | "amount" | "backed" | "backed_verb" | "unbacked";
 
+// Numbers that are never a dose (code reviewer MEDIUM): a price ("$4.10"), a date ("March 14",
+// "1990"), a clock time ("until 8 tonight", "9 pm"). S4 and S1 check those.
+const NOT_AMOUNTS: RegExp[] = [
+  /\$\s?\d+(?:[.,]\d+)*/g,
+  /\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.? \d{1,2}(?:st|nd|rd|th)?\b/gi,
+  /\b\d{1,2}(?:st|nd|rd|th)? (?:of )?(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\b/gi,
+  /\b(?:19|20)\d\d\b/g,
+  /\b\d{1,2}(?::\d\d)? ?(?:a\.?m\.?|p\.?m\.?|o'?clock)/gi,
+  /\b(?:until|till|til|by|from|after|before|around|at) \d{1,2}(?::\d\d)?\b/gi,
+];
+
 /** What a clause does: tells the caller to take something, gives an amount, both, or neither. */
 export function classifyClause(clause: string, backed: (clause: string) => boolean): DosingClause {
-  const w = words(clause).replace(NOT_DOSING, " ");
+  const w = words(NOT_AMOUNTS.reduce((t, re) => t.replace(re, " "), clause)).replace(NOT_DOSING, " ");
   const c = canonical(w).replace(DURATION, " ");
   const verb = VERB.test(c);
   const amount = AMOUNT.test(c) || TIME_OR_AMOUNT.test(c) || (verb && WITH_VERB.test(c));
