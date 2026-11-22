@@ -10,6 +10,7 @@ import { usageFor } from "./[id]/detail";
 import { Live } from "../_parts/Live";
 import { SignedOut } from "../_parts/SignedOut";
 import { HistoryTable } from "./HistoryTable";
+import { HistoryNote } from "../_parts/HistoryNote";
 import { history } from "./history";
 
 export const metadata = { title: "Calls · Pharmacy · Aegis" };
@@ -19,7 +20,7 @@ async function Body() {
   if (!(await getApprover())) return <SignedOut what="the voice agent's calls" />;
   const driver = getDriver();
   const timings = "turnTimings" in driver ? (driver as TimingSource) : undefined;
-  const [{ rows, chain, callerTurns = {} }, log] = await Promise.all([history(getStore(), { driver: timings }), readFile(USAGE_LOG, "utf8").catch(() => "")]);
+  const [{ rows, chain, callerTurns = {}, scripted = [] }, log] = await Promise.all([history(getStore(), { driver: timings }), readFile(USAGE_LOG, "utf8").catch(() => "")]);
   // Only the usage of the calls listed here, matched the way each call's page matches it: the call
   // id's newest log rows, one per caller turn (ids restart at c_0001 after a reset). AUDIT #13.
   const usage = rows.flatMap((row) => usageFor(log, row.callId).slice(0, callerTurns[row.callId] ?? 0));
@@ -36,6 +37,7 @@ async function Body() {
         <StatTile label="Model calls, these calls" value={modelCalls} hint="From the agent's usage log" />
         <StatTile label="Model cost, these calls" value={`$${cost.toFixed(4)}`} hint="Sum of each call's page" />
       </section>
+      <HistoryNote count={scripted.length} className="mt-3" />
       <p className="mt-3 text-sm" data-testid="chain">
         {chain.verified ? (
           <Badge tone="accent" dot>
@@ -51,7 +53,7 @@ async function Body() {
         </span>
       </p>
       <div className="mt-6">
-        <HistoryTable rows={rows} />
+        <HistoryTable rows={rows} scripted={scripted} />
       </div>
     </>
   );
