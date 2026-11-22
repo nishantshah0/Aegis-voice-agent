@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Badge, LaneBadge, RuleTag, cn, type Tone } from "@/components/ui";
+import { Badge, LaneBadge, RuleTag, cn, type Tone, chipClass } from "@/components/ui";
 import { label, time } from "../../_parts/format";
 import type { EventGroup, TimelineEvent } from "./detail";
 
@@ -131,12 +131,9 @@ export function Timeline({ events }: { events: TimelineEvent[] }) {
               role="tab"
               aria-selected={group === g.key}
               onClick={() => setGroup(g.key)}
-              className={cn(
-                "h-7 rounded-full border px-3 text-xs transition-colors",
-                group === g.key ? "border-ink bg-ink text-ink-inverse" : "border-line-strong bg-surface text-ink-2 hover:border-ink-3",
-              )}
+              className={chipClass(group === g.key, "h-7 px-2.5 text-xs")}
             >
-              {g.label} <span className="opacity-60">{count}</span>
+              {g.label} <span className="tabular-nums text-ink-3">{count}</span>
             </button>
           );
         })}

@@ -31,7 +31,7 @@ export function Tr({ className, onClick, tabIndex, ...rest }: HTMLAttributes<HTM
   return (
     <tr
       onClick={onClick}
-      tabIndex={tabIndex}
+      tabIndex={tabIndex ?? (onClick ? 0 : undefined)}
       data-row={interactive ? "" : undefined}
       className={cn(
         "border-b border-line align-middle transition-colors last:border-0 hover:bg-sunken/50",

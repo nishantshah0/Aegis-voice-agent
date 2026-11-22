@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { connection } from "next/server";
-import { Badge, Card, Eyebrow, LaneBadge, PageHeader, RuleTag, StatTile, Table, Td, Th, THead, Tr } from "@/components/ui";
+import { Badge, Card, Eyebrow, LaneBadge, PageHeader, RuleTag, Skeleton, SkeletonRows, SkeletonTiles, StatTile, Table, Td, Th, THead, Tr, When } from "@/components/ui";
 import { getApprover } from "@/lib/auth/session";
 import { USAGE_LOG } from "@/lib/agent/usage";
 import { median } from "@/lib/voice/timing";
@@ -12,7 +12,7 @@ import type { TimingSource } from "@/app/console/calls/calls";
 import { DecideBar } from "../../_parts/Decide";
 import { Live } from "../../_parts/Live";
 import { SignedOut } from "../../_parts/SignedOut";
-import { dateTime, label, seconds } from "../../_parts/format";
+import { label, seconds } from "../../_parts/format";
 import { SIGNAL_LABEL } from "../../today/ItemPanel";
 import { OUTCOME_LABEL, OUTCOME_TONE } from "../rows";
 import { callDetail, type CallDetail, type DecisionView } from "./detail";
@@ -83,7 +83,9 @@ function Decision({ d, canDecide }: { d: DecisionView; canDecide: boolean }) {
                 <Badge tone="review" dot>
                   Waiting for a pharmacist
                 </Badge>{" "}
-                <span className="text-ink-3">since {dateTime(d.createdAt)}</span>
+                <span className="text-ink-3">
+                  since <When iso={d.createdAt} />
+                </span>
               </p>
               {canDecide && <DecideBar id={d.id} className="mt-3" />}
             </>
@@ -93,7 +95,7 @@ function Decision({ d, canDecide }: { d: DecisionView; canDecide: boolean }) {
             <Badge tone={d.status === "approved" ? "accent" : "stop"} dot>
               {d.status === "approved" ? "Approved" : "Declined"}
             </Badge>{" "}
-            by <span className="font-medium">{d.decidedBy ?? "unknown"}</span> <span className="text-ink-3">{dateTime(d.decidedAt)}</span>
+            by <span className="font-medium">{d.decidedBy ?? "unknown"}</span> <When iso={d.decidedAt} className="text-ink-3" />
             {d.decisionNote && <span className="mt-1 block text-ink-2">&ldquo;{d.decisionNote}&rdquo;</span>}
           </p>
         )}
@@ -210,7 +212,7 @@ async function Body({ params }: { params: PageProps<"/app/pharmacy/calls/[id]">[
         }
         description={
           <span className="flex flex-wrap items-center gap-2">
-            <span className="font-medium text-ink">{call.patient ?? "Unknown caller"}</span>· {call.direction} · started {dateTime(call.startedAt)}
+            <span className="font-medium text-ink">{call.patient ?? "Unknown caller"}</span>· {call.direction} · started <When iso={call.startedAt} />
             {length ? ` · ${length} s` : ""}
             <Badge tone={call.state === "ended" ? "neutral" : "accent"} dot={call.state !== "ended"}>
               {label(call.state)}
@@ -220,7 +222,7 @@ async function Body({ params }: { params: PageProps<"/app/pharmacy/calls/[id]">[
         }
         actions={<Live callId={call.callId} />}
       />
-      <section className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-5">
+      <section className="mt-8 grid grid-cols-2 gap-3 md:grid-cols-5">
         <StatTile label="Lines said" value={count("speech")} />
         <StatTile label="Buttons pressed" value={count("button")} />
         <StatTile label="Lines blocked" value={count("blocked")} tone={count("blocked") ? "stop" : "neutral"} />
@@ -243,11 +245,20 @@ async function Body({ params }: { params: PageProps<"/app/pharmacy/calls/[id]">[
 export default function CallPage(props: PageProps<"/app/pharmacy/calls/[id]">) {
   return (
     <>
-      <Link href="/app/pharmacy/calls" className="text-sm text-ink-3 hover:text-ink">
-        ← Calls
+      <Link href="/app/pharmacy/calls" className="text-[13px] text-ink-3 transition-colors hover:text-ink">
+        ← All calls
       </Link>
       <div className="mt-3" />
-      <Suspense fallback={<p className="text-sm text-ink-3">Loading the call…</p>}>
+      <Suspense
+        fallback={
+          <div>
+            <Skeleton className="h-8 w-56" />
+            <Skeleton className="mt-2 h-4 w-96" />
+            <SkeletonTiles className="mt-8 md:grid-cols-5" count={5} />
+            <SkeletonRows className="mt-8" />
+          </div>
+        }
+      >
         <Body params={props.params} />
       </Suspense>
     </>

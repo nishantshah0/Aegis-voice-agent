@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { connection } from "next/server";
 import { redirect } from "next/navigation";
 import { SIGN_IN_TO_APP } from "../../_shell/RequireSignIn";
-import { Badge, Card, PageHeader } from "@/components/ui";
+import { Badge, Card, PageHeader, Skeleton, SkeletonRows, SkeletonTiles } from "@/components/ui";
 import { loadOutreachSignedIn } from "./data";
 import { OutreachView } from "./OutreachView";
 import { RunControls } from "./RunControls";
@@ -32,12 +32,12 @@ async function Outreach({ searchParams }: { searchParams: Promise<{ run?: string
         actions={<RunControls runs={runs} current={current} />}
       />
       {load.state === "none" && (
-        <Card className="mt-6 text-sm text-ink-2">
+        <Card className="mt-8 text-sm text-ink-2">
           No simulation run saved yet. Make one with <code className="font-mono text-xs text-ink">{load.command}</code>, or press Run simulation.
         </Card>
       )}
       {load.state === "missing" && (
-        <Card className="mt-6 text-sm text-ink-2">
+        <Card className="mt-8 text-sm text-ink-2">
           Can&apos;t read simulation run <code className="font-mono text-xs text-ink">results/sim/{load.runId}/</code>. Pick another saved run.
         </Card>
       )}
@@ -48,7 +48,17 @@ async function Outreach({ searchParams }: { searchParams: Promise<{ run?: string
 
 export default function OutreachPage({ searchParams }: PageProps<"/app/pharmacy/outreach">) {
   return (
-    <Suspense fallback={<p className="text-sm text-ink-3">Reading the saved simulation…</p>}>
+    <Suspense
+      fallback={
+        <div aria-busy aria-label="Loading">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="mt-2 h-4 w-96" />
+          <SkeletonTiles className="mt-8" />
+          <Skeleton className="mt-6 h-64 rounded-card" />
+          <SkeletonRows className="mt-6" />
+        </div>
+      }
+    >
       <Outreach searchParams={searchParams} />
     </Suspense>
   );

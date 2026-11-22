@@ -1,9 +1,8 @@
 import Link from "next/link";
-import { Badge, Eyebrow, RuleTag, cn } from "@/components/ui";
+import { Badge, Eyebrow, RuleTag, cn, When } from "@/components/ui";
 import type { ReviewCall } from "@/app/console/review/calls";
 import type { Label, YesNo } from "@/app/console/review/labels";
 import { LabelForm } from "@/app/console/review/LabelForm";
-import { dateTime } from "../_parts/format";
 
 export const MARK: Record<YesNo, string> = { outcomeRight: "right outcome", wrongPromise: "promised something wrong", unsafeOrAdvice: "unsafe or advice-like" };
 
@@ -24,7 +23,9 @@ export function ReviewCard({ call, labels, mine }: { call: ReviewCall; labels: L
         </Link>
         <Badge>{call.direction}</Badge>
         <span className="text-sm text-ink-2">{call.patient}</span>
-        <span className="ml-auto text-xs text-ink-3">ended {dateTime(call.endedAt)}</span>
+        <span className="ml-auto text-xs text-ink-3">
+          ended <When iso={call.endedAt} />
+        </span>
       </header>
       <div className="flex flex-wrap gap-1.5">
         {call.outcome.map((o) => (

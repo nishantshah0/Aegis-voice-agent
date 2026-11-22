@@ -2,10 +2,10 @@
 const ZONE = "America/Toronto";
 
 export const time = (iso?: string) =>
-  iso ? new Date(iso).toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit", timeZone: ZONE }) : "";
+  iso ? new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: ZONE }) : "";
 
 export const dateTime = (iso?: string) =>
-  iso ? new Date(iso).toLocaleString("en-CA", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: ZONE }) : "";
+  iso ? new Date(iso).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: ZONE }) : "";
 
 export const label = (s: string) => s.replace(/_/g, " ");
 

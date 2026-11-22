@@ -36,16 +36,25 @@ export function Sparkline({ values, titles, className, label }: { values: number
   const area = pts.length ? `${line} L${pts[pts.length - 1][0].toFixed(1)},${H} L${pts[0][0].toFixed(1)},${H} Z` : "";
   const last = pts[pts.length - 1];
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label={label} className={cn("h-8 w-full overflow-visible text-accent", className)}>
-      <path d={area} fill="currentColor" opacity={0.1} />
-      <path d={line} fill="none" stroke="currentColor" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-      {last && <circle cx={last[0]} cy={last[1]} r={3} fill="currentColor" stroke="var(--rg-surface)" strokeWidth={2} vectorEffect="non-scaling-stroke" />}
-      {pts.map(([x], i) => (
-        <rect key={i} x={x - step / 2} y={0} width={Math.max(step, 4)} height={H} fill="transparent">
-          <title>{titles?.[i] ?? String(values[i])}</title>
-        </rect>
-      ))}
-    </svg>
+    <div className={cn("relative h-8 w-full text-accent", className)}>
+      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label={label} className="size-full overflow-visible">
+        <path d={area} fill="currentColor" opacity={0.1} />
+        <path d={line} fill="none" stroke="currentColor" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+        {pts.map(([x], i) => (
+          <rect key={i} x={x - step / 2} y={0} width={Math.max(step, 4)} height={H} fill="transparent">
+            <title>{titles?.[i] ?? String(values[i])}</title>
+          </rect>
+        ))}
+      </svg>
+      {/* The end dot sits outside the stretched SVG so it stays round. */}
+      {last && (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute size-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-current ring-2 ring-surface"
+          style={{ left: `${(last[0] / W) * 100}%`, top: `${(last[1] / H) * 100}%` }}
+        />
+      )}
+    </div>
   );
 }
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { Badge, Card, TableEmpty, cn } from "@/components/ui";
+import { Badge, Card, TableEmpty, cn, chipClass } from "@/components/ui";
 import { typing } from "../_parts/format";
 
 export type ReviewStatus = "unlabelled" | "labelled" | "test";
@@ -65,7 +65,7 @@ export function ReviewBoard({ calls, cards }: { calls: ReviewListItem[]; cards: 
               type="button"
               aria-pressed={filter === f.key}
               onClick={() => setFilter(f.key)}
-              className={cn("h-7 rounded-full border px-3 text-xs", filter === f.key ? "border-ink bg-ink text-ink-inverse" : "border-line-strong bg-surface text-ink-2 hover:border-ink-3")}
+              className={chipClass(filter === f.key, "h-7 px-2.5 text-xs")}
             >
               {f.label} <span className="opacity-60">{f.key === "all" ? calls.length : calls.filter((c) => c.status === f.key).length}</span>
             </button>

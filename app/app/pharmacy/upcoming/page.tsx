@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
-import { ButtonLink, PageHeader } from "@/components/ui";
+import { ButtonLink, PageHeader, Skeleton, SkeletonRows } from "@/components/ui";
 import { getApprover } from "@/lib/auth/session";
 import { getStore } from "@/app/api/_lib/runtime";
 import { upcoming } from "@/app/console/upcoming/upcoming";
@@ -38,8 +38,14 @@ export default function UpcomingPage() {
           </>
         }
       />
-      <div className="mt-6" />
-      <Suspense fallback={<p className="text-sm text-ink-3">Loading…</p>}>
+      <Suspense
+        fallback={
+          <div className="mt-8">
+            <Skeleton className="h-36 rounded-card" />
+            <SkeletonRows className="mt-6" />
+          </div>
+        }
+      >
         <Body />
       </Suspense>
     </>
