@@ -224,7 +224,7 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
    * 1.x (audit fix 1): right after the code checks out, the driver checks the
    * prescriptions itself, through the same buttons and the same lock, so the model
    * can answer and read back in one step instead of pressing each in turn. Outbound:
-   * the prescription the call is about. Inbound: each of the patient's, up to
+   * the prescription the call is about, its cost and its label. Inbound: each of the patient's, up to
    * PREFETCH_MAX. The coverage figure is then in the record, so a read-back of it
    * passes S4 (audit fix 2).
    */
@@ -239,6 +239,8 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
       for (const [button, input] of [
         ["check_prescription", { rx_id: rxId, include_other_names: false }],
         ["check_coverage", { rx_id: rxId }],
+        // The strength is on the label, not in check_prescription (live run range-2 guessed one).
+        ["read_label", { rx_id: rxId }],
       ] as const) {
         const r = await press(callId, button, input);
         events.push({ type: "press", button, input, result: r });
@@ -477,7 +479,7 @@ function sideEffectFollowUpNote(rxId: RxId): string {
 
 /** 1.x: proactive, not pushy. Once the side effects are dealt with, the next useful question. */
 const AFTER_SIDE_EFFECTS =
-  'Then, if it isn\'t settled yet, offer delivery or pickup in one short question: "Would you like delivery, or would you rather pick it up?"';
+  'Then, if they already named a window, book it with set_delivery. If not, and nothing is booked, offer delivery or pickup in one short question: "Would you like delivery, or would you rather pick it up?"';
 
 /**
  * Ids the model needs to press on this call. Opaque ids and the pharmacy's own
