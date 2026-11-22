@@ -16,6 +16,7 @@ type Reply = {
   appointmentBooked?: string;
   assistant?: Assistant;
   demoPatient?: DemoPatient;
+  notice?: string;
 };
 type Turn = { sessionId: string; step: number; text: string; turnId: string };
 type Line = { speaker: "Pharmacy" | "You"; text: string };
@@ -252,7 +253,7 @@ export default function BrowserConversation() {
       <button type="button" className="presenter-primary" disabled={busy} onClick={start}>Start conversation</button>
     </>}
     {session && <>
-      <AssistantLine assistant={session.assistant} patient={session.finished ? undefined : session.demoPatient} />
+      <AssistantLine assistant={session.assistant} notice={session.notice} patient={session.finished ? undefined : session.demoPatient} />
       {session.demoCode && <div className="presenter-code"><span>Demo verification code</span><b>{session.demoCode}</b></div>}
       <ol className="browser-transcript" aria-label="Conversation transcript" aria-live="polite" ref={log}>
         {lines.map((line, index) => <li key={index}><b>{line.speaker}</b><span>{line.text}</span></li>)}

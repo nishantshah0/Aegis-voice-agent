@@ -3,7 +3,7 @@ import { forSpeech } from "@/lib/voice/spoken";
 import { fail, readObject } from "../../_lib/http";
 import { demoCode, equal, presenter, uuid } from "../phone/config";
 import { getAudio, saveAudio } from "../phone/storage";
-import { DEMO_PATIENT } from "../agent/agent";
+import { DEMO_PATIENT, DEMO_PATIENT_INBOUND } from "../agent/agent";
 import { assistantOf, nextTurn, openFlow } from "../agent/turn";
 import { advance, browserReply } from "./conversation";
 import { appendTurn, findTurn, latestTurn, openSession, type BrowserTurn } from "./storage";
@@ -29,16 +29,20 @@ export function ownsSession(request: Request, sessionId: string) {
 
 function view(row: BrowserTurn, headers: Record<string, string> = {}) {
   const { flow, session_id: sessionId, turn_id: turnId, step } = row;
+  const liveAgent = flow.mode === "agent" && !flow.verified && flow.phase !== "end";
+  const inbound = flow.callKind === "inbound";
   return Response.json(
     {
       sessionId,
       step,
       verified: flow.verified,
       finished: flow.phase === "end",
-      ...(flow.phase === "pin" || (flow.mode === "agent" && !flow.verified && flow.phase !== "end") ? { demoCode: demoCode(sessionId) } : {}),
-      // Trail #70: which assistant is answering, and who it's calling for until they're verified.
+      ...(flow.phase === "pin" || (liveAgent && (!inbound || flow.codeSent)) ? { demoCode: demoCode(sessionId) } : {}),
+      // Trail #70: which assistant is answering, who it's for until they're verified, and why a call is inbound.
       assistant: assistantOf(flow),
-      ...(flow.mode === "agent" && !flow.verified && flow.phase !== "end" ? { demoPatient: DEMO_PATIENT } : {}),
+      ...(flow.mode === "agent" ? { callKind: flow.callKind ?? "outbound" } : {}),
+      ...(flow.notice ? { notice: flow.notice } : {}),
+      ...(liveAgent ? { demoPatient: inbound ? DEMO_PATIENT_INBOUND : DEMO_PATIENT } : {}),
       reply: browserReply(flow),
       audioUrl: path + "/audio?" + new URLSearchParams({ sessionId, turnId }),
       refillRequested: flow.requested,

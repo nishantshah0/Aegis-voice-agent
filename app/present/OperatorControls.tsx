@@ -14,6 +14,7 @@ interface PhoneSession {
   refillRequested?: boolean;
   assistant?: Assistant;
   demoPatient?: DemoPatient;
+  notice?: string;
 }
 
 const finished = (status: string) => /^(?:completed|failed|busy|no[-_ ]answer|cancelled|canceled|ended|rejected|expired|unconfirmed)$/i.test(status);
@@ -97,7 +98,7 @@ export function PhoneControl() {
     {call && <div className="presenter-call" role="status" aria-live="polite">
       <strong>{call.status.replace(/[-_]/g, " ")}</strong>
       {call.message && <p>{call.message}</p>}
-      <AssistantLine assistant={call.assistant} patient={finished(call.status) ? undefined : call.demoPatient} />
+      <AssistantLine assistant={call.assistant} notice={call.notice} patient={finished(call.status) ? undefined : call.demoPatient} />
       {call.appointmentBooked && <p>Pharmacist appointment: {call.appointmentBooked}</p>}
       {call.refillRequested && <p>Seven-day demo refill requested.</p>}
       {updatedAt && Number.isFinite(updatedAt.valueOf()) && <small>Updated <time dateTime={updatedAt.toISOString()}>{updatedAt.toLocaleTimeString()}</time></small>}

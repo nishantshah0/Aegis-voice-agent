@@ -14,7 +14,7 @@ import {
   turnToken,
   uuid,
 } from "./config";
-import { DEMO_PATIENT } from "../agent/agent";
+import { DEMO_PATIENT, DEMO_PATIENT_INBOUND } from "../agent/agent";
 import { assistantOf, nextTurn, openFlow } from "../agent/turn";
 import {
   getAudio,
@@ -55,6 +55,7 @@ const details: Record<State, string> = {
   unconfirmed:
     "The provider did not confirm the dial request. Check the Twilio call log before starting another call.",
 };
+const inboundAgent = (flow: PhoneRow["flow"]) => flow.mode === "agent" && flow.callKind === "inbound";
 function view(row: PhoneRow) {
   const stale = isActive(row.status) && Date.now() - new Date(row.created_at).getTime() > 5 * 60_000;
   const status = stale ? "unconfirmed" : row.status;
@@ -64,10 +65,12 @@ function view(row: PhoneRow) {
       status,
       updatedAt: row.updated_at,
       message: details[status] + (row.provider_error ? ` Provider code ${row.provider_error}.` : ""),
-      ...(isActive(status) && !stale && !row.flow.verified ? { demoCode: demoCode(row.id) } : {}),
-      // Trail #70: which assistant is answering, and who it's calling for until they're verified.
+      ...(isActive(status) && !stale && !row.flow.verified && !(inboundAgent(row.flow) && !row.flow.codeSent) ? { demoCode: demoCode(row.id) } : {}),
+      // Trail #70: which assistant is answering, who it's for until they're verified, and why a call is inbound.
       assistant: assistantOf(row.flow),
-      ...(isActive(status) && !stale && !row.flow.verified && row.flow.mode === "agent" ? { demoPatient: DEMO_PATIENT } : {}),
+      ...(row.flow.mode === "agent" ? { callKind: row.flow.callKind ?? "outbound" } : {}),
+      ...(row.flow.notice ? { notice: row.flow.notice } : {}),
+      ...(isActive(status) && !stale && !row.flow.verified && row.flow.mode === "agent" ? { demoPatient: inboundAgent(row.flow) ? DEMO_PATIENT_INBOUND : DEMO_PATIENT } : {}),
       refillRequested: row.flow.requested,
       appointmentBooked: row.flow.appointmentBooked,
     },

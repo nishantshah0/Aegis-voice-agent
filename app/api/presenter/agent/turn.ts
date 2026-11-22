@@ -1,5 +1,5 @@
 import { first, nextFlow, type Flow } from "../phone/flow";
-import { AgentUnavailable, agentEnabled, agentSilence, agentTurn, openAgent, type AgentReply, type Channel } from "./agent";
+import { AgentUnavailable, agentEnabled, agentSilence, agentTurn, endAgentCall, openAgent, type AgentReply, type Channel } from "./agent";
 
 // One presenter turn, phone or browser (Trail #70): the real agent when it's available, the
 // scripted menu otherwise. A call that falls back stays on the menu (from its PIN step) and the
@@ -15,10 +15,11 @@ export type Assistant = "agent" | "fallback" | "menu";
 
 export const assistantOf = (flow: Flow): Assistant => flow.mode ?? "menu";
 
-function fallback(reason: unknown): Flow {
+async function fallback(reason: unknown, flow?: Flow): Promise<Flow> {
   // The reason only (rules, caps, timeouts, model errors), never what anyone said.
   const kind = reason instanceof AgentUnavailable ? "unavailable" : "error";
   console.warn(`presenter agent: falling back to the menu (${kind}: ${reason instanceof Error ? reason.message : "unknown"})`);
+  if (flow?.agent) await endAgentCall(flow.agent.callId);
   return { ...first, mode: "fallback", reply: FALLBACK_LINE + first.reply };
 }
 
@@ -28,6 +29,8 @@ const withReply = (flow: Flow, r: AgentReply): Flow => ({
   reply: r.reply,
   verified: r.verified,
   requested: r.refillRequested,
+  codeSent: r.codeSent,
+  ...(r.inbound ? { callKind: "inbound" as const, notice: r.inbound.reason } : {}),
   phase: r.ended ? "end" : "agent",
 });
 
@@ -36,7 +39,7 @@ export async function openFlow(id: string, channel: Channel): Promise<Flow> {
   if (!agentEnabled()) return first;
   try {
     const opened = await openAgent(id, channel);
-    return withReply({ ...first, mode: "agent" }, opened);
+    return withReply({ ...first, mode: "agent", callKind: "outbound" }, opened);
   } catch (error) {
     return fallback(error);
   }
@@ -54,6 +57,6 @@ export async function nextTurn(id: string, flow: Flow, digits: string, speech: s
       : await agentSilence(id, flow.agent, { channel, wasVerified });
     return withReply(flow, reply);
   } catch (error) {
-    return fallback(error);
+    return fallback(error, flow);
   }
 }

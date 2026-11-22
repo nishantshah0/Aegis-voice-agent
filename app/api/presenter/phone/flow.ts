@@ -21,6 +21,12 @@ export type Flow = {
   mode?: "agent" | "fallback";
   /** The agent's call, carried between serverless turns. */
   agent?: AgentState;
+  /** "inbound" when rule 7 wouldn't ring Sam and the agent took an inbound call instead. */
+  callKind?: "outbound" | "inbound";
+  /** One plain line for the presenter's screen, e.g. why the call is inbound. */
+  notice?: string;
+  /** A verification code has been sent on the agent's call (shown on the presenter's screen). */
+  codeSent?: boolean;
 };
 const menu =
   "For last fill, press one or say history. For a seven-day price, press two. For a refill, press three. For a pharmacist appointment, press four. Or press zero to finish.";

@@ -4,7 +4,7 @@ import { rootCertificates } from "node:tls";
 import { Pool } from "pg";
 import { CALL_MODEL, SDK_DEV_MODEL, createAgentDriver, createAgentSdkModel, createClaudeModel, type AgentModel } from "@/lib/agent";
 import type { AgentEvent, Store } from "@/lib/contract";
-import { createControl } from "@/lib/control";
+import { createControl, type PressRecordOutput } from "@/lib/control";
 import { emit } from "@/lib/events";
 import { createSafetyCheck, createSpeechGuard } from "@/lib/guard";
 import { IDS, PHARMACY_NAME, SEED } from "@/lib/seed";
@@ -47,7 +47,17 @@ export class AgentUnavailable extends Error {}
 
 /** What the presenter call's row keeps between turns. */
 export type AgentState = { callId: string; snapshot: unknown; turns: number };
-export type AgentReply = { agent: AgentState; reply: string; ended: boolean; verified: boolean; refillRequested: boolean };
+export type AgentReply = {
+  agent: AgentState;
+  reply: string;
+  ended: boolean;
+  verified: boolean;
+  refillRequested: boolean;
+  /** A code went to "the phone on file" (the presenter's screen) on this call. */
+  codeSent: boolean;
+  /** Set when rule 7 wouldn't ring Sam, so the agent took an inbound call instead. */
+  inbound?: { reason: string };
+};
 export type ModelOptions = { channel: Channel; model: string; effort: Effort };
 
 // Connection and test caches only: correctness never depends on them surviving between requests.
@@ -164,8 +174,13 @@ async function standing(store: Store, callId: string, wasVerified: boolean) {
     verified: wasVerified || call?.state === "verified",
     ended: call?.state === "ended",
     refillRequested: record.some((e) => e.button === "request_refill" && e.decision === "allowed"),
+    codeSent: record.some((e) => (e.output as PressRecordOutput | undefined)?.internal?.codeSent === true),
   };
 }
+
+/** Why the agent took an inbound call, in one plain line for the presenter's screen. */
+const INBOUND_REASON = (ruleIds: string[]) =>
+  ruleIds.includes("7d") ? "Sam was called recently, so this is an inbound call." : "The calling rules won't ring Sam right now, so this is an inbound call.";
 
 /**
  * Start the agent's side of a presenter call: an outbound call to Sam (the demo patient) through
@@ -176,11 +191,29 @@ export async function openAgent(presenterId: string, channel: Channel): Promise<
   const { store, control, driver } = parts(presenterId, channel);
   await takeTurn(presenterId, "open");
   const started = await control.startOutboundCall(IDS.sam, IDS.samConcerta);
-  if (!started.ok) throw new AgentUnavailable(`The rules won't ring the demo patient (rule ${started.ruleIds.join(", ")})`);
+  if (!started.ok) {
+    // Rule 7 decides (opt-in, hours, frequency) and is never loosened. When it says no, the
+    // patient calls the pharmacy instead: an inbound call, verified by name, date of birth, Rx
+    // number and then the code, through the same driver, buttons and guard.
+    if (!started.ruleIds.some((r) => r.startsWith("7"))) throw new AgentUnavailable(`The rules won't ring the demo patient (rule ${started.ruleIds.join(", ")})`);
+    const callId = await control.startInboundCall();
+    driver.joinCall(callId, { direction: "inbound" });
+    const events = await collect(driver.opening(callId));
+    return { agent: { callId, snapshot: seal(callId, driver.exportCall(callId)), turns: 0 }, reply: spoken(events), ended: false, verified: false, refillRequested: false, codeSent: false, inbound: { reason: INBOUND_REASON(started.ruleIds) } };
+  }
   const patient = await store.getPatient(IDS.sam);
   driver.joinCall(started.callId, { direction: "outbound", patientId: IDS.sam, rxId: IDS.samConcerta, patientName: patient ? `${patient.firstName} ${patient.lastName}` : undefined });
   const events = [...(await collect(driver.opening(started.callId))), ...(await collect(driver.speakLine(started.callId, CODE_ON_SCREEN)))];
-  return { agent: { callId: started.callId, snapshot: seal(started.callId, driver.exportCall(started.callId)), turns: 0 }, reply: spoken(events), ended: false, verified: false, refillRequested: false };
+  return { agent: { callId: started.callId, snapshot: seal(started.callId, driver.exportCall(started.callId)), turns: 0 }, reply: spoken(events), ended: false, verified: false, refillRequested: false, codeSent: true };
+}
+
+/** After a fallback: end the agent's call through the control layer, so a late turn can't press or speak. */
+export async function endAgentCall(callId: string): Promise<void> {
+  try {
+    await createControl({ store: dashboardStore(), emit }).endCall(callId);
+  } catch (error) {
+    console.warn(`presenter agent: couldn't end ${callId} (${error instanceof Error ? error.message : "unknown"})`);
+  }
 }
 
 type TurnOptions = { channel: Channel; timeoutMs: number; wasVerified?: boolean };
@@ -195,7 +228,7 @@ export async function agentTurn(presenterId: string, agent: AgentState, text: st
     const ended = now.ended || events.some((e) => e.type === "ended");
     let reply = spoken(events);
     if (!reply && !ended) reply = spoken(await collect(driver.speakLine(agent.callId, SAY_AGAIN)));
-    return { agent: { callId: agent.callId, snapshot: ended ? undefined : seal(agent.callId, driver.exportCall(agent.callId)), turns }, reply, ended, verified: now.verified, refillRequested: now.refillRequested };
+    return { agent: { callId: agent.callId, snapshot: ended ? undefined : seal(agent.callId, driver.exportCall(agent.callId)), turns }, reply, ended, verified: now.verified, refillRequested: now.refillRequested, codeSent: now.codeSent };
   };
 
   if (agent.turns >= limit("AEGIS_AGENT_TURNS_PER_CALL", TURNS_PER_CALL)) {
@@ -229,7 +262,7 @@ export async function agentSilence(presenterId: string, agent: AgentState, { cha
   driver.importCall(agent.callId, state);
   const reply = spoken(await collect(driver.checkIn(agent.callId)));
   const now = await standing(store, agent.callId, wasVerified);
-  return { agent: { ...agent, snapshot: seal(agent.callId, driver.exportCall(agent.callId)) }, reply, ended: false, verified: now.verified, refillRequested: now.refillRequested };
+  return { agent: { ...agent, snapshot: seal(agent.callId, driver.exportCall(agent.callId)) }, reply, ended: false, verified: now.verified, refillRequested: now.refillRequested, codeSent: now.codeSent };
 }
 
 /** The real agent runs when the server has a model (a Claude API key; LIVE_AGENT=1 locally), unless AEGIS_PRESENTER_AGENT=off. */
@@ -243,6 +276,8 @@ export const DEMO_PATIENT = (() => {
   const sam = SEED.patients.find((p) => p.id === IDS.sam)!;
   return { name: `${sam.firstName} ${sam.lastName}`, dob: sam.dob };
 })();
+/** On an inbound call the caller also gives the prescription number. */
+export const DEMO_PATIENT_INBOUND = { ...DEMO_PATIENT, rxNumber: SEED.prescriptions.find((rx) => rx.id === IDS.samConcerta)!.rxNumber };
 
 /** Test hook. */
 export function setAgentModelForTests(factory?: (options: ModelOptions) => AgentModel): void {
