@@ -59,7 +59,7 @@ export function RunButton({
   return (
     <span className="flex flex-col items-end gap-1">
       <Button size={size} variant={variant} disabled={!url || busy} onClick={() => void run()} title={!url ? disabledReason : undefined}>
-        {busy && <span aria-hidden className="size-1.5 rounded-full bg-current suite-pulse" />}
+        {busy && <span aria-hidden className="size-1.5 rounded-full bg-current animate-pulse" />}
         {state.kind === "posting" ? "Starting…" : state.kind === "started" ? "Running…" : label}
       </Button>
       {(state.kind === "error" || (!url && disabledReason)) && (

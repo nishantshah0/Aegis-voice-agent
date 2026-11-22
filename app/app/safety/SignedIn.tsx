@@ -1,30 +1,9 @@
 import { Suspense, type ReactNode } from "react";
 import { AUTH_ROUTES, auth0Configured } from "@/lib/auth/auth0";
 import { getApprover } from "@/lib/auth/session";
-import { Badge, Card } from "@/components/ui";
+import { Card } from "@/components/ui";
 
-const LOGIN = `${AUTH_ROUTES.login}?returnTo=${encodeURIComponent("/dashboard/suite")}`;
-
-/** Who is signed in, from the Auth0 session (the same check as the console). */
-export async function SignedInAs() {
-  if (!auth0Configured()) return <span className="text-sm text-stop">Auth0 isn&apos;t configured on this server.</span>;
-  const approver = await getApprover();
-  if (!approver) {
-    return (
-      <a href={LOGIN} className="rounded-full border border-line-strong px-3.5 py-1.5 text-[13px] hover:border-ink-3">
-        Sign in
-      </a>
-    );
-  }
-  return (
-    <span className="flex items-center gap-2 text-sm text-ink-2">
-      {approver.name} <Badge tone="accent">{approver.role}</Badge>
-      <a href={AUTH_ROUTES.logout} className="underline hover:text-ink">
-        Sign out
-      </a>
-    </span>
-  );
-}
+const LOGIN = `${AUTH_ROUTES.login}?returnTo=${encodeURIComponent("/app/safety")}`;
 
 /** Every suite page needs a signed-in pharmacist or reviewer. Nobody else sees saved results. */
 export async function RequireSignIn({ children }: { children: ReactNode }) {
@@ -48,8 +27,8 @@ export async function RequireSignIn({ children }: { children: ReactNode }) {
 }
 
 /**
- * Wrap each page's content in this, not the layout: Next renders a page apart from its
- * layout, so a check in the layout alone would still send the page's data to anyone.
+ * Every Safety page wraps its content in this. The shell's layout check isn't enough on its
+ * own: Next renders a page apart from its layout, so the page's data would still stream.
  */
 export function SuiteGate({ children }: { children: ReactNode }) {
   return (

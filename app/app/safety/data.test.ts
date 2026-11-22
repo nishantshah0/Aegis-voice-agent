@@ -3,7 +3,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { parseCard, parseEntry, readAttempts, readCards, readLatestRun, readWhy, rowsFor, whyGroup } from "./data";
-import { activeTab } from "./SuiteNav";
 
 const tmp = () => mkdtemp(join(tmpdir(), "suite-"));
 const put = async (path: string, json: unknown) => {
@@ -94,11 +93,5 @@ describe("safety suite data", () => {
     expect(why?.records[0]).toMatchObject({ id: "S4", file: "lib/guard/speech.ts", line: 226, commit: "05ecce4f", agent: "Claude Code" });
     expect(await readWhy(await tmp())).toBeNull();
     expect([whyGroup("rule-1"), whyGroup("S2"), whyGroup("card-4b"), whyGroup("hijack-driver")]).toEqual(["Core rules", "Speech rules", "Attack cards", "The hijack"]);
-  });
-
-  it("highlights the right tab", () => {
-    expect(activeTab("/dashboard/suite")).toBe("/dashboard/suite");
-    expect(activeTab("/dashboard/suite/scenarios/copay")).toBe("/dashboard/suite/scenarios");
-    expect(activeTab("/dashboard/suite/rules")).toBe("/dashboard/suite/rules");
   });
 });

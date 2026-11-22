@@ -1,118 +1,150 @@
-import Link from "next/link";
 import { Suspense } from "react";
-import { connection } from "next/server";
+import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Badge, Card, Eyebrow, PageHeader, RuleTag } from "@/components/ui";
-import { loadScenarioSuite } from "@/lib/arena/suite-files";
-import { describeEntry, groupLabel, scenarioDetail } from "../data";
+import { connection } from "next/server";
+import { Badge, Card, Eyebrow } from "@/components/ui";
+import { groupWords, readAttempts, readCards, readLatestRun, RUN_COMMANDS, shortPath, when, type Entry } from "../../data";
+import { AttemptView, type AttemptData } from "./AttemptView";
+import { SuiteGate } from "../../SignedIn";
 
 export const metadata = { title: "Scenario · Safety suite · Aegis" };
 
-// One page per team card, known at build time.
-export async function generateStaticParams() {
-  return (await loadScenarioSuite()).map((card) => ({ id: card.id }));
-}
-
-async function Detail({ params }: { params: Promise<{ id: string }> }) {
-  await connection();
-  const { id } = await params;
-  const detail = await scenarioDetail(decodeURIComponent(id));
-  if (!detail) notFound();
-  const { card, run, attempts } = detail;
-  const checks = card.expected.checks ?? [];
+export default function ScenarioPage({ params }: { params: Promise<{ id: string }> }) {
   return (
-    <>
-      <Link href="/app/safety/scenarios" className="text-sm text-ink-3 hover:text-ink">
-        ← All scenarios
+    <SuiteGate>
+      <Link href="/app/safety/scenarios" className="text-sm text-ink-2 hover:text-ink">
+        ← Every scenario
       </Link>
-      <div className="mt-4">
-        <PageHeader title={card.persona ?? card.id} description={card.goal} />
-      </div>
-      <div className="mt-3 flex flex-wrap gap-2">
-        <Badge>{groupLabel(card.group)}</Badge>
-        <Badge>{card.direction ?? "inbound"}</Badge>
-        {card.needsPharmacist && <Badge tone="review">Needs a pharmacist</Badge>}
-        <span className="font-mono text-xs leading-6 text-ink-3">{card.id}</span>
-      </div>
-
-      <div className="mt-8 grid gap-4 lg:grid-cols-2">
-        <Card>
-          <Eyebrow>What the caller says</Eyebrow>
-          <ol className="mt-3 space-y-2 text-sm">
-            {card.caller_lines.map((line, i) => (
-              <li key={i} className="rounded-xl bg-sunken px-3 py-2 text-ink">
-                {line}
-              </li>
-            ))}
-          </ol>
-          {card.plan && <p className="mt-4 text-sm text-ink-2">{card.plan}</p>}
-        </Card>
-        <Card>
-          <Eyebrow>Scored from the record</Eyebrow>
-          <ul className="mt-3 space-y-2 text-sm">
-            {checks.map((c) => (
-              <li key={c.id} className="flex items-center gap-2">
-                <RuleTag>{c.mode}</RuleTag>
-                <span className="text-ink">{c.id.replace(/_/g, " ")}</span>
-                {c.violation && <Badge tone="stop">breaks a rule</Badge>}
-              </li>
-            ))}
-          </ul>
-          {(card.expected.must_not?.length ?? 0) > 0 && (
-            <p className="mt-4 text-sm text-ink-2">Must not: {card.expected.must_not!.join(", ")}.</p>
-          )}
-        </Card>
-      </div>
-
-      <h2 className="mt-10 text-xl font-semibold tracking-[-0.02em]">Latest attempts</h2>
-      {!run || attempts.length === 0 ? (
-        <p className="mt-3 rounded-card border border-dashed border-line-strong px-5 py-6 text-center text-sm text-ink-3">
-          Not run yet. A suite run saves three attempts for this card, each with its record.
-        </p>
-      ) : (
-        <div className="mt-4 space-y-3">
-          {attempts.map((a) => (
-            <Card key={a.n}>
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="font-semibold">Attempt {a.n}</span>
-                <Badge tone={a.score.automatedPassed ? "accent" : "stop"} dot>
-                  {a.score.automatedPassed ? "Passed" : "Failed"}
-                </Badge>
-                <span className="text-xs text-ink-3">
-                  {a.score.caught} caught · {a.score.broken} broken · <span className="font-mono">{a.score.callId}</span>
-                </span>
-              </div>
-              <ul className="mt-3 flex flex-wrap gap-1.5">
-                {a.score.checks.map((c) => (
-                  <li key={c.id}>
-                    <Badge tone={c.passed ? "accent" : "stop"}>{c.id.replace(/_/g, " ")}</Badge>
-                  </li>
-                ))}
-              </ul>
-              {a.run && (
-                <details className="mt-3">
-                  <summary className="cursor-pointer text-sm font-medium text-ink hover:text-accent">Record ({a.run.record.length} entries, hash-chained)</summary>
-                  <ol className="mt-2 max-h-80 space-y-1 overflow-y-auto rounded-xl bg-sunken p-3 font-mono text-xs text-ink-2">
-                    {a.run.record.map((e) => (
-                      <li key={e.id}>
-                        <span className="text-ink-3">#{e.seq}</span> {describeEntry(e)} <span className="text-ink-3">{e.hash.slice(0, 8)}</span>
-                      </li>
-                    ))}
-                  </ol>
-                </details>
-              )}
-            </Card>
-          ))}
-        </div>
-      )}
-    </>
+      <Suspense fallback={<p className="mt-6 text-sm text-ink-3">Reading the scenario…</p>}>
+        <Scenario params={params} />
+      </Suspense>
+    </SuiteGate>
   );
 }
 
-export default function ScenarioPage({ params }: PageProps<"/app/safety/scenarios/[id]">) {
+/** Each entry's prevHash is the hash of the one before (within this call's record). */
+function chainIntact(record: Entry[]): boolean {
+  return record.every((e, i) => i === 0 || e.prevHash === record[i - 1]?.hash);
+}
+
+const words = (id: string) => {
+  const s = id.replace(/_/g, " ");
+  return s.charAt(0).toUpperCase() + s.slice(1);
+};
+
+async function Scenario({ params }: { params: Promise<{ id: string }> }) {
+  await connection(); // Saved runs change: never prerender.
+  const { id } = await params;
+  const [cards, run] = await Promise.all([readCards(), readLatestRun()]);
+  const card = cards.find((c) => c.id === decodeURIComponent(id));
+  if (!card) notFound();
+  const outcome = run?.outcomes.find((o) => o.id === card.id);
+  const files = run && outcome ? await readAttempts(run, card.id) : [];
+  const attempts: AttemptData[] = files.map((f) => ({
+    n: f.n,
+    callId: f.callId,
+    file: shortPath(f.path),
+    record: f.record,
+    score: f.score ?? outcome?.attempts.find((a) => a.n === f.n) ?? null,
+    chainIntact: chainIntact(f.record),
+  }));
+
   return (
-    <Suspense fallback={<p className="text-sm text-ink-3">Reading the scenario…</p>}>
-      <Detail params={params} />
-    </Suspense>
+    <div className="mt-4 flex flex-col gap-8">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-[0.08em] text-ink-3">{groupWords(card.group)}</p>
+          <h1 className="mt-1 text-3xl font-semibold tracking-[-0.03em] md:text-4xl">{words(card.id)}</h1>
+          <p className="mt-1.5 max-w-2xl text-[15px] text-ink-2">
+            {card.persona}. {card.goal}
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {!card.inSuite && <Badge>Not in the 28-card suite</Badge>}
+          <Badge>{card.direction === "outbound" ? "Outbound call" : "Inbound call"}</Badge>
+          {outcome ? (
+            <Badge tone={outcome.passed ? "accent" : "stop"} dot>
+              {outcome.passed ? "Passed 3 of 3" : "Failed in the latest run"}
+            </Badge>
+          ) : (
+            <Badge>Not run yet</Badge>
+          )}
+        </div>
+      </div>
+
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_20rem]">
+        <section>
+          <Eyebrow>{run ? `Latest run · ${when(run.ranAt)}` : "Latest run"}</Eyebrow>
+          <div className="mt-2">
+            {attempts.length ? (
+              <AttemptView attempts={attempts} />
+            ) : (
+              <Card className="text-sm text-ink-2">
+                <p className="font-medium text-ink">{outcome ? "This run saved no call files for this scenario" : "No saved call for this scenario yet"}</p>
+                <p className="mt-1">
+                  {card.inSuite ? (
+                    <>
+                      Run the suite with <code className="font-mono text-xs">{RUN_COMMANDS.suite}</code>. Each call is saved to{" "}
+                      <code className="font-mono text-xs">results/arena/scenarios/&lt;run&gt;/</code>.
+                    </>
+                  ) : (
+                    "This card is a regression case, run by the runner's own tests rather than the 28-card suite."
+                  )}
+                </p>
+              </Card>
+            )}
+          </div>
+        </section>
+
+        <aside className="flex flex-col gap-4 text-sm">
+          <Card>
+            <Eyebrow>The caller says</Eyebrow>
+            <ol className="mt-2 space-y-2">
+              {card.callerLines.map((l, i) => (
+                <li key={i} className="rounded-lg bg-sunken px-3 py-2 text-ink-2">
+                  {l}
+                </li>
+              ))}
+            </ol>
+            <p className="mt-2 text-xs text-ink-3">
+              Seed <span className="font-mono">{card.seed}</span>. Tokens in braces are filled from the seed&apos;s made-up patients.
+            </p>
+          </Card>
+          {(card.must.length > 0 || card.mustNot.length > 0) && (
+            <Card>
+              <Eyebrow>Expected</Eyebrow>
+              <ul className="mt-2 space-y-1">
+                {card.must.map((m) => (
+                  <li key={`m-${m}`} className="flex gap-2">
+                    <span className="text-accent">✓</span>
+                    {m}
+                  </li>
+                ))}
+                {card.mustNot.map((m) => (
+                  <li key={`n-${m}`} className="flex gap-2" title="Something that must not happen">
+                    <span className="text-accent">✓</span>
+                    {m}
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
+          <Card>
+            <Eyebrow>Scored checks</Eyebrow>
+            <ul className="mt-2 space-y-1.5">
+              {card.checks.map((c) => (
+                <li key={c.id} className="flex items-center justify-between gap-2">
+                  <span className="font-mono text-[12px]">{c.id}</span>
+                  <span className="text-xs text-ink-3" title={c.violation ? "Failing this counts as a broken rule" : "Failing this is a wrong outcome, not a broken rule"}>
+                    {c.mode}
+                    {c.violation ? " · safety" : ""}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        </aside>
+      </div>
+    </div>
   );
 }

@@ -107,7 +107,7 @@ export function ScenarioTable({ rows, groups }: { rows: TableRow[]; groups: { ke
           <ul>
             {shown.map((r) => (
               <li key={r.id} className="border-t border-line first:border-t-0">
-                <Link href={`/dashboard/suite/scenarios/${encodeURIComponent(r.id)}`} className="group flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3.5 transition-colors hover:bg-accent-soft/50">
+                <Link href={`/app/safety/scenarios/${encodeURIComponent(r.id)}`} className="group flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3.5 transition-colors hover:bg-accent-soft/50">
                   <div className="min-w-0 flex-1 basis-72">
                     <p className="flex items-center gap-2 text-[15px] font-medium">
                       {words(r.id)}

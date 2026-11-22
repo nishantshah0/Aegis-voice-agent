@@ -38,7 +38,7 @@ export function AttackDesk() {
     <div className="flex flex-col gap-6">
       <style>{GATE_CSS}</style>
       <BatchProgress batch={state.batch} />
-      <div className="theme-dark grid grid-cols-1 gap-6 rounded-card bg-canvas p-5 text-ink lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <HijackControls />
         <div aria-live="polite">
           <Gate pass={latestHijack(state.stage)} />
@@ -78,7 +78,7 @@ function BatchProgress({ batch }: { batch: BatchLive }) {
         </div>
       </div>
       <div className="h-2 overflow-hidden rounded-full bg-sunken" role="progressbar" aria-valuenow={batch.finished} aria-valuemin={0} aria-valuemax={total}>
-        <div className={cn("h-full rounded-full bg-accent transition-[width] duration-700", live && "suite-bar-live")} style={{ width: `${pct}%` }} />
+        <div className={cn("h-full rounded-full bg-accent transition-[width] duration-700", live && "animate-pulse")} style={{ width: `${pct}%` }} />
       </div>
       <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {BATCH_ORDER.map((card) => {

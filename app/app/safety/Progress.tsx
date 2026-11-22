@@ -14,7 +14,7 @@ export function Progress({ done, total, live }: { done: number; total: number; l
         </span>
       </div>
       <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-sunken" role="progressbar" aria-valuenow={done} aria-valuemin={0} aria-valuemax={total}>
-        <div className={cn("h-full rounded-full bg-accent transition-[width] duration-700", live && "suite-bar-live")} style={{ width: `${pct}%` }} />
+        <div className={cn("h-full rounded-full bg-accent transition-[width] duration-700", live && "animate-pulse")} style={{ width: `${pct}%` }} />
       </div>
     </div>
   );
