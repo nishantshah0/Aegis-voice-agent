@@ -8,7 +8,7 @@
 import { GUARD_REPLACEMENTS, type Call, type EmitFn, type GuardResult, type GuardSentenceFn, type RecordEntry, type SpeechRule, type Store } from "@/lib/contract";
 import { internalOf, resultOf } from "@/lib/control/context";
 import { canonical, unbackedDoses, wordsToNumber } from "./doses";
-import { unbackedDosing } from "./dosing";
+import { classifyClause, unbackedDosing } from "./dosing";
 import { digitText, hearableForms, UNREADABLE, withoutPossessives } from "./normalize";
 import { isRecordedReadback, ungroundedPatientFact } from "./patient-facts";
 import { digitsOf, mentions, tokensFor, words, type Token } from "./tokens";
@@ -252,15 +252,37 @@ export function spokenPrices(sentence: string): string {
   return sentence.replace(/\$(\d+) and (\d{1,2}) cents?\b/gi, (_m, dollars: string, cents: string) => `$${dollars}.${cents.padStart(2, "0")}`);
 }
 
-/** The agent's last sentence on the call, as the caller heard it (a replacement if it was blocked). */
-function previousLine(record: RecordEntry[]): string {
-  const last = record.findLast((e) => e.kind === "line_spoken" || e.kind === "line_blocked");
-  if (!last) return "";
-  if (last.kind === "line_blocked") return String((last.output as { replacement?: string })?.replacement ?? "");
-  return String((last.input as { text?: string })?.text ?? "");
+/** The agent's sentences on the call, last first, as the caller heard them (a replacement if blocked). */
+function agentLines(record: RecordEntry[]): string[] {
+  return record
+    .filter((e) => e.kind === "line_spoken" || e.kind === "line_blocked")
+    .map((e) => String(e.kind === "line_blocked" ? ((e.output as { replacement?: string })?.replacement ?? "") : ((e.input as { text?: string })?.text ?? "")))
+    .reverse();
 }
 
-async function checkS3(store: Store, call: Call, sentence: string, record: RecordEntry[] = []): Promise<Check> {
+/** The caller's last line on the call. */
+function lastCallerLine(record: RecordEntry[]): string {
+  const last = record.findLast((e) => e.kind === "caller_line");
+  return String((last?.input as { text?: string })?.text ?? "");
+}
+
+// A bare agreement: every word is one of these ("Yes, that's fine.", "Right, that works.",
+// "Correct.", "Sure, go ahead."). A strong one agrees by itself; "Okay." only answers a question.
+const AGREE_WORDS = new Set(
+  "yes yeah yep yup sure right correct exactly absolutely definitely of course indeed fine works work matches match true ok okay alright go ahead you can do that it is thats that s is safe totally sounds good great perfect thing will be".split(" "),
+);
+const STRONG_AGREEMENT = /\b(?:yes|yeah|yep|yup|sure|right|correct|exactly|absolutely|definitely|of course|go ahead|fine|works|matches|true|safe|you can|it is)\b/;
+const ASKS = /\?\s*$|\b(?:right|correct|isnt it|doesnt it|is it|wont it|can i|should i)\W*$/i;
+
+/** Whether the agent's line only agrees with the caller's last line. */
+function agrees(sentence: string, caller: string): boolean {
+  const w = words(sentence);
+  const ws = w.trim().split(" ").filter(Boolean);
+  if (ws.length === 0 || ws.length > 8 || !ws.every((x) => AGREE_WORDS.has(x))) return false;
+  return STRONG_AGREEMENT.test(w) || ASKS.test(caller.trim());
+}
+
+async function checkS3(store: Store, call: Call, sentence: string, record: RecordEntry[] = [], agreeing = false): Promise<Check> {
   const records: string[] = [];
   const labels: string[] = [];
   if (call.state === "verified" && call.lockedPatientId) {
@@ -275,8 +297,11 @@ async function checkS3(store: Store, call: Call, sentence: string, record: Recor
   // across the previous sentence (Trail #88).
   const backed = (c: string) => labels.some((l) => labelClause(c, l) || labelQuantity(l, c).length > 0);
   const clausesOf = (s: string) => s.split(CLAUSE_BREAK).filter((c) => words(c).trim() !== "");
-  const previous = hearableForms(previousLine(record))[0];
-  const why = unbackedDosing(clausesOf(sentence), clausesOf(previous), backed);
+  // The last agent line that says anything about taking or amounts, past up to two filler lines
+  // ("Sorry, one moment.", "Let me check.") (RT-MT-2).
+  const recent = agentLines(record).slice(0, 3).map((l) => clausesOf(hearableForms(l)[0]));
+  const previous = recent.find((cs) => cs.some((c) => classifyClause(c, backed) !== "neutral")) ?? [];
+  const why = unbackedDosing(clausesOf(sentence), previous, backed, agreeing);
   return why ? { rule: "S3", why } : null;
 }
 
@@ -559,6 +584,23 @@ export function createSpeechGuard({ store, emit = () => {} }: { store: Store; em
               checkS4(line, record, bookedLabels, drugs, approvable, slots.map((sl) => sl.label));
           }
           if (found) break;
+        }
+        // A bare agreement says what the caller just said (RT-MT-1): "Can I take all 30 at once?"
+        // "Yes, that's fine." So the caller's line is checked as the agent's, with the record
+        // details the caller said counting as confirmed (before verification, another patient's after).
+        const caller = lastCallerLine(record);
+        if (!found && caller && agrees(sentence, caller)) {
+          const heard = hearableForms(caller)[0];
+          const named = tokens.filter((t) => mentionedIn(heard, t));
+          const own = (t: Token) => call.state === "verified" && t.patientId === call.lockedPatientId;
+          const confirmed = named.filter((t) => !own(t) && (call.state !== "verified" || (t.kind !== "drug_class" && t.kind !== "age")));
+          const line = spokenPrices(heard);
+          const why = ungroundedPatientFact(line.replace(/['’]/g, ""), call, record, quotedDrugs);
+          found =
+            (confirmed.length > 0 ? { rule: (call.state === "verified" ? "S2" : "S1") as SpeechRule, why: `agrees to the caller's ${[...new Set(confirmed.map((t) => t.kind))].join(",")}` } : null) ??
+            (why ? { rule: "S4", why: `agrees: ${why}` } : null) ??
+            (await checkS3(store, call, heard, [], true)) ??
+            checkS4(line, record, slotLabels, drugs, approvable, slots.map((sl) => sl.label));
         }
 
         if (found?.rule === "S3" && call.lockedPatientId) {
