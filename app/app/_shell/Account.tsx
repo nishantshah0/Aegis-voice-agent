@@ -1,8 +1,10 @@
+import { connection } from "next/server";
 import { AUTH_ROUTES } from "@/lib/auth/auth0";
 import { getApprover } from "@/lib/auth/session";
 
 // Who is signed in. Sign-out is a full-page redirect through Auth0.
 export async function Account() {
+  await connection(); // A request-time read: never prerendered (the session check uses the clock).
   const approver = await getApprover();
   if (!approver) return null;
   return (
