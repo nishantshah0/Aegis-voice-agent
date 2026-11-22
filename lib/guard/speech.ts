@@ -24,9 +24,6 @@ const NOT_A_PROMISE = new RegExp(
   [
     "\\b(?:you|youre|you are|are you|were|we are|im|i am|whenever youre|when youre) ready\\b",
     "\\blast filled\\b",
-    // The last fill's history, not this one (Trail #85): "It was delivered last time."
-    "\\b(?:delivered|picked (?:it |them )?up) last time\\b",
-    "\\blast time (?:it was |they were |you |we )?(?:delivered|picked (?:it |them )?up)\\b",
     // Identity checks, not the order: "Your identity is confirmed.", "that's confirmed: your date of birth matches".
     "\\b(?:your identity|your date of birth|your dob|your details|your code|that code|the code) (?:is |are |s |has been |have been |was )?confirmed\\b",
     // Questions to the caller, and the agent's own state: "Are you done?", "I'm all set to help."
@@ -128,15 +125,22 @@ function labelClause(c: string, label: string): boolean {
 }
 
 
-function supplyClause(c: string, n: number, form: string): boolean {
+/** Which supply phrases a quantity may fill: the supply now (label, request_refill) or the last fill (refill_history). */
+type Tense = "now" | "last_fill";
+
+function supplyClause(c: string, n: number, form: string, tense: Tense = "now"): boolean {
   const qty = `(?:${n}|[a-z]+(?: [a-z]+)?) ${form}s?`;
+  if (tense === "last_fill") {
+    // The last fill, read back from refill_history only (Trail #85): "Last time you got 30 tablets."
+    return [
+      new RegExp(`^ (?:last time )?(?:you got|you received|you picked up) ${qty}(?: last time)? $`),
+      new RegExp(`^ (?:your )?last (?:fill|refill) (?:was|had|came to) ${qty} $`),
+    ].some((re) => re.test(c));
+  }
   return [
     new RegExp(`^ (?:thats |that is |thatll be |that will be )?${qty} $`),
     new RegExp(`^ (?:your|the) (?:refill|bottle|supply|order|prescription) (?:is|has|holds|comes to|will be|will have) ${qty} $`),
     new RegExp(`^ (?:youll|you will|you ll) (?:get|receive|pick up) ${qty} $`),
-    // The last fill, read back (Trail #85): "Last time you got 30 tablets.", "Your last fill was 30 tablets."
-    new RegExp(`^ (?:last time )?(?:you got|you received|you picked up) ${qty}(?: last time)? $`),
-    new RegExp(`^ (?:your )?last (?:fill|refill) (?:was|had|came to) ${qty} $`),
   ].some((re) => re.test(c));
 }
 
@@ -145,7 +149,7 @@ function supplyClause(c: string, n: number, form: string): boolean {
  * `qty` may instead be a quantity this call's record gave for the prescription (Trail #85: a
  * partial fill's quantity, or refill_history's last fill); the same supply phrases apply.
  */
-function labelQuantity(label: string, sentence: string, recorded?: number): string[] {
+function labelQuantity(label: string, sentence: string, recorded?: number, tense: Tense = "now"): string[] {
   const qty = recorded ?? Number(label.match(/\bqty\.? ?(\d+)\b/i)?.[1]);
   const form = label.match(/\b(tablet|capsule|pill)s?\b/i)?.[1]?.toLowerCase();
   if (!qty || !form) return [];
@@ -154,7 +158,7 @@ function labelQuantity(label: string, sentence: string, recorded?: number): stri
     new RegExp(`\\b${form}s?\\b`).test(c) && c.split(" ").some((t) => t === String(qty) || wordsToNumber(t) === qty);
   const qtyClauses = clauses.filter(namesQty);
   const others = clauses.filter((c) => !namesQty(c));
-  const ok = qtyClauses.length > 0 && qtyClauses.every((c) => supplyClause(c, qty, form)) && others.every((c) => labelClause(c, label));
+  const ok = qtyClauses.length > 0 && qtyClauses.every((c) => supplyClause(c, qty, form, tense)) && others.every((c) => labelClause(c, label));
   return ok ? [`${qty} ${form}s`] : [];
 }
 
@@ -163,16 +167,20 @@ export function spokenPrices(sentence: string): string {
   return sentence.replace(/\$(\d+) and (\d{1,2}) cents?\b/gi, (_m, dollars: string, cents: string) => `$${dollars}.${cents.padStart(2, "0")}`);
 }
 
-/** Quantities this call's record gave per prescription: request_refill's quantity and refill_history's last fill (Trail #85). */
-function recordedQuantities(record: RecordEntry[]): Map<string, number[]> {
-  const out = new Map<string, number[]>();
+/**
+ * Quantities this call's record gave per prescription (Trail #85): request_refill's quantity
+ * backs the supply now, refill_history's last fill backs only the past-tense phrases.
+ */
+function recordedQuantities(record: RecordEntry[]): Map<string, { n: number; tense: Tense }[]> {
+  const out = new Map<string, { n: number; tense: Tense }[]>();
   for (const e of record) {
     const r = resultOf(e);
     if (e.kind !== "button" || !r?.ok) continue;
     const o = r.output as { rx_id?: string; quantity?: number; last_fill_quantity?: number; state?: string };
     const rxId = e.button === "request_refill" ? internalOf(e)?.rxId : e.button === "refill_history" ? o.rx_id : undefined;
     const n = e.button === "request_refill" ? (o.state === "refused" ? undefined : o.quantity) : e.button === "refill_history" ? o.last_fill_quantity : undefined;
-    if (rxId && typeof n === "number" && Number.isInteger(n) && n > 0) out.set(rxId, [...(out.get(rxId) ?? []), n]);
+    const tense: Tense = e.button === "refill_history" ? "last_fill" : "now";
+    if (rxId && typeof n === "number" && Number.isInteger(n) && n > 0) out.set(rxId, [...(out.get(rxId) ?? []), { n, tense }]);
   }
   return out;
 }
@@ -183,7 +191,7 @@ async function checkS3(store: Store, call: Call, sentence: string, record: Recor
     const recorded = recordedQuantities(record);
     for (const rx of await store.getPrescriptions(call.lockedPatientId)) {
       records.push(rx.labelText, `${rx.strength} ${rx.drug}`, ...labelQuantity(rx.labelText, sentence));
-      for (const n of recorded.get(rx.id) ?? []) records.push(...labelQuantity(rx.labelText, sentence, n));
+      for (const { n, tense } of recorded.get(rx.id) ?? []) records.push(...labelQuantity(rx.labelText, sentence, n, tense));
     }
   }
   const missing = unbackedDoses(sentence, records);
@@ -284,7 +292,7 @@ const IDENTITY_CLAUSE =
 const NAMES_ORDER = /\b(?:refills?|prescriptions?|orders?|medications?|medicines?|meds|deliver\w*|pickup|rx)\b/;
 
 /** Drug names come from the store (see createSpeechGuard), so "your Concerta" counts as the order too. */
-export function unexcusedCompletion(sentence: string, drugNames: string[] = []): boolean {
+export function unexcusedCompletion(sentence: string, drugNames: string[] = [], backed: (clause: string) => boolean = () => false): boolean {
   let ledByApproval = false;
   const clauses = sentence.split(CLAUSE_BREAK).map((c) => words(c));
   const whole = words(sentence);
@@ -297,6 +305,12 @@ export function unexcusedCompletion(sentence: string, drugNames: string[] = []):
       return false;
     }
     if (BARE_CONFIRMED.test(raw) && !namesOrder && beside.some((c) => NAMES_IDENTITY.test(c))) {
+      ledByApproval = false;
+      return false;
+    }
+    // A whole clause the record backs (Trail #85: the last fill's pickup or delivery). It covers
+    // only itself: it never carries an approval condition on to the next clause.
+    if (backed(raw)) {
       ledByApproval = false;
       return false;
     }
@@ -321,9 +335,41 @@ export type ReadBack = {
   listed: { label: string; type: string }[];
   /** A cancel_appointment succeeded on this call. */
   cancelled: boolean;
+  /** How refill_history said the last fill went: "pickup" or "delivery". */
+  lastFillMethods: string[];
 };
 
-const NO_READ_BACK: ReadBack = { lastFillDays: [], eligibleDays: [], booked: [], listed: [], cancelled: false };
+const NO_READ_BACK: ReadBack = { lastFillDays: [], eligibleDays: [], booked: [], listed: [], cancelled: false, lastFillMethods: [] };
+
+// The last fill's pickup or delivery, as a whole clause (code review high 01M814W3BS): only after
+// refill_history, only the method it returned.
+const LAST_FILL_METHOD: Record<string, RegExp> = {
+  delivery: /^ (?:(?:it was|they were) delivered last time|last time (?:it was|they were) delivered|(?:your )?last (?:fill|refill) was delivered) $/,
+  pickup: /^ (?:(?:it was|they were) picked up last time|last time (?:it was|they were) picked up|(?:your )?last (?:fill|refill) was picked up) $/,
+};
+const lastFillMethodClause = (rb: ReadBack) => (clause: string) => rb.lastFillMethods.some((m) => LAST_FILL_METHOD[m]?.test(clause));
+
+// Words a backed history or appointment clause may hold, and nothing else (code review highs
+// 01M814W4KM and 01M814W5WE): the read-back itself, never a handover, a drug or a promise.
+const DAY_WORDS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+const HISTORY_WORDS = new Set([...DAY_WORDS, "you", "youre", "youll", "re", "ll", "will", "be", "are", "eligible", "for", "a", "an", "your", "the", "next", "refill", "fill", "last", "filled", "it", "was", "on", "from"]);
+const APPOINTMENT_WORDS = new Set([
+  ...DAY_WORDS,
+  ...["your", "you", "youre", "re", "the", "a", "an", "for", "on", "at", "is", "s", "are", "booked", "scheduled", "has", "have", "been", "was", "i", "we", "there", "theres"],
+  ...["would", "does", "do", "work", "works", "open", "opening", "openings", "available", "free", "slot", "slots", "or", "how", "about", "what", "this"],
+  ...["appointment", "appointments", "consult", "consults", "consultation", "vaccine", "vaccines", "vaccination", "flu", "shot", "medication", "med", "review", "pickup", "time"],
+  ...["am", "pm", "a", "m", "p", "noon"],
+]);
+const onlyWords = (cw: string, allowed: Set<string>) => cw.trim().split(" ").every((t) => allowed.has(t) || (/^\d{1,2}$/.test(t) && Number(t) <= 31) || /^\d{2}$/.test(t));
+
+// Anything in the sentence that would turn a backed day into a promise about the order: a
+// handover, something sent, a completion word, or a pointer back to the day ("then", "that day").
+const POINTS_BACK = /\b(?:then|that day|same day|that time|which is when|by when)\b/;
+const stripPickupAppointment = (w: string) => w.replace(/\bpickup (?:appointment|time|slot)s?\b/g, " ");
+function sentenceTaint(sentence: string): { handover: boolean; booking: boolean; other: boolean } {
+  const w = stripPickupAppointment(words(sentence));
+  return { handover: HANDOVER.test(w), booking: BOOKING.test(w), other: SENT.test(w) || POINTS_BACK.test(w) || isCompletionPromise(sentence) };
+}
 
 // "last filled", "last fill", "last refill": the clause is about the fill that already happened.
 const LAST_FILL_CLAUSE = /\blast (?:filled|fill|refill)\b/;
@@ -364,7 +410,7 @@ const sameTime = (said: ClockTime, slot: ClockTime) => said.h === slot.h && said
  */
 function appointmentDay(cw: string, raw: string, day: string, rb: ReadBack, question: boolean, drugNames: string[]): boolean {
   if (!APPOINTMENT_CLAUSE.test(cw) || ORDER_CLAUSE.test(cw.replace(/\bpickup (?:appointment|time|slot)\b/g, " "))) return false;
-  if (namesDrug(cw, drugNames) || isCompletionPromise(cw)) return false;
+  if (namesDrug(cw, drugNames) || isCompletionPromise(cw) || HANDOVER.test(stripPickupAppointment(cw)) || !onlyWords(cw, APPOINTMENT_WORDS)) return false;
   const offer = question || OFFER_CLAUSE.test(cw);
   const candidates = [...rb.booked, ...(offer ? rb.listed : [])].filter((a) => {
     if (!a.label.toLowerCase().includes(day)) return false;
@@ -389,13 +435,15 @@ const namesDrug = (cw: string, drugNames: string[]) => drugNames.some((d) => d.t
  * "last filled" itself is dropped first, as NOT_A_PROMISE does.
  */
 function historyClause(cw: string, re: RegExp): boolean {
-  if (!re.test(cw) || HANDOVER.test(cw) || BOOKING.test(cw)) return false;
+  if (!re.test(cw) || HANDOVER.test(cw) || BOOKING.test(cw) || !onlyWords(cw, HISTORY_WORDS)) return false;
   return !isCompletionPromise(cw);
 }
 
 /** "booked" about an appointment (and nothing about the order) needs a live booking of that type. */
 function appointmentBooking(cw: string, rb: ReadBack): boolean | undefined {
   if (!APPOINTMENT_CLAUSE.test(cw) || ORDER_CLAUSE.test(cw.replace(/\bpickup (?:appointment|time|slot)\b/g, " "))) return undefined;
+  // "Your pickup is booked for your appointment": a handover booking still needs set_delivery.
+  if (HANDOVER.test(stripPickupAppointment(cw))) return undefined;
   const named = Object.entries(TYPE_WORDS).filter(([, re]) => re.test(cw)).map(([t]) => t);
   return rb.booked.some((a) => named.length === 0 || named.includes(a.type));
 }
@@ -418,6 +466,7 @@ export function readBackFacts(callRecord: RecordEntry[], wholeRecord: RecordEntr
       .filter(({ e }) => e.button === "list_appointment_slots")
       .flatMap(({ o }) => ((o.slots as { label?: string }[] | undefined) ?? []).map((sl) => ({ label: String(sl.label ?? ""), type: String(o.type ?? "") }))),
     cancelled: ok.some(({ e, o }) => e.button === "cancel_appointment" && o.ok === true),
+    lastFillMethods: ok.filter(({ e }) => e.button === "refill_history").flatMap(({ o }) => (typeof o.last_fill_method === "string" ? [o.last_fill_method] : [])),
   };
 }
 
@@ -431,7 +480,7 @@ function checkS4(sentence: string, record: RecordEntry[], bookedLabels: string[]
     return approvableItems === undefined || (itemId !== undefined && approvableItems.has(itemId));
   });
 
-  if (unexcusedCompletion(sentence, drugNames) && !approved) return { rule: "S4", why: "completion without approval" };
+  if (unexcusedCompletion(sentence, drugNames, lastFillMethodClause(rb)) && !approved) return { rule: "S4", why: "completion without approval" };
   const succeeded = (e: RecordEntry, r: ReturnType<typeof resultOf>): string | null => {
     if (!r?.ok) return null;
     const out = r.output as { state?: string };
@@ -459,6 +508,14 @@ function checkS4(sentence: string, record: RecordEntry[], bookedLabels: string[]
   // the word ("haven't booked", "can't deliver it Friday"). Prices never are.
   let ledByMatch = false;
   const question = /\?\s*$/.test(sentence);
+  // A history or appointment day backs nothing if any clause of the sentence could make it a
+  // promise about the order (code review high 01M814W5WE).
+  const taint = sentenceTaint(sentence);
+  const historyOk = !taint.handover && !taint.booking && !taint.other;
+  // An appointment day also backs nothing in a sentence that mentions the order or a drug at all.
+  const appointmentOk = !taint.handover && !taint.other && !ORDER_CLAUSE.test(stripPickupAppointment(words(sentence))) && !namesDrug(words(sentence), drugNames);
+  // "cancelled" across the whole sentence (code review low 01M814W85D): only an appointment, only after a cancel.
+  const wholeWords = words(sentence);
   for (const raw of sentence.split(CLAUSE_BREAK)) {
     const cw = words(raw);
     // Only a booking said as the condition ("once it's booked for Friday") excuses its own clause.
@@ -480,7 +537,7 @@ function checkS4(sentence: string, record: RecordEntry[], bookedLabels: string[]
       if (appointment === undefined && !booked) return { rule: "S4", why: "booking without set_delivery" };
     }
     const c = cw.match(CANCELLED);
-    if (c && !negatedNear(cw, c.index ?? 0) && !(rb.cancelled && APPOINTMENT_CLAUSE.test(cw) && !ORDER_CLAUSE.test(cw))) {
+    if (c && !negatedNear(cw, c.index ?? 0) && !(rb.cancelled && APPOINTMENT_CLAUSE.test(wholeWords) && !ORDER_CLAUSE.test(stripPickupAppointment(wholeWords)) && !HANDOVER.test(stripPickupAppointment(wholeWords)))) {
       return { rule: "S4", why: "cancelled without cancel_appointment" };
     }
 
@@ -490,9 +547,9 @@ function checkS4(sentence: string, record: RecordEntry[], bookedLabels: string[]
       if (READY_CLAUSE.test(cw) && !HANDOVER.test(cw) && readyLabels.includes(d[0])) continue;
       // refill_history's days (Trail #85): the last fill's in a "last fill" clause, the eligible
       // day in an "eligible" clause, never alongside a delivery, pickup or booking.
-      if (rb.lastFillDays.includes(d[0]) && historyClause(cw, LAST_FILL_CLAUSE) && !/\b(?:next|will|ll|going to)\b/.test(cw)) continue;
-      if (rb.eligibleDays.includes(d[0]) && historyClause(cw, ELIGIBLE_CLAUSE)) continue;
-      if (appointmentDay(cw, raw, d[0], rb, question, drugNames)) continue;
+      if (historyOk && rb.lastFillDays.includes(d[0]) && historyClause(cw, LAST_FILL_CLAUSE) && !/\b(?:next|will|ll|going to)\b/.test(cw)) continue;
+      if (historyOk && rb.eligibleDays.includes(d[0]) && historyClause(cw, ELIGIBLE_CLAUSE)) continue;
+      if (appointmentOk && appointmentDay(cw, raw, d[0], rb, question, drugNames)) continue;
       if (!bookedLabels.some((l) => l.toLowerCase().includes(d[0]))) return { rule: "S4", why: `day ${d[0]} not booked or a run-out day` };
     }
 
