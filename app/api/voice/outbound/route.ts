@@ -2,7 +2,7 @@ import { getApprover } from "@/lib/auth/session";
 import { emit } from "@/lib/events";
 import { IDS, PHARMACY_NAME } from "@/lib/seed";
 import { conversationStatus, missingOutboundEnv, placeOutboundCall } from "../../_lib/elevenlabs-calls";
-import { missingTwilioCallEnv, placeTwilioCall, publicOrigin } from "../../_lib/twilio";
+import { missingTwilioCallEnv, newUrlToken, placeTwilioCall, publicOrigin } from "../../_lib/twilio";
 import { fail, ok } from "../../_lib/http";
 import { patientsOnOpenCalls } from "../../_lib/outbound";
 import { getControl, getStore } from "../../_lib/runtime";
@@ -54,7 +54,8 @@ async function throughElevenLabs(call: VoiceCall): Promise<Response> {
 async function throughTwilio(call: VoiceCall): Promise<Response> {
   const origin = publicOrigin();
   const id = encodeURIComponent(call.callId);
-  const placed = await placeTwilioCall(`${origin}/api/voice/twiml?call=${id}`, `${origin}/api/voice/twilio-status?call=${id}`);
+  call.twimlToken = newUrlToken();
+  const placed = await placeTwilioCall(`${origin}/api/voice/twiml?call=${id}&t=${call.twimlToken}`, `${origin}/api/voice/twilio-status?call=${id}`);
   if (!placed.ok) {
     await endVoiceCall(call);
     const why = `error ${placed.code ?? "none"}, HTTP ${placed.status}`;
