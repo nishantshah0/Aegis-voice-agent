@@ -55,6 +55,8 @@ describe("high 01M814W4KM: an appointment day never backs a pickup or delivery o
     "Your flu shot is Tuesday at 11 AM, and we'll deliver it then.",
     "Your vaccine appointment is Tuesday, and it ships that day.",
     "Your pickup is booked for your appointment Tuesday.",
+    "Your vaccine appointment is Tuesday, and your refill will be waiting.",
+    "Your flu shot is Tuesday; your Concerta too.",
   ])("blocks after a vaccine booking: %s", async (s) => {
     const { control, callId, say } = await setup("sam");
     await control.press(callId, "book_appointment", { slot_id: "ap_vaccine_20261124_1100" });
