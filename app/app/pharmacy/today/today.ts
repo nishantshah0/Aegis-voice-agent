@@ -1,5 +1,5 @@
 import type { QueueItem, Store } from "@/lib/contract";
-import { itemDetail, laneTotals, type ItemDetail, type LaneTotals } from "@/app/console/today/detail";
+import { itemDetail, type ItemDetail, type LaneTotals } from "@/app/console/today/detail";
 
 // What Today shows a signed-in pharmacist: lane totals, what's waiting (Review first,
 // then Quick check, oldest first), what went through on its own, and recent decisions.
@@ -13,8 +13,8 @@ export type Today = { appointments: { slotId: string; label: string; patient: st
 const at = (i: QueueItem) => Date.parse(i.decidedAt ?? i.createdAt);
 
 export async function today(store: Store): Promise<Today> {
-  const [items, totals, bookings, policy, now] = await Promise.all([
-    store.queue(), laneTotals(store), store.listAppointments(), store.policy(), store.now(),
+  const [items, cards, bookings, policy, now] = await Promise.all([
+    store.queue(), store.listCards(), store.listAppointments(), store.policy(), store.now(),
   ]);
   const upcoming = (policy.appointmentSlots ?? []).filter((slot) => Date.parse(slot.start) > Date.parse(now));
   const appointments = [];
@@ -24,8 +24,15 @@ export async function today(store: Store): Promise<Today> {
     const patient = await store.getPatient(reservation.patientId);
     appointments.push({ slotId: slot.id, label: slot.label, patient: patient ? `${patient.firstName[0]}.${patient.lastName[0]}.` : "Unknown patient" });
   }
-  const view = (item: QueueItem) =>
-    itemDetail(store, item).then((d): TodayItem => ({ ...d, createdAt: item.createdAt, ...(item.decidedAt ? { decidedAt: item.decidedAt } : {}) }));
+  const totals: LaneTotals = { automatic: 0, quick_check: 0, review: 0 };
+  for (const item of items) totals[item.lane]++;
+  const records = new Map<string, ReturnType<Store["listRecord"]>>();
+  const view = async (item: QueueItem): Promise<TodayItem> => {
+    const record = records.get(item.callId) ?? store.listRecord(item.callId);
+    records.set(item.callId, record);
+    const detail = await itemDetail(store, item, { cards, record, queue: items });
+    return { ...detail, createdAt: item.createdAt, ...(item.decidedAt ? { decidedAt: item.decidedAt } : {}) };
+  };
   const waiting = items
     .filter((i) => i.status === "open" && i.lane !== "automatic")
     .sort((a, b) => LANE_ORDER[a.lane] - LANE_ORDER[b.lane] || Date.parse(a.createdAt) - Date.parse(b.createdAt));

@@ -144,16 +144,18 @@ export function usageFor(log: string, callId: string): UsageRow[] {
 export async function callDetail(store: Store, callId: CallId, { driver, usageLog = "" }: { driver?: TimingSource; usageLog?: string } = {}): Promise<CallDetail | null> {
   const call = await store.getCall(callId);
   if (!call) return null;
-  const [all, queue, orders] = await Promise.all([store.listRecord(), store.queue(), store.listOrders()]);
+  const patientId = call.lockedPatientId ?? call.targetPatientId;
+  const [all, queue, orders, cards, patient] = await Promise.all([
+    store.listRecord(), store.queue(), store.listOrders(), store.listCards(),
+    patientId ? store.getPatient(patientId) : undefined,
+  ]);
   const entries = all.filter((e) => e.callId === callId).sort((a, b) => a.seq - b.seq);
   const mine = queue.filter((q) => q.callId === callId);
-  const patientId = call.lockedPatientId ?? call.targetPatientId;
-  const patient = patientId ? await store.getPatient(patientId) : undefined;
   const items = await Promise.all(
     mine.map(async (item): Promise<DecisionView> => {
       const order = item.orderId ? orders.find((o) => o.id === item.orderId) : undefined;
       return {
-        ...(await itemDetail(store, item)),
+        ...(await itemDetail(store, item, { cards, record: entries, queue })),
         createdAt: item.createdAt,
         ...(item.decidedAt ? { decidedAt: item.decidedAt } : {}),
         ...(order ? { order: { id: order.id, state: order.state } } : {}),

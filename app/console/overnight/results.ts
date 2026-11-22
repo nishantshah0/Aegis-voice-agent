@@ -260,20 +260,29 @@ function parseNight(json: unknown, mtime: Date): { ranAt: string; data: NightVie
 
 // ---------- everything ----------
 
+export async function readHammerAndOvernight(dir: string = resultsDir()) {
+  const nightRoot = join(dir, "arena", "overnight");
+  const [hammer, overnight] = await Promise.all([
+    readSource(join(dir, "hammer-latest.json"), join(dir, "hammer-latest.json"), COMMANDS.hammer, parseHammer),
+    newest(nightRoot, "report.json").then((file): Promise<Source<NightView>> | Source<NightView> =>
+      file
+        ? readSource(file.path, file.path, COMMANDS.overnight, parseNight)
+        : { state: "none", where: join(nightRoot, "<run>", "report.json"), command: COMMANDS.overnight },
+    ),
+  ]);
+  return { hammer, overnight };
+}
+
 export async function readOvernight(dir: string = resultsDir()): Promise<OvernightView> {
   const suiteRoot = join(dir, "arena", "scenarios");
-  const nightRoot = join(dir, "arena", "overnight");
-  const [suiteFile, nightFile] = await Promise.all([newest(suiteRoot, "scoreboard.json"), newest(nightRoot, "report.json")]);
-
-  const [hammer, suite, hijack, overnight] = await Promise.all([
-    readSource(join(dir, "hammer-latest.json"), join(dir, "hammer-latest.json"), COMMANDS.hammer, parseHammer),
-    suiteFile
-      ? readSource(suiteFile.path, suiteFile.path, COMMANDS.suite, (json, mtime) => parseSuite(json, mtime, suiteFile.count))
-      : Promise.resolve<Source<SuiteView>>({ state: "none", where: join(suiteRoot, "<run>", "scoreboard.json"), command: COMMANDS.suite }),
+  const [{ hammer, overnight }, suite, hijack] = await Promise.all([
+    readHammerAndOvernight(dir),
+    newest(suiteRoot, "scoreboard.json").then((file): Promise<Source<SuiteView>> | Source<SuiteView> =>
+      file
+        ? readSource(file.path, file.path, COMMANDS.suite, (json, mtime) => parseSuite(json, mtime, file.count))
+        : { state: "none", where: join(suiteRoot, "<run>", "scoreboard.json"), command: COMMANDS.suite },
+    ),
     readHijack(join(dir, "hijack")),
-    nightFile
-      ? readSource(nightFile.path, nightFile.path, COMMANDS.overnight, parseNight)
-      : Promise.resolve<Source<NightView>>({ state: "none", where: join(nightRoot, "<run>", "report.json"), command: COMMANDS.overnight }),
   ]);
 
   const gaps: Gap[] = [];

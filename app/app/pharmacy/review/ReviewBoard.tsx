@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode, type ComponentProps } from "react";
 import { Badge, Card, TableEmpty, cn, chipClass } from "@/components/ui";
+import { ReviewCard } from "./ReviewCard";
 import { typing } from "../_parts/format";
 
 export type ReviewStatus = "unlabelled" | "labelled" | "test";
@@ -20,7 +21,7 @@ const STATUS_BADGE: Record<ReviewStatus, ReactNode> = {
 };
 
 /** Finished calls on the left, the chosen one on the right. ↑/↓ or J/K move between calls. */
-export function ReviewBoard({ calls, cards }: { calls: ReviewListItem[]; cards: Record<string, ReactNode> }) {
+export function ReviewBoard({ calls, initial }: { calls: ReviewListItem[]; initial: ComponentProps<typeof ReviewCard> | null }) {
   const [filter, setFilter] = useState<ReviewStatus | "all">("all");
   const [query, setQuery] = useState("");
   const shown = useMemo(() => {
@@ -29,6 +30,26 @@ export function ReviewBoard({ calls, cards }: { calls: ReviewListItem[]; cards: 
   }, [calls, filter, query]);
   const [selectedId, setSelectedId] = useState(calls.find((c) => c.status === "unlabelled")?.callId ?? calls[0]?.callId);
   const selected = shown.find((c) => c.callId === selectedId) ?? shown[0];
+
+  const selectedCallId = selected?.callId;
+  const [loaded, setLoaded] = useState<{ id: string; detail: ComponentProps<typeof ReviewCard> | null }>();
+  const [attempt, retry] = useState(0);
+  const detail = initial?.call.callId === selectedCallId ? initial :
+    loaded?.id === selectedCallId ? loaded?.detail : undefined;
+  useEffect(() => {
+    if (!selectedCallId || initial?.call.callId === selectedCallId) return;
+    const controller = new AbortController();
+    fetch(`/api/review/call/${encodeURIComponent(selectedCallId)}`, { signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Could not load call");
+        const detail = await response.json() as ComponentProps<typeof ReviewCard>;
+        if (!controller.signal.aborted) setLoaded({ id: selectedCallId, detail });
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setLoaded({ id: selectedCallId, detail: null });
+      });
+    return () => controller.abort();
+  }, [initial, selectedCallId, attempt]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -94,7 +115,10 @@ export function ReviewBoard({ calls, cards }: { calls: ReviewListItem[]; cards: 
           ))}
         </ul>
       </div>
-      <Card>{selected ? cards[selected.callId] : <p className="text-sm text-ink-3">Pick a call.</p>}</Card>
+      <Card>{!selected ? <p className="text-sm text-ink-3">Pick a call.</p> :
+        detail ? <ReviewCard key={detail.call.callId} {...detail} /> :
+        detail === null ? <button type="button" onClick={() => { setLoaded(undefined); retry((n) => n + 1); }}>Could not load call. Retry</button> :
+        <p role="status" className="text-sm text-ink-3">Loading call…</p>}</Card>
     </div>
   );
 }

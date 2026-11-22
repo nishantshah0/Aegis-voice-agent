@@ -4,7 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { Badge, Card, Eyebrow, Skeleton, SkeletonRows, When } from "@/components/ui";
-import { groupWords, readAttempts, readCards, readLatestRun, RUN_COMMANDS, shortPath, type Entry } from "../../data";
+import { groupWords, readAttempts, readCard, readCards, readLatestRun, RUN_COMMANDS, shortPath, type Entry } from "../../data";
 import { AttemptView, type AttemptData } from "./AttemptView";
 import { RunLiveCallButton } from "../../live-calls/RunLiveCallButton";
 import { SignInCard, signedIn } from "../../SignedIn";
@@ -51,8 +51,7 @@ async function Scenario({ params }: { params: Promise<{ id: string }> }) {
   await connection(); // Saved runs change: never prerender.
   if (!(await signedIn())) return <SignInCard />; // Checked here too, not only in the shell's layout.
   const { id } = await params;
-  const [cards, run] = await Promise.all([readCards(), readLatestRun()]);
-  const card = cards.find((c) => c.id === decodeURIComponent(id));
+  const [card, run] = await Promise.all([readCard(decodeURIComponent(id)), readLatestRun()]);
   if (!card) notFound();
   const outcome = run?.outcomes.find((o) => o.id === card.id);
   const files = run && outcome ? await readAttempts(run, card.id, card.file) : [];

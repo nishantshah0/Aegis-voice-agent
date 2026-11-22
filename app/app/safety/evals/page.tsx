@@ -3,7 +3,7 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { Badge, Card, Eyebrow, PageHeader, Skeleton, SkeletonRows, Sparkline, When, cn, linkClass } from "@/components/ui";
 import { SignInCard, signedIn } from "../SignedIn";
-import { readEvals, type Layer, type LayerKey } from "./evals";
+import { readEvals, readHammerChart, type Layer, type LayerKey } from "./evals";
 import { FINDINGS, REPO, commitUrl, trailUrl } from "./findings";
 
 export const metadata = { title: "How we know it holds · Safety suite · Aegis" };
@@ -95,6 +95,25 @@ const LADDER: Rung[] = [
   },
 ];
 
+function HistoryChart({ layer }: { layer: Layer }) {
+  return layer.history.length > 1 && (
+    <div>
+      <Sparkline
+        values={layer.history.map((p) => p.value)}
+        titles={layer.history.map((p) => `${p.at.slice(0, 16).replace("T", " ")} UTC: ${fmt(p.value)}`)}
+        label={`${layer.historyLabel}, ${layer.history.length} saved runs`}
+      />
+      <p className="mt-1 text-[11px] text-ink-3">
+        {layer.history.length} saved runs · {layer.historyLabel}
+      </p>
+    </div>
+  );
+}
+
+async function HammerHistory({ layer }: { layer: Layer }) {
+  return <HistoryChart layer={await readHammerChart(layer)} />;
+}
+
 function RungCard({ n, rung, layer }: { n: number; rung: Rung; layer: Layer }) {
   const l = layer.latest;
   return (
@@ -127,18 +146,9 @@ function RungCard({ n, rung, layer }: { n: number; rung: Rung; layer: Layer }) {
                 </div>
               ))}
             </dl>
-            {layer.history.length > 1 && (
-              <div>
-                <Sparkline
-                  values={layer.history.map((p) => p.value)}
-                  titles={layer.history.map((p) => `${p.at.slice(0, 16).replace("T", " ")} UTC: ${fmt(p.value)}`)}
-                  label={`${layer.historyLabel}, ${layer.history.length} saved runs`}
-                />
-                <p className="mt-1 text-[11px] text-ink-3">
-                  {layer.history.length} saved runs · {layer.historyLabel}
-                </p>
-              </div>
-            )}
+            {rung.key === "hammer" ? (
+              <Suspense fallback={null}><HammerHistory layer={layer} /></Suspense>
+            ) : <HistoryChart layer={layer} />}
             <p className="flex flex-wrap items-center justify-between gap-2 text-xs">
               <Link href={l.href} className={linkClass}>
                 See the run →

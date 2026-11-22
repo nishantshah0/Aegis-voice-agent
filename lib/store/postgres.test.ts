@@ -25,6 +25,28 @@ const factories: Record<string, () => Store> = {
   postgres: () => createPostgresStore(fromPGlite(pg), SEED),
 };
 
+it("reads multiple calls in one query and skips empty input", async () => {
+  const db = fromPGlite(pg);
+  const statements: string[] = [];
+  const store = createPostgresStore({
+    ...db,
+    query: (text, params) => {
+      statements.push(text);
+      return db.query(text, params);
+    },
+  }, SEED);
+  await store.reset(SEED);
+  const call = { id: "c_bulk_a", direction: "inbound" as const, state: "greeting" as const, startedAt: SEED.now, failedCodeTries: 0, callerSaid: [] };
+  await store.saveCall(call);
+  await store.saveCall({ ...call, id: "c_bulk_b" });
+  statements.length = 0;
+  expect(await store.getCalls([])).toEqual([]);
+  expect(statements).toHaveLength(0);
+  const calls = await store.getCalls(["c_bulk_b", "c_missing", "c_bulk_a", "c_bulk_a"]);
+  expect(calls.map((entry) => entry.id).sort()).toEqual(["c_bulk_a", "c_bulk_b"]);
+  expect(statements).toHaveLength(1);
+});
+
 describe.each(Object.entries(factories))("%s store", (_name, make) => {
   let store: Store;
   beforeEach(async () => {

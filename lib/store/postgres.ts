@@ -258,6 +258,9 @@ export function createPostgresStore(db: SqlDb, seed: Seed = SEED): PostgresStore
     async listPatients() {
       return copy((await loadFixed()).patients);
     },
+    async listPrescriptions() {
+      return copy((await loadFixed()).prescriptions);
+    },
     async getPrescriptions(patientId) {
       return copy((await loadFixed()).prescriptions.filter((rx) => rx.patientId === patientId));
     },
@@ -305,6 +308,7 @@ export function createPostgresStore(db: SqlDb, seed: Seed = SEED): PostgresStore
       return copy((await loadFixed()).policy);
     },
 
+    getCalls: (ids) => ids.length ? docs<Call>(`select doc from rg_calls where id = any($1::text[])`, [[...new Set(ids)]]) : Promise.resolve([]),
     getCall: (id) => first(`select doc from rg_calls where id = $1`, [id]),
     async saveCall(call: Call) {
       await q(`insert into rg_calls values ($1, $2::jsonb) on conflict (id) do update set doc = excluded.doc`, [call.id, json(call)]);

@@ -88,7 +88,7 @@ export function buildContext({ now, patient, rx, call, reason, record, policy }:
 }
 
 /** Convenience: load everything buildContext needs. */
-export async function loadContext(store: Store, patient: Patient, rx: Prescription, call?: Call, reason?: string) {
+export async function loadContext(store: Pick<Store, "now" | "listRecord" | "policy">, patient: Patient, rx: Prescription, call?: Call, reason?: string) {
   const [now, record, policy] = await Promise.all([store.now(), store.listRecord(), store.policy()]);
   return buildContext({ now, patient, rx, call, reason, record, policy });
 }
