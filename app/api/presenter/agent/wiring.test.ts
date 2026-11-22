@@ -137,7 +137,8 @@ describe("the presenter's real phone call", () => {
     expect(detail?.patient).toBe("S.R."); // the dashboard shows initials
     const timeline = JSON.stringify(detail?.timeline);
     expect(timeline).toContain("born March 14 1990");
-    expect(timeline).toContain("Thanks, Sam. You're verified.");
+    expect(timeline).toContain("Thanks, Sam.");
+    expect(timeline).toContain("You're verified.");
     expect(timeline).toContain("check_code");
   });
 
