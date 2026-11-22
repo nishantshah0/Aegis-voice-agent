@@ -1,10 +1,10 @@
 import { replayTickets } from "@/app/api/_lib/replay-tickets";
 import { Suspense } from "react";
-import { readFile } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import { join } from "node:path";
 import Link from "next/link";
 import { connection } from "next/server";
-import { Badge, SkeletonRows } from "@/components/ui";
+import { Badge, SkeletonRows, When } from "@/components/ui";
 import { resultsDir } from "@/app/console/overnight/results";
 import { STAGE_ATTACKS } from "@/app/stage/attacks";
 import { parseEntry, shortPath, type Entry } from "../../../data";
@@ -47,8 +47,11 @@ async function AttackCall({ params }: { params: Promise<{ kind: string; id: stri
 
   const path = kind === "hijack" ? join(resultsDir(), "hijack", a, `${b}.json`) : join(resultsDir(), "arena", "overnight", a, "calls", `${b}.json`);
   let file: Record<string, unknown>;
+  let savedAt: string;
   try {
-    file = obj(JSON.parse(await readFile(path, "utf8")));
+    const [text, info] = await Promise.all([readFile(path, "utf8"), stat(path)]);
+    file = obj(JSON.parse(text));
+    savedAt = String(file.ranAt ?? file.startedAt ?? info.mtime.toISOString());
   } catch {
     return <p className="mt-6 text-sm text-ink-2">No saved attack call here.</p>;
   }
@@ -62,7 +65,7 @@ async function AttackCall({ params }: { params: Promise<{ kind: string; id: stri
   const passed = kind === "hijack" ? score.automatedPassed === true : broken === 0;
   const attempt: AttemptData = {
     n: 1,
-    callId: String(file.callId ?? record[0]?.seq ?? ""),
+    callId: String(file.callId ?? (record[0] as Entry & { callId?: string } | undefined)?.callId ?? ""),
     file: shortPath(path),
     record,
     tickets: replayTickets(path, record),
@@ -70,19 +73,28 @@ async function AttackCall({ params }: { params: Promise<{ kind: string; id: stri
     score: scored ? { n: 1, callId: String(file.callId ?? ""), passed, caught, broken, checks, manualReview: [] } : null,
   };
   const title = kind === "hijack" ? (STAGE_ATTACKS.find((s) => s.id === b)?.title ?? b) : String(file.tactic ?? "Overnight attack").replace(/_/g, " ");
+  const attacker = String(file.attackerModel ?? file.model ?? "Not recorded");
+  const callId = String(file.callId ?? (record[0] as Entry & { callId?: string } | undefined)?.callId ?? "Not recorded");
 
   return (
     <div className="mt-4 flex flex-col gap-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-xs font-medium uppercase tracking-[0.08em] text-ink-3">{kind === "hijack" ? "Hijacked AI · batch " + a : "Overnight red team · night " + a.slice(0, 10)}</p>
+          <p className="text-xs font-medium uppercase tracking-[0.08em] text-ink-3">{kind === "hijack" ? "Scripted attack · batch " + a : "Overnight red team · run " + a}</p>
           <h1 className="mt-1 text-3xl font-semibold tracking-[-0.03em] capitalize">{title}</h1>
         </div>
-        {scored && <span className="flex gap-2">
+        {scored && <span className="flex flex-wrap gap-2">
+          <Badge tone={passed ? "accent" : "stop"} dot>{passed ? "Checks passed" : "Review failure"}</Badge>
           <Badge tone="review">{`${caught} caught`}</Badge>
-          <Badge tone={broken ? "stop" : "accent"} dot>{`${broken} broken`}</Badge>
+          <Badge tone={broken ? "stop" : "neutral"}>{`${broken} broken`}</Badge>
         </span>}
       </div>
+      <dl className="grid gap-x-6 gap-y-3 rounded-card border border-line bg-surface px-5 py-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
+        <div><dt className="text-xs text-ink-3">Saved at</dt><dd className="mt-1"><When iso={savedAt} /></dd></div>
+        <div><dt className="text-xs text-ink-3">Attacker model</dt><dd className="mt-1 break-words">{attacker}</dd></div>
+        <div><dt className="text-xs text-ink-3">Call ID</dt><dd className="mt-1 font-mono text-xs">{callId}</dd></div>
+        <div><dt className="text-xs text-ink-3">Evidence file</dt><dd className="mt-1 break-all font-mono text-xs">{shortPath(path)}</dd></div>
+      </dl>
       {brokenList.length > 0 && (
         <ul className="rounded-card border border-stop/50 bg-stop-soft px-5 py-3 text-sm text-stop">
           {brokenList.map((x, i) => (

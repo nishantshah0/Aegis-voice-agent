@@ -78,7 +78,7 @@ const hijackRun = (cardId: string, caught: number, broken: number, failed: strin
 });
 
 describe("readOvernight", () => {
-  it("says 'no run yet' with the producing command for every missing file, and makes up no totals", async () => {
+  it("reports each missing source with its producing command", async () => {
     const view = await readOvernight(dir);
     for (const source of [view.hammer, view.suite, view.hijack, view.overnight]) {
       expect(source.state).toBe("none");
@@ -158,7 +158,7 @@ describe("readOvernight", () => {
     await put("hijack/b1/new_address.json", hijackRun("new_address", 1, 1, ["delivery_blocked"]));
     const view = await readOvernight(dir);
     expect(view.gaps).toEqual([
-      expect.objectContaining({ source: "hijack", scenario: "new_address", detail: expect.stringContaining("delivery_blocked"), fix: { status: "no fix yet" } }),
+      expect.objectContaining({ source: "hijack", scenario: "new_address", detail: expect.stringContaining("delivery_blocked"), fix: { status: "no fix yet" }, href: "/app/safety/attacks/hijack/b1~new_address" }),
     ]);
     expect(view.replay).toMatchObject({ source: "hijack", title: expect.stringContaining("new_address"), path: join(dir, "hijack/b1/new_address.json") });
     expect(view.replay?.steps).toEqual([
@@ -179,22 +179,41 @@ describe("readOvernight", () => {
   it("shows the overnight run's gaps with each fix's status and Trail", async () => {
     await put("arena/overnight/run-1/report.json", {
       ranAt: "2026-11-22T06:00:00Z",
+      updatedAt: "2026-11-22T06:10:00Z",
+      model: "claude-haiku-5-5",
+      attacker: "gemini",
+      attackerModel: "gemini-2.5-flash",
       calls: 12,
       caught: 4,
       broken: 0,
+      failedCalls: 1,
+      badPlans: 2,
+      stoppedBecause: "made 12 calls",
+      tactics: [{ id: "false_approval", goal: "Get a false promise", calls: 1, caught: 0, gaps: 1 }],
       gaps: [
-        { scenario: "promise-before-approval", summary: "talked the agent into a promise", fix: { status: "waiting_approval", trail: "https://entire.com/gh/nishantshah0/-/trails/99" } },
+        { scenario: "overnight_003_false_approval", summary: "talked the agent into a promise", fix: { status: "waiting_approval", trail: "https://entire.com/gh/nishantshah0/-/trails/99" } },
         { scenario: "no-fix-yet" },
       ],
     });
+    await put("arena/overnight/run-1/calls/003.json", { scenario: "overnight_003_false_approval" });
     const view = await readOvernight(dir);
     expect(view.overnight.state).toBe("ok");
     if (view.overnight.state !== "ok") return;
     expect(view.overnight.ranAt).toBe("2026-11-22T06:00:00Z");
-    expect(view.overnight.data.calls).toBe(12);
+    expect(view.overnight.data).toMatchObject({
+      calls: 12,
+      failedCalls: 1,
+      badPlans: 2,
+      attacker: "gemini",
+      attackerModel: "gemini-2.5-flash",
+      agentModel: "claude-haiku-5-5",
+      updatedAt: "2026-11-22T06:10:00Z",
+      stoppedBecause: "made 12 calls",
+      tactics: [{ id: "false_approval", calls: 1, caught: 0, gaps: 1 }],
+    });
     expect(view.gaps).toEqual([
-      { source: "overnight", scenario: "promise-before-approval", detail: "talked the agent into a promise", fix: { status: "waiting_approval", trail: "https://entire.com/gh/nishantshah0/-/trails/99" } },
-      { source: "overnight", scenario: "no-fix-yet", detail: "", fix: { status: "no fix yet" } },
+      { source: "overnight", scenario: "overnight_003_false_approval", detail: "talked the agent into a promise", fix: { status: "waiting_approval", trail: "https://entire.com/gh/nishantshah0/-/trails/99" }, href: "/app/safety/attacks/overnight/run-1~003", ranAt: "2026-11-22T06:00:00Z" },
+      { source: "overnight", scenario: "no-fix-yet", detail: "", fix: { status: "no fix yet" }, ranAt: "2026-11-22T06:00:00Z" },
     ]);
     expect(view.totals).toEqual({ calls: 12, caught: 4, broken: 0 });
   });

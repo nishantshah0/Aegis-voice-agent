@@ -45,17 +45,20 @@ const brokenCard = {
 };
 
 describe("Overnight safety page", () => {
-  it("with no result files, every tile says 'no run yet' and names its command", async () => {
+  it("with no result files, distinguishes missing saved runs and names each recovery command", async () => {
     const html = await render();
-    expect(html.match(/No run yet/g)?.length).toBe(4);
+    expect(html).toContain("No overnight run saved yet");
+    expect(html.match(/No run yet/g)?.length).toBe(3);
     expect(html).toContain("npm run hammer");
     expect(html).not.toMatch(/>\s*0\s*</); // no zero typed in for a run that never happened
   });
 
-  it("signed out: totals only, no gaps, no replay, and a sign-in link", async () => {
+  it("signed out: shows run context but hides failure details and replay behind sign-in", async () => {
     await put("hijack/b1/new_address.json", brokenCard);
     const html = await render();
     expect(html).toContain("Sign in");
+    expect(html).toContain("Latest overnight attacker run");
+    expect(html).not.toContain("Calls made");
     expect(html).not.toContain("delivery_blocked");
     expect(html).not.toContain("choose_delivery");
   });
