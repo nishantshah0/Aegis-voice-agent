@@ -150,6 +150,8 @@ describe("the presenter's real phone call", () => {
     const view = await (await status(presenter(`${origin}/api/presenter/phone/status?callId=${started.callId}`))).json();
     expect(view.assistant).toBe("fallback");
     expect(view.demoCode).toBe(demoCode(started.callId));
+    // The agent's call is ended through the control layer, so a late turn can't press or speak.
+    expect((await getStore().getCall(`p${started.callId.slice(0, 8)}_0001`))?.state).toBe("ended");
   });
 
   it("keeps the scripted menu when no model is configured", async () => {
@@ -162,7 +164,8 @@ describe("the presenter's real phone call", () => {
 });
 
 describe("the presenter's browser call", () => {
-  async function open() {
+  type View = { sessionId: string; reply: string; assistant?: string; callKind?: string; notice?: string; demoPatient?: unknown; demoCode?: string };
+  async function open(): Promise<{ body: View; say: (text: string) => Promise<View> }> {
     const response = await browserStart(presenter(origin + "/api/presenter/browser/start", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }));
     const cookie = response.headers.get("set-cookie")!.split(";")[0];
     const body = await response.json();
@@ -183,10 +186,22 @@ describe("the presenter's browser call", () => {
   });
 
   it("falls back to the menu when the model fails", async () => {
-    const { say } = await open();
+    const { body, say } = await open();
     script.fail = true;
     const next = await say("Hello?");
     expect(next.assistant).toBe("fallback");
     expect(next.reply.startsWith(FALLBACK_LINE)).toBe(true);
+    expect((await getStore().getCall(`p${body.sessionId.slice(0, 8)}_0001`))?.state).toBe("ended");
+  });
+
+  it("when rule 7 won't ring Sam again, opens an inbound AI call and tells the presenter what to say", async () => {
+    await open(); // the first call to Sam
+    const { body } = await open();
+    expect(body.assistant).toBe("agent");
+    expect(body.callKind).toBe("inbound");
+    expect(body.notice).toBe("Sam was called recently, so this is an inbound call.");
+    expect(body.demoPatient).toEqual({ name: "Sam Rivera", dob: "1990-03-14", rxNumber: "RX-100201" });
+    // No code until the agent has sent one.
+    expect(body).not.toHaveProperty("demoCode");
   });
 });

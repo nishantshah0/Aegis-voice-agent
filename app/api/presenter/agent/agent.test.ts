@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PGlite } from "@electric-sql/pglite";
 import { outboundLookupId } from "@/lib/control";
-import { outboundOpener } from "@/lib/agent/lines";
+import { inboundGreeting, outboundOpener } from "@/lib/agent/lines";
 import type { AgentModel } from "@/lib/agent";
 import { scriptedModel, type ScriptStep } from "@/lib/agent/testing/scripted-model";
 import { IDS, SEED } from "@/lib/seed";
@@ -152,6 +152,36 @@ describe("the sealed snapshot grants nothing", () => {
       { ...opened.agent, snapshot: null },
     ];
     for (const state of bad) await expect(agent.agentTurn(id, state, "Hi", { channel: "phone", timeoutMs: 5000 })).rejects.toBeInstanceOf(agent.AgentUnavailable);
+  });
+});
+
+describe("when rule 7 won't ring Sam", () => {
+  it("takes an inbound call instead: the caller gives name, date of birth and Rx number, then the code", async () => {
+    // Sam was just called, so rule 7 (frequency) refuses a second outbound call. Rule 7 itself is never loosened.
+    await (await instance()).openAgent(randomUUID(), "browser");
+    const id = randomUUID();
+    const agent = await instance();
+    const opened = await agent.openAgent(id, "browser");
+    expect(opened.inbound?.reason).toMatch(/called recently/);
+    expect(opened.codeSent).toBe(false);
+    expect((await getStore().getCall(opened.agent.callId))?.direction).toBe("inbound");
+    expect(opened.reply).toBe(inboundGreeting("Maple Street Pharmacy"));
+
+    shared.steps = [
+      { tools: [{ name: "lookup_patient", input: { name: "Sam Rivera", dob: "1990-03-14", rx_number: "RX-100201" } }] },
+      { text: ["If those details match, I've sent a code to the phone on file."] },
+    ];
+    const looked = await (await instance()).agentTurn(id, opened.agent, "I'm Sam Rivera, born March 14 1990, prescription RX-100201.", { channel: "browser", timeoutMs: 5000 });
+    expect(looked.codeSent).toBe(true);
+    expect(looked.verified).toBe(false);
+
+    shared.steps = [
+      { tools: [{ name: "check_code", input: { lookup_id: `lk_${opened.agent.callId}_1`, code: demoCode(id) } }] },
+      { text: ["Thanks, Sam. You're verified."] },
+    ];
+    const done = await (await instance()).agentTurn(id, looked.agent, `The code is ${demoCode(id)}.`, { channel: "browser", timeoutMs: 5000 });
+    expect(done.verified).toBe(true);
+    expect((await getStore().getCall(opened.agent.callId))?.state).toBe("verified");
   });
 });
 
