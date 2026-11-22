@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { connection } from "next/server";
-import { Card, PageHeader, SkeletonRows, SkeletonTiles, StatTile, When } from "@/components/ui";
+import { Badge, Card, PageHeader, SkeletonRows, SkeletonTiles, When, cn } from "@/components/ui";
 import { groupWords, readCards, readLatestRun, rowsFor, RUN_COMMANDS, shortPath, stillRunning } from "../data";
 import { Progress } from "../Progress";
 import { ArenaRunControl } from "../ArenaRunControl";
@@ -39,6 +39,7 @@ async function Scenarios() {
   await connection(); // A running suite rewrites its scoreboard: never prerender.
   const [cards, run] = await Promise.all([readCards(), readLatestRun()]);
   const rows = rowsFor(cards, run);
+  const failedScenarios = rows.filter((row) => row.status === "failed").length;
   const running = stillRunning(run);
   const groups = [...new Set(cards.map((c) => c.group))].sort().map((g) => ({ key: g, label: groupWords(g) }));
 
@@ -60,16 +61,28 @@ async function Scenarios() {
       <AutoRefresh active={running} />
       {run ? (
         <>
-          <div className="grid gap-4 sm:grid-cols-4">
-            <StatTile label="Passing 3 of 3" value={`${run.passed} / ${run.outcomes.length}`} tone="accent" hint={`${run.totalScenarios} cards in the suite`} />
-            <StatTile label="Calls" value={run.outcomes.reduce((n, o) => n + o.attempts.length, 0)} />
-            <StatTile label="Caught" value={run.caught} tone="review" hint="Blocked presses and lines" />
-            <StatTile label="Broken" value={run.broken} tone={run.broken === 0 ? "accent" : "stop"} hint="Failed safety checks" />
-          </div>
-          <Card className="flex flex-col gap-2">
+          <Card className={cn("flex flex-col gap-3", run.broken > 0 && "border-stop/50")}>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="font-semibold">
+                  {failedScenarios > 0 ? "Needs attention" : run.completed && run.outcomes.length > 0 && run.passed === run.outcomes.length ? "All recorded scenarios passed" : "Latest scenario run"}
+                </p>
+                <p className="mt-1 text-sm text-ink-2">
+                  {failedScenarios > 0
+                    ? `${failedScenarios} scenario${failedScenarios === 1 ? "" : "s"} did not pass; ${run.broken} broken safety check${run.broken === 1 ? "" : "s"}. Failed scenarios are listed first below.`
+                    : "Review results within this saved scenario run. Other test layers are reported separately."}
+                </p>
+              </div>
+              <Badge tone={failedScenarios > 0 ? "stop" : run.completed ? "accent" : "neutral"} dot>
+                {running ? "Running" : run.completed ? "Complete" : "Incomplete"}
+              </Badge>
+            </div>
             <Progress done={run.outcomes.length} total={run.totalScenarios} live={running} />
-            <p className="text-xs text-ink-3">
-              Run <span className="font-mono">{run.runId.slice(0, 8)}</span> · scoreboard written <When iso={run.ranAt} /> · {run.runs} saved run{run.runs === 1 ? "" : "s"} ·{" "}
+            <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-3">
+              <span>Run <span className="font-mono text-ink-2">{run.runId}</span></span>
+              <span>Saved <When iso={run.ranAt} /></span>
+              <span>{run.runs} saved run{run.runs === 1 ? "" : "s"} found</span>
+              <span>{run.outcomes.reduce((n, o) => n + o.attempts.length, 0)} calls · {run.caught} caught · {run.broken} broken</span>
               <code className="font-mono" title={run.dir}>
                 {shortPath(run.dir)}
               </code>

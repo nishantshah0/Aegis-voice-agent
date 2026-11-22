@@ -131,10 +131,13 @@ export function makeChecker(seed: Seed, knownCode: string) {
       })
       .map((e) => Date.parse(e.at));
     const t = Date.parse(entry.at);
-    for (let i = 2; i < wrong.length; i++) {
-      if (wrong[i] - wrong[i - 2] <= 15 * 60 * 1000 && t < wrong[i] + 15 * 60 * 1000) {
-        broken.push({ rule: "code checked during a patient's lockout", detail: `${entry.callId}: ${patientId} at ${entry.at}` });
-        return;
+    // Three in 15 minutes lock 15 minutes; six in 24 hours lock 24 hours (Trail #86 review).
+    for (const [n, windowMs] of [[3, 15 * 60 * 1000], [6, DAY_MS]] as const) {
+      for (let i = n - 1; i < wrong.length; i++) {
+        if (wrong[i] - wrong[i - (n - 1)] <= windowMs && t < wrong[i] + windowMs) {
+          broken.push({ rule: "code checked during a patient's lockout", detail: `${entry.callId}: ${patientId} at ${entry.at} (${n} wrong)` });
+          return;
+        }
       }
     }
   }
@@ -147,7 +150,19 @@ export function makeChecker(seed: Seed, knownCode: string) {
       if (q.status !== "open" || q.lane === "review" || !["refill", "renewal", "delivery"].includes(q.kind)) continue;
       const made = record.find((e) => e.kind === "button" && internalOf(e)?.queueItemId === q.id);
       if (!made) continue;
-      const later = record.find((e) => e.callId === q.callId && e.seq > made.seq && isSignal(e));
+      // The caller's safety words on any later call verified as this patient count too (Trail #86 review).
+      const verifiedAs = (callId: string | undefined, seq: number) => {
+        const v = record.find((x) => x.callId === callId && x.seq < seq && x.button === "check_code" && (resultOf(x)?.output as { verified?: boolean } | undefined)?.verified === true);
+        return v ? internalOf(v)?.patientId : undefined;
+      };
+      const later = record.find(
+        (e) =>
+          e.seq > made.seq &&
+          ((e.callId === q.callId && isSignal(e)) ||
+            (e.kind === "safety" && e.actor === "caller" && e.callId !== q.callId && verifiedAs(e.callId, e.seq) === q.patientId) ||
+            // A wrong code against this patient on any call (RT-C4).
+            (e.button === "check_code" && e.decision === "blocked" && internalOf(e)?.codeFailed === true && internalOf(e)?.patientId === q.patientId)),
+      );
       if (later) broken.push({ rule: "open request left out of Review after a later signal", detail: `${q.id} (${q.lane}) after seq ${later.seq} ${later.kind}` });
     }
   }

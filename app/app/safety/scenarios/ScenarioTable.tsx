@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Badge, RowNav, chipClass, cn, inputClass } from "@/components/ui";
 import type { Status } from "../data";
-import { RunLiveCallButton } from "../live-calls/RunLiveCallButton";
 
 export type TableRow = {
   id: string;
@@ -43,18 +42,25 @@ export function ScenarioTable({ rows, groups }: { rows: TableRow[]; groups: { ke
   const [group, setGroup] = useState<string>("all");
   const [query, setQuery] = useState("");
 
+  const inScope = useMemo(() => {
+    const normalized = query.trim().toLowerCase();
+    return rows.filter(
+      (r) =>
+        (group === "all" || r.group === group) &&
+        (!normalized || `${r.id} ${r.persona} ${r.goal}`.toLowerCase().includes(normalized)),
+    );
+  }, [group, query, rows]);
   const counts = useMemo(() => {
-    const c: Record<string, number> = { all: rows.length, passed: 0, failed: 0, not_run: 0 };
-    for (const r of rows) c[r.status] = (c[r.status] ?? 0) + 1;
+    const c: Record<string, number> = { all: inScope.length, passed: 0, failed: 0, not_run: 0 };
+    for (const r of inScope) c[r.status] = (c[r.status] ?? 0) + 1;
     return c;
-  }, [rows]);
+  }, [inScope]);
 
-  const shown = rows.filter(
-    (r) =>
-      (status === "all" || r.status === status) &&
-      (group === "all" || r.group === group) &&
-      (!query.trim() || `${r.id} ${r.persona} ${r.goal}`.toLowerCase().includes(query.trim().toLowerCase())),
-  );
+  const shown = inScope
+    .filter((r) => status === "all" || r.status === status)
+    // Put failed cases first, then cases with the most broken checks. Keep the
+    // remaining rows in their original stable order.
+    .sort((a, b) => Number(b.status === "failed") - Number(a.status === "failed") || b.broken - a.broken);
 
   return (
     <div className="flex flex-col gap-4">
@@ -93,15 +99,17 @@ export function ScenarioTable({ rows, groups }: { rows: TableRow[]; groups: { ke
           aria-label="Search scenarios"
           className={inputClass("min-w-48 flex-1 sm:max-w-64")}
         />
-        <span className="ml-auto text-xs text-ink-3">
-          {shown.length} of {rows.length}
+        <span className="ml-auto text-xs text-ink-3" aria-live="polite">
+          {shown.length} shown · {inScope.length} matching filters
         </span>
       </div>
 
       <RowNav>
       <div className="overflow-hidden rounded-card border border-line bg-surface shadow-card">
         {shown.length === 0 ? (
-          <p className="px-5 py-10 text-center text-sm text-ink-3">No scenario matches these filters.</p>
+          <p className="px-5 py-10 text-center text-sm text-ink-3">
+            {rows.length === 0 ? "No scenario definitions are available." : "No scenario matches these filters."}
+          </p>
         ) : (
           <ul>
             {shown.map((r) => (
@@ -115,6 +123,14 @@ export function ScenarioTable({ rows, groups }: { rows: TableRow[]; groups: { ke
                     <p className="truncate text-xs text-ink-3" title={r.goal}>
                       {r.groupLabel} · {r.persona}
                     </p>
+                    {r.status === "failed" && (() => {
+                      const failed = [...new Set(r.attempts.flatMap((a) => a.failed))];
+                      return failed.length > 0 ? (
+                        <p className="mt-1 truncate text-xs font-medium text-stop" title={failed.join(", ")}>
+                          Failed checks: {failed.slice(0, 2).join(", ")}{failed.length > 2 ? ` +${failed.length - 2}` : ""}
+                        </p>
+                      ) : null;
+                    })()}
                   </div>
                   <ol className="flex items-center gap-1.5" aria-label="Calls">
                     {r.attempts.map((a) => (
@@ -122,7 +138,7 @@ export function ScenarioTable({ rows, groups }: { rows: TableRow[]; groups: { ke
                         key={a.n}
                         title={`Call ${a.n}: ${a.passed ? "every check passed" : `failed ${a.failed.join(", ") || "a check"}`} · ${a.caught} caught · ${a.broken} broken`}
                         className={cn("size-2.5 rounded-full", a.passed ? "bg-accent" : "bg-stop")}
-                      />
+                      ><span className="sr-only">Call {a.n}: {a.passed ? "passed" : "failed"}</span></li>
                     ))}
                   </ol>
                   <span className="w-20 text-right text-xs tabular-nums text-ink-3" title="Blocked presses and lines across its calls">
@@ -138,11 +154,6 @@ export function ScenarioTable({ rows, groups }: { rows: TableRow[]; groups: { ke
                     →
                   </span>
                 </Link>
-                {r.inSuite && (
-                  <span className="shrink-0 pr-4">
-                    <RunLiveCallButton source={{ kind: "scenario", id: r.id }} label="Live" />
-                  </span>
-                )}
               </li>
             ))}
           </ul>

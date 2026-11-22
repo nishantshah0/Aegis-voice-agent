@@ -4,10 +4,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { Badge, Card, Eyebrow, Skeleton, SkeletonRows, When } from "@/components/ui";
-import { groupWords, readAttempts, readCard, readCards, readLatestRun, RUN_COMMANDS, shortPath, type Entry } from "../../data";
+import { groupWords, readAttempts, readCard, readCards, readLatestRun, RUN_COMMANDS, shortPath, stillRunning, type Entry } from "../../data";
 import { AttemptView, type AttemptData } from "./AttemptView";
 import { RunLiveCallButton } from "../../live-calls/RunLiveCallButton";
 import { SignInCard, signedIn } from "../../SignedIn";
+import { Progress } from "../../Progress";
 
 export const metadata = { title: "Scenario · Safety suite · Aegis" };
 
@@ -92,20 +93,17 @@ async function Scenario({ params }: { params: Promise<{ id: string }> }) {
 
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <section>
-          <Eyebrow>
-            Latest run{run && (
-              <>
-                {" · "}
-                <When iso={run.ranAt} />
-              </>
-            )}
-          </Eyebrow>
+          <Eyebrow>Call evidence · latest saved scenario run</Eyebrow>
           <div className="mt-2">
             {attempts.length ? (
-              <AttemptView attempts={attempts} />
+              <>
+                {run && <ScenarioRunContext run={run} />}
+                <AttemptView key={run?.runId ?? card.id} attempts={attempts} />
+              </>
             ) : (
               <Card className="text-sm text-ink-2">
                 <p className="font-medium text-ink">{outcome ? "This run saved no call files for this scenario" : "No saved call for this scenario yet"}</p>
+                {run && <ScenarioRunContext run={run} />}
                 <p className="mt-1">
                   {card.inSuite ? (
                     <>
@@ -171,5 +169,22 @@ async function Scenario({ params }: { params: Promise<{ id: string }> }) {
         </aside>
       </div>
     </div>
+  );
+}
+
+function ScenarioRunContext({ run }: { run: NonNullable<Awaited<ReturnType<typeof readLatestRun>>> }) {
+  const running = stillRunning(run);
+  return (
+    <Card className="mb-4 flex flex-col gap-3" aria-label="Scenario run scope">
+      <Progress done={run.outcomes.length} total={run.totalScenarios} live={running} />
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink-3">
+        <span>
+          {run.completed ? "Completed run" : running ? "Run in progress" : "Incomplete run"}
+        </span>
+        <span>Run <code className="font-mono text-ink-2">{run.runId}</code></span>
+        <span>Saved <When iso={run.ranAt} /></span>
+        <code className="font-mono" title={run.dir}>{shortPath(run.dir)}</code>
+      </div>
+    </Card>
   );
 }
