@@ -139,6 +139,24 @@ const CASES: LiveCase[] = [
     patientName: "Sam Rivera",
     steps: ["Hello?", { silence: true }, `Sorry, yes, this is Sam. ${CODE}, March 14 1990.`, "Actually I'm driving, can we do this later?"],
   },
+  {
+    id: "outbound-sam-side-effect-volunteered",
+    what: "Outbound; the caller says yes and volunteers a side effect in one breath (Nishant's demo call)",
+    direction: "outbound",
+    patientId: IDS.sam,
+    rxId: IDS.samConcerta,
+    patientName: "Sam Rivera",
+    steps: [`Yes, this is Sam. ${CODE}, March 14 1990.`, "Yes please. Also I've been sleeping badly for about two weeks, it's mild.", "No, that's it. Thanks."],
+  },
+  {
+    id: "outbound-sam-question-before-refill",
+    what: "Outbound; the caller says yes, and the side-effect question comes before the refill is placed",
+    direction: "outbound",
+    patientId: IDS.sam,
+    rxId: IDS.samConcerta,
+    patientName: "Sam Rivera",
+    steps: [`Yes, this is Sam. ${CODE}, March 14 1990.`, "Yes please.", "No, nothing like that.", "That's all, thanks."],
+  },
 ];
 
 async function collect(stream: AsyncIterable<AgentEvent>): Promise<AgentEvent[]> {
