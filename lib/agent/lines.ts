@@ -133,3 +133,15 @@ export function sideEffectQuestion(labelText: string): string {
     ? "Since your last refill, have you noticed any side effects, or anything else?"
     : `Since your last refill, any side effects, like ${listed}, or anything else?`;
 }
+
+/**
+ * 1.x (Nishant, after the live demo call): the same question, asked after the caller
+ * says yes to the refill and before it is placed, so a side effect goes in with the
+ * request. Quotes the label's side effects the same way, or names none.
+ */
+export function sideEffectQuestionBeforeRefill(labelText: string): string {
+  const listed = labelSideEffects(labelText);
+  return listed === null
+    ? "Before I put it in: since your last refill, have you noticed any side effects, or anything new?"
+    : `Before I put it in: since your last refill, any side effects, like ${listed}, or anything new?`;
+}
