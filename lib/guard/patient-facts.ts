@@ -73,10 +73,36 @@ const nonDollarNotation = /\b(?:dollars?|bucks?|cents?|cad|usd|(?:is|its|it is|w
 const priceContext = /\b(?:co-?pay|(?:plan|insurance) (?:pays?|covers?)|(?:your|patient) (?:price|cost|share)|you(?:'ll| will)? (?:owe|pay))\b/i;
 const planSubject = /\b(?:plan|insurance|insurer)\s+(?:would |will )?(?:pays?|covers?|contributes?)\b|\b(?:covered|paid) by (?:your |the )?(?:plan|insurance)\b/i;
 
+const HISTORY_CLAUSE = /[,;!?]|\.(?!\d)|\b(?:and|but|so|because)\b/i;
+const REFILL_COUNT = /\b(\d+) refills? (?:remaining|left)\b/;
+
+/**
+ * A fill-history claim the record doesn't back, clause by clause, so "one" in "I can't add one
+ * myself" isn't a quantity beside "no refills left". A clause whose only number is a refill count
+ * ("no refills left" is 0) is backed by refills_left from this call's check_prescription
+ * (live suite, extra_refills, Trail #88). Any other quantity or date still needs the read-back.
+ */
+function unbackedHistory(sentence: string, call: Call, record: RecordEntry[]): boolean {
+  const left = new Set(
+    ownPresses(call, record).flatMap((e) => {
+      const out = outputOf(e);
+      return e.button === "check_prescription" && typeof out?.refills_left === "number" ? [out.refills_left] : [];
+    }),
+  );
+  return sentence.split(HISTORY_CLAUSE).some((clause) => {
+    if (!history.test(clause)) return false;
+    const c = canonical(clause).replace(/\bno (?:more )?refills?\b/g, "0 refills");
+    if (!quantityOrDate.test(c)) return false;
+    const count = c.match(REFILL_COUNT);
+    if (count && !quantityOrDate.test(c.replace(REFILL_COUNT, " "))) return !left.has(Number(count[1]));
+    return true;
+  });
+}
+
 /** Returns a reason for a factual assertion that cannot be tied to the current call. */
 export function ungroundedPatientFact(sentence: string, call: Call, record: RecordEntry[], drugNames: string[]): string | null {
   const normalized = canonical(sentence);
-  if (history.test(sentence) && quantityOrDate.test(normalized)) return "fill history differs from the recorded readback";
+  if (unbackedHistory(sentence, call, record)) return "fill history differs from the recorded readback";
   if (appointment.test(sentence) && (appointmentClaim.test(sentence) || quantityOrDate.test(normalized))) {
     return "appointment differs from the recorded offer or booking";
   }
