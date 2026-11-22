@@ -43,6 +43,7 @@ Role 1 runs from Nishant's machine from 1.2 on (MikeyDigit did 1.1).
 ## Role 2 · Platform and pharmacist
 
 - **Doing:** waiting on merges: Trail #44 (2.9a Upcoming), #50 (2.9b Calls, after #44), #47 (voice route), #53 (S3/S4 originals on hijack cards for the stage), #54 (2.7 Tiger Data round trips: reset 2.3-4.4 s to 0.5 s, Sam's call store time 3.9 s to 1.5 s).
+- **Real phone line (Trail #70, stand-in):** ElevenLabs Agents + Twilio with `/api/voice/llm` as its custom LLM (every word through the driver, buttons and guard), `/api/voice/outbound` ("Call Sam on a real phone" on Today, rule 7 first, code texted by Twilio), `scripts/elevenlabs-agent.ts`. Tested live through ElevenLabs by text; the first real call needs a Twilio number the account owns (hosting/README.md "Real phone calls").
 - **Done:** 2.1 API and events. 2.2 demo reset and daily check. 2.3 Today. 2.4 Auth0 sign-in and Approve/Deny. 2.5 decided: no phone push. 2.6 deploy kit (Vultr + Caddy). 2.7 Postgres store on Tiger Data. 2.8 Quick check and the call record route.
 - **Blocked:** 2.6 going live needs the Vultr server and the domain from a human. ElevenLabs needs a rotated key and ELEVENLABS_VOICE_ID in `.env`.
 - **Needs from others:** Role 4: merge #44 before #50, then #47, #53, #54. Role 1: send the phone token from createClipFetcher to `/api/call/:id/speak`.
