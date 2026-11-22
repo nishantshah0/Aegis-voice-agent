@@ -49,6 +49,8 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 // is a delivery promise (code review finding 2).
 const RUN_OUT = /\b(runs out|run out|running out|will run out|last until|lasts until|will last)\b/;
 // A sentence that mentions getting the medication to the caller never gets a run-out day.
+// "ready Thursday", "be ready by Thursday": a ready day, which ready_label can back.
+const READY_CLAUSE = /\bready (?:on |by )?(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/;
 const HANDOVER = /\b(deliver\w*|pick\w* (it |them )?up|pickup|collect\w*|bring\w*|brought|arriv\w*|ship\w*|drop\w* (it |them )?off)\b/;
 
 /** The weekday (lowercase, pharmacy time) a supply runs out: last fill + days supplied. */
@@ -239,6 +241,12 @@ function checkS4(sentence: string, record: RecordEntry[], bookedLabels: string[]
     .filter(({ e, r }) => e.button === "check_coverage" && r?.ok)
     .flatMap(({ r }) => Object.values((r as { output: Record<string, string> }).output));
   const norm = (p: string) => Number(p.replace(/[^\d.]/g, "")).toFixed(2);
+  // The ready days request_refill and order_status returned on this call (ready_label).
+  const readyLabels = results.flatMap(({ e, r }) => {
+    if (!r?.ok || (e.button !== "request_refill" && e.button !== "order_status")) return [];
+    const out = r.output as { ready_label?: string; orders?: { ready_label?: string }[] };
+    return [out.ready_label, ...(out.orders ?? []).map((o) => o.ready_label)].filter((l): l is string => !!l).map((l) => l.toLowerCase());
+  });
 
   // Clause by clause (Trail #27): a filler condition ("If you like, ...") never switches these
   // off. A clause is excused only by a booking said as the condition, or a negation that governs
@@ -262,6 +270,8 @@ function checkS4(sentence: string, record: RecordEntry[], bookedLabels: string[]
 
     for (const d of cw.matchAll(DAYS)) {
       if (negatedNear(cw, d.index, true)) continue;
+      // ready_label backs the day only in a "ready <day>" clause about the refill, never a delivery.
+      if (READY_CLAUSE.test(cw) && !HANDOVER.test(cw) && readyLabels.includes(d[0])) continue;
       if (!bookedLabels.some((l) => l.toLowerCase().includes(d[0]))) return { rule: "S4", why: `day ${d[0]} not booked or a run-out day` };
     }
 
