@@ -1,5 +1,5 @@
-import type { Call, CallId, Patient, Store } from "@/lib/contract";
-import { DUE_WITHIN_DAYS, daysLeft, refillPreview, type Preview } from "@/app/api/_lib/outbound";
+import type { Call, CallId, Patient, Prescription, Store } from "@/lib/contract";
+import { DUE_WITHIN_DAYS, daysLeft, outboundPreview, refillPreview, type Preview } from "@/app/api/_lib/outbound";
 
 // 2.9a: what the pharmacist sees coming. Every prescription whose supply runs out within
 // 14 days, with the lane its refill would land in today (the rule cards run read-only:
@@ -40,10 +40,13 @@ async function lastCalls(store: Store): Promise<Map<string, NonNullable<Upcoming
   return latest;
 }
 
-function nextReminder(patient: Patient, preview: Preview, left: number, runOut: string): string {
+async function nextReminder(store: Store, patient: Patient, rx: Prescription, preview: Preview, left: number, runOut: string): Promise<string> {
   if (!patient.optedInToCalls) return "not opted in";
   if (preview.kind === "refused") return `won't ring: rule ${preview.ruleIds.join(", ")}`;
-  return left <= DUE_WITHIN_DAYS ? "today" : addDays(runOut, -DUE_WITHIN_DAYS);
+  if (left > DUE_WITHIN_DAYS) return addDays(runOut, -DUE_WITHIN_DAYS);
+  // Due now: "today" only if rule 7 would let the daily check ring (audit fix 14).
+  const outbound = await outboundPreview(store, patient, rx);
+  return outbound.allowed ? "today" : `won't ring today: rule ${outbound.ruleIds.join(", ") || "7"}`;
 }
 
 export async function upcoming(store: Store): Promise<Upcoming> {
@@ -68,7 +71,7 @@ export async function upcoming(store: Store): Promise<Upcoming> {
         runOut,
         preview,
         lastCall: calls.get(patient.id),
-        nextReminder: nextReminder(patient, preview, left, runOut),
+        nextReminder: await nextReminder(store, patient, rx, preview, left, runOut),
       });
     }
   }
