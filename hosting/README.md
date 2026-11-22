@@ -80,3 +80,79 @@ It copies the code (no `node_modules`, `.git`, `.env` unless `--env`), runs `npm
 | Browser warns about the certificate | `ssh root@<ip> journalctl -u caddy -n 50` (usually DNS not pointing at the server yet) |
 | Sign-in fails with "callback URL mismatch" | Step 5 |
 | Live events stop | Caddy's `flush_interval -1` is in `/etc/caddy/Caddyfile`; pages also fall back to polling |
+
+## Real phone calls (Trail #70)
+
+A real phone can call the pharmacy, and the pharmacy can call Sam's stand-in phone. ElevenLabs Agents answers the phone through a Twilio number and does speech to text and text to speech. **Our server is its only LLM**: ElevenLabs posts each turn to `/api/voice/llm`, the caller's words go through the same driver as `/phone` (safety check, the 12 buttons, `guardSentence`), and ElevenLabs speaks only the guarded lines that come back. Phone calls land in the same store and record, so they show up in the console and the Safety suite like any other call.
+
+```
+phone ──▶ Twilio number ──▶ ElevenLabs Agents (speech in/out) ──https──▶ /api/voice/llm ──▶ AgentDriver ──▶ control.press + guardSentence
+```
+
+### Once: accounts and `.env`
+
+1. **Twilio.** A trial account gives one free number. Buy it under **Phone Numbers → Manage → Buy a number** (it must show under **Active numbers**; a number you only verified doesn't count). Trial accounts only call and take calls from **verified** numbers (up to 5): add each teammate's phone under **Verified Caller IDs**. Callers hear a short trial notice first.
+2. Put these in `.env` yourself (never in code, commits or the channel):
+
+   | Variable | What |
+   |---|---|
+   | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` | Twilio console home page |
+   | `TWILIO_PHONE_NUMBER` | the number you bought, `+1...` |
+   | `TEST_PATIENT_PHONE` | the verified phone that plays Sam, `+1...` |
+   | `VOICE_LLM_SECRET` | any long random string: `openssl rand -hex 24` |
+   | `ELEVENLABS_VOICE_ID` | optional, the same voice as `/phone` |
+   | `DEMO_CONTROLS` | `on` on the demo laptop, so the button works without signing in |
+
+3. Start the app, then a public https URL for it (a Cloudflare quick tunnel is enough tonight; on the Vultr server use its own domain instead):
+
+   ```bash
+   npm run dev
+   cloudflared tunnel --no-autoupdate --url http://localhost:3000
+   ```
+
+   Put `VOICE_LLM_URL=https://<the trycloudflare host>/api/voice/llm` in `.env`. A quick tunnel's address changes every time it starts, so after a restart set it again and re-run the script below.
+
+4. Create (or update) the ElevenLabs agent and import the Twilio number:
+
+   ```bash
+   node scripts/elevenlabs-agent.ts --write-env
+   ```
+
+   It stores `VOICE_LLM_SECRET` as an ElevenLabs secret (sent back to us as `Authorization: Bearer ...`), makes the agent with `custom-llm` pointed at `VOICE_LLM_URL`, the fixed greeting as its first message, only the `end_call` tool, no fillers, and sign-in required for web conversations. It imports the Twilio number and saves `ELEVENLABS_LLM_SECRET_ID`, `ELEVENLABS_AGENT_ID` and `ELEVENLABS_PHONE_NUMBER_ID` to `.env`. It prints ids only. `--dry-run` shows the config and changes nothing.
+
+5. Restart `npm run dev` so the server reads the new `.env`.
+
+### A Twilio trial's shared number
+
+A new Twilio trial may give the account a shared "From" number that it doesn't own (Active numbers is empty), and ElevenLabs can't import that. Leave `ELEVENLABS_PHONE_NUMBER_ID` empty: `/api/voice/outbound` then places the call with Twilio's REST API (`From=TWILIO_PHONE_NUMBER`, `To=TEST_PATIENT_PHONE`). When it connects, Twilio fetches `/api/voice/twiml`, which checks `X-Twilio-Signature` against `TWILIO_AUTH_TOKEN` and the public URL (`VOICE_PUBLIC_URL`, else `VOICE_LLM_URL`'s origin), registers the call with ElevenLabs (`register-call`, our call id and the guarded opener), and returns ElevenLabs' TwiML. Twilio's status callback (`/api/voice/twilio-status`) ends our side when the phone call ends. The agent's audio is u-law 8000 for this. Trial accounts only call verified numbers: a refusal comes back as `Twilio refused the call (error 21219)` or similar, with the code only.
+
+### Calls
+
+- **Inbound:** call the Twilio number from a verified phone. You hear the greeting, then talk to the pharmacy agent: ask for a refill, or try to trick it.
+- **Outbound:** open the **Demo** menu in the app's top bar and press **Call Sam on a real phone** (or `curl -X POST http://localhost:3000/api/voice/outbound` with `DEMO_CONTROLS=on`). Rule 7 decides first (opt-in, calling hours, frequency), like **Call now**. `TEST_PATIENT_PHONE` rings; when it's answered, the agent says the outbound opener and a code goes to the phone on file, which is a **text message to `TEST_PATIENT_PHONE`** through Twilio. Read the code back with Sam's date of birth (1990-03-14) to verify.
+- Each conversation becomes one call. Outbound calls carry our call id (`custom_llm_extra_body.aegis_call_id`); inbound ones are known by the `[aegis-conversation:{{system__conversation_id}}]` tag in the agent's prompt.
+
+### Check it without a phone
+
+```bash
+curl -N -X POST http://localhost:3000/api/voice/llm/chat/completions \
+  -H "Authorization: Bearer $VOICE_LLM_SECRET" -H "Content-Type: application/json" \
+  -d '{"stream":true,"messages":[{"role":"system","content":"[aegis-conversation:conv_try_1]"},{"role":"user","content":"Are you open Sunday?"}]}'
+```
+
+Set `VOICE_LLM_DEBUG=1` to log each request's shape (path, body keys, message roles, call id; never what was said).
+
+### When something's wrong
+
+| Symptom | Look at |
+|---|---|
+| Script: "not found in your Twilio account" | `TWILIO_PHONE_NUMBER` must be a number the account **owns** (Active numbers), with that account's SID and token |
+| The call connects, then silence or "something went wrong" | The tunnel restarted: new `VOICE_LLM_URL`, re-run the script. Then check that `VOICE_LLM_SECRET` matches what the script stored |
+| `/api/voice/outbound` says 503 | It lists the `.env` names still missing |
+| 409 "rules won't ring Sam" | Rule 7: outside calling hours or called too recently. **Reset demo** first |
+| The agent says it hit its limit | The live agent's hourly cap (`results/agent-usage.jsonl`); same as `/phone` |
+| No text with the code | Twilio trial texts only verified numbers; check `TWILIO_*` and `TEST_PATIENT_PHONE` |
+
+### AI against AI over real phones (not built)
+
+Role 3's attacker could call our number as a second ElevenLabs agent. It needs a **second Twilio number** (a paid account, or a second trial) and an endpoint like `/api/voice/attacker` that runs `createSdkAttacker` the way `/api/arena/live` does, behind a flag such as `VOICE_ATTACKER=1`. The attacker agent would place an outbound call from the second number to our pharmacy number. Our side needs no change: it's an inbound call like any other.

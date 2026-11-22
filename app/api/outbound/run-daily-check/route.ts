@@ -1,7 +1,7 @@
-import type { Patient, Prescription, RuleId, RunDailyCheckResponse, Store } from "@/lib/contract";
+import type { RunDailyCheckResponse } from "@/lib/contract";
 import { demoControlsRefused } from "../../_lib/demo";
 import { ok } from "../../_lib/http";
-import { DUE_WITHIN_DAYS, daysLeft, patientsOnOpenCalls, refillPreview, ringPatient } from "../../_lib/outbound";
+import { notDueReason, patientsOnOpenCalls, ringPatient } from "../../_lib/outbound";
 import { getControl, getStore } from "../../_lib/runtime";
 
 // POST /api/outbound/run-daily-check → { callIds, skipped }
@@ -10,13 +10,6 @@ import { getControl, getStore } from "../../_lib/runtime";
 // Due-soon is checked here; the refill rules are the control layer's own engine, read
 // only; then control.startOutboundCall applies rule 7's cards (opt-in, hours, frequency).
 // One call per patient; nobody is rung again while their last call is still open.
-
-/** Why not to ring about this prescription today, as rule ids, or null if it's due and would pass. */
-async function notDueReason(store: Store, patient: Patient, rx: Prescription): Promise<RuleId[] | null> {
-  if (daysLeft(rx, await store.now()) > DUE_WITHIN_DAYS) return ["7"];
-  const preview = await refillPreview(store, patient, rx);
-  return preview.kind === "refused" ? preview.ruleIds : null;
-}
 
 export async function POST() {
   const refused = await demoControlsRefused();

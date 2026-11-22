@@ -41,4 +41,6 @@ export const phoneApi = {
     call<{ code?: string }>(`/api/call/${id(callId)}/code`, { method: "GET", headers: tokenHeader(token) }, "No code for this call."),
   checkIn: (callId: string, token?: string) => call<unknown>(`/api/call/${id(callId)}/check-in`, json({}, token), "Check-in isn't connected yet."),
   end: (callId: string, token?: string) => call<unknown>(`/api/call/${id(callId)}/end`, json({}, token), "Hanging up isn't connected yet."),
+  /** Trail #70: a code sent to this paired phone during a real phone call (the "phone on file"). */
+  deviceCode: () => call<{ code?: string }>("/api/phone/code", { method: "GET" }, "No code for this phone."),
 };

@@ -26,3 +26,9 @@ These are the things to fix.
 3. Hand off to Role 4, and wait for the code reviewer's approval.
 
 Reply on the URGENT channel (issue #11), addressed to HUMAN, with one line per row above.
+
+## Repeat violations
+
+Logged by the rules police.
+
+- 2026-11-22: CLAIM and DECISION at 01:19 UTC (Trail #70) start with 'voice:' instead of the task number, the first row of this lecture (RULES §6.2).

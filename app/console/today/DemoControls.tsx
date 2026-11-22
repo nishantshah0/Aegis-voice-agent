@@ -43,6 +43,15 @@ export function DemoControls() {
       >
         Run daily check
       </button>
+      {/* Trail #70: a real call to the phone that stands in for Sam (TEST_PATIENT_PHONE, only in .env). */}
+      <button
+        type="button"
+        disabled={busy}
+        onClick={() => run("/api/voice/outbound", (b) => `Calling Sam's real phone (call ${String(b.callId)}). It shows up here like any other call.`)}
+        className={buttonClass("secondary", "sm")}
+      >
+        Call Sam on a real phone
+      </button>
       <span className="text-sm text-ink-3" aria-live="polite">
         {status}
       </span>

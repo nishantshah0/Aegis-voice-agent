@@ -1,0 +1,65 @@
+import { Suspense } from "react";
+import { connection } from "next/server";
+import { redirect } from "next/navigation";
+import { SIGN_IN_TO_APP } from "../../_shell/RequireSignIn";
+import { Badge, Card, PageHeader, Skeleton, SkeletonRows, SkeletonTiles } from "@/components/ui";
+import { loadOutreachSignedIn } from "./data";
+import { OutreachView } from "./OutreachView";
+import { RunControls } from "./RunControls";
+
+export const metadata = { title: "Outreach · Pharmacy · Aegis" };
+
+async function Outreach({ searchParams }: { searchParams: Promise<{ run?: string | string[] }> }) {
+  await connection();
+  const { run } = await searchParams;
+  // Sign-in is checked here, before any saved run is read (the /app proxy and layout check too).
+  const load = await loadOutreachSignedIn(typeof run === "string" ? run : undefined);
+  if (load.state === "signed_out") redirect(SIGN_IN_TO_APP);
+  const current = load.state === "ok" ? load.data.summary.runId : load.state === "missing" ? load.runId : undefined;
+  const runs = load.state === "ok" ? load.data.runs : load.runs;
+  return (
+    <>
+      <PageHeader
+        title={
+          <span className="inline-flex flex-wrap items-center gap-3">
+            Outreach
+            <Badge tone="quick" dot className="align-middle">
+              Simulated population
+            </Badge>
+          </span>
+        }
+        description="Who the line would call over the next 30 days, why, and where each refill would land. Made-up patients; predicted outcomes."
+        actions={<RunControls runs={runs} current={current} />}
+      />
+      {load.state === "none" && (
+        <Card className="mt-8 text-sm text-ink-2">
+          No simulation run saved yet. Make one with <code className="font-mono text-xs text-ink">{load.command}</code>, or press Run simulation.
+        </Card>
+      )}
+      {load.state === "missing" && (
+        <Card className="mt-8 text-sm text-ink-2">
+          Can&apos;t read simulation run <code className="font-mono text-xs text-ink">results/sim/{load.runId}/</code>. Pick another saved run.
+        </Card>
+      )}
+      {load.state === "ok" && <OutreachView key={load.data.summary.runId} data={load.data} />}
+    </>
+  );
+}
+
+export default function OutreachPage({ searchParams }: PageProps<"/app/pharmacy/outreach">) {
+  return (
+    <Suspense
+      fallback={
+        <div aria-busy aria-label="Loading">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="mt-2 h-4 w-96" />
+          <SkeletonTiles className="mt-8" />
+          <Skeleton className="mt-6 h-64 rounded-card" />
+          <SkeletonRows className="mt-6" />
+        </div>
+      }
+    >
+      <Outreach searchParams={searchParams} />
+    </Suspense>
+  );
+}

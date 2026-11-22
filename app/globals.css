@@ -37,8 +37,12 @@
   --rg-stop: #b42318;
   --rg-stop-soft: #fbe9e7;
 
+  /* Leather tan: the Western accent, landing page and brand art only (never in the dashboard). */
+  --rg-tan: #8a5a2b;
   --rg-focus: #0a7a4b;
   --rg-shadow: 0 1px 2px rgb(12 15 14 / 0.04), 0 8px 24px -12px rgb(12 15 14 / 0.12);
+  --rg-raised: #ffffff;
+  --rg-pop: 0 0 0 1px rgb(12 15 14 / 0.06), 0 16px 40px -12px rgb(12 15 14 / 0.25);
 }
 
 /* Dark surfaces: the landing page, the stage (projector) and the phone call screen. Opt in with
@@ -69,9 +73,54 @@
   --rg-stop: #ff6b5e;
   --rg-stop-soft: rgb(255 107 94 / 0.14);
 
+  --rg-tan: #d4a373;
   --rg-focus: #3ddc97;
   --rg-shadow: 0 1px 0 rgb(255 255 255 / 0.03) inset, 0 12px 32px -16px rgb(0 0 0 / 0.6);
+  --rg-raised: #181b18;
+  --rg-pop: 0 0 0 1px rgb(255 255 255 / 0.06), 0 16px 40px -12px rgb(0 0 0 / 0.7);
   color-scheme: dark;
+}
+
+/* The signed-in app (/app): one dark theme for every page, quieter than the landing's dark,
+ * built for reading all day. Use with .theme-dark: class="theme-dark theme-app". Pharmacy
+ * pages keep the green accent; Safety pages add .theme-safety for the blue. */
+.theme-app {
+  --rg-canvas: #0a0b0b;
+  --rg-surface: #111313;
+  --rg-raised: #161918;
+  --rg-sunken: #1a1d1c;
+  --rg-line: #212523;
+  --rg-line-strong: #2e3431;
+
+  --rg-ink: #f1f3f2;
+  --rg-ink-2: #b1b8b4;
+  --rg-ink-3: #868e8a;
+
+  /* Review sits a step further from Quick check than on the landing, so the two stay apart in charts. */
+  --rg-review: #ff7a52;
+  --rg-review-soft: rgb(255 122 82 / 0.13);
+
+  --rg-shadow: 0 1px 0 rgb(255 255 255 / 0.025) inset;
+  --rg-pop: 0 0 0 1px rgb(255 255 255 / 0.06), 0 16px 40px -12px rgb(0 0 0 / 0.7);
+}
+
+/* The Safety suite: the dark tokens with its own accent, so it reads as a separate product.
+ * Use together with .theme-dark: class="theme-dark theme-safety". */
+.theme-safety {
+  --rg-accent: #5cd0f5;
+  --rg-accent-strong: #8fe0fa;
+  --rg-accent-soft: rgb(92 208 245 / 0.12);
+  --rg-accent-ink: #5cd0f5;
+  --rg-focus: #5cd0f5;
+}
+
+/* Back to the pharmacy green inside a Safety page (the area switcher's Pharmacy tile). */
+.theme-app .theme-pharmacy {
+  --rg-accent: #3ddc97;
+  --rg-accent-strong: #5ee6aa;
+  --rg-accent-soft: rgb(61 220 151 / 0.12);
+  --rg-accent-ink: #3ddc97;
+  --rg-focus: #3ddc97;
 }
 
 .theme-light {
@@ -86,6 +135,7 @@
   --color-canvas: var(--rg-canvas);
   --color-surface: var(--rg-surface);
   --color-sunken: var(--rg-sunken);
+  --color-raised: var(--rg-raised);
   --color-line: var(--rg-line);
   --color-line-strong: var(--rg-line-strong);
   --color-ink: var(--rg-ink);
@@ -104,12 +154,14 @@
   --color-review-soft: var(--rg-review-soft);
   --color-stop: var(--rg-stop);
   --color-stop-soft: var(--rg-stop-soft);
+  --color-tan: var(--rg-tan);
 
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace;
 
   --shadow-card: var(--rg-shadow);
-  --radius-card: 1rem;
+  --shadow-pop: var(--rg-pop);
+  --radius-card: 0.75rem;
   --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -177,3 +229,27 @@ body {
   animation: rg-strike 700ms 900ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 .rg-ring { animation: rg-ring 1.6s ease-out infinite; }
+
+/* The app's page background reaches the window edges (overscroll, short pages). */
+html:has(.theme-app),
+html:has(.theme-app) body {
+  background: #0a0b0b;
+  color-scheme: dark;
+}
+
+/* Loading placeholders: a soft sweep, never a spinner. */
+@keyframes rg-shimmer {
+  from { background-position: 100% 0; }
+  to { background-position: -100% 0; }
+}
+.rg-skeleton {
+  background: linear-gradient(90deg, var(--rg-sunken) 30%, color-mix(in oklab, var(--rg-sunken), white 5%) 50%, var(--rg-sunken) 70%);
+  background-size: 200% 100%;
+  animation: rg-shimmer 1.4s ease-in-out infinite;
+}
+
+/* Quiet scrollbars inside the app. */
+.theme-app * {
+  scrollbar-width: thin;
+  scrollbar-color: var(--rg-line-strong) transparent;
+}
