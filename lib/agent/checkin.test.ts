@@ -4,7 +4,7 @@ import { createSafetyCheck, createSpeechGuard } from "@/lib/guard";
 import { SEED } from "@/lib/seed";
 import { createMemoryStore } from "@/lib/store/memory";
 import { createAgentDriver } from "./driver";
-import { STILL_THERE } from "./lines";
+import { STILL_THERE_LINES } from "./lines";
 import { collect, scriptedModel } from "./testing/scripted-model";
 
 function setup() {
@@ -27,9 +27,12 @@ describe("1.8: 'Are you still there?' after a silence", () => {
     const { store, model, driver } = setup();
     const callId = await driver.startCall({ direction: "inbound" });
     const evs = await collect(driver.checkIn(callId));
-    expect(evs).toEqual([{ type: "line", text: STILL_THERE }]);
+    // 1.x (Trail #75): worded per call, always one of the fixed check-in lines.
+    expect(evs).toHaveLength(1);
+    const said = (evs[0] as { type: "line"; text: string }).text;
+    expect(STILL_THERE_LINES).toContain(said);
     expect(model.requests).toHaveLength(0);
-    expect((await store.listRecord(callId)).some((e) => e.kind === "line_spoken" && (e.input as { text: string }).text === STILL_THERE)).toBe(true);
+    expect((await store.listRecord(callId)).some((e) => e.kind === "line_spoken" && (e.input as { text: string }).text === said)).toBe(true);
   });
 
   it("lets the model know it asked, so the caller's next line makes sense", async () => {
@@ -39,7 +42,7 @@ describe("1.8: 'Are you still there?' after a silence", () => {
     await collect(driver.checkIn(callId));
     await collect(driver.callerSays(callId, "Yes, sorry."));
     const seen = JSON.stringify(model.requests[0]);
-    expect(seen).toContain(STILL_THERE);
+    expect(STILL_THERE_LINES.some((line) => seen.includes(line))).toBe(true);
   });
 
   it("says nothing on an ended call", async () => {

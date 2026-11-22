@@ -5,7 +5,7 @@ import { createSafetyCheck, createSpeechGuard, HANDOVER_SCRIPT } from "@/lib/gua
 import { IDS, SEED } from "@/lib/seed";
 import { createMemoryStore, findBrokenLink } from "@/lib/store/memory";
 import { createAgentDriver, STUCK_REASON } from "./driver";
-import { outboundOpener } from "./lines";
+import { HANDOVER_LINES, outboundOpener } from "./lines";
 import { collect, scriptedModel, type ScriptStep } from "./testing/scripted-model";
 
 const CODE = "112358";
@@ -157,7 +157,9 @@ describe("1.2: every action is a button press", () => {
     const callId = await t.driver.startCall({ direction: "inbound" });
     const evs = await collect(t.driver.callerSays(callId, "Hello?"));
     expect(presses(evs).map((p) => p.button)).toEqual(["escalate"]);
-    expect(lines(evs)).toEqual(["Let me get a pharmacist to help you with that."]);
+    // 1.x (Trail #75): the handover is worded per call, always one of the fixed lines.
+    expect(lines(evs)).toHaveLength(1);
+    expect(HANDOVER_LINES).toContain(lines(evs)[0]);
   });
 
   it("hands over after too many steps for one line", async () => {
