@@ -1,0 +1,148 @@
+{
+  "id": "outbound-sam-silence-then-later",
+  "what": "Outbound; the caller goes quiet, comes back, verifies, then can't talk now",
+  "direction": "outbound",
+  "model": "claude-haiku-5-5",
+  "at": "2026-11-22T04:26:40.157Z",
+  "modelCalls": 4,
+  "turns": [
+    {
+      "caller": "(call connects)",
+      "agent": [
+        "This is Maple Street Pharmacy calling for Sam Rivera. To continue, I'll send a code to this phone."
+      ],
+      "presses": [
+        {
+          "button": "send_code",
+          "input": {
+            "lookup_id": "out_c_0001"
+          },
+          "ok": true,
+          "output": "{\"message\":\"code sent if matched\"}",
+          "ruleIds": []
+        }
+      ],
+      "blocked": [],
+      "safety": [],
+      "wallMs": 0
+    },
+    {
+      "caller": "Hello?",
+      "agent": [
+        "I can help with that once you're verified.",
+        "I've sent a verification code to the phone on file.",
+        "Could you read that code back to me, and tell me your date of birth?"
+      ],
+      "presses": [],
+      "blocked": [
+        {
+          "rule": "S1",
+          "original": "Hello, this is Maple Street Pharmacy calling for Sam Rivera.",
+          "heard": "I can help with that once you're verified."
+        }
+      ],
+      "safety": [],
+      "wallMs": 3689
+    },
+    {
+      "caller": "(silence)",
+      "agent": [
+        "Are you still there? Take your time."
+      ],
+      "presses": [],
+      "blocked": [],
+      "safety": [],
+      "wallMs": 1
+    },
+    {
+      "caller": "Sorry, yes, this is Sam. 112358, March 14 1990.",
+      "agent": [
+        "Thanks, Sam, you're verified.",
+        "I'm calling because your Concerta 36 mg is due for a refill, and it would cost you $4.10 on your plan.",
+        "Would you like me to request that refill now?"
+      ],
+      "presses": [
+        {
+          "button": "check_code",
+          "input": {
+            "lookup_id": "out_c_0001",
+            "code": "112358",
+            "dob": "1990-03-14"
+          },
+          "ok": true,
+          "output": "{\"verified\":true,\"patient_first_name\":\"Sam\",\"prescriptions\":[{\"rx_id\":\"rx_sam_concerta\",\"drug\":\"Concerta\"},{\"rx_id\":\"rx_sam_metformin\",\"drug\":\"Metformin\"}]}",
+          "ruleIds": []
+        },
+        {
+          "button": "check_prescription",
+          "input": {
+            "rx_id": "rx_sam_concerta",
+            "include_other_names": false
+          },
+          "ok": true,
+          "output": "{\"rx_id\":\"rx_sam_concerta\",\"drug\":\"Concerta\",\"status\":\"active\",\"refills_left\":2,\"expiry\":\"2027-04-28T15:00:00.000Z\",\"last_fill\":\"2026-10-28T15:00:00.000Z\",\"refillable_today\":true,\"others_refillable_count\":1}",
+          "ruleIds": []
+        },
+        {
+          "button": "check_coverage",
+          "input": {
+            "rx_id": "rx_sam_concerta"
+          },
+          "ok": true,
+          "output": "{\"plan_pays\":\"$41.20\",\"patient_pays\":\"$4.10\"}",
+          "ruleIds": []
+        },
+        {
+          "button": "read_label",
+          "input": {
+            "rx_id": "rx_sam_concerta"
+          },
+          "ok": true,
+          "output": "{\"label_text\":\"CONCERTA 36 MG TABLET. Take 1 tablet by mouth every morning. Qty 30.\"}",
+          "ruleIds": []
+        }
+      ],
+      "blocked": [],
+      "safety": [],
+      "wallMs": 4301
+    },
+    {
+      "caller": "Actually I'm driving, can we do this later?",
+      "agent": [
+        "No problem, Sam, drive safely.",
+        "Nothing has been ordered, so you can call us back whenever suits you.",
+        "Look after yourself."
+      ],
+      "presses": [],
+      "blocked": [],
+      "safety": [],
+      "wallMs": 2931
+    }
+  ],
+  "turnTimings": [
+    {
+      "receivedAt": 46180.333625,
+      "firstModelTextMs": 3412.2767079999976,
+      "firstGuardedMs": 3491.7165410000016
+    },
+    {
+      "receivedAt": 49870.434958,
+      "firstModelTextMs": 1732.9422919999997,
+      "firstGuardedMs": 1856.9033750000017
+    },
+    {
+      "receivedAt": 54171.630625,
+      "firstModelTextMs": 483.5613750000048,
+      "firstGuardedMs": 634.3677500000049
+    }
+  ],
+  "lanes": {
+    "quickCheck": 0,
+    "review": 0
+  },
+  "guardRecord": {
+    "lineSpoken": 10,
+    "lineBlocked": 1
+  },
+  "hashChainIntact": true
+}

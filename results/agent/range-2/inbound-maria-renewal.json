@@ -1,0 +1,151 @@
+{
+  "id": "inbound-maria-renewal",
+  "what": "Inbound; the prescription has expired, so a renewal instead",
+  "direction": "inbound",
+  "model": "claude-haiku-5-5",
+  "at": "2026-11-22T03:59:54.596Z",
+  "modelCalls": 7,
+  "turns": [
+    {
+      "caller": "(call connects)",
+      "agent": [
+        "Hi, this is the automated assistant for Maple Street Pharmacy. What can I help with?"
+      ],
+      "presses": [],
+      "blocked": [],
+      "safety": [],
+      "wallMs": 0
+    },
+    {
+      "caller": "Hi, this is Maria Okonkwo, born November 30, 1962. Prescription RX-100401. I need my lisinopril refilled.",
+      "agent": [
+        "Thank you, Maria.",
+        "If those details match our records, a verification code has gone to the phone on file.",
+        "Could you read me the code when you have it?"
+      ],
+      "presses": [
+        {
+          "button": "lookup_patient",
+          "input": {
+            "name": "Maria Okonkwo",
+            "dob": "1962-11-30",
+            "rx_number": "RX-100401"
+          },
+          "ok": true,
+          "output": "{\"lookup_id\":\"lk_c_0001_1\",\"message\":\"code sent if matched\"}",
+          "ruleIds": []
+        }
+      ],
+      "blocked": [],
+      "safety": [],
+      "wallMs": 7226
+    },
+    {
+      "caller": "112358.",
+      "agent": [
+        "Thank you, Maria, you're verified.",
+        "Your lisinopril can't be refilled today because the prescription expired on November 14, 2026.",
+        "Would you like me to ask your prescriber for a renewal?"
+      ],
+      "presses": [
+        {
+          "button": "check_code",
+          "input": {
+            "lookup_id": "lk_c_0001_1",
+            "code": "112358",
+            "dob": "1962-11-30"
+          },
+          "ok": true,
+          "output": "{\"verified\":true,\"patient_first_name\":\"Maria\",\"prescriptions\":[{\"rx_id\":\"rx_maria_lisinopril\",\"drug\":\"Lisinopril\"}]}",
+          "ruleIds": []
+        },
+        {
+          "button": "check_prescription",
+          "input": {
+            "rx_id": "rx_maria_lisinopril",
+            "include_other_names": false
+          },
+          "ok": true,
+          "output": "{\"rx_id\":\"rx_maria_lisinopril\",\"drug\":\"Lisinopril\",\"status\":\"expired\",\"refills_left\":1,\"expiry\":\"2026-11-14T15:00:00.000Z\",\"last_fill\":\"2026-10-27T15:00:00.000Z\",\"refillable_today\":false,\"others_refillable_count\":0}",
+          "ruleIds": []
+        },
+        {
+          "button": "check_coverage",
+          "input": {
+            "rx_id": "rx_maria_lisinopril"
+          },
+          "ok": true,
+          "output": "{\"plan_pays\":\"$9.80\",\"patient_pays\":\"$2.00\"}",
+          "ruleIds": []
+        }
+      ],
+      "blocked": [],
+      "safety": [],
+      "wallMs": 3989
+    },
+    {
+      "caller": "Oh, really? Okay, yes, please ask the doctor.",
+      "agent": [
+        "I've asked your prescriber for a renewal of your lisinopril.",
+        "Take care now, Maria."
+      ],
+      "presses": [
+        {
+          "button": "request_renewal",
+          "input": {
+            "rx_id": "rx_maria_lisinopril"
+          },
+          "ok": true,
+          "output": "{\"state\":\"requested\",\"rule_ids\":[]}",
+          "ruleIds": []
+        }
+      ],
+      "blocked": [],
+      "safety": [],
+      "wallMs": 2713
+    },
+    {
+      "caller": "No, that's all. Thank you.",
+      "agent": [
+        "You're welcome, Maria.",
+        "Your lisinopril renewal request has gone to your prescriber, and we'll get it moving from there.",
+        "Take care now."
+      ],
+      "presses": [],
+      "blocked": [],
+      "safety": [],
+      "wallMs": 2159
+    }
+  ],
+  "turnTimings": [
+    {
+      "receivedAt": 42190.3265,
+      "firstModelTextMs": 6923.792167,
+      "firstGuardedMs": 6927.394499999995
+    },
+    {
+      "receivedAt": 49416.337458,
+      "firstModelTextMs": 1641.4075840000005,
+      "firstGuardedMs": 1720.9093339999963
+    },
+    {
+      "receivedAt": 53405.775792,
+      "firstModelTextMs": 1176.1729160000032,
+      "firstGuardedMs": 1230.775708000001
+    },
+    {
+      "receivedAt": 56118.315083,
+      "firstModelTextMs": 559.3326669999951,
+      "firstGuardedMs": 756.2266669999954
+    }
+  ],
+  "lanes": {
+    "quickCheck": 0,
+    "review": 0
+  },
+  "guardRecord": {
+    "lineSpoken": 12,
+    "lineBlocked": 0
+  },
+  "hashChainIntact": true
+}
