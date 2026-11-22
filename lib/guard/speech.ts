@@ -7,7 +7,7 @@
 
 import { GUARD_REPLACEMENTS, type Call, type EmitFn, type GuardResult, type GuardSentenceFn, type RecordEntry, type SpeechRule, type Store } from "@/lib/contract";
 import { internalOf, resultOf } from "@/lib/control/context";
-import { unbackedDoses } from "./doses";
+import { canonical, unbackedDoses, wordsToNumber } from "./doses";
 import { mentions, tokensFor, words, type Token } from "./tokens";
 
 export const S4_REPLACEMENT = "A pharmacist will check it first, and I'll confirm once it's approved.";
@@ -49,6 +49,8 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 // is a delivery promise (code review finding 2).
 const RUN_OUT = /\b(runs out|run out|running out|will run out|last until|lasts until|will last)\b/;
 // A sentence that mentions getting the medication to the caller never gets a run-out day.
+// "ready Thursday", "be ready by Thursday": a ready day, which ready_label can back.
+const READY_CLAUSE = /\bready (?:on |by )?(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/;
 const HANDOVER = /\b(deliver\w*|pick\w* (it |them )?up|pickup|collect\w*|bring\w*|brought|arriv\w*|ship\w*|drop\w* (it |them )?off)\b/;
 
 /** The weekday (lowercase, pharmacy time) a supply runs out: last fill + days supplied. */
@@ -93,10 +95,69 @@ function checkS2(call: Call, sentence: string, tokens: Token[], said: string): C
   return found.length > 0 ? { rule: "S2", why: found.map((t) => t.kind).join(",") } : null;
 }
 
+// The label's "Qty 30" backs "30 tablets" only in a supply phrase (AUDIT fix 2, allow-list):
+//   a bare read-back             "30 tablets", "that's 30 tablets"
+//   what the supply is           "(your|the) (refill|bottle|supply|order|prescription) (is|has|holds|comes to) 30 tablets"
+//   what the caller gets         "you'll (get|receive|pick up) 30 tablets"
+// and every other clause is read off the label itself ("Concerta 36 mg", "1 tablet every morning")
+// or empty. Everything else is a dose, and stays blocked as before.
+
+/**
+ * A clause read off the label: a contiguous run of the label's words (after canonical(), so
+ * "36 milligram tablets" matches "36 MG TABLET", and with "by mouth" ignored on both sides, so
+ * "1 tablet every morning" reads off "1 tablet by mouth every morning"), naming the drug or a dose.
+ * A clause with "take", a frequency or a route word must also carry the label's own dose, so "Concerta every
+ * morning" never stands in for it. "Take", "Tonight" or "take the whole bottle tonight" are not.
+ */
+const FREQ_OR_ROUTE = /\b(?:take|every|morning|night|nightly|daily|day|times|twice|once|bedtime|hours?|weekly|mouth)\b/;
+
+function labelClause(c: string, label: string): boolean {
+  const norm = (t: string) => ` ${canonical(words(t)).replace(/\bby mouth\b/g, " ").replace(/ +/g, " ").trim()} `;
+  const want = norm(c);
+  if (want.trim() === "") return true;
+  const have = norm(label);
+  if (!have.includes(want)) return false;
+  const dose = have.match(/\btake (\d+ (?:tablet|capsule|pill))\b/)?.[1];
+  if (FREQ_OR_ROUTE.test(` ${canonical(words(c))} `) && !(dose && want.includes(` ${dose} `))) return false;
+  const drug = have.trim().split(" ")[0];
+  return want.includes(` ${drug} `) || /\b\d+ (?:tablet|capsule|pill)\b/.test(want);
+}
+
+
+function supplyClause(c: string, n: number, form: string): boolean {
+  const qty = `(?:${n}|[a-z]+(?: [a-z]+)?) ${form}s?`;
+  return [
+    new RegExp(`^ (?:thats |that is |thatll be |that will be )?${qty} $`),
+    new RegExp(`^ (?:your|the) (?:refill|bottle|supply|order|prescription) (?:is|has|holds|comes to|will be|will have) ${qty} $`),
+    new RegExp(`^ (?:youll|you will|you ll) (?:get|receive|pick up) ${qty} $`),
+  ].some((re) => re.test(c));
+}
+
+/** The label's "Qty 30" as "30 tablets", only when every clause naming them is a supply phrase. */
+function labelQuantity(label: string, sentence: string): string[] {
+  const qty = Number(label.match(/\bqty\.? ?(\d+)\b/i)?.[1]);
+  const form = label.match(/\b(tablet|capsule|pill)s?\b/i)?.[1]?.toLowerCase();
+  if (!qty || !form) return [];
+  const clauses = sentence.split(CLAUSE_BREAK).map((c) => words(c));
+  const namesQty = (c: string) =>
+    new RegExp(`\\b${form}s?\\b`).test(c) && c.split(" ").some((t) => t === String(qty) || wordsToNumber(t) === qty);
+  const qtyClauses = clauses.filter(namesQty);
+  const others = clauses.filter((c) => !namesQty(c));
+  const ok = qtyClauses.length > 0 && qtyClauses.every((c) => supplyClause(c, qty, form)) && others.every((c) => labelClause(c, label));
+  return ok ? [`${qty} ${form}s`] : [];
+}
+
+/** "$4 and 10 cents" is "$4.10", so a spoken price compares with the coverage figure (AUDIT fix 2). */
+export function spokenPrices(sentence: string): string {
+  return sentence.replace(/\$(\d+) and (\d{1,2}) cents?\b/gi, (_m, dollars: string, cents: string) => `$${dollars}.${cents.padStart(2, "0")}`);
+}
+
 async function checkS3(store: Store, call: Call, sentence: string): Promise<Check> {
   const records: string[] = [];
   if (call.state === "verified" && call.lockedPatientId) {
-    for (const rx of await store.getPrescriptions(call.lockedPatientId)) records.push(rx.labelText, `${rx.strength} ${rx.drug}`);
+    for (const rx of await store.getPrescriptions(call.lockedPatientId)) {
+      records.push(rx.labelText, `${rx.strength} ${rx.drug}`, ...labelQuantity(rx.labelText, sentence));
+    }
   }
   const missing = unbackedDoses(sentence, records);
   return missing.length > 0 ? { rule: "S3", why: missing.join(";") } : null;
@@ -219,9 +280,15 @@ export function unexcusedCompletion(sentence: string, drugNames: string[] = []):
   });
 }
 
-function checkS4(sentence: string, record: RecordEntry[], bookedLabels: string[], drugNames: string[] = []): Check {
+function checkS4(sentence: string, record: RecordEntry[], bookedLabels: string[], drugNames: string[] = [], approvableItems?: Set<string>): Check {
   const results = record.filter((e) => e.kind === "button").map((e) => ({ e, r: resultOf(e) }));
-  const approved = record.some((e) => e.kind === "approval" && (e.output as { status?: string })?.status === "approved");
+  // Only an approval of a refill or renewal (AUDIT fix 4a): approving a plain note or question
+  // never makes "your refill is approved" true.
+  const approved = record.some((e) => {
+    if (e.kind !== "approval" || (e.output as { status?: string })?.status !== "approved") return false;
+    const itemId = (e.input as { itemId?: string })?.itemId;
+    return approvableItems === undefined || (itemId !== undefined && approvableItems.has(itemId));
+  });
 
   if (unexcusedCompletion(sentence, drugNames) && !approved) return { rule: "S4", why: "completion without approval" };
   const succeeded = (e: RecordEntry, r: ReturnType<typeof resultOf>): string | null => {
@@ -239,6 +306,12 @@ function checkS4(sentence: string, record: RecordEntry[], bookedLabels: string[]
     .filter(({ e, r }) => e.button === "check_coverage" && r?.ok)
     .flatMap(({ r }) => Object.values((r as { output: Record<string, string> }).output));
   const norm = (p: string) => Number(p.replace(/[^\d.]/g, "")).toFixed(2);
+  // The ready days request_refill and order_status returned on this call (ready_label).
+  const readyLabels = results.flatMap(({ e, r }) => {
+    if (!r?.ok || (e.button !== "request_refill" && e.button !== "order_status")) return [];
+    const out = r.output as { ready_label?: string; orders?: { ready_label?: string }[] };
+    return [out.ready_label, ...(out.orders ?? []).map((o) => o.ready_label)].filter((l): l is string => !!l).map((l) => l.toLowerCase());
+  });
 
   // Clause by clause (Trail #27): a filler condition ("If you like, ...") never switches these
   // off. A clause is excused only by a booking said as the condition, or a negation that governs
@@ -262,6 +335,8 @@ function checkS4(sentence: string, record: RecordEntry[], bookedLabels: string[]
 
     for (const d of cw.matchAll(DAYS)) {
       if (negatedNear(cw, d.index, true)) continue;
+      // ready_label backs the day only in a "ready <day>" clause about the refill, never a delivery.
+      if (READY_CLAUSE.test(cw) && !HANDOVER.test(cw) && readyLabels.includes(d[0])) continue;
       if (!bookedLabels.some((l) => l.toLowerCase().includes(d[0]))) return { rule: "S4", why: `day ${d[0]} not booked or a run-out day` };
     }
 
@@ -303,7 +378,13 @@ export function createSpeechGuard({ store, emit = () => {} }: { store: Store; em
           checkS1(call, sentence, tokens, said, record) ??
           checkS2(call, sentence, tokens, said) ??
           (await checkS3(store, call, sentence)) ??
-          checkS4(sentence, record, bookedLabels, tokens.filter((t) => t.kind === "drug").map((t) => t.text));
+          checkS4(
+            spokenPrices(sentence),
+            record,
+            bookedLabels,
+            tokens.filter((t) => t.kind === "drug").map((t) => t.text),
+            new Set((await store.queue()).filter((q) => q.kind === "refill" || q.kind === "renewal").map((q) => q.id)),
+          );
 
         if (found?.rule === "S3" && call.lockedPatientId) {
           const item = await store.addQueueItem({

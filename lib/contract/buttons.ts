@@ -107,9 +107,11 @@ export type ButtonOutputs = {
   read_label: { label_text: string };
   check_coverage: { plan_pays: string; patient_pays: string };
   order_status: {
-    orders: { order_id: OrderId; rx_id: RxId; status: RefillState; slot_id?: SlotId; slot_label?: string }[];
+    /** ready_label: the weekday the refill is expected ready once approved, e.g. "Thursday". */
+    orders: { order_id: OrderId; rx_id: RxId; status: RefillState; slot_id?: SlotId; slot_label?: string; ready_label?: string }[];
   };
-  request_refill: { state: RefillState; rule_ids: RuleId[]; message: string; order_id?: OrderId };
+  /** ready_label: the weekday the refill is expected ready once approved, e.g. "Thursday" (waiting, queued or approved only). */
+  request_refill: { state: RefillState; rule_ids: RuleId[]; message: string; order_id?: OrderId; ready_label?: string };
   request_renewal: { state: "requested" | "waiting_for_pharmacist" | "refused"; rule_ids: RuleId[] };
   set_delivery: { ok: boolean; rule_ids: RuleId[] };
   note_for_pharmacist: { note_id: NoteId };

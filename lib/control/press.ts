@@ -2,6 +2,7 @@
 // decided in code, written to the hash-chained record and emitted as a "press" event.
 // press() never throws to the agent.
 
+import { AsyncLocalStorage } from "node:async_hooks";
 import { createHash, randomInt } from "node:crypto";
 import {
   NEEDS_VERIFIED,
@@ -12,6 +13,7 @@ import {
   type Call,
   type CallId,
   type EmitFn,
+  type StreamEvent,
   type Lane,
   type Patient,
   type PressDecision,
@@ -50,7 +52,33 @@ export type ControlOptions = {
    * Only a test that asks for the old text turns this on.
    */
   broadcastCodes?: boolean;
+  /**
+   * What each call id starts with; the number after it counts this store's calls. The live
+   * pharmacy keeps "c_" (c_0001, c_0002…). A run on its own store (an attack card, a scenario)
+   * passes its own, so its calls never share an id with a real one (AUDIT fix 14).
+   */
+  callIdPrefix?: string;
 };
+
+/** Refills that will be ready on a day: waiting for a pharmacist, queued or approved. */
+const READY_STATES: ReadonlySet<string> = new Set(["waiting_for_pharmacist", "queued", "approved"]);
+/** Days from the request until a refill is ready (pharmacist check plus fill). Sundays don't count. */
+const READY_AFTER_DAYS = 2;
+
+/**
+ * The weekday a refill asked for at `at` is expected ready, in pharmacy time ("Thursday" for the
+ * demo Tuesday). The record carries it as ready_label, so S4 can back "ready Thursday once it's
+ * approved" (Role 1's 1.3 REQUEST).
+ */
+export function readyDay(at: string, timeZone = "America/Toronto"): string {
+  const weekday = (t: number) => new Intl.DateTimeFormat("en-CA", { timeZone, weekday: "long" }).format(new Date(t));
+  let t = Date.parse(at);
+  for (let added = 0; added < READY_AFTER_DAYS; ) {
+    t += 24 * 60 * 60 * 1000;
+    if (weekday(t) !== "Sunday") added++;
+  }
+  return weekday(t);
+}
 
 export const CODE_SENT_TEXT = "A verification code was sent to your phone.";
 
@@ -63,7 +91,7 @@ type Handled = {
 
 const hashCode = (lookupId: string, code: string) => createHash("sha256").update(`${lookupId}:${code}`).digest("hex");
 
-export function createControl({ store, emit = () => {}, makeCode, broadcastCodes = false }: ControlOptions) {
+export function createControl({ store, emit = () => {}, makeCode, broadcastCodes = false, callIdPrefix = "c_" }: ControlOptions) {
   const newCode = makeCode ?? (() => String(randomInt(0, 1_000_000)).padStart(6, "0"));
   // Codes in plain text live only here, in memory, never in the record or on the stream.
   const sentCodes = new Map<CallId, { code: string; hash: string }>();
@@ -79,7 +107,7 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
 
   async function addItem(item: Omit<QueueItem, "id" | "createdAt" | "status">): Promise<QueueItem> {
     const saved = await store.addQueueItem(item);
-    emit({ type: "queue", item: saved });
+    send({ type: "queue", item: saved });
     return saved;
   }
 
@@ -125,9 +153,9 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
     if (sentThisHour >= MAX_CODES_PER_HOUR) return { lookupId, matched: true, patientId, codeSent: false };
     const code = newCode();
     const codeHash = hashCode(lookupId, code);
-    sentCodes.set(call.id, { code, hash: codeHash });
+    afterRecord(() => sentCodes.set(call.id, { code, hash: codeHash }));
     const text = broadcastCodes ? `Your pharmacy verification code is ${code}.` : CODE_SENT_TEXT;
-    emit({ type: "phone", callId: call.id, kind: "code", text });
+    send({ type: "phone", callId: call.id, kind: "code", text });
     return { lookupId, matched: true, patientId, codeSent: true, codeHash };
   }
 
@@ -266,6 +294,7 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
           rx_id: o.rxId,
           status: o.state,
           ...(o.slotId ? { slot_id: o.slotId, slot_label: slots.find((s) => s.id === o.slotId)?.label } : {}),
+          ...(READY_STATES.has(o.state) ? { ready_label: readyDay(o.createdAt) } : {}),
         })),
       }),
       decision: "allowed",
@@ -291,7 +320,13 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
     );
     if (open) {
       return {
-        result: ok<"request_refill">({ state: open.state, rule_ids: [], message: "This refill was already requested.", order_id: open.id }),
+        result: ok<"request_refill">({
+          state: open.state,
+          rule_ids: [],
+          message: "This refill was already requested.",
+          order_id: open.id,
+          ...(READY_STATES.has(open.state) ? { ready_label: readyDay(open.createdAt) } : {}),
+        }),
         decision: "allowed",
         internal: { patientId: patient.id, rxId: rx.id, orderId: open.id },
       };
@@ -332,7 +367,17 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
       ...(input.reason ? { aiView: input.reason } : {}),
     });
     return {
-      result: ok<"request_refill">({ state, rule_ids: ruleIds, message: refillMessage(state, ruleIds), order_id: order.id }, ruleIds, lane),
+      result: ok<"request_refill">(
+        {
+          state,
+          rule_ids: ruleIds,
+          message: refillMessage(state, ruleIds),
+          order_id: order.id,
+          ...(READY_STATES.has(state) ? { ready_label: readyDay(now) } : {}),
+        },
+        ruleIds,
+        lane,
+      ),
       decision: lane === "automatic" ? "allowed" : verdict.outcome === "flag" ? "flagged" : "routed",
       internal: { ...internal, orderId: order.id, queueItemId: item.id },
       context,
@@ -444,7 +489,7 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
           signals: q.signals.includes("side_effect") ? q.signals : [...q.signals, "side_effect"],
           notes: [...q.notes, note],
         });
-        emit({ type: "queue", item: moved });
+        send({ type: "queue", item: moved });
       }
       if (refills.length > 0) {
         return {
@@ -524,18 +569,33 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
     }
   }
 
+  // What a press announces or remembers outside the store (stream events, the live code) is held,
+  // per press, until its record entry is written (see press). AsyncLocalStorage keeps each press's
+  // list its own when presses on different calls overlap.
+  const held = new AsyncLocalStorage<(() => void)[]>();
+  const afterRecord = (action: () => void) => {
+    const list = held.getStore();
+    if (list) list.push(action);
+    else action();
+  };
+  const send = (event: StreamEvent) => afterRecord(() => emit(event));
+
   const toPressDecision = (d: RecordDecision): PressDecision => (d === "blocked" ? "refused" : d);
 
   const press: PressFn = async (callId, button, input) => {
-    let handled: Handled;
-    try {
-      handled = await run(await store.getCall(callId), button, input);
-    } catch {
-      handled = blocked("refused");
-    }
-    const { result, decision, internal = {}, context } = handled;
-    const lane = result.ok ? result.lane : undefined;
-    try {
+    // The press and its record entry are all or nothing (AUDIT fix 4b): inside store.transaction a
+    // failed record write undoes the order, queue item or code the button made. Events the button
+    // would announce are held, and go out only once its record entry is written.
+    const pending: (() => void)[] = [];
+    const attempt = async (): Promise<Handled> => {
+      let handled: Handled;
+      try {
+        handled = await run(await store.getCall(callId), button, input);
+      } catch {
+        handled = blocked("refused");
+      }
+      const { result, decision, internal = {}, context } = handled;
+      const lane = result.ok ? result.lane : undefined;
       const output: PressRecordOutput = { result, internal };
       await store.appendRecord({
         callId,
@@ -549,10 +609,18 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
         decision,
         ...(lane ? { lane } : {}),
       });
+      return handled;
+    };
+    let handled: Handled;
+    try {
+      handled = await held.run(pending, () => (store.transaction ? store.transaction(attempt) : attempt()));
     } catch {
-      // A press that can't be recorded must not succeed.
+      // A press that can't be recorded must not succeed, and announces nothing.
       return err("refused") as never;
     }
+    for (const action of pending) action();
+    const { result, decision } = handled;
+    const lane = result.ok ? result.lane : undefined;
     emit({ type: "press", callId, button, decision: toPressDecision(decision), ruleIds: result.ruleIds, ...(lane ? { lane } : {}) });
     return result as never;
   };
@@ -562,7 +630,7 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
   /** Start an inbound call. Outbound calls must go through startOutboundCall (rule 7). */
   async function startInboundCall(): Promise<CallId> {
     const n = (await store.listRecord()).filter((e) => e.kind === "safety" && (e.input as { check?: string })?.check === "call_start").length + 1;
-    const id = `c_${String(n).padStart(4, "0")}`;
+    const id = `${callIdPrefix}${String(n).padStart(4, "0")}`;
     const now = await store.now();
     await store.saveCall({ id, direction: "inbound", state: "greeting", startedAt: now, failedCodeTries: 0, callerSaid: [] });
     await store.appendRecord({ callId: id, actor: "system", kind: "safety", input: { check: "call_start", direction: "inbound" }, decision: "allowed" });
@@ -596,7 +664,7 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
     const check = await checkOutbound(patientId, rxId);
     if (!check.allowed) return { ok: false, ruleIds: check.ruleIds };
     const n = (await store.listRecord()).filter((e) => e.kind === "safety" && (e.input as { check?: string })?.check === "call_start").length + 1;
-    const id = `c_${String(n).padStart(4, "0")}`;
+    const id = `${callIdPrefix}${String(n).padStart(4, "0")}`;
     const now = await store.now();
     await store.saveCall({ id, direction: "outbound", state: "code_sent", targetPatientId: patientId, startedAt: now, failedCodeTries: 0, callerSaid: [] });
     await store.appendRecord({ callId: id, actor: "system", kind: "safety", input: { check: "call_start", direction: "outbound", rx_id: rxId }, decision: "allowed" });

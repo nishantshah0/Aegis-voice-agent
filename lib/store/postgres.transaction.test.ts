@@ -112,6 +112,44 @@ describe("Postgres store: transaction(fn)", () => {
     expect(findBrokenLink(record)).toBeNull();
   });
 
+  it("keeps a card added from outside while a transaction rolls back, with its record entry (Trail #83 finding)", async () => {
+    const card = { ...SEED.cards[0]!, id: "w_outside", wording: "A card added during another press." };
+    let open!: () => void;
+    const gate = new Promise<void>((resolve) => (open = resolve));
+    let inside!: () => void;
+    const started = new Promise<void>((resolve) => (inside = resolve));
+    const running = store.transaction(async () => {
+      await writeEverything(store, "rolled");
+      inside();
+      await gate;
+      throw boom;
+    });
+    await started;
+    // Like applyApprovedCard from another request: add the card, then record it.
+    const added = (async () => {
+      await store.addCard(card);
+      await store.appendRecord({ actor: "pharmacist", kind: "rule_change", input: { cardId: card.id }, decision: "allowed" });
+    })();
+    open();
+    await expect(running).rejects.toBe(boom);
+    await added;
+    expect((await store.listCards()).map((c) => c.id)).toContain("w_outside");
+    expect((await store.listRecord()).some((e) => e.kind === "rule_change")).toBe(true);
+    expect(await store.getCall("c_rolled")).toBeUndefined();
+  });
+
+  it("doesn't serve a card added inside a transaction that rolled back", async () => {
+    const card = { ...SEED.cards[0]!, id: "w_inside", wording: "A card that never landed." };
+    await expect(
+      store.transaction(async () => {
+        await store.addCard(card);
+        expect((await store.listCards()).map((c) => c.id)).toContain("w_inside");
+        throw boom;
+      }),
+    ).rejects.toBe(boom);
+    expect((await store.listCards()).map((c) => c.id)).not.toContain("w_inside");
+  });
+
   it("puts the clock back if a transaction that moved it rolls back", async () => {
     await expect(
       store.transaction(async () => {
