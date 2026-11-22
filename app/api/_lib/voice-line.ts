@@ -3,7 +3,7 @@ import type { CallId, Direction } from "@/lib/contract";
 import { forCaller } from "@/lib/events/audience";
 import { IDS } from "@/lib/seed";
 import { fail } from "./http";
-import { answerCall, issuePhoneToken, type JoinableDriver } from "./phone";
+import { answerCall, checkInCall, issuePhoneToken, type JoinableDriver } from "./phone";
 import { getControl, getDriver, getStore } from "./runtime";
 import { sendSms, smsConfigured } from "./sms";
 
@@ -46,6 +46,8 @@ export type VoiceCall = {
   /** The driver runs one turn at a time per call. */
   chain: Promise<void>;
   last?: Turn;
+  /** "Are you still there?" after the caller went quiet; once per silence. */
+  checkIn?: Turn;
   ended: boolean;
   lastSeen: number;
   /** The last verification code hash we texted, so each code is texted once. */
@@ -226,16 +228,38 @@ function finished(ended: boolean): Turn {
 export function takeTurn(call: VoiceCall, callerTexts: string[]): Turn {
   const count = callerTexts.length;
   const seen = call.turns.get(count);
-  if (seen) return seen;
+  // Still running, or its answer never fully reached ElevenLabs: the same turn again.
+  if (seen && !(seen.done && seen.delivered)) return seen;
   if (call.ended) return finished(true);
+  // Asked again with nothing new after they heard us: the caller has gone quiet (turn timeout).
+  if (seen) return silence(call);
   if (count < call.handled) return finished(false);
   const turn = newTurn();
   call.turns.set(count, turn);
   const fresh = callerTexts.slice(call.handled).filter(Boolean);
   call.handled = count;
+  call.checkIn = undefined;
   const previous = call.last;
   call.last = turn;
   call.chain = call.chain.then(() => play(call, turn, fresh, previous));
+  return turn;
+}
+
+/** The driver's own check-in line, once per silence (task 1.8); after that, nothing. */
+function silence(call: VoiceCall): Turn {
+  if (call.checkIn) return call.checkIn.delivered ? finished(false) : call.checkIn;
+  const turn = newTurn();
+  call.checkIn = turn;
+  call.chain = call.chain.then(async () => {
+    try {
+      for (const event of (await checkInCall(getDriver() as JoinableDriver, call.callId)) ?? []) if (event.type === "line") say(turn, event.text);
+    } catch (error) {
+      console.warn(`voice: check-in on ${call.callId} failed (${error instanceof Error ? error.message : "unknown error"})`);
+    } finally {
+      turn.done = true;
+      wake(turn);
+    }
+  });
   return turn;
 }
 

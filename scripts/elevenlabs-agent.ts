@@ -51,9 +51,15 @@ export function agentConfig({ llmUrl, secretId, voiceId }: AgentConfigInput) {
         },
       },
       tts: { model_id: "eleven_flash_v2", ...(voiceId ? { voice_id: voiceId } : {}) },
-      conversation: { max_duration_seconds: 600 },
+      // Nothing ElevenLabs would say on its own: no filler while we think, no noise warning, no
+      // guessing a turn early. Silence and time-limit messages stay empty.
+      turn: { soft_timeout_config: { timeout_seconds: -1 }, noisy_environment_detection: false, speculative_turn: false },
+      // The whole history every turn: the endpoint counts the caller's messages to find the new ones.
+      conversation: { max_duration_seconds: 600, compaction: { enabled: false } },
     },
     platform_settings: {
+      // Only phone calls and signed URLs start conversations, not anyone who knows the agent id.
+      auth: { enable_auth: true },
       overrides: {
         // The outbound route sets the opener (already guarded) and our call id per call.
         conversation_config_override: { agent: { first_message: true } },
@@ -65,6 +71,11 @@ export function agentConfig({ llmUrl, secretId, voiceId }: AgentConfigInput) {
 
 type Env = Record<string, string | undefined>;
 
+/** Their error messages can quote a phone number; this session is recorded, so hide anything number-like. */
+export function redact(text: string): string {
+  return text.replace(/\+?\d[\d\s().-]{6,}\d/g, "<number>");
+}
+
 async function api(env: Env, method: string, path: string, body?: unknown): Promise<Record<string, unknown>> {
   const res = await fetch(`${API}${path}`, {
     method,
@@ -72,7 +83,7 @@ async function api(env: Env, method: string, path: string, body?: unknown): Prom
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   const text = await res.text();
-  if (!res.ok) throw new Error(`${method} ${path} → ${res.status}: ${text.slice(0, 400)}`);
+  if (!res.ok) throw new Error(`${method} ${path} → ${res.status}: ${redact(text.slice(0, 400))}`);
   return text ? (JSON.parse(text) as Record<string, unknown>) : {};
 }
 
@@ -138,18 +149,23 @@ export async function main(argv: string[], env: Env = process.env): Promise<void
   }
   const need = missing(env);
   if (need.length) throw new Error(`Set these in .env first: ${need.join(", ")}`);
-  const secretId = await ensureSecret(env);
-  const agentId = await ensureAgent(env, secretId);
-  const phoneNumberId = await ensurePhoneNumber(env, agentId);
-  console.log(`ELEVENLABS_LLM_SECRET_ID=${secretId}`);
-  console.log(`ELEVENLABS_AGENT_ID=${agentId}`);
-  console.log(phoneNumberId ? `ELEVENLABS_PHONE_NUMBER_ID=${phoneNumberId}` : "No phone number yet: add TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN and TWILIO_PHONE_NUMBER to .env and run this again.");
-  if (argv.includes("--write-env") && existsSync(".env")) {
-    const ids: Record<string, string> = { ELEVENLABS_LLM_SECRET_ID: secretId, ELEVENLABS_AGENT_ID: agentId };
-    if (phoneNumberId) ids.ELEVENLABS_PHONE_NUMBER_ID = phoneNumberId;
-    writeFileSync(".env", upsertEnv(readFileSync(".env", "utf8"), ids));
-    console.log("Saved those ids to .env.");
-  }
+  // Each id is saved as soon as it exists, so a failure later (often the Twilio number) never
+  // leaves a secret or an agent behind that the next run would create again.
+  const save = (ids: Record<string, string>) => {
+    for (const [name, value] of Object.entries(ids)) {
+      console.log(`${name}=${value}`);
+      env[name] = value;
+    }
+    if (argv.includes("--write-env") && existsSync(".env")) writeFileSync(".env", upsertEnv(readFileSync(".env", "utf8"), ids));
+  };
+  save({ ELEVENLABS_LLM_SECRET_ID: await ensureSecret(env) });
+  save({ ELEVENLABS_AGENT_ID: await ensureAgent(env, env.ELEVENLABS_LLM_SECRET_ID!) });
+  const phoneNumberId = await ensurePhoneNumber(env, env.ELEVENLABS_AGENT_ID!).catch((error: unknown) => {
+    console.error(`The Twilio number wasn't imported: ${error instanceof Error ? error.message : "unknown error"}`);
+    return undefined;
+  });
+  if (phoneNumberId) save({ ELEVENLABS_PHONE_NUMBER_ID: phoneNumberId });
+  else console.log("No phone number yet: put a number your Twilio account owns in TWILIO_PHONE_NUMBER (with TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN) and run this again.");
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
