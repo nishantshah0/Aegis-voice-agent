@@ -45,6 +45,12 @@ describe("honest read-backs of the label and the coverage", () => {
     ["Take 30 tablets.", "S3"],
     ["Take thirty tablets at once.", "S3"],
     ["You can take 30 tablets a day.", "S3"],
+    // The dose in another clause still makes it a dose (second re-review).
+    ["Your refill is 30 tablets, take them all at once.", "S3"],
+    ["Your refill is 30 tablets and you can take them all today.", "S3"],
+    ["You'll get 30 tablets; swallow them together.", "S3"],
+    ["30 tablets. Take them all.", "S3"],
+    ["Your bottle has 30 tablets, have them all tonight.", "S3"],
   ])("still blocks: %s", async (s, rule) => {
     expect(await guard(callId, s)).toMatchObject({ blocked: true, rule });
   });
