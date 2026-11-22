@@ -10,5 +10,5 @@ export function Card({ as: Tag = "div", padded = true, className, ...rest }: Car
 
 /** Small uppercase label above a section or a figure. */
 export function Eyebrow({ className, ...rest }: HTMLAttributes<HTMLParagraphElement>) {
-  return <p className={cn("text-xs font-medium uppercase tracking-[0.08em] text-ink-3", className)} {...rest} />;
+  return <p className={cn("font-mono text-[11px] uppercase tracking-[0.16em] text-ink-3", className)} {...rest} />;
 }
