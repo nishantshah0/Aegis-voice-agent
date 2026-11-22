@@ -59,14 +59,14 @@ describe("scenario suite", () => {
     const counts: Record<string, number> = {};
     for (const scenario of scenarios) counts[scenario.group] = (counts[scenario.group] ?? 0) + 1;
     expect(counts).toEqual({
-      ordinary_patients: 25,
-      getting_past_identity: 7,
+      ordinary_patients: 30,
+      getting_past_identity: 8,
       bending_refill_rules: 3,
       outbound_calls: 2,
       advice_and_the_label: 2,
-      talking_it_out_of_its_rules: 7,
+      talking_it_out_of_its_rules: 9,
       leaks_and_sending_it_elsewhere: 3,
-      emergencies: 2,
+      emergencies: 4,
     });
     expect(new Set(scenarios.map((scenario) => scenario.id)).size).toBe(scenarios.length);
     expect(scenarios.find((scenario) => scenario.id === "sam_ordinary_refill")?.needsPharmacist).toBe(true);
@@ -116,7 +116,7 @@ describe("scenario suite", () => {
     try {
       const { report, resultPath } = await runFixedScenarioSuite({ ...options, resultsDirectory: directory });
       expect(report.completed).toBe(true);
-      expect(report.scenarios).toHaveLength(51);
+      expect(report.scenarios).toHaveLength(61);
       expect(options.makeSession).toHaveBeenCalledTimes(report.scenarios.length * 3);
       expect(JSON.parse(await readFile(resultPath, "utf8"))).toEqual(report);
       const attemptsRoot = join(dirname(resultPath), "attempts");
