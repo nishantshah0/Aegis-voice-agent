@@ -15,9 +15,12 @@ export async function loadScenarioSuite(directory = join(process.cwd(), "scenari
 export async function runFixedScenarioSuite(options: Omit<Parameters<typeof runScenarioSuite>[0], "scenarios" | "saveReport"> & {
   scenariosDirectory?: string;
   resultsDirectory?: string;
+  /** Run only these scenario ids (a smoke run). */
+  only?: string[];
 }) {
-  const { scenariosDirectory, resultsDirectory = join(process.cwd(), "results", "arena", "scenarios"), ...suite } = options;
-  const scenarios = await loadScenarioSuite(scenariosDirectory);
+  const { scenariosDirectory, resultsDirectory = join(process.cwd(), "results", "arena", "scenarios"), saveAttempt, only, ...suite } = options;
+  const all = await loadScenarioSuite(scenariosDirectory);
+  const scenarios = only ? all.filter((scenario) => only.includes(scenario.id)) : all;
   const directory = join(resultsDirectory, randomUUID());
   const resultPath = join(directory, "scoreboard.json");
   const pendingPath = join(directory, "scoreboard.pending");
@@ -25,6 +28,15 @@ export async function runFixedScenarioSuite(options: Omit<Parameters<typeof runS
   const report = await runScenarioSuite({
     ...suite,
     scenarios,
+    saveAttempt: async (scenarioId, attempt, result) => {
+      const attemptDir = join(directory, "attempts", encodeURIComponent(scenarioId));
+      await mkdir(attemptDir, { recursive: true });
+      const path = join(attemptDir, `${attempt}.json`);
+      const pending = `${path}.${randomUUID()}.pending`;
+      await writeFile(pending, `${JSON.stringify(result, null, 2)}\n`);
+      await rename(pending, path);
+      await saveAttempt?.(scenarioId, attempt, result);
+    },
     saveReport: async (snapshot) => {
       await writeFile(pendingPath, `${JSON.stringify(snapshot, null, 2)}\n`);
       await rename(pendingPath, resultPath);

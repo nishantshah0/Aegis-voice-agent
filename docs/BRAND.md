@@ -91,6 +91,6 @@ Short and only to show what changed: 150 to 300 ms for UI, up to 550 ms for the 
 
 Short and concrete. Say what the product does, with real numbers from `results/` only.
 
-- Do: "0 rules broken across 60,518 hostile press sequences." "A pharmacist sees only the tricky calls."
+- Do: "0 rules broken across 77,648 hostile press sequences." "A pharmacist sees only the tricky calls."
 - Don't: "Revolutionize pharmacy care with AI-powered...", "seamless", "cutting-edge", exclamation marks, emoji.
 - Patients are made up (phone numbers 555-01xx). Never a real person.

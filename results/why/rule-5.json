@@ -1,0 +1,16 @@
+{
+  "id": "rule-5",
+  "title": "Core rule 5: a new address needs a pharmacist",
+  "file": "lib/control/press.ts",
+  "line": 393,
+  "content": "ruleIds: [\"5\"],",
+  "status": "commit",
+  "commit": "1a5fc198",
+  "author": "PS",
+  "authorTime": "2026-11-21T09:53:11Z",
+  "checkpointId": null,
+  "sessionId": null,
+  "agent": null,
+  "model": null,
+  "prompt": null
+}

@@ -1,0 +1,16 @@
+{
+  "id": "S1",
+  "title": "Speech rule S1: nothing private before verification",
+  "file": "lib/guard/speech.ts",
+  "line": 85,
+  "content": "return found.length > 0 ? { rule: \"S1\", why: found.map((t) => t.kind).join(\",\") } : null;",
+  "status": "commit",
+  "commit": "96db94c5",
+  "author": "PS",
+  "authorTime": "2026-11-21T09:57:12Z",
+  "checkpointId": null,
+  "sessionId": null,
+  "agent": null,
+  "model": null,
+  "prompt": null
+}

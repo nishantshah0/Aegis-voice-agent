@@ -1,0 +1,16 @@
+{
+  "id": "S3",
+  "title": "Speech rule S3: no dose that isn't on the label",
+  "file": "lib/guard/speech.ts",
+  "line": 102,
+  "content": "return missing.length > 0 ? { rule: \"S3\", why: missing.join(\";\") } : null;",
+  "status": "commit",
+  "commit": "96db94c5",
+  "author": "PS",
+  "authorTime": "2026-11-21T09:57:12Z",
+  "checkpointId": null,
+  "sessionId": null,
+  "agent": null,
+  "model": null,
+  "prompt": null
+}

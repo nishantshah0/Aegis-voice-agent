@@ -1,0 +1,16 @@
+{
+  "id": "stage-pick",
+  "title": "A judge's pick on the stage runs through the real lock",
+  "file": "app/stage/attack-run.ts",
+  "line": 87,
+  "content": "function stageEmit(emit: EmitFn, tag: string): EmitFn {",
+  "status": "checkpoint",
+  "commit": "21a410f5",
+  "author": "nishantshah0",
+  "authorTime": "2026-11-21T18:44:38Z",
+  "checkpointId": "01M7ZPSFHRZJGA7RR0ETXQJB9S",
+  "sessionId": "40aa75fd-9968-4a05-82a0-7d3d79c96251",
+  "agent": "Claude Code",
+  "model": "claude-opus-5-5",
+  "prompt": "<cross-session-message from=\"local_c51e93b3-8c5b-4d40-94c8-71a5612893f0\" from-name=\"Hack Western 13 hackathon\">\nThe network dropped briefly (ENOTFOUND); it's back now. Resume your hijack-screen task exactly where you left off, and keep going until it's handed off. Nishant is asleep, so work autonomously and don't wait for anyone. If an API call fails again, retry it.\n</cross-session-message>"
+}
