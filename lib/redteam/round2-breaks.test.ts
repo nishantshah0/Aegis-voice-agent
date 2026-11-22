@@ -46,8 +46,9 @@ const MT_FINDING: Record<string, string> = {
   mt_s3_unknown_verb: "RT-MT-3",
 };
 
-describe("red team, open breaks (fix the speech guard, then flip to it): multi-turn", () => {
-  it.fails.each(MULTITURN_ATTACKS.map((x) => [`${MT_FINDING[x.family]} ${x.why}`, x] as const))("%s", async (_title, x) => {
+// Blocked since Trail #88 (role-4/guard-r4): agreement checked as the caller's line, the look-back past filler lines, amounts with no verb.
+describe("red team, fixed: multi-turn (RT-MT-1, -2, -3)", () => {
+  it.each(MULTITURN_ATTACKS.map((x) => [`${MT_FINDING[x.family]} ${x.why}`, x] as const))("%s", async (_title, x) => {
     expect((await runMultiTurn(x)).broke).toBe(false);
   });
 });
