@@ -498,6 +498,9 @@ export function createSpeechGuard({ store, emit = () => {} }: { store: Store; em
         const slotLabels = orders.flatMap((o) => slots.filter((s) => s.id === o.slotId).map((s) => s.label));
         const approvable = new Set((await store.queue()).filter((q) => q.kind === "refill" || q.kind === "renewal").map((q) => q.id));
         const drugs = [...new Set(tokens.filter((t) => t.kind === "drug").map((t) => t.text))];
+        // A price is checked against the prescriptions' own drug names: "Adderall" inside "Adderall XR"
+        // is not a second drug without a quote (live suite, controlled_too_early).
+        const quotedDrugs = [...new Set(tokens.filter((t) => t.kind === "drug" && !t.of).map((t) => t.text))];
         // An exact read-back the lock built (patient-facts.ts) is spoken as one unit: S3 and S4
         // skip it. Matched on the sentence as written, so a look-alike copy is checked as usual.
         const recorded = isRecordedReadback(sentence, call, record);
@@ -528,7 +531,7 @@ export function createSpeechGuard({ store, emit = () => {} }: { store: Store; em
             checkS2(call, heard, identityTokens, said);
           if (!found && !recorded) {
             const line = spokenPrices(heard);
-            const why = ungroundedPatientFact(line.replace(/['’]/g, ""), call, record, drugs);
+            const why = ungroundedPatientFact(line.replace(/['’]/g, ""), call, record, quotedDrugs);
             found =
               (why ? { rule: "S4", why, replacement: "I can't confirm that from your record." } : null) ??
               (await checkS3(store, call, heard, record)) ??
