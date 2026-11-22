@@ -29,6 +29,17 @@ export async function refillPreview(store: Store, patient: Patient, rx: Prescrip
   return { kind: "lane", lane: chooseLane(verdict, signals), ruleIds: verdict.matched.map((m) => m.id), signals };
 }
 
+/**
+ * The daily check's test (SPEC "The call, outbound", step 1): why not to ring about this
+ * prescription today, as rule ids, or null if it's due and its refill would pass. Reads
+ * only. Exported for the outreach sim (lib/sim, Trail #67) so it uses this exact check.
+ */
+export async function notDueReason(store: Store, patient: Patient, rx: Prescription): Promise<RuleId[] | null> {
+  if (daysLeft(rx, await store.now()) > DUE_WITHIN_DAYS) return ["7"];
+  const preview = await refillPreview(store, patient, rx);
+  return preview.kind === "refused" ? preview.ruleIds : null;
+}
+
 /** Patients with an outbound call that hasn't ended. */
 export async function patientsOnOpenCalls(store: Store): Promise<Set<string>> {
   const starts = (await store.listRecord()).filter(
