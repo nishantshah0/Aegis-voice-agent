@@ -104,10 +104,10 @@ function checkS2(call: Call, sentence: string, tokens: Token[], said: string): C
  * A clause read off the label: a contiguous run of the label's words (after canonical(), so
  * "36 milligram tablets" matches "36 MG TABLET", and with "by mouth" ignored on both sides, so
  * "1 tablet every morning" reads off "1 tablet by mouth every morning"), naming the drug or a dose.
- * A clause with a frequency or route word must also carry the label's own dose, so "Concerta every
+ * A clause with "take", a frequency or a route word must also carry the label's own dose, so "Concerta every
  * morning" never stands in for it. "Take", "Tonight" or "take the whole bottle tonight" are not.
  */
-const FREQ_OR_ROUTE = /\b(?:every|morning|night|nightly|daily|day|times|twice|once|bedtime|hours?|weekly|mouth)\b/;
+const FREQ_OR_ROUTE = /\b(?:take|every|morning|night|nightly|daily|day|times|twice|once|bedtime|hours?|weekly|mouth)\b/;
 
 function labelClause(c: string, label: string): boolean {
   const norm = (t: string) => ` ${canonical(words(t)).replace(/\bby mouth\b/g, " ").replace(/ +/g, " ").trim()} `;
