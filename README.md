@@ -13,15 +13,15 @@
 
 <p align="center">
   <a href="https://github.com/nishantshah0/namereserve/actions/workflows/ci.yml"><img src="https://github.com/nishantshah0/namereserve/actions/workflows/ci.yml/badge.svg" alt="Release gate"></a>
-  <img src="https://img.shields.io/badge/rules_broken-0-0A7A4B" alt="0 rules broken">
-  <img src="https://img.shields.io/badge/Next.js-16-0C0F0E" alt="Next.js 16">
-  <img src="https://img.shields.io/badge/TypeScript-strict-0C0F0E" alt="TypeScript">
-  <img src="https://img.shields.io/badge/Claude-agent-0C0F0E" alt="Claude">
-  <img src="https://img.shields.io/badge/license-MIT-0C0F0E" alt="MIT license">
-  <img src="https://img.shields.io/badge/built_at-Hack_Western_13-8A5A2B" alt="Built at Hack Western 13">
+  <img src="https://img.shields.io/badge/rules_broken-0-4D7C3A" alt="0 rules broken">
+  <img src="https://img.shields.io/badge/Next.js-16-1F2B1F" alt="Next.js 16">
+  <img src="https://img.shields.io/badge/TypeScript-strict-1F2B1F" alt="TypeScript">
+  <img src="https://img.shields.io/badge/Claude-agent-1F2B1F" alt="Claude">
+  <img src="https://img.shields.io/badge/license-MIT-1F2B1F" alt="MIT license">
+  <img src="https://img.shields.io/badge/built_at-Hack_Western_13-8A6A3B" alt="Built at Hack Western 13">
 </p>
 
-<p align="center"><img src="docs/images/landing.png" alt="The Aegis landing page: the headline, the patient's call screen and the pharmacist's Review lane" width="900"></p>
+<p align="center"><img src="docs/images/landing.png" alt="The Aegis landing page: the headline, and a live call where the speech guard redacts a promise the record doesn't back" width="900"></p>
 
 <p align="center"><sub>Aegis (formerly Refill Guard) · Built at Hack Western 13 · demo data only, no real patients</sub></p>
 
@@ -46,7 +46,7 @@ flowchart LR
 
 | | | |
 |---|---|---|
-| <img src="docs/images/phone.png" alt="The patient's phone during a call"> | <img src="docs/images/console.png" alt="The pharmacist console"> | <img src="docs/images/stage.png" alt="The stage: every press at the gate"> |
+| <img src="docs/images/phone.png" alt="The patient's phone, waiting for the pharmacy to call"> | <img src="docs/images/console.png" alt="The pharmacist console"> | <img src="docs/images/stage.png" alt="The stage: every press at the gate"> |
 | **Patient phone** `/phone` | **Pharmacist console** `/console/today` | **The stage** `/stage` |
 
 ## The numbers
