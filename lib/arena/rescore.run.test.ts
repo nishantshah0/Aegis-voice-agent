@@ -12,6 +12,7 @@ import { loadScenarioSuite } from "./suite-files";
 //   RESCORE=1 RESCORE_PARTS=<run dir>,<run dir> npx vitest run lib/arena/rescore.run.test.ts
 // A run dir holds attempts/<scenario>/<n>.json (today's runner) or runs/<scenario>-<n>.json
 // (the first live run). Each scenario's attempts come from the first part with all 3.
+// RESCORE_MODEL names the agent model the parts ran on (check the usage log).
 // Writes <RESCORE_OUT or results/arena/scenarios>/<new id>/ (scoreboard.json, attempts/).
 
 async function attemptsIn(dir: string): Promise<Map<string, ScenarioRun[]>> {
@@ -52,7 +53,7 @@ describe.skipIf(process.env.RESCORE !== "1")("rescore saved live-suite runs", ()
     }
     const commit = execFileSync("git", ["rev-parse", "--short", "HEAD"], { encoding: "utf8" }).trim();
     const rescored = { at: new Date().toISOString(), scorer: `lib/arena/score.ts at ${commit}`, parts: used, note: "Saved records scored again; no model calls. Each part's own scoreboard keeps the score it had when it ran." };
-    await writeFile(join(out, "scoreboard.json"), `${JSON.stringify({ ...report, rescored }, null, 2)}\n`);
+    await writeFile(join(out, "scoreboard.json"), `${JSON.stringify({ ...(process.env.RESCORE_MODEL ? { model: process.env.RESCORE_MODEL } : {}), ...report, rescored }, null, 2)}\n`);
     console.log(`[rescore] ${out}: ${report.passed}/${report.totalScenarios} passing 3 of 3, caught ${report.caught}, broken ${report.broken}, complete ${report.completed}`);
     expect(report.scenarios.length).toBeGreaterThan(0);
   });

@@ -15,9 +15,11 @@ const geistMono = Geist_Mono({
 });
 
 /** The server's public address, if APP_BASE_URL holds a valid URL; never throws. */
-function baseUrl(): URL | undefined {
-  const raw = process.env.APP_BASE_URL?.trim();
-  return raw && URL.canParse(raw) ? new URL(raw) : undefined;
+function baseUrl(): URL {
+  // APP_BASE_URL may list several origins (comma-separated, for Auth0); links use the first.
+  const raw = process.env.APP_BASE_URL?.split(",")[0]?.trim();
+  // Without a usable APP_BASE_URL (a local build), say localhost out loud rather than leave it unset (build warning).
+  return new URL(raw && URL.canParse(raw) ? raw : "http://localhost:3000");
 }
 
 export const metadata: Metadata = {

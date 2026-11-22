@@ -56,7 +56,7 @@ export function SectionHeader({ title, description, action, className }: { title
         <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-ink">{title}</h2>
         {description && <p className="mt-0.5 text-[13px] text-ink-3">{description}</p>}
       </div>
-      {action && <div className="flex shrink-0 items-center gap-2 text-[13px]">{action}</div>}
+      {action && <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2 text-[13px]">{action}</div>}
     </div>
   );
 }

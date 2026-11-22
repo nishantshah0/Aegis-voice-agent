@@ -8,5 +8,6 @@ export async function history(store: Store, { driver }: { driver?: TimingSource 
   return {
     rows: overview.calls.map((call) => toRow(call, queue.filter((q) => q.callId === call.callId))),
     chain: overview.chain,
+    callerTurns: Object.fromEntries(overview.calls.map((c) => [c.callId, c.transcript.filter((l) => l.who === "caller").length])),
   };
 }

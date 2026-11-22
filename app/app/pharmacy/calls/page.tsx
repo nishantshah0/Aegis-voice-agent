@@ -5,7 +5,8 @@ import { Badge, PageHeader, Skeleton, SkeletonRows, SkeletonTiles, StatTile } fr
 import { getApprover } from "@/lib/auth/session";
 import { USAGE_LOG } from "@/lib/agent/usage";
 import { getDriver, getStore } from "@/app/api/_lib/runtime";
-import { parseUsage, type TimingSource } from "@/app/console/calls/calls";
+import type { TimingSource } from "@/app/console/calls/calls";
+import { usageFor } from "./[id]/detail";
 import { Live } from "../_parts/Live";
 import { SignedOut } from "../_parts/SignedOut";
 import { HistoryTable } from "./HistoryTable";
@@ -18,9 +19,12 @@ async function Body() {
   if (!(await getApprover())) return <SignedOut what="the voice agent's calls" />;
   const driver = getDriver();
   const timings = "turnTimings" in driver ? (driver as TimingSource) : undefined;
-  const [{ rows, chain }, log] = await Promise.all([history(getStore(), { driver: timings }), readFile(USAGE_LOG, "utf8").catch(() => "")]);
-  const usage = Object.values(parseUsage(log).byModel);
-  const cost = usage.reduce((s, m) => s + m.costUsd, 0);
+  const [{ rows, chain, callerTurns = {} }, log] = await Promise.all([history(getStore(), { driver: timings }), readFile(USAGE_LOG, "utf8").catch(() => "")]);
+  // Only the usage of the calls listed here, matched the way each call's page matches it: the call
+  // id's newest log rows, one per caller turn (ids restart at c_0001 after a reset). AUDIT #13.
+  const usage = rows.flatMap((row) => usageFor(log, row.callId).slice(0, callerTurns[row.callId] ?? 0));
+  const modelCalls = usage.reduce((s, u) => s + u.modelCalls, 0);
+  const cost = usage.reduce((s, u) => s + u.costUsd, 0);
   const blocked = rows.reduce((s, r) => s + r.blocked, 0);
   const waiting = rows.filter((r) => r.outcome === "waiting").length;
   return (
@@ -29,8 +33,8 @@ async function Body() {
         <StatTile label="Calls" value={rows.length} />
         <StatTile label="Waiting for a pharmacist" value={waiting} tone={waiting ? "review" : "neutral"} />
         <StatTile label="Lines blocked" value={blocked} tone={blocked ? "stop" : "neutral"} />
-        <StatTile label="Model calls (log)" value={usage.reduce((s, m) => s + m.modelCalls, 0)} />
-        <StatTile label="Cost (log)" value={`$${cost.toFixed(4)}`} />
+        <StatTile label="Model calls, these calls" value={modelCalls} hint="From the agent's usage log" />
+        <StatTile label="Model cost, these calls" value={`$${cost.toFixed(4)}`} hint="Sum of each call's page" />
       </section>
       <p className="mt-3 text-sm" data-testid="chain">
         {chain.verified ? (
