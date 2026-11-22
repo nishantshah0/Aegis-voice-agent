@@ -13,6 +13,7 @@ import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
 import { CARD_FIELDS, type Approver, type CardCondition, type RuleCard, type RuleContext, type Store } from "@/lib/contract";
 import { buildContext, CARD_BUTTONS, checkCard, evaluate, type CardButton } from "@/lib/control";
+import { sharedUsageCap, type UsageCap } from "@/lib/agent/usage";
 import { IDS, SEED } from "@/lib/seed";
 
 /** CLAUDE.md: Fable 5.2 writes rules. */
@@ -201,15 +202,69 @@ export function claudeProposer(client = new Anthropic()): Proposer {
     if (response.stop_reason === "refusal") throw new Error("the model declined to write this rule");
     const block = response.content.find((b) => b.type === "text");
     if (!block || block.type !== "text") throw new Error("the model returned no card");
-    const out = ProposalSchema.parse(JSON.parse(block.text));
-    const when = out.conditions.map((c) => ({ field: c.field, op: c.op, value: parseJson(c.value_json) }) as CardCondition);
-    return {
-      card: { wording: out.wording, when, then: out.then, appliesTo: out.applies_to, risk: out.risk, ...(out.flag_text ? { flagText: out.flag_text } : {}) },
-      restatement: out.restatement,
-      tests: out.tests.map((t) => {
-        const ctx = parseJson(t.context_json);
-        return { kind: t.kind, description: t.description, button: t.button, context: ctx && typeof ctx === "object" && !Array.isArray(ctx) ? (ctx as RuleContext) : {}, expectMatch: t.expect_match };
-      }),
-    };
+    return toProposal(JSON.parse(block.text));
+  };
+}
+
+/** The model's structured output, checked against the schema, as a Proposal. */
+function toProposal(raw: unknown): Proposal {
+  const out = ProposalSchema.parse(raw);
+  const when = out.conditions.map((c) => ({ field: c.field, op: c.op, value: parseJson(c.value_json) }) as CardCondition);
+  return {
+    card: { wording: out.wording, when, then: out.then, appliesTo: out.applies_to, risk: out.risk, ...(out.flag_text ? { flagText: out.flag_text } : {}) },
+    restatement: out.restatement,
+    tests: out.tests.map((t) => {
+      const ctx = parseJson(t.context_json);
+      return { kind: t.kind, description: t.description, button: t.button, context: ctx && typeof ctx === "object" && !Array.isArray(ctx) ? (ctx as RuleContext) : {}, expectMatch: t.expect_match };
+    }),
+  };
+}
+
+/**
+ * The same model and schema on the Claude Agent SDK, for machines with no API key that run
+ * live models on their Claude plan (LIVE_AGENT=1), like the attacker: no tools, one answer,
+ * under the shared hourly cap, logged to the usage log.
+ */
+/** The schema as plain JSON Schema; the Agent SDK's CLI doesn't accept a $schema dialect key. */
+const SDK_SCHEMA = (() => {
+  const { $schema: _dialect, ...schema } = z.toJSONSchema(ProposalSchema) as Record<string, unknown>;
+  void _dialect;
+  return schema;
+})();
+
+export function sdkProposer({ model = RULE_WRITER_MODEL, cap = sharedUsageCap() }: { model?: string; cap?: UsageCap } = {}): Proposer {
+  return async (text) => {
+    if (process.env.LIVE_AGENT !== "1") throw new Error("Live model calls are off. Set LIVE_AGENT=1 or ANTHROPIC_API_KEY.");
+    cap.check();
+    const sdk = await import("@anthropic-ai/claude-agent-sdk");
+    const query = sdk.query({
+      prompt: text,
+      options: {
+        systemPrompt: SYSTEM,
+        model,
+        effort: "low",
+        outputFormat: { type: "json_schema", schema: SDK_SCHEMA },
+        tools: [],
+        allowedTools: [],
+        mcpServers: {},
+        strictMcpConfig: true,
+        plugins: [],
+        skills: [],
+        settingSources: [],
+        permissionMode: "dontAsk",
+        persistSession: false,
+        maxTurns: 3,
+      } as never,
+    });
+    let structured: unknown;
+    let entry: Parameters<UsageCap["record"]>[0] = { callId: "rule_writer", model, modelCalls: 1 };
+    for await (const message of query as AsyncIterable<Record<string, unknown>>) {
+      if (message.type !== "result") continue;
+      structured = message.structured_output;
+      entry = { ...entry, usage: message.usage, ...(typeof message.total_cost_usd === "number" ? { costUsd: message.total_cost_usd } : {}), ...(typeof message.subtype === "string" ? { subtype: message.subtype } : {}) };
+    }
+    cap.record(entry);
+    if (!structured) throw new Error("the model returned no card");
+    return toProposal(structured);
   };
 }

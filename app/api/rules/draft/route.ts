@@ -18,7 +18,7 @@ export async function POST(request: Request) {
   if (typeof text !== "string" || !text.trim() || text.length > 500) return fail(400, "text must be the rule in one or two sentences (up to 500 characters)");
 
   const propose = getProposer();
-  if (!propose) return fail(503, "The rule writer needs ANTHROPIC_API_KEY on the server");
+  if (!propose) return fail(503, "The rule writer needs ANTHROPIC_API_KEY, or LIVE_AGENT=1 for the Agent SDK, on the server");
 
   const store = getStore();
   try {

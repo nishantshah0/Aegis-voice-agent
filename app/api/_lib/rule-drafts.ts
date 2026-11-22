@@ -1,5 +1,5 @@
 import type { RuleCard } from "@/lib/contract";
-import { claudeProposer, type Proposer, type RuleDraft } from "@/lib/arena/rule-writer";
+import { claudeProposer, sdkProposer, type Proposer, type RuleDraft } from "@/lib/arena/rule-writer";
 
 // Rule-writer drafts (AUDIT #9, Trail #78), kept in this server process until approved. A
 // draft is never live: only POST /api/rules/:id/approve, through lib/control's
@@ -28,11 +28,12 @@ export function markApproved(id: string) {
 }
 export const listDrafts = (): DraftState[] => [...state().drafts.values()].reverse();
 
-/** Fable 5.2 when the server has a key; null means the rule writer can't run here. */
+/** Fable 5.2 on the API when the server has a key, else on the Agent SDK with LIVE_AGENT=1; null means it can't run here. */
 export function getProposer(): Proposer | null {
   const override = state().proposer;
   if (override) return override;
-  return process.env.ANTHROPIC_API_KEY ? claudeProposer() : null;
+  if (process.env.ANTHROPIC_API_KEY) return claudeProposer();
+  return process.env.LIVE_AGENT === "1" ? sdkProposer() : null;
 }
 
 export function setProposerForTests(proposer: Proposer | null) {
