@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Mark } from "@/components/ui";
 import { Phone } from "./Phone";
+import { Aurora } from "@/components/landing/Aurora";
 
 export const metadata = { title: "Phone · Aegis" };
 
@@ -8,11 +9,19 @@ export const metadata = { title: "Phone · Aegis" };
 // the conversation and the refill's status. Driven only by /api/events.
 export default function PhonePage() {
   return (
-    <main className="theme-dark flex min-h-screen flex-col items-center justify-center bg-canvas sm:gap-6 sm:bg-surface sm:py-10">
-      <Link href="/" className="hidden items-center gap-2 rounded-md text-sm text-ink-3 hover:text-ink sm:flex">
-        <Mark className="size-4" /> Aegis · patient phone
-      </Link>
-      <Phone />
+    <main className="theme-dark relative min-h-screen">
+      <Aurora />
+      <div className="rg-lit flex min-h-screen flex-col items-center justify-center sm:gap-6 sm:py-10">
+        <div className="hidden items-center gap-6 sm:flex">
+          <Link href="/" className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.14em] text-ink-3 transition-colors hover:text-accent">
+            <span aria-hidden>←</span> Main site
+          </Link>
+          <span className="flex items-center gap-2 font-display text-xl uppercase text-ink">
+            <Mark className="size-4" /> Aegis · the patient&apos;s phone
+          </span>
+        </div>
+        <Phone />
+      </div>
     </main>
   );
 }
