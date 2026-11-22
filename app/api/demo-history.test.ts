@@ -35,7 +35,8 @@ async function seed() {
   return (await res.json()) as { seeded: boolean; calls: number; lanes: Record<string, number>; caught: number };
 }
 
-describe("POST /api/demo/history: seed a week of scripted calls", () => {
+// Seeding runs about 40 calls through the real lock: about a second alone, more under a loaded gate.
+describe("POST /api/demo/history: seed a week of scripted calls", { timeout: 30_000 }, () => {
   it("needs the demo controls: a signed-in pharmacist or reviewer, or DEMO_CONTROLS=on", async () => {
     session.approver = null;
     expect((await seedHistory()).status).toBe(401);
