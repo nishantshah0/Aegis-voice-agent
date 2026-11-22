@@ -60,6 +60,12 @@ export type VoiceCall = {
   twiml?: string;
   /** Twilio route: the unguessable token in this call's TwiML URL (only Twilio and we see it). */
   twimlToken?: string;
+  /** Trial-safe loop: what Twilio's <Gather> heard the caller say, oldest first. */
+  heard: string[];
+  /** Trial-safe loop: the voiced clips of guarded lines, by number, for <Play>. */
+  clips: Buffer[];
+  /** Trial-safe loop: silences in a row (a check-in after one, a hang-up after two). */
+  quiet: number;
 };
 
 type State = { calls: Map<CallId, VoiceCall>; byConversation: Map<string, CallId>; starting: Map<string, Promise<VoiceCall>> };
@@ -148,7 +154,7 @@ export function parseChatRequest(body: Record<string, unknown>): ChatRequest | {
  */
 export function registerVoiceCall(callId: CallId, direction: Direction, conversationId?: string): VoiceCall {
   issuePhoneToken(callId);
-  const call: VoiceCall = { callId, direction, conversationId, opened: false, handled: 0, turns: new Map(), chain: Promise.resolve(), ended: false, lastSeen: Date.now() };
+  const call: VoiceCall = { callId, direction, conversationId, opened: false, handled: 0, turns: new Map(), chain: Promise.resolve(), ended: false, lastSeen: Date.now(), heard: [], clips: [], quiet: 0 };
   state().calls.set(callId, call);
   if (conversationId) state().byConversation.set(conversationId, callId);
   return call;
@@ -334,6 +340,13 @@ function waitForLine(turn: Turn, seen: number, ms: number): Promise<void> {
 
 export async function untilDone(turn: Turn): Promise<void> {
   while (!turn.done) await waitForLine(turn, turn.lines.length, 60_000);
+}
+
+/** The trial-safe loop takes a whole turn at once: every guarded line, and whether the call ended. */
+export async function finishTurn(turn: Turn): Promise<{ lines: string[]; ended: boolean }> {
+  await untilDone(turn);
+  turn.delivered = true;
+  return { lines: [...turn.lines], ended: turn.ended };
 }
 
 // ---------- Responses (OpenAI Chat Completions shapes) ----------

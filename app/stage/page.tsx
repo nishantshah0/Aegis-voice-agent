@@ -1,8 +1,20 @@
+import { Suspense } from "react";
 import { StageView } from "./StageView";
+import { loadLatestCall } from "./latest";
 
 export const metadata = { title: "Stage · Aegis" };
 
-// The projector view (task 4.6). Driven only by /api/events.
+// The projector view (task 4.6). Opens on the latest real call from the record, then follows
+// /api/events live.
 export default function StagePage() {
-  return <StageView />;
+  return (
+    <Suspense fallback={<StageView />}>
+      <LatestStage />
+    </Suspense>
+  );
+}
+
+async function LatestStage() {
+  const { callId, events, signedIn } = await loadLatestCall();
+  return <StageView initial={events} lastCallId={callId} signedIn={signedIn} />;
 }

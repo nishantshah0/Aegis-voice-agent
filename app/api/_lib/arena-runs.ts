@@ -1,7 +1,8 @@
 import { randomInt } from "node:crypto";
 import { join } from "node:path";
 import { CALLS_PER_HOUR, createAgentSdkModel, SDK_DEV_MODEL, SDK_MAX_TURNS } from "@/lib/agent";
-import { createSdkAttacker } from "@/lib/arena/attacker";
+import { createGeminiAttacker, createSdkAttacker } from "@/lib/arena/attacker";
+import { ATTACKER_MODEL_CHOICES, attackerFamily, parseAttackerModel, type AttackerFamily, type AttackerModel } from "@/lib/arena/attacker-models";
 import { liveSessionMaker } from "@/lib/arena/live-session";
 import { runOvernight, type OvernightSession } from "@/lib/arena/overnight";
 import { hourlyUse, readUsageLog, waitForRoom } from "@/lib/arena/pace";
@@ -30,6 +31,9 @@ export type ArenaRun = {
   broken: number;
   message?: string;
   resultPath?: string;
+  /** Overnight: which model family played the attacking caller (3.7g). */
+  attacker?: AttackerFamily;
+  attackerModel?: AttackerModel;
 };
 export type ArenaStatus = { running: ArenaRun | null; last: Partial<Record<ArenaKind, ArenaRun>>; usage: { used: number; perHour: number } };
 
@@ -99,17 +103,19 @@ export async function parseSuiteBody(body: Record<string, unknown> | null): Prom
   return { only: [...new Set(body.only as string[])] };
 }
 
-/** { calls } from 1 to 60 (default 10), or a reason it's not acceptable. */
-export function parseNightBody(body: Record<string, unknown> | null): { calls: number } | string {
-  if (!body || body.calls === undefined) return { calls: OVERNIGHT_DEFAULT_CALLS };
+/** { calls } from 1 to 60 (default 10) and the attacker model (default Claude), or a reason it's not acceptable. */
+export function parseNightBody(body: Record<string, unknown> | null): { calls: number; model: AttackerModel } | string {
+  const model = parseAttackerModel(body?.model);
+  if (!model) return `model must be ${ATTACKER_MODEL_CHOICES}`;
+  if (!body || body.calls === undefined) return { calls: OVERNIGHT_DEFAULT_CALLS, model };
   const calls = body.calls;
   if (typeof calls !== "number" || !Number.isInteger(calls) || calls < 1 || calls > OVERNIGHT_MAX_CALLS) return `calls must be a whole number from 1 to ${OVERNIGHT_MAX_CALLS}`;
-  return { calls };
+  return { calls, model };
 }
 
 /** Claims the one run slot before anything async, so a second POST sees it straight away. */
-export function claimArenaRun(kind: ArenaKind, total: number): ArenaRun {
-  const run: ArenaRun = { kind, state: "running", startedAt: now(), done: 0, total, caught: 0, broken: 0 };
+export function claimArenaRun(kind: ArenaKind, total: number, attackerModel?: AttackerModel): ArenaRun {
+  const run: ArenaRun = { kind, state: "running", startedAt: now(), done: 0, total, caught: 0, broken: 0, ...(attackerModel ? { attacker: attackerFamily(attackerModel), attackerModel } : {}) };
   holder().current = run;
   return run;
 }
@@ -157,8 +163,13 @@ export async function runSuiteNow(run: ArenaRun, only?: string[]): Promise<void>
   }
 }
 
+/** The attacking caller: Claude on this machine's plan (paced under the cap), or Gemini on its own key and pacer. */
+export function overnightAttacker(attackerModel: AttackerModel, beforeCall: () => Promise<void>) {
+  return attackerFamily(attackerModel) === "gemini" ? createGeminiAttacker({ model: attackerModel, beforeCall }) : createSdkAttacker({ model: attackerModel, beforeCall });
+}
+
 /** Role 3's overnight attacker (task 3.7), as the overnight command runs it, for `calls` attack calls. */
-export async function runOvernightNow(run: ArenaRun, calls: number): Promise<void> {
+export async function runOvernightNow(run: ArenaRun, calls: number, attackerModel: AttackerModel = parseAttackerModel(undefined)!): Promise<void> {
   try {
     const modelName = process.env.AGENT_SDK_MODEL || SDK_DEV_MODEL;
     const model = liveModel();
@@ -167,12 +178,13 @@ export async function runOvernightNow(run: ArenaRun, calls: number): Promise<voi
       return liveSessionMaker({ model, code, onRecord, beforeTurn: () => waitForRoom({ need: SDK_MAX_TURNS }) })(seed, target);
     };
     const report = await runOvernight({
-      attacker: createSdkAttacker({ model: modelName, beforeCall: () => waitForRoom({ need: 1 + SDK_MAX_TURNS }) }),
+      attacker: overnightAttacker(attackerModel, () => waitForRoom({ need: 1 + SDK_MAX_TURNS })),
       makeSession,
       maxCalls: calls,
       dir: join(resultsDir(), "arena", "overnight"),
       runId: new Date().toISOString().replace(/[:.]/g, "-"),
       model: modelName,
+      attackerModel,
     });
     finish(run, {
       state: "done",
