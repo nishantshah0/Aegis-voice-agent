@@ -101,21 +101,26 @@ function checkS2(call: Call, sentence: string, tokens: Token[], said: string): C
 // or empty. Everything else is a dose, and stays blocked as before.
 
 /**
- * A clause read off the label: its words appear, in order, in the label (after canonical(), so
- * "36 milligram tablets" matches "36 MG TABLET"), and it names the drug or a dose ("1 tablet").
- * "Take", "Tonight" or "take the whole bottle tonight" are not.
+ * A clause read off the label: a contiguous run of the label's words (after canonical(), so
+ * "36 milligram tablets" matches "36 MG TABLET", and with "by mouth" ignored on both sides, so
+ * "1 tablet every morning" reads off "1 tablet by mouth every morning"), naming the drug or a dose.
+ * A clause with a frequency or route word must also carry the label's own dose, so "Concerta every
+ * morning" never stands in for it. "Take", "Tonight" or "take the whole bottle tonight" are not.
  */
+const FREQ_OR_ROUTE = /\b(?:every|morning|night|nightly|daily|day|times|twice|once|bedtime|hours?|weekly|mouth)\b/;
+
 function labelClause(c: string, label: string): boolean {
-  const toks = (t: string) => canonical(words(t)).trim().split(/ +/).filter(Boolean);
-  const want = toks(c);
-  if (want.length === 0) return true;
-  const have = toks(label);
-  let i = 0;
-  for (const t of have) if (t === want[i]) i++;
-  if (i < want.length) return false;
-  const drug = have[0];
-  return want.includes(drug) || /\b\d+ (?:tablet|capsule|pill)\b/.test(want.join(" "));
+  const norm = (t: string) => ` ${canonical(words(t)).replace(/\bby mouth\b/g, " ").replace(/ +/g, " ").trim()} `;
+  const want = norm(c);
+  if (want.trim() === "") return true;
+  const have = norm(label);
+  if (!have.includes(want)) return false;
+  const dose = have.match(/\btake (\d+ (?:tablet|capsule|pill))\b/)?.[1];
+  if (FREQ_OR_ROUTE.test(` ${canonical(words(c))} `) && !(dose && want.includes(` ${dose} `))) return false;
+  const drug = have.trim().split(" ")[0];
+  return want.includes(` ${drug} `) || /\b\d+ (?:tablet|capsule|pill)\b/.test(want);
 }
+
 
 function supplyClause(c: string, n: number, form: string): boolean {
   const qty = `(?:${n}|[a-z]+(?: [a-z]+)?) ${form}s?`;
