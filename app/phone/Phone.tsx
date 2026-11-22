@@ -118,6 +118,27 @@ export function Phone() {
       return callId ? phoneApi.end(callId, state.phoneToken) : { ok: true };
     });
 
+  // Trail #70: during a real phone call the code can't always be texted, so it comes to this
+  // paired page, the "phone on file". Only a paired phone gets an answer; others stop asking.
+  const waiting = state.mode === "idle" || state.mode === "ended";
+  const [fileCode, setFileCode] = useState<string>();
+  useEffect(() => {
+    if (!waiting) return;
+    let live = true;
+    const poll = () =>
+      phoneApi.deviceCode().then((r) => {
+        if (!live) return;
+        if (!r.ok) clearInterval(timer);
+        setFileCode(r.ok ? r.value.code : undefined);
+      });
+    const timer = setInterval(poll, 3000);
+    void poll();
+    return () => {
+      live = false;
+      clearInterval(timer);
+    };
+  }, [waiting]);
+
   function send(e: FormEvent) {
     e.preventDefault();
     const text = draft.trim();
@@ -130,6 +151,7 @@ export function Phone() {
     <div className="theme-dark relative mx-auto flex h-[100dvh] w-full max-w-[24rem] flex-col overflow-hidden bg-canvas text-ink sm:h-[min(50rem,calc(100dvh-5rem))] sm:rounded-[3rem] sm:border sm:border-line-strong sm:shadow-[0_40px_100px_-40px_rgb(0_0_0/0.7),0_0_0_10px_#000]">
       <StatusBar state={state} />
       {state.message && state.mode === "in_call" && <CodeMessage message={state.message} code={state.code} />}
+      {waiting && fileCode && <CodeMessage message="Your verification code. Read it to the pharmacy on your call." code={fileCode} />}
       <div className="flex min-h-0 flex-1 flex-col">
         {state.mode === "ringing" ? (
           <Ringing text={state.ringText} onAnswer={answer} busy={busy} />

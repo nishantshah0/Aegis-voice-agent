@@ -1,5 +1,5 @@
 import { readdir, readFile, stat } from "node:fs/promises";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { INVARIANTS } from "@/scripts/hammer/invariants";
 
 // What the Overnight safety tab shows, read only from files real runs saved under
@@ -11,9 +11,9 @@ export const resultsDir = () => process.env.RESULTS_DIR ?? join(process.cwd(), "
 
 export const COMMANDS = {
   hammer: "npm run hammer",
-  suite: "runFixedScenarioSuite() in lib/arena/suite-files.ts (Role 3, task 3.5)",
-  hijack: "Run the hijack batch on /stage (POST /api/arena/hijack)",
-  overnight: "Role 3's overnight run (task 3.7), not built yet",
+  suite: "Run suite on the Scenarios page (POST /api/arena/run)",
+  hijack: "Run batch on the Attacks page or /stage (POST /api/arena/hijack)",
+  overnight: "Run overnight on this page (POST /api/arena/overnight)",
 } as const;
 
 export type Source<T> =
@@ -172,10 +172,17 @@ export function describeEntry(entry: unknown): string {
   }
 }
 
+/**
+ * A judge's single pick on the stage saves to results/hijack/pick-<time>/, which isn't a batch.
+ * Skipped here exactly as the Safety Overview skips it (readLatestBatch), so both read the same
+ * batch (AUDIT #8).
+ */
+const isBatchDir = (dir: string): boolean => !basename(dir).startsWith("pick-");
+
 async function readHijack(root: string): Promise<Source<HijackView>> {
   const batches = (
     await Promise.all(
-      (await subdirs(root)).map(async (d) => {
+      (await subdirs(root)).filter(isBatchDir).map(async (d) => {
         const files = (await readdir(d).catch(() => [] as string[])).filter((f) => f.endsWith(".json")).map((f) => join(d, f));
         const times = await Promise.all(files.map((f) => stat(f).then((s) => s.mtimeMs, () => 0)));
         return { dir: d, files, mtime: Math.max(0, ...times) };
@@ -187,9 +194,10 @@ async function readHijack(root: string): Promise<Source<HijackView>> {
   const latest = batches[0];
   if (!latest) return { state: "none", where: join(root, "<batch>", "<card>.json"), command: COMMANDS.hijack };
   try {
-    const runs = await Promise.all(
-      latest.files.map(async (path): Promise<HijackCardRun> => {
+    const read = await Promise.all(
+      latest.files.map(async (path): Promise<HijackCardRun | null> => {
         const run = obj(JSON.parse(await readFile(path, "utf8")));
+        if (!run.cardId) return null;
         const score = obj(run.score);
         return {
           cardId: str(run.cardId),
@@ -203,6 +211,7 @@ async function readHijack(root: string): Promise<Source<HijackView>> {
         };
       }),
     );
+    const runs = read.filter((r): r is HijackCardRun => r !== null);
     return {
       state: "ok",
       path: latest.dir,

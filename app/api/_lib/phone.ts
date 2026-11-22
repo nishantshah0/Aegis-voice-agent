@@ -80,6 +80,7 @@ export type JoinableDriver = AgentDriver & {
   joinCall?(callId: CallId, opts: { direction: "outbound"; patientId: string; rxId: string; patientName: string }): void;
   opening?(callId: CallId): AsyncIterable<AgentEvent>;
   checkIn?(callId: CallId): AsyncIterable<AgentEvent>;
+  speakLine?(callId: CallId, line: string): AsyncIterable<AgentEvent>;
 };
 
 /** Hand an answered call to the driver and collect its opening, once per call. */

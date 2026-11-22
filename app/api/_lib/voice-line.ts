@@ -50,8 +50,10 @@ export type VoiceCall = {
   checkIn?: Turn;
   ended: boolean;
   lastSeen: number;
-  /** The last verification code hash we texted, so each code is texted once. */
+  /** The last verification code hash we delivered, so each code is delivered once. */
   textedCode?: string;
+  /** The patient whose paired /phone page holds this call's code (when it couldn't be texted). */
+  codeOnDevice?: string;
   /** Outbound: the guarded opener, said when they pick up. */
   firstMessage?: string;
   /** Twilio route: the TwiML ElevenLabs gave for this call, so a Twilio retry gets the same. */
@@ -161,8 +163,12 @@ export function linkConversation(call: VoiceCall, conversationId: string): void 
 /** Opened through the driver's own fixed opening, outside a request (the outbound route does this). */
 export async function openVoiceCall(call: VoiceCall): Promise<string[]> {
   call.opened = true;
-  const events = await answerCall(getDriver() as JoinableDriver, getStore(), call.callId);
-  await textNewCode(call);
+  const driver = getDriver() as JoinableDriver;
+  const events = await answerCall(driver, getStore(), call.callId);
+  // The opener says "I'll send a code to this phone"; when it went to the paired page instead, say so.
+  if ((await deliverCode(call)) === "device" && call.direction === "outbound" && driver.speakLine) {
+    for await (const event of driver.speakLine(call.callId, CODE_ON_FILE)) events.push(forCaller(event));
+  }
   return events.map(forCaller).flatMap((e) => (e.type === "line" ? [e.text] : []));
 }
 
@@ -300,7 +306,7 @@ async function play(call: VoiceCall, turn: Turn, fresh: string[], previous?: Tur
       if (event.type === "ended") turn.ended = true;
     }
     if ((await getStore().getCall(call.callId))?.state === "ended") turn.ended = true;
-    await textNewCode(call);
+    await deliverCode(call);
   } catch (error) {
     console.warn(`voice: turn on ${call.callId} failed (${error instanceof Error ? error.message : "unknown error"})`);
   } finally {
@@ -395,23 +401,42 @@ export function completionStream(turn: Turn, chat: ChatRequest, callId: CallId):
   });
 }
 
-// ---------- The verification code, by text message ----------
+// ---------- The verification code: a text, or the paired /phone page ----------
+
+/** Said on an outbound call when the code went to the paired device, not to this phone. Through guardSentence like every line. */
+export const CODE_ON_FILE = "I've sent a code to the phone we have on file.";
 
 type CodeInternal = { codeSent?: boolean; codeHash?: string; patientId?: string };
 
 /**
- * The control layer sends a code "to the phone on file". On the real phone line that's a text to
- * TEST_PATIENT_PHONE, and only for Sam, the one seed patient that number stands in for. Every
- * other patient is made up and has no real phone. The number and the code are never logged.
+ * The control layer sends a code "to the phone on file". On the real phone line that's first a
+ * text to TEST_PATIENT_PHONE, for Sam only (the one seed patient that number stands in for). When
+ * that can't happen (a Twilio trial's shared number can't text, or another patient), the code is
+ * held for that patient's paired /phone page, which reads it with GET /api/phone/code. Either way
+ * the code itself comes from control.codeFor, so its expiry and attempt limits are the lock's.
+ * Never logged, never said on the call. Returns where this call's newest code went.
  */
-async function textNewCode(call: VoiceCall): Promise<void> {
-  if (!smsConfigured()) return;
+async function deliverCode(call: VoiceCall): Promise<"sms" | "device" | undefined> {
   const entry = (await getStore().listRecord(call.callId)).filter((e) => (e.output as { internal?: CodeInternal } | undefined)?.internal?.codeSent).at(-1);
   const internal = (entry?.output as { internal?: CodeInternal } | undefined)?.internal;
-  if (!internal?.codeHash || internal.patientId !== IDS.sam || internal.codeHash === call.textedCode) return;
+  if (!internal?.codeHash || !internal.patientId || internal.codeHash === call.textedCode) return undefined;
   const code = await getControl().codeFor(call.callId);
-  if (!code) return;
+  if (!code) return undefined;
   call.textedCode = internal.codeHash;
-  const sent = await sendSms(`Your pharmacy verification code is ${code}.`);
-  if (!sent) console.warn(`voice: couldn't text the code for ${call.callId}`);
+  if (internal.patientId === IDS.sam && smsConfigured() && (await sendSms(`Your pharmacy verification code is ${code}.`))) {
+    call.codeOnDevice = undefined;
+    return "sms";
+  }
+  call.codeOnDevice = internal.patientId;
+  return "device";
+}
+
+/** The code waiting for this patient's paired /phone page: the newest open phone-line call that sent one there. */
+export async function codeForDevice(patientId: string): Promise<string | undefined> {
+  const calls = openVoiceCalls().filter((c) => c.codeOnDevice === patientId);
+  for (const call of calls.reverse()) {
+    const code = await getControl().codeFor(call.callId);
+    if (code) return code;
+  }
+  return undefined;
 }
