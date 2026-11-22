@@ -125,7 +125,7 @@ phone ──▶ Twilio number ──▶ ElevenLabs Agents (speech in/out) ──
 ### Calls
 
 - **Inbound:** call the Twilio number from a verified phone. You hear the greeting, then talk to the pharmacy agent: ask for a refill, or try to trick it.
-- **Outbound:** on **Pharmacy → Today**, press **Call Sam on a real phone**. Rule 7 decides first (opt-in, calling hours, frequency), like **Call now**. `TEST_PATIENT_PHONE` rings; when it's answered, the agent says the outbound opener and a code goes to the phone on file, which is a **text message to `TEST_PATIENT_PHONE`** through Twilio. Read the code back with Sam's date of birth (1990-03-14) to verify.
+- **Outbound:** open the **Demo** menu in the app's top bar and press **Call Sam on a real phone** (or `curl -X POST http://localhost:3000/api/voice/outbound` with `DEMO_CONTROLS=on`). Rule 7 decides first (opt-in, calling hours, frequency), like **Call now**. `TEST_PATIENT_PHONE` rings; when it's answered, the agent says the outbound opener and a code goes to the phone on file, which is a **text message to `TEST_PATIENT_PHONE`** through Twilio. Read the code back with Sam's date of birth (1990-03-14) to verify.
 - Each conversation becomes one call. Outbound calls carry our call id (`custom_llm_extra_body.aegis_call_id`); inbound ones are known by the `[aegis-conversation:{{system__conversation_id}}]` tag in the agent's prompt.
 
 ### Check it without a phone
