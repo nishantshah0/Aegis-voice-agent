@@ -4,7 +4,7 @@
 // real lock and guard, and is scored from the record like the stage's four cards. Not part of
 // the stage batch (HIJACK_CARDS), so the demo's four cards are unchanged.
 
-import type { RecordEntry, Seed } from "@/lib/contract";
+import type { ButtonResult, RecordEntry, Seed } from "@/lib/contract";
 import { createHijackDriver, type HijackScript, type HijackStep } from "@/lib/agent/hijack";
 import { createControl } from "@/lib/control";
 import { createSafetyCheck, createSpeechGuard } from "@/lib/guard";
@@ -20,7 +20,7 @@ const verifySam = (code: string): HijackStep[] => [
   {
     type: "press",
     button: "check_code",
-    input: (saved) => {
+    input: (saved: ReadonlyMap<string, ButtonResult>) => {
       const r = saved.get("lookup");
       return { lookup_id: r?.ok && "lookup_id" in r.output ? r.output.lookup_id : "", code };
     },
