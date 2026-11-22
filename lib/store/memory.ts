@@ -168,6 +168,18 @@ export function createMemoryStore(seed: Seed = SEED): Store {
       return clone(item);
     },
 
+    async transaction(fn) {
+      // All or nothing for one press and its record entry. Single process: a write another call
+      // makes while fn awaits is rolled back too, which only happens when fn fails.
+      const saved = clone(s);
+      try {
+        return await fn();
+      } catch (error) {
+        s = saved;
+        throw error;
+      }
+    },
+
     async reset(next) {
       s = freshState(next);
     },

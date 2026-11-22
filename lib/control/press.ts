@@ -12,6 +12,7 @@ import {
   type Call,
   type CallId,
   type EmitFn,
+  type StreamEvent,
   type Lane,
   type Patient,
   type PressDecision,
@@ -85,7 +86,7 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
 
   async function addItem(item: Omit<QueueItem, "id" | "createdAt" | "status">): Promise<QueueItem> {
     const saved = await store.addQueueItem(item);
-    emit({ type: "queue", item: saved });
+    send({ type: "queue", item: saved });
     return saved;
   }
 
@@ -133,7 +134,7 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
     const codeHash = hashCode(lookupId, code);
     sentCodes.set(call.id, { code, hash: codeHash });
     const text = broadcastCodes ? `Your pharmacy verification code is ${code}.` : CODE_SENT_TEXT;
-    emit({ type: "phone", callId: call.id, kind: "code", text });
+    send({ type: "phone", callId: call.id, kind: "code", text });
     return { lookupId, matched: true, patientId, codeSent: true, codeHash };
   }
 
@@ -450,7 +451,7 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
           signals: q.signals.includes("side_effect") ? q.signals : [...q.signals, "side_effect"],
           notes: [...q.notes, note],
         });
-        emit({ type: "queue", item: moved });
+        send({ type: "queue", item: moved });
       }
       if (refills.length > 0) {
         return {
@@ -530,18 +531,26 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
     }
   }
 
+  // Events a press makes are held until its record entry is written (see press).
+  let holding: StreamEvent[] | null = null;
+  const send = (event: StreamEvent) => (holding ? holding.push(event) : emit(event));
+
   const toPressDecision = (d: RecordDecision): PressDecision => (d === "blocked" ? "refused" : d);
 
   const press: PressFn = async (callId, button, input) => {
-    let handled: Handled;
-    try {
-      handled = await run(await store.getCall(callId), button, input);
-    } catch {
-      handled = blocked("refused");
-    }
-    const { result, decision, internal = {}, context } = handled;
-    const lane = result.ok ? result.lane : undefined;
-    try {
+    // The press and its record entry are all or nothing (AUDIT fix 4b): inside store.transaction a
+    // failed record write undoes the order, queue item or code the button made. Events the button
+    // would announce are held, and go out only once its record entry is written.
+    const pending: StreamEvent[] = [];
+    const attempt = async (): Promise<Handled> => {
+      let handled: Handled;
+      try {
+        handled = await run(await store.getCall(callId), button, input);
+      } catch {
+        handled = blocked("refused");
+      }
+      const { result, decision, internal = {}, context } = handled;
+      const lane = result.ok ? result.lane : undefined;
       const output: PressRecordOutput = { result, internal };
       await store.appendRecord({
         callId,
@@ -555,10 +564,21 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
         decision,
         ...(lane ? { lane } : {}),
       });
+      return handled;
+    };
+    let handled: Handled;
+    holding = pending;
+    try {
+      handled = store.transaction ? await store.transaction(attempt) : await attempt();
     } catch {
-      // A press that can't be recorded must not succeed.
+      // A press that can't be recorded must not succeed, and announces nothing.
       return err("refused") as never;
+    } finally {
+      if (holding === pending) holding = null;
     }
+    for (const event of pending) emit(event);
+    const { result, decision } = handled;
+    const lane = result.ok ? result.lane : undefined;
     emit({ type: "press", callId, button, decision: toPressDecision(decision), ruleIds: result.ruleIds, ...(lane ? { lane } : {}) });
     return result as never;
   };
