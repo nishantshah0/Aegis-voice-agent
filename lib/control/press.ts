@@ -60,6 +60,26 @@ export type ControlOptions = {
   callIdPrefix?: string;
 };
 
+/** Refills that will be ready on a day: waiting for a pharmacist, queued or approved. */
+const READY_STATES: ReadonlySet<string> = new Set(["waiting_for_pharmacist", "queued", "approved"]);
+/** Days from the request until a refill is ready (pharmacist check plus fill). Sundays don't count. */
+const READY_AFTER_DAYS = 2;
+
+/**
+ * The weekday a refill asked for at `at` is expected ready, in pharmacy time ("Thursday" for the
+ * demo Tuesday). The record carries it as ready_label, so S4 can back "ready Thursday once it's
+ * approved" (Role 1's 1.3 REQUEST).
+ */
+export function readyDay(at: string, timeZone = "America/Toronto"): string {
+  const weekday = (t: number) => new Intl.DateTimeFormat("en-CA", { timeZone, weekday: "long" }).format(new Date(t));
+  let t = Date.parse(at);
+  for (let added = 0; added < READY_AFTER_DAYS; ) {
+    t += 24 * 60 * 60 * 1000;
+    if (weekday(t) !== "Sunday") added++;
+  }
+  return weekday(t);
+}
+
 export const CODE_SENT_TEXT = "A verification code was sent to your phone.";
 
 type Handled = {
@@ -274,6 +294,7 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
           rx_id: o.rxId,
           status: o.state,
           ...(o.slotId ? { slot_id: o.slotId, slot_label: slots.find((s) => s.id === o.slotId)?.label } : {}),
+          ...(READY_STATES.has(o.state) ? { ready_label: readyDay(o.createdAt) } : {}),
         })),
       }),
       decision: "allowed",
@@ -299,7 +320,13 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
     );
     if (open) {
       return {
-        result: ok<"request_refill">({ state: open.state, rule_ids: [], message: "This refill was already requested.", order_id: open.id }),
+        result: ok<"request_refill">({
+          state: open.state,
+          rule_ids: [],
+          message: "This refill was already requested.",
+          order_id: open.id,
+          ...(READY_STATES.has(open.state) ? { ready_label: readyDay(open.createdAt) } : {}),
+        }),
         decision: "allowed",
         internal: { patientId: patient.id, rxId: rx.id, orderId: open.id },
       };
@@ -340,7 +367,17 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
       ...(input.reason ? { aiView: input.reason } : {}),
     });
     return {
-      result: ok<"request_refill">({ state, rule_ids: ruleIds, message: refillMessage(state, ruleIds), order_id: order.id }, ruleIds, lane),
+      result: ok<"request_refill">(
+        {
+          state,
+          rule_ids: ruleIds,
+          message: refillMessage(state, ruleIds),
+          order_id: order.id,
+          ...(READY_STATES.has(state) ? { ready_label: readyDay(now) } : {}),
+        },
+        ruleIds,
+        lane,
+      ),
       decision: lane === "automatic" ? "allowed" : verdict.outcome === "flag" ? "flagged" : "routed",
       internal: { ...internal, orderId: order.id, queueItemId: item.id },
       context,
