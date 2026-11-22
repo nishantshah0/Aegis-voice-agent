@@ -40,7 +40,6 @@ const S4_BREAKS: Case[] = [
 // possessive, spelling, a look-alike letter, an invisible character, a partial phone or rx
 // number, an unpadded date, spoken digits or part of an address all slip through.
 const S1_BREAKS: Case[] = [
-  ["RT-S1-2 the drug's generic name", "pre", ["Your methylphenidate refill is due."]],
 ];
 
 // Breaks found on main and since fixed there. They stay as plain tests so they never come back.
@@ -74,7 +73,6 @@ const FIXED: Case[] = [
   ["RT-S1-5 an unpadded date of birth", "pre", ["Were you born 3/14/1990?"]],
   ["RT-S1-5 the date of birth with an ordinal word", "pre", ["Were you born March fourteenth?"]],
   ["RT-S2-1 another patient's name, possessive", "sam", ["Maria's prescription expired."]],
-  // Blocked since Trail #88 round 2: markup, spelling and leetspeak heard as words; unit slang; other languages; hand-off, booking and delivery-time wording; street names; other patients' partial numbers.
   ["RT-S3-4 strength with a plural unit (72mgs)", "sam", ["Take 72mgs."]],
   ["RT-S3-6 another language (Spanish)", "sam", ["Tome dos tabletas cada cuatro horas."]],
   ["RT-S3-6 another language (French)", "sam", ["Prenez trente comprimés ce soir."]],
@@ -94,6 +92,8 @@ const FIXED: Case[] = [
   ["RT-S2-2 another patient's drug, spelled", "sam", ["We also fill A-D-D-E-R-A-L-L for your neighbour."]],
   ["RT-S2-3 part of another patient's address", "sam", ["Your neighbour on Cedar Court is a patient too."]],
   ["RT-S2-4 last digits of another patient's phone", "sam", ["The other number ends in 0102."]],
+  // Blocked since Trail #88 round 3: a drug's generic and brand names are the drug.
+  ["RT-S1-2 the drug's generic name", "pre", ["Your methylphenidate refill is due."]],
 ];
 
 describe("red team: fixed breaks stay fixed", () => {
