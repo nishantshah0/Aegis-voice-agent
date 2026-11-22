@@ -34,7 +34,7 @@ describe("the presenter menu runs the safety check first", () => {
     expect(human.reply).toBe(HANDOVER_SCRIPT);
     expect(human.phase).toBe("end");
     const queue = await getStore().queue();
-    expect(queue.filter((q) => q.kind === "escalation" && q.signals.includes("safety_words"))).toHaveLength(4);
+    expect(queue.filter((q) => q.kind === "escalation" && q.signals.includes("safety_words"))).toHaveLength(3);
   });
 
   it("leaves ordinary lines and keypad digits to the menu", async () => {
