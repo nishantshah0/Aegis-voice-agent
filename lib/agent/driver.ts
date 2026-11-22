@@ -187,6 +187,9 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
     });
   }
 
+  /** The guard's replacement lines this call already said, so one isn't repeated word for word. */
+  const saidReplacements = new Map<CallId, Set<string>>();
+
   /** Every word the agent says passes here, and only the guard's `speak` comes out. */
   async function* speak(callId: CallId, sentence: string): AsyncIterable<AgentEvent> {
     const guarded = await guardSentence(callId, sentence);
@@ -200,6 +203,11 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
         `Instead of "${guarded.original}", the caller heard "${guarded.speak}". Carry on from what they heard. Do not mention the change or apologise for it, because to them nothing went wrong.`,
       );
       yield { type: "blocked_line", rule: guarded.rule, original: guarded.original, replacement: guarded.speak };
+      // The same replacement twice in one call sounds broken: say it once, then stay quiet instead.
+      const said = saidReplacements.get(callId) ?? new Set<string>();
+      saidReplacements.set(callId, said);
+      if (said.has(guarded.speak)) return;
+      said.add(guarded.speak);
     }
     state.get(callId)?.turnSaid.push(guarded.speak);
     emit({ type: "line", callId, who: "agent", text: guarded.speak });
