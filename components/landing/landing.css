@@ -25,8 +25,7 @@
   position: relative;
   z-index: 5;
   margin-block-end: calc(-1 * var(--header-height));
-  border-bottom: 1px solid var(--rg-line);
-  background: var(--rg-canvas);
+  background: var(--rg-surface);
   color: var(--rg-ink-2);
 }
 
@@ -40,7 +39,6 @@
   --rg-accent: white;
   --rg-ink-inverse: #172319;
 
-  border-color: transparent;
   background: transparent;
   color: white;
 }
@@ -54,7 +52,7 @@
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
   gap: clamp(0.5rem, 2vw, 2rem);
-  min-height: calc(var(--header-height) - 1px);
+  min-height: var(--header-height);
   padding-inline: clamp(1rem, 3vw, 2.5rem);
 }
 
