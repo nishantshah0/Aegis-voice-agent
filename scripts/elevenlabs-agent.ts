@@ -73,7 +73,7 @@ type Env = Record<string, string | undefined>;
 
 /** Their error messages can quote a phone number; this session is recorded, so hide anything number-like. */
 export function redact(text: string): string {
-  return text.replace(/\+?\d[\d\s().-]{6,}\d/g, "<number>");
+  return text.replace(/\+?\(?\d[\d\s().-]{6,}\d/g, "<number>");
 }
 
 async function api(env: Env, method: string, path: string, body?: unknown): Promise<Record<string, unknown>> {
