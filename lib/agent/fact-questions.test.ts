@@ -32,9 +32,43 @@ describe("verified fact questions", () => {
     for (const text of ["Refill my Metformin and tell me the copay.", "What's my copay and can I book an appointment?", "What is the price and when can I take it?", "How much is it and sing me a song?"]) {
       expect(factQuestion(state, text), text).toBeUndefined();
     }
-    for (const text of ["What is my bill balance?", "How much did I pay last time?", "What's my wife's copay?", "What does a 2.5-day supply cost?", "How much for minus seven days?", "Price for influenza medication?"]) {
+    // "How much did I pay" is a copay question now (1.x, Trail #75): see below. A bill, a balance or a payment history still isn't.
+    for (const text of ["What is my bill balance?", "What's my payment history?", "What was I charged last month?", "What's my wife's copay?", "What does a 2.5-day supply cost?", "How much for minus seven days?", "Price for influenza medication?"]) {
       const reply = factQuestion(state, text);
       expect(reply?.rxId, text).toBeUndefined();
+    }
+  });
+
+  it("1.x: 'how much did I pay', 'what was my copay', 'what does it cost me' get the coverage read-back", () => {
+    // Nishant: these are copay questions, answered with check_coverage's coverage_readback,
+    // which states the plan's split, never a past charge.
+    for (const text of ["How much did I pay?", "How much did I pay last time?", "What was my copay?", "What does it cost me?", "How much do I pay for it?"]) {
+      const state = newFactContext();
+      state.prescriptions = [prescriptions[1]];
+      expect(factQuestion(state, text), text).toMatchObject({ coverage: true, rxId: "rx_b" });
+    }
+  });
+
+  it("1.x: a self-corrected supply length uses the last value said after the correction", () => {
+    const cases: [string, number][] = [
+      ["How much for two weeks, sorry, one week?", 7],
+      ["What's the price for a month, no, two weeks?", 14],
+      ["How much for 10 days, I mean 14 days?", 14],
+      ["What would one week cost, actually two weeks?", 14],
+      ["Price for two weeks, wait, one week?", 7],
+    ];
+    for (const [text, days] of cases) {
+      const state = newFactContext();
+      state.prescriptions = [prescriptions[1]];
+      expect(factQuestion(state, text), text).toMatchObject({ coverage: true, rxId: "rx_b", days });
+    }
+  });
+
+  it("1.x: still asks how many days when two lengths come with no correction", () => {
+    for (const text of ["How much for one week or two weeks?", "What's the price for 7 days and 14 days?"]) {
+      const state = newFactContext();
+      state.prescriptions = [prescriptions[1]];
+      expect(factQuestion(state, text), text).toMatchObject({ line: "How many whole days of medication should I check the price for?" });
     }
   });
 });
