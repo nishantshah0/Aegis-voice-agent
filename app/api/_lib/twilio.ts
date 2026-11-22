@@ -49,7 +49,12 @@ export async function signedTwilioFields(request: Request, env: NodeJS.ProcessEn
   return expected.length === actual.length && timingSafeEqual(expected, actual) ? fields : null;
 }
 
-export type TwilioCall = { ok: true; sid?: string } | { ok: false; status: number; code?: number };
+export type TwilioCall = { ok: true; sid?: string } | { ok: false; status: number; code?: number; message?: string };
+
+/** Twilio's messages quote phone numbers; hide anything number-like before it leaves the server. */
+export function withoutNumbers(text: string): string {
+  return text.replace(/\+?\(?\d[\d\s().-]{6,}\d/g, "<number>");
+}
 
 /** Ring TEST_PATIENT_PHONE from TWILIO_PHONE_NUMBER; Twilio then fetches `url` for what to do. */
 export async function placeTwilioCall(url: string, statusCallback: string, env: NodeJS.ProcessEnv = process.env): Promise<TwilioCall> {
@@ -59,18 +64,16 @@ export async function placeTwilioCall(url: string, statusCallback: string, env: 
     const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(sid)}/Calls.json`, {
       method: "POST",
       headers: { Authorization: `Basic ${auth}`, "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        To: env.TEST_PATIENT_PHONE!,
-        From: env.TWILIO_PHONE_NUMBER!,
-        Url: url,
-        Method: "POST",
-        StatusCallback: statusCallback,
-        StatusCallbackMethod: "POST",
-        StatusCallbackEvent: "completed",
-      }),
+      // Only these four: a One Console trial refuses Method, StatusCallbackMethod,
+      // StatusCallbackEvent and Twiml ("limited parameter access", code 0). Twilio's defaults are
+      // what we want anyway: it POSTs to both URLs, and calls back once the call has completed.
+      body: new URLSearchParams({ To: env.TEST_PATIENT_PHONE!, From: env.TWILIO_PHONE_NUMBER!, Url: url, StatusCallback: statusCallback }),
     });
-    const body = (await res.json().catch(() => ({}))) as { sid?: unknown; code?: unknown };
-    if (!res.ok) return { ok: false, status: res.status, code: typeof body.code === "number" ? body.code : undefined };
+    const body = (await res.json().catch(() => ({}))) as { sid?: unknown; code?: unknown; message?: unknown };
+    if (!res.ok) {
+      const message = typeof body.message === "string" ? withoutNumbers(body.message).slice(0, 300) : undefined;
+      return { ok: false, status: res.status, code: typeof body.code === "number" ? body.code : undefined, message };
+    }
     return { ok: true, sid: typeof body.sid === "string" ? body.sid : undefined };
   } catch {
     return { ok: false, status: 502 };
