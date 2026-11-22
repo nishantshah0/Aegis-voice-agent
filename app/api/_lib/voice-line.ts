@@ -329,7 +329,7 @@ export async function untilDone(turn: Turn): Promise<void> {
 const END_CALL_REASON = "The pharmacy's assistant ended the call.";
 
 function endCallTool(callId: CallId) {
-  return { index: 0, id: `call_end_${callId}`, type: "function", function: { name: "end_call", arguments: JSON.stringify({ reason: END_CALL_REASON }) } };
+  return { id: `call_end_${callId}`, type: "function", function: { name: "end_call", arguments: JSON.stringify({ reason: END_CALL_REASON }) } };
 }
 
 /** Non-streaming: one chat.completion with every guarded line of the turn. */
@@ -337,7 +337,6 @@ export async function completion(turn: Turn, chat: ChatRequest, callId: CallId) 
   await untilDone(turn);
   turn.delivered = true;
   const hangUp = turn.ended && chat.canEndCall;
-  const { index: _index, ...tool } = endCallTool(callId);
   return {
     id: `chatcmpl_${callId}`,
     object: "chat.completion",
@@ -346,7 +345,7 @@ export async function completion(turn: Turn, chat: ChatRequest, callId: CallId) 
     choices: [
       {
         index: 0,
-        message: { role: "assistant", content: turn.lines.join(" "), ...(hangUp ? { tool_calls: [tool] } : {}) },
+        message: { role: "assistant", content: turn.lines.join(" "), ...(hangUp ? { tool_calls: [endCallTool(callId)] } : {}) },
         finish_reason: hangUp ? "tool_calls" : "stop",
       },
     ],
@@ -379,7 +378,7 @@ export function completionStream(turn: Turn, chat: ChatRequest, callId: CallId):
       if (cancelled) return;
       turn.delivered = true;
       const hangUp = turn.ended && chat.canEndCall;
-      if (hangUp) controller.enqueue(chunk({ tool_calls: [endCallTool(callId)] }));
+      if (hangUp) controller.enqueue(chunk({ tool_calls: [{ index: 0, ...endCallTool(callId) }] }));
       controller.enqueue(chunk({}, hangUp ? "tool_calls" : "stop"));
       controller.enqueue(encoder.encode("data: [DONE]\n\n"));
       controller.close();

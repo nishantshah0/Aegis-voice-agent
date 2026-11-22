@@ -13,6 +13,11 @@ export async function POST(request: Request) {
   if (!body) return fail(400, "Body must be a JSON object");
   const chat = parseChatRequest(body);
   if ("error" in chat) return fail(400, chat.error);
+  if (process.env.VOICE_LLM_DEBUG === "1") {
+    // Shapes only, never what anyone said: the path, the body's keys and the message roles.
+    const roles = (body.messages as { role?: unknown }[]).map((m) => String(m?.role)).join(",");
+    console.log(`voice: ${new URL(request.url).pathname} keys=${Object.keys(body).join(",")} roles=${roles} aegis_call_id=${chat.callId ?? "-"} conversation=${chat.conversationId ?? "-"} stream=${chat.stream} end_call=${chat.canEndCall}`);
+  }
   const call = await findVoiceCall(chat);
   if (call instanceof Response) return call;
   const turn = takeTurn(call, chat.callerTexts);
