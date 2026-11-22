@@ -39,6 +39,10 @@ export const IDS = {
   p7Order: "o_lena_sertraline",
   p8: "p_robin",
   p8Rosuvastatin: "rx_robin_rosuvastatin",
+  p9: "p_priya",
+  p9Vyvanse: "rx_priya_vyvanse",
+  p9Clonazepam: "rx_priya_clonazepam",
+  p9Metoprolol: "rx_priya_metoprolol",
 } as const;
 
 type PatientInput = Omit<Patient, "addresses" | "optedInToCalls" | "flags" | "householdPatientIds"> &
@@ -144,6 +148,17 @@ const patients: Patient[] = [
     phone: "555-0105",
     addresses: [{ id: "addr_tanaka_home", label: "Home", line1: "22 Oak Crescent", city: "London", postal: "N6E 0E5" }],
     householdPatientIds: [IDS.p5],
+  }),
+  // P9: two controlled drugs on schedule, for the scripted demo week's Quick check calls
+  // (app/api/_lib/demo-history.ts). Not opted in, so the daily check never rings her.
+  patient({
+    id: IDS.p9,
+    firstName: "Priya",
+    lastName: "Shah",
+    dob: "1988-04-11",
+    phone: "555-0109",
+    optedInToCalls: false,
+    addresses: [{ id: "addr_priya_home", label: "Home", line1: "64 Spruce Drive", city: "London", postal: "N6J 0J9" }],
   }),
 ];
 
@@ -290,6 +305,54 @@ const prescriptions: Prescription[] = [
     labelText: "ROSUVASTATIN 10 MG TABLET. Take 1 tablet by mouth once a day. Qty 30.",
     planPays: "$16.10",
     patientPays: "$2.50",
+  }),
+  rx({
+    id: IDS.p9Vyvanse,
+    patientId: IDS.p9,
+    rxNumber: "RX-101001",
+    drug: "Vyvanse",
+    drugClass: "stimulant",
+    strength: "30 mg",
+    controlled: true,
+    daysSupplied: 30,
+    // 29 days ago: passes rules 3 and 4b from two days before the demo clock.
+    lastFill: daysBefore(29),
+    refillsLeft: 2,
+    expiry: daysAfter(150),
+    labelText: "VYVANSE 30 MG CAPSULE. Take 1 capsule by mouth every morning. Qty 30.",
+    planPays: "$88.40",
+    patientPays: "$9.80",
+  }),
+  rx({
+    id: IDS.p9Clonazepam,
+    patientId: IDS.p9,
+    rxNumber: "RX-101002",
+    drug: "Clonazepam",
+    drugClass: "benzodiazepine",
+    strength: "0.5 mg",
+    controlled: true,
+    daysSupplied: 30,
+    lastFill: daysBefore(29),
+    refillsLeft: 1,
+    expiry: daysAfter(120),
+    labelText: "CLONAZEPAM 0.5 MG TABLET. Take 1 tablet by mouth at bedtime. Qty 30.",
+    planPays: "$12.30",
+    patientPays: "$2.00",
+  }),
+  rx({
+    id: IDS.p9Metoprolol,
+    patientId: IDS.p9,
+    rxNumber: "RX-101003",
+    drug: "Metoprolol",
+    drugClass: "beta blocker",
+    strength: "25 mg",
+    daysSupplied: 30,
+    lastFill: daysBefore(28),
+    refillsLeft: 4,
+    expiry: daysAfter(200),
+    labelText: "METOPROLOL 25 MG TABLET. Take 1 tablet by mouth twice a day. Qty 60.",
+    planPays: "$9.60",
+    patientPays: "$2.00",
   }),
 ];
 

@@ -158,6 +158,10 @@ export function startAgentSdkSession(opts: { system: string; tools: ButtonTool[]
         }
       }
     },
+    warm() {
+      // Starts the CLI process and its MCP server now; no message is sent, so no model call.
+      started.then((q) => (q as { initializationResult?: () => Promise<unknown> }).initializationResult?.()).catch(() => {});
+    },
     close() {
       input.end();
       started.then((q) => q.interrupt()).catch(() => {});

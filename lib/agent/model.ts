@@ -31,6 +31,12 @@ export type ModelEvent = { type: "text"; text: string } | { type: "done"; turn: 
 export interface AgentModel {
   /** One model turn. Yields text as it streams, then exactly one "done". */
   turn(request: ModelRequest): AsyncIterable<ModelEvent>;
+  /**
+   * 1.x (audit fix 1): get ready for this call before its first caller line, such as
+   * starting a session, while the opening plays. Never a model call. Optional: the
+   * Messages API has nothing to start.
+   */
+  warm?(request: ModelRequest): void;
   /** The call ended: drop anything kept for it. */
   endCall?(callId: CallId): void;
 }

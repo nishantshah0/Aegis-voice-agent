@@ -193,6 +193,12 @@ export interface Store {
   listOrders(patientId?: PatientId): Promise<Order[]>;
   saveOrder(order: Order): Promise<Order>;
   listCards(): Promise<RuleCard[]>;
+  /**
+   * Add one rule card after the others. Only lib/control's applyApprovedCard calls this, after
+   * a signed-in pharmacist approves a checked draft (AUDIT #9). Throws if the id is taken.
+   * Reset drops it with the rest of the store.
+   */
+  addCard(card: RuleCard): Promise<RuleCard>;
   policy(): Promise<Seed["policy"]>;
 
   getCall(id: CallId): Promise<Call | undefined>;

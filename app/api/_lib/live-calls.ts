@@ -3,7 +3,8 @@ import { mkdir, readdir, readFile, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { RecordEntry, Seed } from "@/lib/contract";
 import { CALLS_PER_HOUR, createAgentSdkModel, SDK_DEV_MODEL, SDK_MAX_TURNS } from "@/lib/agent";
-import { createSdkAttacker } from "@/lib/arena/attacker";
+import { createGeminiAttacker, createSdkAttacker } from "@/lib/arena/attacker";
+import { attackerFamily, DEFAULT_ATTACKER_MODEL, type AttackerFamily, type AttackerModel } from "@/lib/arena/attacker-models";
 import { liveSessionMaker } from "@/lib/arena/live-session";
 import type { Tactic } from "@/lib/arena/overnight";
 import { hourlyUse, readUsageLog, waitForRoom } from "@/lib/arena/pace";
@@ -82,11 +83,14 @@ export type LiveCall = {
   verdict?: LiveVerdict;
   message?: string;
   model?: string;
+  /** Which model family played the attacking caller (3.7g), and its model id. */
+  attacker?: AttackerFamily;
+  attackerModel?: AttackerModel;
   /** Only in the saved file. */
   record?: RecordEntry[];
 };
 
-export type LiveSummary = Pick<LiveCall, "id" | "title" | "source" | "state" | "startedAt" | "endedAt" | "message"> & { turns: number; caught: number; broken: number; recordVerified: boolean | null };
+export type LiveSummary = Pick<LiveCall, "id" | "title" | "source" | "state" | "startedAt" | "endedAt" | "message" | "attacker" | "attackerModel"> & { turns: number; caught: number; broken: number; recordVerified: boolean | null };
 
 type Holder = { current: LiveCall | null; calls: Map<string, LiveCall> };
 const g = globalThis as typeof globalThis & { __aegisLiveCalls?: Holder };
@@ -294,7 +298,7 @@ function fill(text: string, tokens: Record<string, string>): string {
 
 const newId = () => `${new Date().toISOString().slice(0, 19).replace(/[-:T]/g, "")}-${randomBytes(3).toString("hex")}`;
 
-export function claimLiveCall(attack: LiveAttack, source: LiveSource): LiveCall {
+export function claimLiveCall(attack: LiveAttack, source: LiveSource, attackerModel: AttackerModel = DEFAULT_ATTACKER_MODEL): LiveCall {
   const tokens = scenarioTokens({ seed: attack.seed } as Scenario, SEED, "000000");
   const patient = SEED.patients.find((p) => `${p.firstName} ${p.lastName}` === tokens["patient.name"]);
   const call: LiveCall = {
@@ -306,6 +310,8 @@ export function claimLiveCall(attack: LiveAttack, source: LiveSource): LiveCall 
     startedAt: new Date().toISOString(),
     phone: { pharmacy: PHARMACY_NAME, other: attack.direction === "outbound" ? (patient?.phone ?? ATTACKER_NUMBER) : ATTACKER_NUMBER, direction: attack.direction, simulated: true },
     turns: [],
+    attacker: attackerFamily(attackerModel),
+    attackerModel,
   };
   const h = holder();
   h.current = call;
@@ -350,7 +356,11 @@ export async function runLiveCall(call: LiveCall): Promise<void> {
     const modelName = process.env.AGENT_SDK_MODEL || SDK_DEV_MODEL;
     call.model = modelName;
     const model = createAgentSdkModel({ model: modelName });
-    const attacker = createSdkAttacker({ model: modelName, beforeCall: () => pace(1) });
+    // The caller is Claude (on this plan, under the cap) or Gemini (own key and pacer). Either
+    // way it only writes caller text; the agent below hears it through the same lock.
+    const attackerModel = call.attackerModel ?? DEFAULT_ATTACKER_MODEL;
+    const attacker =
+      attackerFamily(attackerModel) === "gemini" ? createGeminiAttacker({ model: attackerModel }) : createSdkAttacker({ model: attackerModel, beforeCall: () => pace(1) });
     const session = await liveSessionMaker({
       model,
       code,
@@ -425,6 +435,9 @@ export function summarize(call: LiveCall): LiveSummary {
     source,
     state,
     startedAt,
+    // Calls saved before the attacker could be chosen were all Claude.
+    attacker: call.attacker ?? "claude",
+    ...(call.attackerModel ? { attackerModel: call.attackerModel } : {}),
     ...(endedAt ? { endedAt } : {}),
     ...(message ? { message } : {}),
     turns: call.turns.filter((t) => t.kind === "caller_line" || t.kind === "safety").length,

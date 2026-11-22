@@ -360,7 +360,7 @@ export async function readLatestBatch(dir: string = resultsDir()): Promise<Batch
         const path = join(root, e.name);
         const files = (await readdir(path).catch(() => [] as string[])).filter((f) => f.endsWith(".json")).map((f) => join(path, f));
         const times = await Promise.all(files.map((f) => stat(f).then((s) => s.mtimeMs, () => 0)));
-        return { path, files, mtime: Math.max(0, ...times) };
+        return { path, files, mtime: batchTime(e.name, Math.max(0, ...times)) };
       }),
     )
   )
@@ -396,4 +396,16 @@ export async function readLatestBatch(dir: string = resultsDir()): Promise<Batch
     broken: runs.reduce((n, r) => n + r.broken, 0),
     runs,
   };
+}
+
+/**
+ * When a saved run happened: the time in its folder name (2026-11-22T00-08-58-709Z, as the
+ * runners name them), else its files' modified time. A fresh checkout gives every file the
+ * same modified time, so the name is the only reliable order.
+ */
+export function batchTime(name: string, mtimeMs: number): number {
+  const m = name.match(/(\d{4}-\d{2}-\d{2})T(\d{2})-(\d{2})-(\d{2})(?:-(\d{3}))?Z/);
+  if (!m) return mtimeMs;
+  const t = Date.parse(`${m[1]}T${m[2]}:${m[3]}:${m[4]}.${m[5] ?? "000"}Z`);
+  return Number.isFinite(t) ? t : mtimeMs;
 }

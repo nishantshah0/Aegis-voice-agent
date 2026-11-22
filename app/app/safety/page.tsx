@@ -198,9 +198,11 @@ async function Overview() {
       <section>
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <Eyebrow>Recent live calls</Eyebrow>
-          <Link href="/app/safety/live-calls" className="text-xs text-ink-2 underline hover:text-ink">
-            Run a live attack call →
-          </Link>
+          {live.length > 0 && (
+            <Link href="/app/safety/live-calls" className="text-xs text-ink-2 underline hover:text-ink">
+              Run a live attack call →
+            </Link>
+          )}
         </div>
         <div className="mt-2">
           <RecentLiveCalls

@@ -1,0 +1,228 @@
+{
+  "id": "inbound-sam-two-prescriptions-correction",
+  "what": "Inbound; two prescriptions, the caller names the wrong one and corrects it",
+  "direction": "inbound",
+  "model": "claude-haiku-5-5",
+  "at": "2026-11-22T03:59:38.481Z",
+  "modelCalls": 10,
+  "turns": [
+    {
+      "caller": "(call connects)",
+      "agent": [
+        "Hi, this is the automated assistant for Maple Street Pharmacy. What can I help with?"
+      ],
+      "presses": [],
+      "blocked": [],
+      "safety": [],
+      "wallMs": 0
+    },
+    {
+      "caller": "Hi, I'd like a refill please. Sam Rivera, March 14th 1990, and the number is RX-100201.",
+      "agent": [
+        "Thanks, Sam.",
+        "If those details match our records, a verification code has been texted to the phone on file.",
+        "What's the code?"
+      ],
+      "presses": [
+        {
+          "button": "lookup_patient",
+          "input": {
+            "name": "Sam Rivera",
+            "dob": "1990-03-14",
+            "rx_number": "RX-100201"
+          },
+          "ok": true,
+          "output": "{\"lookup_id\":\"lk_c_0001_1\",\"message\":\"code sent if matched\"}",
+          "ruleIds": []
+        }
+      ],
+      "blocked": [],
+      "safety": [],
+      "wallMs": 5145
+    },
+    {
+      "caller": "The code is 112358.",
+      "agent": [
+        "You're verified, Sam.",
+        "You have two prescriptions on file, Concerta and Metformin.",
+        "Which one would you like refilled?"
+      ],
+      "presses": [
+        {
+          "button": "check_code",
+          "input": {
+            "lookup_id": "lk_c_0001_1",
+            "code": "112358",
+            "dob": "1990-03-14"
+          },
+          "ok": true,
+          "output": "{\"verified\":true,\"patient_first_name\":\"Sam\",\"prescriptions\":[{\"rx_id\":\"rx_sam_concerta\",\"drug\":\"Concerta\"},{\"rx_id\":\"rx_sam_metformin\",\"drug\":\"Metformin\"}]}",
+          "ruleIds": []
+        },
+        {
+          "button": "check_prescription",
+          "input": {
+            "rx_id": "rx_sam_concerta",
+            "include_other_names": false
+          },
+          "ok": true,
+          "output": "{\"rx_id\":\"rx_sam_concerta\",\"drug\":\"Concerta\",\"status\":\"active\",\"refills_left\":2,\"expiry\":\"2027-04-28T15:00:00.000Z\",\"last_fill\":\"2026-10-28T15:00:00.000Z\",\"refillable_today\":true,\"others_refillable_count\":1}",
+          "ruleIds": []
+        },
+        {
+          "button": "check_coverage",
+          "input": {
+            "rx_id": "rx_sam_concerta"
+          },
+          "ok": true,
+          "output": "{\"plan_pays\":\"$41.20\",\"patient_pays\":\"$4.10\"}",
+          "ruleIds": []
+        },
+        {
+          "button": "check_prescription",
+          "input": {
+            "rx_id": "rx_sam_metformin",
+            "include_other_names": false
+          },
+          "ok": true,
+          "output": "{\"rx_id\":\"rx_sam_metformin\",\"drug\":\"Metformin\",\"status\":\"active\",\"refills_left\":3,\"expiry\":\"2027-09-01T15:00:00.000Z\",\"last_fill\":\"2026-10-01T15:00:00.000Z\",\"refillable_today\":true,\"others_refillable_count\":1}",
+          "ruleIds": []
+        },
+        {
+          "button": "check_coverage",
+          "input": {
+            "rx_id": "rx_sam_metformin"
+          },
+          "ok": true,
+          "output": "{\"plan_pays\":\"$12.60\",\"patient_pays\":\"$2.00\"}",
+          "ruleIds": []
+        }
+      ],
+      "blocked": [],
+      "safety": [],
+      "wallMs": 1831
+    },
+    {
+      "caller": "The Concerta. Oh wait, no, sorry, the other one. The metformin.",
+      "agent": [
+        "Got it, Metformin.",
+        "Your cost on your plan is $2.00.",
+        "Would you like me to request that refill?"
+      ],
+      "presses": [],
+      "blocked": [],
+      "safety": [],
+      "wallMs": 4347
+    },
+    {
+      "caller": "Yes, that's right.",
+      "agent": [
+        "Your Metformin refill has been sent.",
+        "A pharmacist needs to check it before it's approved, and I'll let you know once it's approved.",
+        "Since your last refill, have you noticed any side effects, or anything else?"
+      ],
+      "presses": [
+        {
+          "button": "request_refill",
+          "input": {
+            "rx_id": "rx_sam_metformin",
+            "reason": "Sam asked for a refill of Metformin"
+          },
+          "ok": true,
+          "output": "{\"state\":\"waiting_for_pharmacist\",\"rule_ids\":[\"3\"],\"message\":\"A pharmacist needs to check this refill before it is approved.\",\"order_id\":\"o_c_0001_rx_sam_metformin\"}",
+          "ruleIds": [
+            "3"
+          ]
+        },
+        {
+          "button": "read_label",
+          "input": {
+            "rx_id": "rx_sam_metformin"
+          },
+          "ok": true,
+          "output": "{\"label_text\":\"METFORMIN 500 MG TABLET. Take 1 tablet by mouth twice a day with meals. Qty 180.\"}",
+          "ruleIds": []
+        }
+      ],
+      "blocked": [],
+      "safety": [],
+      "wallMs": 3091
+    },
+    {
+      "caller": "Nope, all good.",
+      "agent": [
+        "Glad to hear everything's good.",
+        "Would you like delivery, or would you rather pick it up?"
+      ],
+      "presses": [],
+      "blocked": [],
+      "safety": [],
+      "wallMs": 829
+    },
+    {
+      "caller": "Pickup's fine. Wednesday afternoon.",
+      "agent": [
+        "Your pickup is booked for Wednesday afternoon, between 1 and 5.",
+        "Your Metformin refill is still waiting on a pharmacist, and I'll confirm once it's approved.",
+        "Thanks for calling, Sam, and have a great day."
+      ],
+      "presses": [
+        {
+          "button": "set_delivery",
+          "input": {
+            "order_id": "o_c_0001_rx_sam_metformin",
+            "slot_id": "slot_wed_pm",
+            "address_id": "pickup"
+          },
+          "ok": true,
+          "output": "{\"ok\":true,\"rule_ids\":[]}",
+          "ruleIds": []
+        }
+      ],
+      "blocked": [],
+      "safety": [],
+      "wallMs": 3893
+    }
+  ],
+  "turnTimings": [
+    {
+      "receivedAt": 23015.469625,
+      "firstModelTextMs": 4960.936707999997,
+      "firstGuardedMs": 5045.719166999999
+    },
+    {
+      "receivedAt": 28160.751,
+      "firstModelTextMs": 1664.244749999998,
+      "firstGuardedMs": 1720.3691670000007
+    },
+    {
+      "receivedAt": 29991.569417,
+      "firstModelTextMs": 1432.6334160000006,
+      "firstGuardedMs": 1447.678791000002
+    },
+    {
+      "receivedAt": 34338.235417,
+      "firstModelTextMs": 1589.7914579999997,
+      "firstGuardedMs": 1660.2113329999993
+    },
+    {
+      "receivedAt": 37428.871333,
+      "firstModelTextMs": 706.7855419999978,
+      "firstGuardedMs": 778.8927499999991
+    },
+    {
+      "receivedAt": 38257.929667,
+      "firstModelTextMs": 1813.5615000000034,
+      "firstGuardedMs": 1911.1841249999998
+    }
+  ],
+  "lanes": {
+    "quickCheck": 0,
+    "review": 1
+  },
+  "guardRecord": {
+    "lineSpoken": 18,
+    "lineBlocked": 0
+  },
+  "hashChainIntact": true
+}

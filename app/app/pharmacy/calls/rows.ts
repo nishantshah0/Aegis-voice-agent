@@ -38,7 +38,14 @@ export type HistoryRow = {
   said: string;
 };
 
-export type History = { rows: HistoryRow[]; chain: CallsOverview["chain"] };
+export type History = {
+  rows: HistoryRow[];
+  chain: CallsOverview["chain"];
+  /** Caller turns per call, to match usage-log rows to this run of a reused call id (as the call page does). */
+  callerTurns?: Record<string, number>;
+  /** Calls seeded as scripted demo history (Trail #74). */
+  scripted?: string[];
+};
 
 export function outcomeOf(presses: Pick<Press, "outcome">[], items: QueueItem[]): CallOutcome {
   const staffed = items.filter((i) => i.lane !== "automatic");

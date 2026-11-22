@@ -32,6 +32,8 @@ import {
 import { loadOutreach, type OutreachDay } from "./pharmacy/outreach/data";
 import { readLatestBatch, type BatchView } from "./safety/data";
 import { Live } from "./pharmacy/_parts/Live";
+import { HistoryNote, ScriptedTag } from "./pharmacy/_parts/HistoryNote";
+import { scriptedCallIds } from "./pharmacy/_parts/scripted";
 
 export const metadata = { title: "Home · Aegis" };
 
@@ -276,7 +278,7 @@ function Forecast({
   );
 }
 
-function RecentCalls({ calls }: { calls: CallSummary[] }) {
+function RecentCalls({ calls, scripted }: { calls: CallSummary[]; scripted: Set<string> }) {
   const recent = [...calls]
     .sort((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt))
     .slice(0, 6);
@@ -286,6 +288,7 @@ function RecentCalls({ calls }: { calls: CallSummary[] }) {
         <SectionHeader
           className="mb-0"
           title="Recent calls"
+          description={<HistoryNote count={calls.filter((c) => scripted.has(c.callId)).length} className="mt-1.5" />}
           action={
             <Link href="/app/pharmacy/calls" className={linkClass}>
               All calls →
@@ -307,6 +310,7 @@ function RecentCalls({ calls }: { calls: CallSummary[] }) {
                 className="flex items-center gap-3 px-5 py-2.5 text-[13px] transition-colors hover:bg-sunken/50"
               >
                 <span className="font-mono text-xs text-ink-3">{c.callId}</span>
+                {scripted.has(c.callId) && <ScriptedTag />}
                 <span className="min-w-0 flex-1 truncate text-ink">
                   {c.direction === "outbound" ? "Outbound" : "Inbound"}
                   {c.patient && (
@@ -332,12 +336,13 @@ async function Body() {
   // The proxy already requires sign-in for /app; this is the second lock on the data itself.
   if (!(await getApprover())) return null;
   const store = getStore();
-  const [overview, queue, safety, batch, outreach] = await Promise.all([
+  const [overview, queue, safety, batch, outreach, scripted] = await Promise.all([
     callsOverview(store),
     store.queue(),
     readOvernight(),
     readLatestBatch(),
     loadOutreach().catch(() => null),
+    scriptedCallIds(store),
   ]);
   const open = queue
     .filter((q) => q.status === "open" && q.lane !== "automatic")
@@ -369,7 +374,7 @@ async function Body() {
           <Card padded={false}>
             <div className="flex items-start justify-between gap-4 p-5 pb-4">
               <div>
-                <h2 className="text-[15px] font-semibold text-ink">
+                <h2 className="text-[22px] leading-tight text-ink">
                   Needs a pharmacist
                 </h2>
                 <p className="mt-0.5 text-[13px] text-ink-3">
@@ -501,7 +506,7 @@ async function Body() {
             </TableEmpty>
           </Card>
         )}
-        <RecentCalls calls={overview.calls} />
+        <RecentCalls calls={overview.calls} scripted={scripted} />
       </div>
     </>
   );

@@ -48,6 +48,8 @@ function twilioLine() {
   vi.stubEnv("TWILIO_PHONE_NUMBER", FROM);
   vi.stubEnv("TEST_PATIENT_PHONE", TO);
   vi.stubEnv("VOICE_LLM_URL", `${PUBLIC}/api/voice/llm`);
+  // This file covers the ElevenLabs stream route (register-call); voice-gather.test.ts the trial-safe default.
+  vi.stubEnv("VOICE_TWILIO_STREAM", "1");
 }
 
 function realDriver() {

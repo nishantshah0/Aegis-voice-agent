@@ -40,7 +40,7 @@ export function PageHeader({ title, description, actions, className }: { title: 
   return (
     <div className={cn("flex flex-wrap items-end justify-between gap-x-6 gap-y-4", className)}>
       <div className="min-w-0">
-        <h1 className="text-2xl font-semibold tracking-[-0.025em] text-ink md:text-[28px] md:leading-9">{title}</h1>
+        <h1 className="text-[34px] leading-tight text-ink md:text-[44px]">{title}</h1>
         {description && <p className="mt-1 max-w-2xl text-sm leading-6 text-ink-2">{description}</p>}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
@@ -53,10 +53,10 @@ export function SectionHeader({ title, description, action, className }: { title
   return (
     <div className={cn("mb-3 flex flex-wrap items-end justify-between gap-x-4 gap-y-1", className)}>
       <div className="min-w-0">
-        <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-ink">{title}</h2>
+        <h2 className="text-[22px] leading-tight text-ink">{title}</h2>
         {description && <p className="mt-0.5 text-[13px] text-ink-3">{description}</p>}
       </div>
-      {action && <div className="flex shrink-0 items-center gap-2 text-[13px]">{action}</div>}
+      {action && <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2 text-[13px]">{action}</div>}
     </div>
   );
 }

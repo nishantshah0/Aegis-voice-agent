@@ -116,11 +116,13 @@ describe("round trips per press (Role 0's demo timing: ~40 ms each to Tiger Clou
       if (s.ok) started = s;
     });
     const { callId, lookupId } = started!;
-    // Before Trail #54: 19, 8, 12, 22 and 46.
+    // Before Trail #54: 19, 8, 12, 22 and 46. Since Trail #83 a press and its record entry are
+    // one transaction (Store.transaction), so each press has BEGIN and COMMIT: two more trips.
+    const TX = 2;
     expect(start).toBeLessThanOrEqual(8);
-    expect(await trips(() => control.press(callId, "send_code", { lookup_id: lookupId }))).toBeLessThanOrEqual(3);
-    expect(await trips(() => control.press(callId, "check_code", { lookup_id: lookupId, code: "111111", dob: "1990-03-14" }))).toBeLessThanOrEqual(5);
-    expect(await trips(() => control.press(callId, "request_refill", { rx_id: IDS.samConcerta }))).toBeLessThanOrEqual(9);
+    expect(await trips(() => control.press(callId, "send_code", { lookup_id: lookupId }))).toBeLessThanOrEqual(3 + TX);
+    expect(await trips(() => control.press(callId, "check_code", { lookup_id: lookupId, code: "111111", dob: "1990-03-14" }))).toBeLessThanOrEqual(5 + TX);
+    expect(await trips(() => control.press(callId, "request_refill", { rx_id: IDS.samConcerta }))).toBeLessThanOrEqual(9 + TX);
     expect(await trips(() => store.reset(SEED))).toBeLessThanOrEqual(10);
   });
 });

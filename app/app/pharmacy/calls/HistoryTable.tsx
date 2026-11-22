@@ -18,6 +18,7 @@ import {
   type Lane,
 } from "@/components/ui";
 import { label, typing } from "../_parts/format";
+import { ScriptedTag } from "../_parts/HistoryNote";
 import {
   OUTCOME_LABEL,
   OUTCOME_TONE,
@@ -109,7 +110,8 @@ function Peek({
 }
 
 /** Every call. "/" searches, ↑/↓ or J/K move, Enter opens. */
-export function HistoryTable({ rows }: { rows: HistoryRow[] }) {
+export function HistoryTable({ rows, scripted = [] }: { rows: HistoryRow[]; scripted?: string[] }) {
+  const isScripted = useMemo(() => new Set(scripted), [scripted]);
   const router = useRouter();
   const search = useRef<HTMLInputElement>(null);
   const [filter, setFilter] = useState<HistoryFilter>({
@@ -263,7 +265,9 @@ export function HistoryTable({ rows }: { rows: HistoryRow[] }) {
                   aria-selected={i === active}
                   aria-label={`Call ${r.callId}${r.patient ? ` with ${r.patient}` : ""}: open`}
                 >
-                  <Td className="font-mono text-xs text-ink">{r.callId}</Td>
+                  <Td className="whitespace-nowrap font-mono text-xs text-ink">
+                    {r.callId} {isScripted.has(r.callId) && <ScriptedTag className="ml-1 font-sans" />}
+                  </Td>
                   <Td className="font-medium text-ink">
                     {r.patient ?? <span className="text-ink-3">unknown</span>}
                   </Td>

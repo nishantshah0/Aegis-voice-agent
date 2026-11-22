@@ -29,7 +29,9 @@ describe("1.2: Sam's typed inbound call against the fakes", () => {
     expect(turn1.filter((e) => e.type === "line")).toEqual([{ type: "line", text: "If those details match, I've sent a code to the phone on file." }]);
     const pressed = turn2.flatMap((e) => (e.type === "press" ? [e] : []));
     expect(pressed[0].result).toMatchObject({ ok: true, output: { verified: true, patient_first_name: "Sam" } });
-    expect(pressed[1]).toMatchObject({ button: "request_refill", result: { ok: true } });
+    // 1.x (Trail #75): after the code checks out, the driver checks each prescription and its cost.
+    expect(pressed.map((e) => e.button)).toEqual(expect.arrayContaining(["check_prescription", "check_coverage"]));
+    expect(pressed.find((e) => e.button === "request_refill")).toMatchObject({ result: { ok: true } });
     expect(model.remaining()).toBe(0);
     await driver.endCall(callId);
   });

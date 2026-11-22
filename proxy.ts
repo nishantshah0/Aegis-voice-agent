@@ -10,10 +10,9 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
   const session = auth0 ? await auth0.getSession(request).catch(() => null) : null;
   if (approverFromUser(session?.user)) return NextResponse.next();
 
-  // Signed in, but with no pharmacist or reviewer role: sending them to sign in again would loop.
-  if (session?.user) {
-    return new NextResponse("This account has no pharmacist or reviewer role in Aegis.", { status: 403, headers: { "Content-Type": "text/plain; charset=utf-8" } });
-  }
+  // Signed in, but with no pharmacist or reviewer role: sending them to sign in again would loop,
+  // so they get a page that says so, with sign-out (AUDIT #11).
+  if (session?.user) return NextResponse.redirect(new URL("/no-access", request.url));
 
   const login = new URL(AUTH_ROUTES.login, request.url);
   login.searchParams.set("returnTo", `${request.nextUrl.pathname}${request.nextUrl.search}`);
