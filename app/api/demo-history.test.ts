@@ -49,19 +49,21 @@ describe("POST /api/demo/history: seed a week of scripted calls", { timeout: 30_
     expect(historyCallIds(await getStore().listRecord()).size).toBe(0);
   });
 
-  it("runs about 40 calls over the 7 days before the demo clock, each marked as scripted, and puts the clock back", async () => {
+  it("runs about 40 calls over the 7 days before the demo clock (plus the demo morning), each marked as scripted, and puts the clock back", async () => {
     const summary = await seed();
     const store = getStore();
     expect(summary.seeded).toBe(true);
-    expect(summary.calls).toBeGreaterThanOrEqual(35);
-    expect(summary.calls).toBeLessThanOrEqual(45);
     expect(await store.now()).toBe(DEMO_NOW);
 
     const record = await store.listRecord();
     const ids = historyCallIds(record);
     expect(ids.size).toBe(summary.calls);
+    const today = todayCallIds(record);
+    const week = [...ids].filter((id) => !today.has(id));
+    expect(week.length).toBeGreaterThanOrEqual(35);
+    expect(week.length).toBeLessThanOrEqual(45);
     const days = new Set<string>();
-    for (const id of ids) {
+    for (const id of week) {
       const call = (await store.getCall(id))!;
       expect(call.state).toBe("ended");
       const ago = (Date.parse(DEMO_NOW) - Date.parse(call.startedAt)) / DAY_MS;
