@@ -89,18 +89,25 @@ describe("Postgres store: transaction(fn)", () => {
   });
 
   it("an append from outside waits for the transaction, then links after it, whether it commits or rolls back", async () => {
-    let outside: Promise<unknown> | undefined;
-    await expect(
-      store.transaction(async () => {
-        await store.appendRecord({ callId: "c_x", actor: "agent", kind: "line_spoken", input: { text: "inside" }, decision: "allowed" });
-        // Not awaited inside: it must wait until the transaction ends, not deadlock it.
-        outside = store.appendRecord({ actor: "system", kind: "safety", input: { check: "outside" }, decision: "allowed" });
-        throw boom;
-      }),
-    ).rejects.toBe(boom);
+    // The transaction holds open on a gate; the outside append starts from the test's own
+    // context (like another request), not from inside fn.
+    let open!: () => void;
+    const gate = new Promise<void>((resolve) => (open = resolve));
+    let inside!: () => void;
+    const started = new Promise<void>((resolve) => (inside = resolve));
+    const running = store.transaction(async () => {
+      await store.appendRecord({ callId: "c_x", actor: "agent", kind: "line_spoken", input: { text: "inside" }, decision: "allowed" });
+      inside();
+      await gate;
+      throw boom;
+    });
+    await started;
+    const outside = store.appendRecord({ actor: "system", kind: "safety", input: { check: "outside" }, decision: "allowed" });
+    open();
+    await expect(running).rejects.toBe(boom);
     await outside;
     const record = await store.listRecord();
-    expect(record.map((e) => (e.input as { text?: string; check?: string }).text ?? (e.input as { check?: string }).check)).not.toContain("inside");
+    expect(record.some((e) => (e.input as { text?: string }).text === "inside")).toBe(false);
     expect(record.at(-1)?.input).toMatchObject({ check: "outside" });
     expect(findBrokenLink(record)).toBeNull();
   });
@@ -120,8 +127,8 @@ describe("Postgres store on a pg Pool: transaction(fn) uses one client", () => {
   // PGlite behind the pg Pool shape: pool.query and each client's query are tagged, so we can
   // see which connection every statement went to. One PGlite is one connection, as a client is.
   type Logged = { via: string; text: string };
-  let log: Logged[];
-  let released: number;
+  let log: Logged[] = [];
+  let released = 0;
   const pool = () => {
     let clients = 0;
     return {
