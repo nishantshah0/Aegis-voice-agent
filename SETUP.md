@@ -80,6 +80,8 @@ Keep `--no-backfill --no-daemon`: the other modes spend tokens in the background
 
 ## 6. Keys in `.env` (HUMAN)
 
+**Fastest way (teammates):** run `scripts/team-env.sh` and type the team passphrase Nishant tells you in person. It writes `.env` with the shared Auth0 sign-in, demo database, voice and Gemini keys and the test pharmacist login, and gives you your own `AUTH0_SECRET`. The encrypted file is `config/team.env.enc`; never commit the decrypted `.env`.
+
 ```bash
 cp .env.example .env
 ```

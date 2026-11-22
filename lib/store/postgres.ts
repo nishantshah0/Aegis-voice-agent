@@ -13,6 +13,7 @@
 // The server uses it when DATABASE_URL is set (app/api/_lib/runtime.ts):
 //   createPostgresStore(fromPgPool(new Pool(poolConfig(DATABASE_URL, ca))))
 
+import { AsyncLocalStorage } from "node:async_hooks";
 import type { Approver, Call, Order, QueueItem, RecordEntry, RecordEntryInput, Seed, Store } from "@/lib/contract";
 import { SEED } from "@/lib/seed";
 import { GENESIS_HASH, hashEntry } from "./memory";
@@ -108,7 +109,14 @@ const isStale = (error: unknown) => error instanceof StaleHead || (error as { co
 
 const copy = <T>(value: T): T => structuredClone(value);
 
-export function createPostgresStore(db: SqlDb, seed: Seed = SEED): Store {
+/** The Store, with the contract's all-or-nothing transaction (AUDIT fix 4b, Trail #83). */
+export type PostgresStore = Store & { transaction<T>(fn: () => Promise<T>): Promise<T> };
+
+export function createPostgresStore(db: SqlDb, seed: Seed = SEED): PostgresStore {
+  // Inside transaction(fn), every query fn makes, through any store method, goes to the
+  // transaction's one client: this holds it for the async calls fn starts.
+  const open = new AsyncLocalStorage<{ query: Query }>();
+
   // Tables are created, and the seed loaded into an empty database, on first use (never at
   // construction, so creating a store makes no connection). A failed setup is retried next time.
   let ready: Promise<void> | undefined;
@@ -127,11 +135,13 @@ export function createPostgresStore(db: SqlDb, seed: Seed = SEED): Store {
     }));
   const q: Query = async (text, params) => {
     await ensureReady();
-    return db.query(text, params);
+    return (open.getStore()?.query ?? db.query)(text, params);
   };
+  /** A transaction for one store method; inside transaction(fn) it joins fn's. */
   const tx = async <T>(fn: (query: Query) => Promise<T>) => {
     await ensureReady();
-    return db.transaction(fn);
+    const current = open.getStore();
+    return current ? fn(current.query) : db.transaction(fn);
   };
   const docs = async <T>(text: string, params?: unknown[]) => (await q<Doc<T>>(text, params)).rows.map((r) => r.doc);
   const first = async <T>(text: string, params?: unknown[]) => (await docs<T>(text, params))[0];
@@ -167,9 +177,13 @@ export function createPostgresStore(db: SqlDb, seed: Seed = SEED): Store {
         throw error;
       }));
 
-  // Appends from this process go one at a time, so they never race each other for a seq.
+  // Appends from this process go one at a time, so they never race each other for a seq. A
+  // transaction holds the turn for its whole length: an append from outside waits for it to
+  // commit or roll back, so it never links to an entry that may still be undone, and never
+  // waits on a row the transaction holds. Inside the transaction, its own appends go straight on.
   let appending: Promise<unknown> = Promise.resolve();
   const oneAtATime = <T>(fn: () => Promise<T>): Promise<T> => {
+    if (open.getStore()) return fn();
     const run = appending.then(fn, fn);
     appending = run.catch(() => undefined);
     return run;
@@ -340,5 +354,25 @@ export function createPostgresStore(db: SqlDb, seed: Seed = SEED): Store {
         forget();
       }),
   };
-  return store;
+  /**
+   * Store.transaction (Trail #83): fn's writes all commit or none do. One pooled client runs
+   * BEGIN, every query fn makes through this store, then COMMIT, or ROLLBACK if fn throws, and
+   * the error is rethrown. A transaction inside one already open joins it. On a rollback the
+   * process's cached chain head and clock are dropped, since they may name undone writes.
+   */
+  async function transaction<T>(fn: () => Promise<T>): Promise<T> {
+    if (open.getStore()) return fn();
+    await ensureReady();
+    return oneAtATime(async () => {
+      try {
+        return await db.transaction((query) => open.run({ query }, fn));
+      } catch (error) {
+        head = undefined;
+        clock = undefined;
+        throw error;
+      }
+    });
+  }
+
+  return Object.assign(store, { transaction });
 }

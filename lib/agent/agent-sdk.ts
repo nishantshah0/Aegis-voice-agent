@@ -41,8 +41,11 @@ export type SdkTurnEvent =
       costUsd?: number;
     };
 
-/** One conversation for one call. send() plays one caller line to the end of its turn. */
-export type SdkSession = { send(text: string): AsyncIterable<SdkTurnEvent>; close(): void };
+/**
+ * One conversation for one call. send() plays one caller line to the end of its turn.
+ * warm() (optional) starts the SDK's process now, without sending anything.
+ */
+export type SdkSession = { send(text: string): AsyncIterable<SdkTurnEvent>; warm?(): void; close(): void };
 
 export type StartSdkSession = (opts: { system: string; tools: ButtonTool[]; model: string; maxTurns: number }) => SdkSession;
 
@@ -70,24 +73,43 @@ function renderNew(messages: ModelRequest["messages"]): string {
 export function createAgentSdkModel({ startSession = startRealSession, model = process.env.AGENT_SDK_MODEL || SDK_DEV_MODEL, cap = sharedUsageCap() }: AgentSdkModelOptions = {}): AgentModel {
   const calls = new Map<CallId, { session: SdkSession; seen: number; press: { current: PressForModel } }>();
 
+  /** The call's session, started on first use. Its tools press through whatever press the current line set. */
+  function sessionFor(request: ModelRequest, press: PressForModel) {
+    let call = calls.get(request.callId);
+    if (!call) {
+      const holder = { current: press };
+      const tools: ButtonTool[] = BUTTON_TOOLS.map((t) => ({
+        name: t.name as ButtonName,
+        description: t.description ?? "",
+        schema: t.input_schema,
+        run: (input) => holder.current(t.name, input),
+      }));
+      call = { session: startSession({ system: request.system, tools, model, maxTurns: SDK_MAX_TURNS }), seen: 0, press: holder };
+      calls.set(request.callId, call);
+    }
+    return call;
+  }
+
+  /** Before the first caller line no button may be pressed: there is nothing to act on. */
+  const notYet: PressForModel = async () => ({ content: JSON.stringify({ error: "no caller line yet" }), isError: true });
+
   return {
+    warm(request) {
+      if (calls.has(request.callId)) return;
+      try {
+        sessionFor(request, request.press ?? notYet).session.warm?.();
+      } catch {
+        // Warming is only a head start: the first line starts the session if this couldn't.
+        calls.delete(request.callId);
+      }
+    },
+
     async *turn(request): AsyncIterable<ModelEvent> {
       const press = request.press;
       if (!press) throw new Error("The Agent SDK model presses buttons through the driver, so request.press is required.");
       cap.check();
 
-      let call = calls.get(request.callId);
-      if (!call) {
-        const holder = { current: press };
-        const tools: ButtonTool[] = BUTTON_TOOLS.map((t) => ({
-          name: t.name as ButtonName,
-          description: t.description ?? "",
-          schema: t.input_schema,
-          run: (input) => holder.current(t.name, input),
-        }));
-        call = { session: startSession({ system: request.system, tools, model, maxTurns: SDK_MAX_TURNS }), seen: 0, press: holder };
-        calls.set(request.callId, call);
-      }
+      const call = sessionFor(request, press);
       call.press.current = press; // this line's press, so its refills are tracked
       const text = renderNew(request.messages.slice(call.seen));
       call.seen = request.messages.length;

@@ -22,7 +22,7 @@ export function RecentLiveCalls({ calls, empty, action }: { calls: LiveSummary[]
             <span className="min-w-0 flex-1">
               <span className="block truncate text-[15px] font-medium">{c.title}</span>
               <span className="text-xs text-ink-3">
-                <When iso={c.startedAt} /> · {c.turns} caller turns {length(c) && `· ${length(c)}`}
+                <When iso={c.startedAt} /> · {c.attacker === "gemini" ? "Gemini" : "Claude"} attacking · {c.turns} caller turns {length(c) && `· ${length(c)}`}
               </span>
             </span>
             {c.state === "failed" ? (

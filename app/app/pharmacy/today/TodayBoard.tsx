@@ -8,6 +8,10 @@ import { DecideBar } from "../_parts/Decide";
 import { SlideOver } from "../_parts/SlideOver";
 import { typing } from "../_parts/format";
 import { ItemPanel, ItemSummary } from "./ItemPanel";
+import { HistoryNote } from "../_parts/HistoryNote";
+
+/** The approver the scripted demo week decides as (app/api/_lib/demo-history.ts HISTORY_APPROVER). */
+const HISTORY_APPROVER_NAME = "Scripted demo pharmacist";
 import type { Today, TodayItem } from "./today";
 
 type Filter = Lane | "all";
@@ -169,7 +173,17 @@ export function TodayBoard({ data, canDecide, initial }: { data: Today; canDecid
       </div>
 
       <section className="mt-10">
-        <SectionHeader title="Decided" description="Approvals and declines, newest first, with the note that went to the record." />
+        <SectionHeader
+          title="Decided"
+          description={
+            <>
+              Approvals and declines, newest first, with the note that went to the record.
+              <span className="mt-1.5 block">
+                <HistoryNote count={data.decided.filter((d) => d.decidedBy === HISTORY_APPROVER_NAME).length} />
+              </span>
+            </>
+          }
+        />
         <div>
           {data.decided.length === 0 ? (
             <TableEmpty>No decisions yet today.</TableEmpty>

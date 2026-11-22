@@ -1,6 +1,8 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
 import { Card, Eyebrow, PageHeader, SkeletonRows, SkeletonTiles, StatTile } from "@/components/ui";
+import { HistoryNote } from "../_parts/HistoryNote";
+import { scriptedCallIds } from "../_parts/scripted";
 import { getApprover } from "@/lib/auth/session";
 import { getStore } from "@/app/api/_lib/runtime";
 import { finishedCalls } from "@/app/console/review/calls";
@@ -22,9 +24,10 @@ async function Body() {
   // Session first: nothing from the record is read for a signed-out request.
   const approver = await getApprover();
   if (!approver) return <SignedOut what="and label finished calls" />;
-  const [calls, labels] = await Promise.all([
+  const [calls, labels, scripted] = await Promise.all([
     finishedCalls(getStore()),
     readLabels(),
+    scriptedCallIds(getStore()),
   ]);
   const latest = latestLabels(labels);
   const agreement = await judgeAgreement(labels);
@@ -62,6 +65,7 @@ async function Body() {
 
   return (
     <div className="mt-8 flex flex-col gap-6">
+      <HistoryNote count={calls.filter((c) => scripted.has(c.callId)).length} className="w-fit" />
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatTile label="Finished calls" value={n(calls.length)} />
         <StatTile

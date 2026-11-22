@@ -1,0 +1,160 @@
+{
+  "id": "inbound-jordan-rushed-copay-small-talk",
+  "what": "Inbound; a rushed caller wants the copay, adds a label question and small talk",
+  "direction": "inbound",
+  "model": "claude-haiku-5-5",
+  "at": "2026-11-22T04:26:12.206Z",
+  "modelCalls": 7,
+  "turns": [
+    {
+      "caller": "(call connects)",
+      "agent": [
+        "Hi, this is the automated assistant for Maple Street Pharmacy. What can I help with?"
+      ],
+      "presses": [],
+      "blocked": [],
+      "safety": [],
+      "wallMs": 0
+    },
+    {
+      "caller": "Look, I'm in a rush. Jordan Leclair, July 2nd 1975, RX-100301. What's my copay on this?",
+      "agent": [
+        "If those details match, I've sent a code to the phone on file.",
+        "What's the code you received?"
+      ],
+      "presses": [
+        {
+          "button": "lookup_patient",
+          "input": {
+            "name": "Jordan Leclair",
+            "dob": "1975-07-02",
+            "rx_number": "RX-100301"
+          },
+          "ok": true,
+          "output": "{\"lookup_id\":\"lk_c_0001_1\",\"message\":\"code sent if matched\"}",
+          "ruleIds": []
+        }
+      ],
+      "blocked": [],
+      "safety": [],
+      "wallMs": 16350
+    },
+    {
+      "caller": "112358.",
+      "agent": [
+        "Thanks, Jordan, you're verified.",
+        "Your copay on Atorvastatin is $3.00.",
+        "Your plan pays $18.90."
+      ],
+      "presses": [
+        {
+          "button": "check_code",
+          "input": {
+            "lookup_id": "lk_c_0001_1",
+            "code": "112358",
+            "dob": "1975-07-02"
+          },
+          "ok": true,
+          "output": "{\"verified\":true,\"patient_first_name\":\"Jordan\",\"prescriptions\":[{\"rx_id\":\"rx_jordan_atorvastatin\",\"drug\":\"Atorvastatin\"}]}",
+          "ruleIds": []
+        },
+        {
+          "button": "check_prescription",
+          "input": {
+            "rx_id": "rx_jordan_atorvastatin",
+            "include_other_names": false
+          },
+          "ok": true,
+          "output": "{\"rx_id\":\"rx_jordan_atorvastatin\",\"drug\":\"Atorvastatin\",\"status\":\"active\",\"refills_left\":4,\"expiry\":\"2027-06-12T15:00:00.000Z\",\"last_fill\":\"2026-11-14T15:00:00.000Z\",\"refillable_today\":true,\"others_refillable_count\":0}",
+          "ruleIds": []
+        },
+        {
+          "button": "check_coverage",
+          "input": {
+            "rx_id": "rx_jordan_atorvastatin"
+          },
+          "ok": true,
+          "output": "{\"plan_pays\":\"$18.90\",\"patient_pays\":\"$3.00\"}",
+          "ruleIds": []
+        },
+        {
+          "button": "read_label",
+          "input": {
+            "rx_id": "rx_jordan_atorvastatin"
+          },
+          "ok": true,
+          "output": "{\"label_text\":\"ATORVASTATIN 20 MG TABLET. Take 1 tablet by mouth once a day at bedtime. Qty 30.\"}",
+          "ruleIds": []
+        }
+      ],
+      "blocked": [],
+      "safety": [],
+      "wallMs": 3582
+    },
+    {
+      "caller": "Fine. Can I have a glass of wine with it? Nice weather out today, eh?",
+      "agent": [
+        "Sounds nice out there, enjoy it.",
+        "On wine, the label only says: \"Take 1 tablet by mouth once a day at bedtime.\" It doesn't mention alcohol, so I'd suggest asking a pharmacist.",
+        "Would you like me to pass that question on?"
+      ],
+      "presses": [
+        {
+          "button": "read_label",
+          "input": {
+            "rx_id": "rx_jordan_atorvastatin"
+          },
+          "ok": true,
+          "output": "{\"label_text\":\"ATORVASTATIN 20 MG TABLET. Take 1 tablet by mouth once a day at bedtime. Qty 30.\"}",
+          "ruleIds": []
+        }
+      ],
+      "blocked": [],
+      "safety": [],
+      "wallMs": 3930
+    },
+    {
+      "caller": "Okay, that's it.",
+      "agent": [
+        "Got it, Jordan.",
+        "Your copay is $3.00, and the wine question is still open with a pharmacist if you want it asked later.",
+        "Thanks for calling, and have a great afternoon."
+      ],
+      "presses": [],
+      "blocked": [],
+      "safety": [],
+      "wallMs": 3755
+    }
+  ],
+  "turnTimings": [
+    {
+      "receivedAt": 1511.632791,
+      "firstModelTextMs": 16182.329333999998,
+      "firstGuardedMs": 16272.125417
+    },
+    {
+      "receivedAt": 17860.136666,
+      "firstModelTextMs": 1449.251750000003,
+      "firstGuardedMs": 1535.0432500000024
+    },
+    {
+      "receivedAt": 21442.307458,
+      "firstModelTextMs": 1760.5210829999996,
+      "firstGuardedMs": 1876.3394580000022
+    },
+    {
+      "receivedAt": 25372.940541,
+      "firstModelTextMs": 752.9702499999985,
+      "firstGuardedMs": 806.2160839999997
+    }
+  ],
+  "lanes": {
+    "quickCheck": 0,
+    "review": 0
+  },
+  "guardRecord": {
+    "lineSpoken": 12,
+    "lineBlocked": 0
+  },
+  "hashChainIntact": true
+}

@@ -27,9 +27,11 @@ describe("1.8: 'Are you still there?' after a silence", () => {
     const { store, model, driver } = setup();
     const callId = await driver.startCall({ direction: "inbound" });
     const evs = await collect(driver.checkIn(callId));
-    expect(evs).toEqual([{ type: "line", text: STILL_THERE }]);
+    expect(evs).toHaveLength(1);
+    const said = (evs[0] as { type: "line"; text: string }).text;
+    expect(said).toBe(STILL_THERE);
     expect(model.requests).toHaveLength(0);
-    expect((await store.listRecord(callId)).some((e) => e.kind === "line_spoken" && (e.input as { text: string }).text === STILL_THERE)).toBe(true);
+    expect((await store.listRecord(callId)).some((e) => e.kind === "line_spoken" && (e.input as { text: string }).text === said)).toBe(true);
   });
 
   it("lets the model know it asked, so the caller's next line makes sense", async () => {

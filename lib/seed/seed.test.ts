@@ -10,10 +10,10 @@ const rx = (id: string) => {
 const daysSince = (iso: string) => (Date.parse(DEMO_NOW) - Date.parse(iso)) / DAY_MS;
 
 describe("seed", () => {
-  it("has 8 patients with made-up 555-01xx phones and unique ids", () => {
-    expect(SEED.patients).toHaveLength(8);
+  it("has 9 patients with made-up 555-01xx phones and unique ids", () => {
+    expect(SEED.patients).toHaveLength(9);
     for (const p of SEED.patients) expect(p.phone).toMatch(/^555-01\d\d$/);
-    expect(new Set(SEED.patients.map((p) => p.id)).size).toBe(8);
+    expect(new Set(SEED.patients.map((p) => p.id)).size).toBe(9);
     expect(new Set(SEED.prescriptions.map((r) => r.id)).size).toBe(SEED.prescriptions.length);
     expect(new Set(SEED.prescriptions.map((r) => r.rxNumber)).size).toBe(SEED.prescriptions.length);
   });
@@ -52,6 +52,17 @@ describe("seed", () => {
     const p5p = SEED.patients.find((p) => p.id === IDS.p5);
     expect(p8?.phone).toBe(p5p?.phone); // spouse on the same phone
     expect(p8?.householdPatientIds).toContain(IDS.p5);
+  });
+
+  it("P9 has controlled drugs on schedule for the demo week's Quick check calls, and is never rung", () => {
+    expect(SEED.patients.find((p) => p.id === IDS.p9)?.optedInToCalls).toBe(false); // rule 7a: the daily check skips her
+    for (const id of [IDS.p9Vyvanse, IDS.p9Clonazepam]) {
+      const r = rx(id);
+      expect(r.controlled).toBe(true);
+      // Two days before the demo clock, rule 4b already allows the refill.
+      expect(daysSince(r.lastFill) - 2).toBeGreaterThanOrEqual(r.prescribedIntervalDays - 3);
+    }
+    expect(rx(IDS.p9Metoprolol).controlled).toBe(false);
   });
 
   it("every prescription and order points at a real patient", () => {

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentDriver } from "@/lib/contract";
 import { createAgentDriver } from "@/lib/agent";
-import { STILL_THERE, outboundOpener } from "@/lib/agent/lines";
+import { outboundOpener } from "@/lib/agent/lines";
 import { scriptedModel, type ScriptStep } from "@/lib/agent/testing/scripted-model";
 import { emit } from "@/lib/events";
 import { resetBusForTests } from "@/lib/events/bus";
@@ -164,7 +164,11 @@ describe("the trial-safe turn loop: Gather, our driver, Play", () => {
     await turn(post(`/api/voice/turn?call=${callId}&t=${token}`, { SpeechResult: "Hello?" }));
     const quiet = `/api/voice/turn?call=${callId}&t=${token}&quiet=1`;
     const first = verbs(await (await turn(post(quiet, {}))).text());
-    expect(await playedText(first, callId)).toBe(STILL_THERE);
+    // The driver's own check-in, whichever wording it picks (agent upgrade, Trail #75), as the guard passed it.
+    const checkIn = await playedText(first, callId);
+    expect(checkIn).toBeTruthy();
+    const spoken = (await runtime.getStore().listRecord(callId)).filter((e) => e.kind === "line_spoken").map((e) => (e.input as { text?: string }).text);
+    expect(spoken.at(-1)).toBe(checkIn);
     expect(first.map((x) => x.verb)).toEqual(["Play", "Gather", "Redirect"]);
     const second = verbs(await (await turn(post(quiet, {}))).text());
     expect(second.map((x) => x.verb)).toEqual(["Hangup"]);

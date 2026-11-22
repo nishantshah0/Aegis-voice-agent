@@ -5,6 +5,7 @@ import { cardAttack, listCustomAttacks, listLiveCalls, patientChoices, TACTICS }
 import { STAGE_ATTACKS } from "@/app/stage/attacks";
 import { loadScenarioSuite } from "@/lib/arena/suite-files";
 import { SignInCard, signedIn } from "../SignedIn";
+import { AttackerPicker } from "../AttackerPicker";
 import { ArenaUsage } from "./ArenaUsage";
 import { CreateAttack } from "./CreateAttack";
 import { RecentLiveCalls } from "./RecentLiveCalls";
@@ -18,7 +19,12 @@ export default function LiveCallsPage() {
       <PageHeader
         title="Live calls"
         description="An attacker AI rings the real pharmacy agent. Watch it turn by turn, hear both sides, and see the moment the lock catches it."
-        actions={<ArenaUsage />}
+        actions={
+          <div className="flex flex-wrap items-center gap-4">
+            <AttackerPicker />
+            <ArenaUsage />
+          </div>
+        }
       />
       <Suspense fallback={<SkeletonRows rows={6} className="mt-8" />}>
         <LiveCalls />
