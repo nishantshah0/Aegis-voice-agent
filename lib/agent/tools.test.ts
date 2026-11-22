@@ -5,9 +5,11 @@ import { BUTTON_TOOLS, isButtonName } from "./tools";
 
 type Prop = { type: string; enum?: string[] };
 
+const SAMPLE: Record<string, unknown> = { boolean: false, integer: 7 };
+
 /** An input with every field the schema lists, filled in. */
 function sample(properties: Record<string, Prop>): Record<string, unknown> {
-  return Object.fromEntries(Object.entries(properties).map(([k, p]) => [k, p.type === "boolean" ? false : (p.enum?.[0] ?? "x")]));
+  return Object.fromEntries(Object.entries(properties).map(([k, p]) => [k, p.type in SAMPLE ? SAMPLE[p.type] : (p.enum?.[0] ?? "x")]));
 }
 
 describe("1.2: the 12 buttons as tools", () => {

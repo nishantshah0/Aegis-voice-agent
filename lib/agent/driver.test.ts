@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { AgentEvent, StreamEvent } from "@/lib/contract";
+import { BUTTON_NAMES, type AgentEvent, type StreamEvent } from "@/lib/contract";
 import { createControl, outboundLookupId } from "@/lib/control";
 import { createSafetyCheck, createSpeechGuard, HANDOVER_SCRIPT } from "@/lib/guard";
 import { IDS, SEED } from "@/lib/seed";
@@ -101,7 +101,7 @@ describe("1.2: Sam's typed outbound call through the real lock", () => {
   it("gives the model the 12 strict buttons, the call's ids and the tool results", async () => {
     const { model } = await samsCall();
     const first = model.requests[0];
-    expect(first.tools).toHaveLength(12);
+    expect(first.tools).toHaveLength(BUTTON_NAMES.length);
     expect(first.tools.every((t) => t.strict === true)).toBe(true);
     expect(first.system).toContain(PHARMACY);
     expect(first.system).toContain(`the lookup id is ${lookup}`);

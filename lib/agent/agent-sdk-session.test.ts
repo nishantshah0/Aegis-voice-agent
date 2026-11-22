@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
+import { BUTTON_NAMES } from "@/lib/contract";
 import { BUTTON_TOOLS } from "./tools";
 import { startAgentSdkSession, zodShape } from "./agent-sdk-session";
 
@@ -34,7 +35,7 @@ describe("1.2b: live-run fixes (results/agent-live/sam-2026-11-21T16-47-10-176Z.
     const tools = BUTTON_TOOLS.map((t) => ({ name: t.name, description: "", schema: t.input_schema, run: async () => ({ content: "", isError: false }) })) as never;
     const o = sessionOptions({ system: "s", tools, model: "claude-haiku-5-5", maxTurns: 4 }, { fake: "server" });
     expect(o).toMatchObject({ tools: [], strictMcpConfig: true, plugins: [], skills: [], settingSources: [], permissionMode: "dontAsk", persistSession: false, model: "claude-haiku-5-5", effort: "low" });
-    expect(o.allowedTools).toHaveLength(12);
+    expect(o.allowedTools).toHaveLength(BUTTON_NAMES.length);
     expect(o.allowedTools.every((n: string) => n.startsWith("mcp__buttons__"))).toBe(true);
     expect(Object.keys(o.mcpServers)).toEqual(["buttons"]);
   });

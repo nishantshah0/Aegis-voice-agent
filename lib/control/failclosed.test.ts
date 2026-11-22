@@ -6,6 +6,7 @@ import type { Call, CardCondition, RuleCard, RuleContext, StreamEvent } from "@/
 import { STARTING_CARDS } from "@/lib/contract";
 import { IDS, SEED } from "@/lib/seed";
 import { createMemoryStore } from "@/lib/store/memory";
+import { appointmentContext, slotsFrom } from "./appointments";
 import { buildContext } from "./context";
 import { evaluate } from "./engine";
 import { CODE_SENT_TEXT, createControl } from "./press";
@@ -47,12 +48,23 @@ describe("every field a live card reads is in the context", () => {
       const patient = SEED.patients.find((p) => p.id === rx.patientId)!;
       for (const call of calls) {
         const ctx = buildContext({ now: "2026-11-24T10:00:00-05:00", patient, rx, call, reason: "", record: [], policy });
-        for (const card of STARTING_CARDS.filter((c) => c.live)) {
+        for (const card of STARTING_CARDS.filter((c) => c.live && !c.appliesTo.every((b) => b === "book_appointment"))) {
           for (const field of card.when.flatMap(fieldsOf)) {
             expect(ctx[field as keyof RuleContext], `card ${card.id} reads ${field} (${rx.id})`).not.toBeUndefined();
           }
         }
       }
+    }
+  });
+
+  // Trail #85: book_appointment cards read the appointment context instead.
+  it("for every book_appointment card, against a slot's context", () => {
+    const slot = slotsFrom(SEED.now, SEED.policy)[0];
+    const ctx = appointmentContext(slot, IDS.sam, IDS.sam, []);
+    const cards = STARTING_CARDS.filter((c) => c.live && c.appliesTo.includes("book_appointment"));
+    expect(cards.map((c) => c.id)).toEqual(["13a", "13b", "13c", "13d", "13e"]);
+    for (const card of cards) {
+      for (const field of card.when.flatMap(fieldsOf)) expect(ctx[field as keyof RuleContext], `card ${card.id} reads ${field}`).not.toBeUndefined();
     }
   });
 });

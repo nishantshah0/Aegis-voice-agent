@@ -5,8 +5,8 @@ import { createFakes, DEMO_NOW, FAKE_CODE, SAM_CONCERTA, SAM_ID } from "./fakes"
 const pharmacist = { id: "u_test", name: "Test Pharmacist", role: "pharmacist" as const };
 
 describe("contract", () => {
-  it("has exactly 12 buttons, each with a tier", () => {
-    expect(BUTTON_NAMES).toHaveLength(12);
+  it("has exactly 16 buttons (the 12, plus Trail #85's four), each with a tier", () => {
+    expect(BUTTON_NAMES).toHaveLength(16);
     expect(Object.keys(BUTTON_TIERS).sort()).toEqual([...BUTTON_NAMES].sort());
   });
 

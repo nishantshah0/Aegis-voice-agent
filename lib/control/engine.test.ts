@@ -17,6 +17,9 @@ const base: RuleContext = {
   "patient.opted_in": true,
   "call.local_hour": 10,
   "recent.outbound_calls_3d": 0,
+  "request.days_supply": 30,
+  "rx.days_supplied": 30,
+  "rx.days_until_due": 3,
 };
 const refill = (over: RuleContext) => evaluate(STARTING_CARDS, "request_refill", { ...base, ...over });
 
