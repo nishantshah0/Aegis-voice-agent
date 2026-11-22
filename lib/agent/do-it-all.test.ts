@@ -38,6 +38,22 @@ describe("1.x: self-corrections", () => {
   });
 });
 
+describe("1.x: a corrected identity detail isn't said back before verification (live run do-it-all-sonnet)", () => {
+  it("the prompt says to use it, not repeat it, until verified", () => {
+    for (const prompt of both) expect(prompt).toMatch(/before they're verified, don't say a date of birth, name or prescription number back/i);
+  });
+
+  it("because S1 replaces a date of birth said back in other words before verification", async () => {
+    // Live: "My birthday is September 20th, no wait, the 21st, 1983." then "That's September 21st, 1983." (S1).
+    const store = createMemoryStore(SEED);
+    const control = createControl({ store });
+    const guard = createSpeechGuard({ store });
+    const callId = await control.startInboundCall();
+    await store.appendRecord({ callId, actor: "caller", kind: "caller_line", input: { text: "My birthday is September 20th, no wait, the 21st, 1983." }, decision: "allowed" });
+    expect(await guard(callId, "That's September 21st, 1983.")).toMatchObject({ blocked: true, rule: "S1" });
+  });
+});
+
 describe("1.x: varied phrasing, exact read-backs", () => {
   it.each(["history_readback", "coverage_readback", "supply_text", "availability_text", "confirmation_text"])("says %s word for word", (field) => {
     for (const prompt of both) expect(prompt).toContain(field);
