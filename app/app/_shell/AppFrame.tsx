@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Logo, cn } from "@/components/ui";
+import { Aurora } from "@/components/landing/Aurora";
 import { Icon } from "./Icon";
 import { AREAS, OVERVIEW, areaFor, isActivePath, pageFor, type Area, type NavItem } from "./nav";
 
@@ -125,10 +126,11 @@ export function AppFrame({ account, demo, children }: { account: ReactNode; demo
   const isActive = (href: string) => isActivePath(pathname, href);
 
   return (
-    <div className={cn("theme-dark theme-app min-h-screen bg-canvas text-ink lg:flex", inArea?.key === "safety" && "theme-safety")}>
-      <aside className="relative z-40 border-b border-line bg-canvas lg:fixed lg:inset-y-0 lg:flex lg:w-60 lg:flex-col lg:border-b-0 lg:border-r">
+    <div className={cn("theme-dark theme-app relative min-h-screen text-ink lg:flex", inArea?.key === "safety" && "theme-safety")}>
+      <Aurora soft />
+      <aside className="rg-glass relative z-40 !border-x-0 !border-t-0 lg:fixed lg:inset-y-0 lg:flex lg:w-60 lg:flex-col lg:!border-b-0 lg:!border-r">
         <div className="flex h-14 items-center px-4">
-          <Link href="/app" aria-label="Aegis overview" className="rounded-md">
+          <Link href="/" aria-label="Aegis home: the main site" title="Back to the main site" className="rounded-md">
             <Logo />
           </Link>
         </div>
@@ -154,8 +156,8 @@ export function AppFrame({ account, demo, children }: { account: ReactNode; demo
         <div className="hidden border-t border-line p-3 lg:block">{account}</div>
       </aside>
 
-      <div className="min-w-0 flex-1 lg:pl-60">
-        <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-4 border-b border-line bg-canvas/85 px-5 backdrop-blur md:px-8">
+      <div className="rg-lit min-w-0 flex-1 lg:pl-60">
+        <header className="rg-glass sticky top-0 z-30 flex h-14 items-center justify-between gap-4 !border-x-0 !border-t-0 px-5 md:px-8">
           <p className="flex min-w-0 items-center gap-2 text-[13px]">
             {inArea && (
               <>
@@ -169,7 +171,12 @@ export function AppFrame({ account, demo, children }: { account: ReactNode; demo
             )}
             <span className="truncate font-medium text-ink">{page?.label ?? "Home"}</span>
           </p>
-          <div className="flex items-center gap-2">{demo}</div>
+          <div className="flex items-center gap-3">
+            <Link href="/" className="hidden items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.14em] text-ink-3 transition-colors hover:text-accent sm:inline-flex">
+              <span aria-hidden>←</span> Main site
+            </Link>
+            {demo}
+          </div>
         </header>
         <main className="mx-auto w-full max-w-7xl px-5 pb-16 pt-8 md:px-8">{children}</main>
       </div>

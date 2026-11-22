@@ -3,7 +3,9 @@
 import { useEffect, useReducer, type ReactNode } from "react";
 import type { StreamEvent } from "@/lib/contract";
 import { listenToEvents } from "@/lib/events/client";
+import Link from "next/link";
 import { Logo, cn } from "@/components/ui";
+import { Aurora } from "@/components/landing/Aurora";
 import { triedToSay } from "./attacks";
 import { GATE_CSS, Gate, HijackControls } from "./HijackPanel";
 import { DECISION_WORDS, describePass, initialStage, latestHijack, stageReducer, stopped, type Pass, type StageState } from "./state";
@@ -100,11 +102,16 @@ export function StageView({ embedded }: { embedded?: "gate" | "attacks" } = {}) 
       {!embedded && (
         <header className="flex items-center justify-between border-b border-line pb-6">
           <div className="flex items-center gap-4">
-            <Logo size="lg" />
+            <Link href="/" aria-label="Aegis home: the main site" title="Back to the main site">
+              <Logo size="lg" />
+            </Link>
             <span className="h-6 w-px bg-line-strong" aria-hidden />
-            <span className="text-lg text-ink-2">The lock, live</span>
+            <span className="font-display text-2xl uppercase text-ink">The lock, live</span>
           </div>
           <div className="flex items-center gap-4">
+            <Link href="/" className="font-mono text-[11px] uppercase tracking-[0.14em] text-ink-3 transition-colors hover:text-accent">
+              ← Main site
+            </Link>
             {state.now && <span className="font-mono text-sm text-ink-3">{new Date(state.now).toLocaleString()}</span>}
             <span className="inline-flex items-center gap-2 rounded-full bg-accent-soft px-3 py-1 text-sm font-medium text-accent">
               <span className="size-2 rounded-full bg-accent rg-ring" aria-hidden />
@@ -156,7 +163,7 @@ export function StageView({ embedded }: { embedded?: "gate" | "attacks" } = {}) 
       {embedded !== "attacks" && (
         <section className="mt-10 grid grid-cols-1 gap-10 lg:grid-cols-[1fr_20rem]">
           <div>
-            <h2 className="mb-4 text-xs font-medium uppercase tracking-[0.08em] text-ink-3">At the gate</h2>
+            <h2 className="rg-eyebrow mb-4 text-ink-3">At the gate</h2>
             {state.passes.length === 0 ? (
               <div className="flex h-48 items-center justify-center rounded-card border border-dashed border-line-strong text-lg text-ink-3">
                 Waiting for the first press…
@@ -170,7 +177,7 @@ export function StageView({ embedded }: { embedded?: "gate" | "attacks" } = {}) 
             )}
           </div>
           <aside className="text-base leading-relaxed text-ink-2">
-            <h2 className="mb-4 text-xs font-medium uppercase tracking-[0.08em] text-ink-3">What the AI can do</h2>
+            <h2 className="rg-eyebrow mb-4 text-ink-3">What the AI can do</h2>
             <div className="rounded-card border border-line bg-surface p-6">
               <p>
                 Press <span className="font-semibold text-ink">12 buttons</span>, every one checked in code.
@@ -190,5 +197,10 @@ export function StageView({ embedded }: { embedded?: "gate" | "attacks" } = {}) 
 }
 
 function Frame({ embedded, children }: { embedded: boolean; children: ReactNode }) {
-  return embedded ? <div>{children}</div> : <main className="theme-dark min-h-screen bg-canvas px-10 py-8 text-ink xl:px-14">{children}</main>;
+  return embedded ? <div>{children}</div> : (
+    <main className="theme-dark relative min-h-screen text-ink">
+      <Aurora />
+      <div className="rg-lit px-10 py-8 xl:px-14">{children}</div>
+    </main>
+  );
 }

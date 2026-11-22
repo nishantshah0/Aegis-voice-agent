@@ -171,7 +171,7 @@ export function Phone() {
                 onClick={hangUp}
                 className="flex cursor-pointer flex-col items-center gap-1.5 text-xs font-medium text-ink-2 transition-transform active:scale-95"
               >
-                <span className="flex size-16 items-center justify-center rounded-full bg-[#ff3b30] text-white" aria-hidden>
+                <span className="flex size-16 items-center justify-center rounded-full bg-[#a3452e] text-white" aria-hidden>
                   <PhoneIcon className="size-7 rotate-[135deg]" />
                 </span>
                 Hang up
@@ -322,7 +322,7 @@ function Ringing({ text, onAnswer, busy }: { text?: string; onAnswer: () => void
         disabled={busy}
         className="flex cursor-pointer flex-col items-center gap-2 text-sm font-medium text-ink-2 transition-transform active:scale-95 disabled:opacity-40"
       >
-        <span className="flex size-20 items-center justify-center rounded-full bg-[#30d158] text-white" aria-hidden>
+        <span className="flex size-20 items-center justify-center rounded-full bg-[#4d7c3a] text-white" aria-hidden>
           <PhoneIcon className="size-9" />
         </span>
         Answer
