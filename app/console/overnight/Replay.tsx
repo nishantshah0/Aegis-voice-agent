@@ -19,7 +19,7 @@ export function Replay({ steps }: { steps: string[] }) {
   return (
     <div>
       <Button variant="secondary" size="sm" onClick={() => setShown(0)} disabled={playing}>
-        {playing ? "Replaying…" : "Replay"}
+        {playing ? "Showing steps…" : "Replay steps"}
       </Button>
       <ol className="mt-4 space-y-2 font-mono text-[13px]">
         {steps.slice(0, shown).map((step, i) => (

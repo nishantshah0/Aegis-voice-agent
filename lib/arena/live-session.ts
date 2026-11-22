@@ -67,6 +67,7 @@ export function liveSessionMaker({
       press: control.press,
       guardSentence: createSpeechGuard({ store }),
       checkCallerLine: createSafetyCheck({ store }),
+      patientPhone: target.patientPhone,
       model: watched,
       pharmacyName: PHARMACY_NAME,
     });
@@ -86,6 +87,9 @@ export function liveSessionMaker({
     const opening = async (callId: CallId) => {
       for await (const event of agent.opening(callId)) void event;
     };
-    return { store, driver, opening };
+    const checkIn = async (callId: CallId) => {
+      for await (const event of agent.checkIn(callId)) void event;
+    };
+    return { store, driver, opening, checkIn };
   };
 }

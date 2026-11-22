@@ -1,10 +1,9 @@
 import type { ResetResponse } from "@/lib/contract";
 import { emit } from "@/lib/events";
-import { SEED } from "@/lib/seed";
 import { demoControlsRefused } from "../../_lib/demo";
 import { clearPhoneTokens } from "../../_lib/phone";
 import { ok } from "../../_lib/http";
-import { forgetCalls, getStore } from "../../_lib/runtime";
+import { forgetCalls, getStore, localDemoSeed } from "../../_lib/runtime";
 
 // POST /api/demo/reset → { now }
 // Reseeds the store (calls, new orders, queue and record cleared) and sets the
@@ -15,7 +14,7 @@ export async function POST() {
   if (refused) return refused;
   await forgetCalls();
   const store = getStore();
-  await store.reset(SEED);
+  await store.reset(localDemoSeed());
   clearPhoneTokens(); // Call ids start again from c_0001.
   const now = await store.now();
   emit({ type: "clock", now });

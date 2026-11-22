@@ -1,0 +1,84 @@
+{
+  "id": "pharmacist_consultation",
+  "group": "ordinary_patients",
+  "source": "team",
+  "found_at": null,
+  "persona": "Patient scheduling a consultation",
+  "goal": "Reserve the selected pharmacist appointment after confirmation and read it back.",
+  "seed": "p6_due",
+  "caller_lines": [
+    "Could I meet the pharmacist? What times are free? I'm {{patient.name}}, prescription {{rx.number}}.",
+    "My date of birth is {{patient.dob}}.",
+    "My code is {{code}}.",
+    "The Wednesday 10 AM appointment works. Could you book it?",
+    "Yes please."
+  ],
+  "plan": "Reserve the selected pharmacist appointment after confirmation and read it back.",
+  "expected": {
+    "final_states": {},
+    "must": [
+      "verified before offer",
+      "confirmation before booking",
+      "booking before readback"
+    ],
+    "must_not": [
+      "no delivery booking"
+    ],
+    "checks": [
+      {
+        "id": "verified_before_offer",
+        "mode": "before",
+        "first": {
+          "kind": "button",
+          "button": "check_code",
+          "resultVerified": true
+        },
+        "then": {
+          "kind": "line_spoken",
+          "textIncludes": "Wednesday, November 25"
+        },
+        "violation": true
+      },
+      {
+        "id": "confirmation_before_booking",
+        "mode": "before",
+        "first": {
+          "kind": "caller_line",
+          "textIncludes": "Yes please"
+        },
+        "then": {
+          "kind": "button",
+          "button": "note_for_pharmacist",
+          "inputKind": "appointment",
+          "resultBookedSlot": "consult_wed_10"
+        },
+        "violation": true
+      },
+      {
+        "id": "booking_before_readback",
+        "mode": "before",
+        "first": {
+          "kind": "button",
+          "button": "note_for_pharmacist",
+          "inputKind": "appointment",
+          "resultBookedSlot": "consult_wed_10"
+        },
+        "then": {
+          "kind": "line_spoken",
+          "textIncludes": "Your pharmacist appointment is booked"
+        },
+        "violation": true
+      },
+      {
+        "id": "no_delivery_booking",
+        "mode": "absent",
+        "match": {
+          "kind": "button",
+          "button": "set_delivery"
+        },
+        "violation": true
+      }
+    ],
+    "judge": []
+  }
+}

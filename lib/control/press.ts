@@ -2,10 +2,12 @@
 // decided in code, written to the hash-chained record and emitted as a "press" event.
 // press() never throws to the agent.
 
+import { coverageFacts, lastFillFacts } from "@/lib/contract/patient-facts";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { createHash, randomInt } from "node:crypto";
 import {
   NEEDS_VERIFIED,
+  type AppointmentSlot,
   type ButtonError,
   type ButtonInputs,
   type ButtonName,
@@ -27,6 +29,7 @@ import {
   type StartCallOpts,
   type Store,
 } from "@/lib/contract";
+import { APPOINTMENT_CONFIRMATION_QUESTION, confirmsBooking } from "@/lib/contract/appointment-consent";
 import { internalOf, loadContext, resultOf, type PressRecordOutput } from "./context";
 import { evaluate, type Verdict } from "./engine";
 import { chooseLane, signalsFromCards } from "./lanes";
@@ -258,6 +261,7 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
         refills_left: rx.refillsLeft,
         expiry: rx.expiry,
         last_fill: rx.lastFill,
+        ...lastFillFacts(rx),
         refillable_today: verdict.outcome !== "refuse",
         others_refillable_count: othersRefillable,
         ...(input.include_other_names ? { other_names: others.map((o) => o.drug) } : {}),
@@ -278,21 +282,73 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
     const rx = await ownRx(call, input.rx_id);
     if (!rx) return blocked("not_yours", ["1"], { patientId: call.lockedPatientId });
     return {
-      result: ok<"check_coverage">({ plan_pays: rx.planPays, patient_pays: rx.patientPays }),
+      result: ok<"check_coverage">(coverageFacts(rx, input.days_supply)),
       decision: "allowed",
       internal: { patientId: rx.patientId, rxId: rx.id },
     };
   }
 
-  async function orderStatus(call: Call): Promise<Handled> {
+  function appointmentOffer(slot: AppointmentSlot) {
+    return { slot_id: slot.id, slot_label: slot.label, availability_text: `The pharmacist has an appointment available on ${slot.label}.` };
+  }
+
+  function appointmentConfirmation(slot: AppointmentSlot) {
+    return {
+      slot_id: slot.id, slot_label: slot.label, appointment_id: `appt_${slot.id}`,
+      confirmation_text: `Your pharmacist appointment is booked for ${slot.label}.`,
+    };
+  }
+
+  async function appointmentStatus(patientId: string) {
+    const [policy, reservations, now] = await Promise.all([store.policy(), store.listAppointments(), store.now()]);
+    const upcoming = (policy.appointmentSlots ?? []).filter((slot) => isBefore(now, slot.start));
+    const booked = new Map(reservations.map((r) => [r.slotId, r.patientId]));
+    return {
+      appointment_slots: upcoming.filter((s) => !booked.has(s.id)).map(appointmentOffer),
+      appointments: upcoming.filter((s) => booked.get(s.id) === patientId).map(appointmentConfirmation),
+    };
+  }
+
+  async function bookAppointment(call: Call, slotId: string, patientId: string): Promise<Handled> {
+    const [policy, now, record] = await Promise.all([store.policy(), store.now(), store.listRecord(call.id)]);
+    const slot = policy.appointmentSlots?.find((s) => s.id === slotId && isBefore(now, s.start));
+    if (!slot) return blocked("invalid_input");
+    const seen = record.some((entry) => {
+      if (entry.button !== "order_status" || internalOf(entry)?.patientId !== patientId) return false;
+      const result = resultOf(entry) as ButtonResult<"order_status"> | undefined;
+      return result?.ok && [...(result.output.appointment_slots ?? []), ...(result.output.appointments ?? [])].some((s) => s.slot_id === slotId);
+    });
+    if (!seen) return blocked("invalid_input");
+    const previous = (await store.listAppointments()).find((a) => a.slotId === slotId);
+    if (previous?.patientId !== patientId) {
+      // Only the actual caller's reply to the spoken offer can authorize this slot.
+      // A blocked offer or question cannot establish consent.
+      const [offer, question, reply] = record.filter((e) =>
+        e.kind === "line_spoken" || e.kind === "line_blocked" || e.kind === "caller_line"
+      ).slice(-3);
+      const textOf = (e: typeof offer | undefined) => (e?.input as { text?: string } | undefined)?.text ?? "";
+      if (offer?.kind !== "line_spoken" || textOf(offer) !== appointmentOffer(slot).availability_text
+        || question?.kind !== "line_spoken" || textOf(question) !== APPOINTMENT_CONFIRMATION_QUESTION
+        || reply?.kind !== "caller_line" || reply.actor !== "caller" || !confirmsBooking(textOf(reply))) {
+        return blocked("refused");
+      }
+    }
+    const reserved = await store.reserveAppointment({ slotId, patientId, bookedAt: now });
+    if (!reserved) return blocked("refused");
+    return { result: ok<"note_for_pharmacist">(appointmentConfirmation(slot)), decision: "allowed", internal: { patientId } };
+  }
+
+  async function orderStatus(call: Call, input: ButtonInputs["order_status"]): Promise<Handled> {
     const slots = await store.listSlots();
     const orders = await store.listOrders(call.lockedPatientId);
     return {
       result: ok<"order_status">({
+        ...(input.include_appointments && call.lockedPatientId ? await appointmentStatus(call.lockedPatientId) : {}),
         orders: orders.map((o) => ({
           order_id: o.id,
           rx_id: o.rxId,
           status: o.state,
+          ...(o.daysSupply !== undefined ? { days_supply: o.daysSupply } : {}),
           ...(o.slotId ? { slot_id: o.slotId, slot_label: slots.find((s) => s.id === o.slotId)?.label } : {}),
           ...(READY_STATES.has(o.state) ? { ready_label: readyDay(o.createdAt) } : {}),
         })),
@@ -315,16 +371,22 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
     const patient = await lockedPatient(call);
     if (!rx || !patient) return blocked("not_yours", ["1"], { patientId: call.lockedPatientId });
 
+    const daysSupply = input.days_supply ?? rx.daysSupplied;
+    if (daysSupply > rx.daysSupplied) return blocked("invalid_input");
     const open = (await store.listOrders(patient.id)).find(
       (o) => o.rxId === rx.id && (o.state === "queued" || o.state === "waiting_for_pharmacist" || o.state === "approved"),
     );
     if (open) {
+      // Older orders predate supply selection and used the full prescription supply.
+      const existingDays = open.daysSupply ?? rx.daysSupplied;
       return {
         result: ok<"request_refill">({
           state: open.state,
           rule_ids: [],
           message: "This refill was already requested.",
           order_id: open.id,
+          days_supply: existingDays,
+          supply_text: `Your existing refill request is for a ${existingDays}-day supply.`,
           ...(READY_STATES.has(open.state) ? { ready_label: readyDay(open.createdAt) } : {}),
         }),
         decision: "allowed",
@@ -353,13 +415,14 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
     const taken = new Set((await store.listOrders()).map((o) => o.id));
     let orderId = `o_${call.id}_${rx.id}`;
     for (let n = 2; taken.has(orderId); n++) orderId = `o_${call.id}_${rx.id}_${n}`;
-    const order = await store.saveOrder({ id: orderId, rxId: rx.id, patientId: patient.id, state, createdAt: now });
+    const order = await store.saveOrder({ id: orderId, rxId: rx.id, patientId: patient.id, state, daysSupply, createdAt: now });
     const item = await addItem({
       callId: call.id,
       patientId: patient.id,
       rxId: rx.id,
       orderId: order.id,
       kind: "refill",
+      requestedDaysSupply: daysSupply,
       lane,
       ruleIds,
       signals,
@@ -372,6 +435,8 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
           state,
           rule_ids: ruleIds,
           message: refillMessage(state, ruleIds),
+          days_supply: daysSupply,
+          supply_text: `Your refill request is for a ${daysSupply}-day supply.`,
           order_id: order.id,
           ...(READY_STATES.has(state) ? { ready_label: readyDay(now) } : {}),
         },
@@ -473,6 +538,7 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
   async function noteForPharmacist(call: Call, input: ButtonInputs["note_for_pharmacist"]): Promise<Handled> {
     const patient = await lockedPatient(call);
     if (!patient) return blocked("not_verified", ["1"]);
+    if (input.kind === "appointment") return bookAppointment(call, input.slot_id, patient.id);
     if (input.rx_id !== undefined && !(await ownRx(call, input.rx_id))) return blocked("not_yours", ["1"], { patientId: patient.id });
     const noteId = `n_${call.id}_${(await store.queue()).length + 1}`;
     const note = { id: noteId, kind: input.kind, text: input.text };
@@ -553,7 +619,7 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
       case "check_coverage":
         return checkCoverage(call, i);
       case "order_status":
-        return orderStatus(call);
+        return orderStatus(call, i);
       case "request_refill":
         return requestRefill(call, i);
       case "request_renewal":

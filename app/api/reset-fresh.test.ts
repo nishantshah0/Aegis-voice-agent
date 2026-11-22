@@ -65,9 +65,9 @@ describe("Reset demo with a call still open", () => {
 
     const second = await inbound();
     expect(second.callId).toBe(first.callId);
-    await callerSays(second, "Hello?");
+    await callerSays(second, "When does the pharmacy open?");
     const sent = JSON.stringify(seen.at(-1)?.messages);
-    expect(sent).toContain("Hello?");
+    expect(sent).toContain("When does the pharmacy open?");
     expect(sent).not.toContain("Concerta");
   });
 

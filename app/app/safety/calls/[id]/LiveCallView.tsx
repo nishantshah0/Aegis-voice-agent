@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffectEvent, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { playClip, replayLines, speakReplayLine } from "@/lib/voice/replay";
 import type { LiveCall, LiveTurn } from "@/app/api/_lib/live-calls";
 import { ruleWords } from "@/app/stage/attacks";
 import { Badge, Button, RuleTag, TableEmpty, cn } from "@/components/ui";
@@ -18,6 +19,17 @@ export const clock = (ms: number) => {
   const s = Math.max(0, Math.floor(ms / 1000));
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 };
+
+function progressMessage(progress: NonNullable<LiveCall["progress"]>, caller: LiveCall["attacker"]) {
+  switch (progress.phase) {
+    case "connecting": return "Connecting the simulated call.";
+    case "caller": return `${caller === "gemini" ? "Gemini" : "Claude"} is preparing caller turn ${progress.turn} from the conversation so far.`;
+    case "pharmacy": return `Waiting for the pharmacy’s response to turn ${progress.turn}.`;
+    case "scoring": return "Checking the call record for the verdict.";
+    case "failed": return "Call interrupted.";
+    case "finished": return "Call complete.";
+  }
+}
 
 const DECISION_TONE: Record<string, "accent" | "stop" | "quick" | "review" | "neutral"> = { allowed: "accent", blocked: "stop", refused: "stop", routed: "quick", flagged: "review" };
 
@@ -55,72 +67,54 @@ function tick(ctx: AudioContext): Promise<void> {
 }
 
 function useVoice(callId: string) {
-  const cache = useRef(new Map<string, Promise<string | null>>());
-  const audio = useRef<HTMLAudioElement | null>(null);
+  const cache = useRef(new Map<string, Blob>());
   const ctx = useRef<AudioContext | null>(null);
-  const [problem, setProblem] = useState<string | null>(null);
+  const browserOnly = useRef(false);
+  const [source, setSource] = useState("Generated voices from the saved transcript");
+  const [problem, setProblem] = useState("");
+  useEffect(() => () => { void ctx.current?.close().catch(() => {}); }, []);
 
-  const clip = useCallback(
-    (seq: number, say?: "replacement") => {
-      const key = `${seq}:${say ?? ""}`;
-      let p = cache.current.get(key);
-      if (!p) {
-        p = fetch(`/api/arena/live/${encodeURIComponent(callId)}/speak`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(say ? { seq, say } : { seq }) })
-          .then(async (res) => {
-            if (!res.ok) {
-              const body = (await res.json().catch(() => ({}))) as { error?: string };
-              setProblem(body.error ?? `The voice answered ${res.status}`);
-              return null;
-            }
-            return URL.createObjectURL(await res.blob());
-          })
-          .catch(() => {
-            setProblem("Can't reach the voice");
-            return null;
+  const playTurn = async (turn: LiveTurn, signal: AbortSignal) => {
+    if (turn.kind === "button" && ctx.current) return tick(ctx.current);
+    if (turn.kind === "line_blocked" && ctx.current) await buzz(ctx.current);
+    const [line] = replayLines([turn]);
+    if (!line || signal.aborted) return;
+
+    if (!browserOnly.current) {
+      const key = `${callId}:${turn.seq}`;
+      try {
+        let blob = cache.current.get(key);
+        if (!blob) {
+          const body = turn.kind === "line_blocked" ? { seq: turn.seq, say: "replacement" } : { seq: turn.seq };
+          const res = await fetch(`/api/arena/live/${encodeURIComponent(callId)}/speak`, {
+            method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body), signal,
           });
-        cache.current.set(key, p);
-      }
-      return p;
-    },
-    [callId],
-  );
-
-  const playUrl = useCallback((url: string | null) => {
-    if (!url) return Promise.resolve();
-    audio.current ??= new Audio();
-    const a = audio.current;
-    a.src = url;
-    return new Promise<void>((resolve) => {
-      a.onended = () => resolve();
-      a.onerror = () => resolve();
-      a.onpause = () => resolve();
-      void a.play().catch(() => resolve());
-    });
-  }, []);
-
-  const audioCtx = () => (ctx.current ??= new AudioContext());
-
-  /** Plays one turn as it was heard on the line. */
-  const playTurn = useCallback(
-    async (t: LiveTurn) => {
-      if (t.kind === "caller_line" || t.kind === "line_spoken") return playUrl(await clip(t.seq));
-      if (t.kind === "safety") {
-        await playUrl(await clip(t.seq));
-        if (t.replacement) await playUrl(await clip(t.seq, "replacement"));
+          if (res.status === 401 || res.status === 403) throw new DOMException("Sign in to play this call.", "NotAllowedError");
+          if (!res.ok) throw new Error("The voice service is unavailable.");
+          blob = await res.blob();
+          if (signal.aborted) return;
+          cache.current.set(key, blob);
+        }
+        await playClip(blob, signal);
         return;
+      } catch (error) {
+        if (signal.aborted) return;
+        if (error instanceof DOMException && error.name === "NotAllowedError") throw error;
+        browserOnly.current = true;
+        setSource("Transcript read by browser voices");
       }
-      if (t.kind === "line_blocked") {
-        await buzz(audioCtx());
-        if (t.replacement) await playUrl(await clip(t.seq, "replacement"));
-        return;
-      }
-      if (t.kind === "button") await tick(audioCtx());
-    },
-    [clip, playUrl],
-  );
+    }
+    await speakReplayLine(line, signal);
+  };
 
-  const stop = useCallback(() => audio.current?.pause(), []);
-  return { playTurn, stop, problem, prime: () => void audioCtx().resume() };
+  const prime = () => {
+    setProblem("");
+    if (typeof AudioContext !== "undefined") {
+      ctx.current ??= new AudioContext();
+      void ctx.current.resume().catch(() => {});
+    }
+  };
+  return { playTurn, problem, setProblem, source, prime };
 }
 
 function TurnRow({ t, playing, onPlay }: { t: LiveTurn; playing: boolean; onPlay: () => void }) {
@@ -260,30 +254,42 @@ export function LiveCallView({ id }: { id: string }) {
   const audible = turns;
 
   // The player: plays turns[cursor], then the next, waiting for new ones while the call is live.
-  const busy = useRef(false);
+  const [seek, setSeek] = useState(0);
+  const activeTurn = useRef<AbortController | null>(null);
+  const turnSeq = audible[cursor]?.seq;
+  const playCurrent = useEffectEvent(async (signal: AbortSignal) => {
+    if (signal.aborted) return;
+    const turn = audible[cursor];
+    if (!turn) return;
+    document.getElementById(`turn-${turn.seq}`)?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    try {
+      await voice.playTurn(turn, signal);
+      if (!signal.aborted) setCursor((c) => c + 1);
+    } catch (error) {
+      if (signal.aborted) return;
+      voice.setProblem(error instanceof Error ? error.message : "Audio playback failed.");
+      setPlaying(false);
+    }
+  });
   useEffect(() => {
-    if (!playing || busy.current) return;
-    const t = audible[cursor];
-    if (!t) return; // Wait for the next turn while the call is live.
-    busy.current = true;
-    document.getElementById(`turn-${t.seq}`)?.scrollIntoView({ block: "nearest", behavior: "smooth" });
-    void voice.playTurn(t).finally(() => {
-      busy.current = false;
-      setCursor((c) => c + 1);
-    });
-  }, [playing, cursor, audible, running, voice]);
+    if (!playing || turnSeq === undefined) return;
+    const controller = new AbortController();
+    activeTurn.current = controller;
+    queueMicrotask(() => void playCurrent(controller.signal));
+    return () => controller.abort();
+  }, [playing, turnSeq, seek]);
 
   const playFrom = (index: number) => {
+    activeTurn.current?.abort();
     voice.prime();
-    voice.stop();
     setCursor(index);
+    setSeek((n) => n + 1);
     setPlaying(true);
   };
-  // Playing, and not run out of turns on a finished call.
   const active = playing && (running || cursor < audible.length);
   const pause = () => {
+    activeTurn.current?.abort();
     setPlaying(false);
-    voice.stop();
   };
 
   if (missing) return <p className="text-sm text-ink-2">No live call with that id. It may be from another server.</p>;
@@ -333,6 +339,13 @@ export function LiveCallView({ id }: { id: string }) {
           </div>
         </div>
 
+        {call.progress && (
+          <div className="mt-4 text-sm text-ink-2" role="status">
+            <p>{progressMessage(call.progress, call.attacker)}</p>
+            <p className="text-xs text-ink-3">{call.progress.completed} exchanges completed · limit {call.attack.turns}</p>
+          </div>
+        )}
+
         {/* Timeline: every turn at its time; red marks where the lock caught something */}
         <div className="mt-5">
           <div className="relative h-8 rounded-full bg-sunken" role="list" aria-label="Call timeline">
@@ -372,14 +385,14 @@ export function LiveCallView({ id }: { id: string }) {
               ❚❚ Pause
             </Button>
           ) : (
-            <Button size="sm" onClick={() => playFrom(cursor >= turns.length ? 0 : cursor)}>
+            <Button size="sm" disabled={!running && !turns.length} onClick={() => playFrom(cursor >= turns.length ? 0 : cursor)}>
               ▶ {running ? "Listen live" : cursor > 0 && cursor < turns.length ? "Resume" : "Play the call"}
             </Button>
           )}
           <span className="text-xs text-ink-3">
-            Two voices: the attacker and the pharmacy. A blocked line is never voiced: you hear a buzzer, then what was said instead. Click any turn to play from there.
+            {voice.source}. Select a turn to play from there. A buzz marks a blocked line, followed by what the caller heard.
           </span>
-          {voice.problem && <span className="text-xs text-stop">Voice: {voice.problem}. The call is still here as text.</span>}
+          {voice.problem && <span role="status" className="text-xs text-stop">{voice.problem}</span>}
         </div>
       </section>
 
@@ -407,7 +420,7 @@ export function LiveCallView({ id }: { id: string }) {
             </p>
           </div>
           <div className="rounded-card border border-line bg-surface p-4">
-            <p className="text-xs font-medium uppercase tracking-[0.08em] text-ink-3">Verdict</p>
+            <p className="text-xs font-medium uppercase tracking-[0.08em] text-ink-3">{call.state === "failed" ? "Incomplete call · partial checks" : "Verdict"}</p>
             {call.verdict ? (
               <dl className="mt-2 grid grid-cols-2 gap-y-2">
                 <dt className="text-ink-2">Caught</dt>
@@ -418,7 +431,7 @@ export function LiveCallView({ id }: { id: string }) {
                 <dd className={cn("text-right font-medium", call.verdict.recordVerified ? "text-accent" : "text-stop")}>{call.verdict.recordVerified ? "Chain verified" : "Not verified"}</dd>
               </dl>
             ) : (
-              <p className="mt-2 text-ink-3">When the call ends: what the lock caught, anything the hammer&apos;s invariants say broke, and the record&apos;s hash chain.</p>
+              <p className="mt-2 text-ink-3">{running ? "The verdict will appear when the call ends." : "No verdict was saved for this call."}</p>
             )}
             {call.verdict?.broken.map((b, i) => (
               <p key={i} className="mt-2 text-xs text-stop">

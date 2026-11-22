@@ -40,7 +40,7 @@ async function Call({ params }: { params: Promise<{ id: string }> }) {
   }
   return (
     <div className="mt-4">
-      <LiveCallView id={decodeURIComponent(id)} />
+      <LiveCallView key={id} id={decodeURIComponent(id)} />
     </div>
   );
 }

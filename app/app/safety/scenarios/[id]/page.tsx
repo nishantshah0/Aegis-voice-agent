@@ -1,3 +1,4 @@
+import { replayTickets } from "@/app/api/_lib/replay-tickets";
 import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -54,12 +55,14 @@ async function Scenario({ params }: { params: Promise<{ id: string }> }) {
   const card = cards.find((c) => c.id === decodeURIComponent(id));
   if (!card) notFound();
   const outcome = run?.outcomes.find((o) => o.id === card.id);
-  const files = run && outcome ? await readAttempts(run, card.id) : [];
+  const files = run && outcome ? await readAttempts(run, card.id, card.file) : [];
   const attempts: AttemptData[] = files.map((f) => ({
     n: f.n,
     callId: f.callId,
     file: shortPath(f.path),
     record: f.record,
+    failures: f.failures,
+    tickets: replayTickets(f.path, f.record),
     score: f.score ?? outcome?.attempts.find((a) => a.n === f.n) ?? null,
     chainIntact: chainIntact(f.record),
   }));
@@ -76,7 +79,7 @@ async function Scenario({ params }: { params: Promise<{ id: string }> }) {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {card.inSuite && <RunLiveCallButton source={{ kind: "scenario", id: card.id }} />}
-          {!card.inSuite && <Badge>Not in the 28-card suite</Badge>}
+          {!card.inSuite && <Badge>Not in the fixed suite</Badge>}
           <Badge>{card.direction === "outbound" ? "Outbound call" : "Inbound call"}</Badge>
           {outcome ? (
             <Badge tone={outcome.passed ? "accent" : "stop"} dot>
@@ -111,7 +114,7 @@ async function Scenario({ params }: { params: Promise<{ id: string }> }) {
                       <code className="font-mono text-xs">results/arena/scenarios/&lt;run&gt;/</code>.
                     </>
                   ) : (
-                    "This card is a regression case, run by the runner's own tests rather than the 28-card suite."
+                    "This card is a regression case, run by the runner's own tests rather than the fixed suite."
                   )}
                 </p>
               </Card>
