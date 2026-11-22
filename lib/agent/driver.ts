@@ -44,6 +44,7 @@ import {
   sideEffectQuestionBeforeRefill,
 } from "./lines";
 import type { AgentModel, ModelTurn, PressForModel } from "./model";
+import { STAY_ON_TASK_NOTE, asksForAPersona } from "./persona";
 import { pickStyle, systemPrompt, type CallStyle } from "./prompt";
 import { createSentenceSplitter } from "./sentences";
 import { BUTTON_TOOLS, isButtonName } from "./tools";
@@ -479,6 +480,8 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
         call.sideEffectLinesLeft = (call.sideEffectLinesLeft ?? 1) - 1;
         if (call.sideEffectLinesLeft === 0) call.awaitingSideEffect = undefined;
       }
+      // 1.x: a persona or off-task request gets a reminder on that line (it decides nothing).
+      if (asksForAPersona(text)) call.notes.push(STAY_ON_TASK_NOTE);
       pushUser(call, text);
       const system = systemFor(call);
 
