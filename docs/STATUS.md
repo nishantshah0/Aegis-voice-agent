@@ -50,9 +50,9 @@ Role 1 runs from Nishant's machine from 1.2 on (MikeyDigit did 1.1).
 
 ## Role 3 · Red team and evals
 
-- **Doing:** Security suite UI redesign: attack library and Overnight workspaces handed off on `role-3/security-attacks-overnight` (commit `e8e2b23`, Trail #92); 3.5 fixed suite, repeat scoring and persisted scoreboard (PR #30, claim #31, Trail #24), stacked on 3.3 runner review fixes (PR #26, Trail #17)
+- **Doing:** Security suite UI redesign integrated on `role-3/security-suite` (Trail #95): shared button styling, overview and release gate, scenario/eval and attack/overnight workspaces, business tests, live-call evidence, and Safety navigation order. Workstreams are on Trails #92–100; GitHub PR #92 was untouched.
 - **Done:** 3.1 first scenarios; 3.2 hijack driver (merged PR #7); 3.3 runner and scoring (merged PR #13); 3.4 hijack batch (merged PR #20, Trail #14)
-- **Blocked:** live scoreboard needs the real driver and a model credential. Entire project visibility still blocks finding replies.
+- **Blocked:** integrated typecheck/lint/test attempts could not run in this worktree because dependencies are missing or incompatible with Node 22.11 (the locked test dependencies require Node 22.12+). Individual overview/scenario/attack worktrees passed typecheck and lint; tests could not start. Entire project visibility still blocks Trail-ready actions.
 - **Needs from others:** Role 4 to review PR #26 before PR #30; Role 2 to wire `runFixedScenarioSuite` to the arena run route once the real driver lands.
 
 ## Role 4 · The lock
