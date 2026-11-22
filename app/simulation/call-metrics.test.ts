@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { compareRuns, metricsFor, summarizeRun, type TimedEvent } from "./call-metrics";
+import type { TestEvent } from "./live-events";
 
 // Hamming-style scoring for each Business test call, from its streamed events and the time
 // each arrived: pass/fail and the assertion that decided it, task completion, latency, guard
 // replacements and handovers; then a run summary and the change since the last run.
 
-const t = (at: number, event: Omit<TimedEvent, "at">) => ({ ...event, at }) as TimedEvent;
+const t = (at: number, event: TestEvent): TimedEvent => ({ ...event, at });
 
 const passing: TimedEvent[] = [
   t(0, { type: "start", scenarioId: "act_like_a_pirate" }),
