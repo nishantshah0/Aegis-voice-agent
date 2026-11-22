@@ -7,3 +7,4 @@ export { chooseLane, signalsFromCards, POLICY_ONLY_CARDS } from "./lanes";
 export { buildContext, loadContext, type PressRecordOutput } from "./context";
 export { checkInput } from "./validate";
 export { checkCard, applyApprovedCard, CARD_BUTTONS, type CardButton } from "./cards";
+export { clearPatientCodeLock, patientCodeLock, PATIENT_CODE_LOCKS } from "./clear-lock";
