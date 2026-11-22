@@ -6,7 +6,9 @@ import { IDS, SEED } from "@/lib/seed";
 import { createMemoryStore } from "@/lib/store/memory";
 import { demoCode, equal } from "./config";
 
-export type Phase = "pin" | "menu" | "confirm" | "appointment" | "end";
+import type { AgentState } from "../agent/agent";
+
+export type Phase = "pin" | "menu" | "confirm" | "appointment" | "agent" | "end";
 export type Flow = {
   phase: Phase;
   verified: boolean;
@@ -15,6 +17,10 @@ export type Flow = {
   offered?: AppointmentOffer;
   appointmentBooked?: string;
   reply: string;
+  /** Trail #70: "agent" while the real agent answers; "fallback" once it couldn't and the menu took over. */
+  mode?: "agent" | "fallback";
+  /** The agent's call, carried between serverless turns. */
+  agent?: AgentState;
 };
 const menu =
   "For last fill, press one or say history. For a seven-day price, press two. For a refill, press three. For a pharmacist appointment, press four. Or press zero to finish.";

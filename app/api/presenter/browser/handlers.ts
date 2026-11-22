@@ -1,8 +1,10 @@
-import { createHash, createHmac } from "node:crypto";
+import { createHash, createHmac, randomUUID } from "node:crypto";
 import { forSpeech } from "@/lib/voice/spoken";
 import { fail, readObject } from "../../_lib/http";
 import { demoCode, equal, presenter, uuid } from "../phone/config";
 import { getAudio, saveAudio } from "../phone/storage";
+import { DEMO_PATIENT } from "../agent/agent";
+import { assistantOf, nextTurn, openFlow } from "../agent/turn";
 import { advance, browserReply } from "./conversation";
 import { appendTurn, findTurn, latestTurn, openSession, type BrowserTurn } from "./storage";
 
@@ -33,7 +35,10 @@ function view(row: BrowserTurn, headers: Record<string, string> = {}) {
       step,
       verified: flow.verified,
       finished: flow.phase === "end",
-      ...(flow.phase === "pin" ? { demoCode: demoCode(sessionId) } : {}),
+      ...(flow.phase === "pin" || (flow.mode === "agent" && !flow.verified && flow.phase !== "end") ? { demoCode: demoCode(sessionId) } : {}),
+      // Trail #70: which assistant is answering, and who it's calling for until they're verified.
+      assistant: assistantOf(flow),
+      ...(flow.mode === "agent" && !flow.verified && flow.phase !== "end" ? { demoPatient: DEMO_PATIENT } : {}),
       reply: browserReply(flow),
       audioUrl: path + "/audio?" + new URLSearchParams({ sessionId, turnId }),
       refillRequested: flow.requested,
@@ -49,7 +54,8 @@ export async function start(request: Request) {
     if (denied) return denied;
     const body = await readObject(request);
     if (!body || Object.keys(body).length !== 0) return fail(400, "Start with an empty JSON object.");
-    const row = await openSession();
+    const id = randomUUID();
+    const row = await openSession(id, await openFlow(id));
     return view(row, {
       "Set-Cookie":
         cookieName(row.session_id) +
@@ -98,7 +104,9 @@ export async function turn(request: Request) {
             phase: "end" as const,
             reply: "This demo call has reached its turn limit. Goodbye.",
           }
-        : await advance(sessionId, previous.flow, text);
+        : previous.flow.mode === "agent"
+          ? await nextTurn(sessionId, previous.flow, "", text, "browser")
+          : await advance(sessionId, previous.flow, text);
     const row = (await appendTurn(previous, turnId, flow)) ?? (await findTurn(sessionId, turnId));
     return row ? view(row) : fail(409, "Another turn was answered first.");
   } catch {

@@ -14,13 +14,15 @@ import {
   turnToken,
   uuid,
 } from "./config";
-import { nextFlow } from "./flow";
+import { DEMO_PATIENT } from "../agent/agent";
+import { assistantOf, nextTurn, openFlow } from "../agent/turn";
 import {
   getAudio,
   getCall,
   isActive,
   reserve,
   saveAudio,
+  setFirstFlow,
   turn,
   updateState,
   type PhoneRow,
@@ -63,6 +65,9 @@ function view(row: PhoneRow) {
       updatedAt: row.updated_at,
       message: details[status] + (row.provider_error ? ` Provider code ${row.provider_error}.` : ""),
       ...(isActive(status) && !stale && !row.flow.verified ? { demoCode: demoCode(row.id) } : {}),
+      // Trail #70: which assistant is answering, and who it's calling for until they're verified.
+      assistant: assistantOf(row.flow),
+      ...(isActive(status) && !stale && !row.flow.verified && row.flow.mode === "agent" ? { demoPatient: DEMO_PATIENT } : {}),
       refillRequested: row.flow.requested,
       appointmentBooked: row.flow.appointmentBooked,
     },
@@ -106,6 +111,8 @@ export async function start(request: Request) {
     if (!claim) return fail(429, "Six demo calls have started this hour. Try later.");
     if (!claim.dial) return view(claim.row);
     const { id } = claim.row;
+    // The agent's guarded opener is ready before Twilio dials, so step 0 only plays it.
+    claim.row = (await setFirstFlow(id, await openFlow(id))) ?? claim.row;
     const body = new URLSearchParams({
       From: process.env.TWILIO_PHONE_NUMBER!,
       To: process.env.TEST_PATIENT_PHONE!,
@@ -273,11 +280,12 @@ export async function twiml(request: Request) {
     const linked = await updateState(call.id, call.sid, "in-progress");
     if (!linked || !isActive(linked.status)) return response("<Hangup/>");
     const row = await turn(call.id, call.sid, step, (s) =>
-      nextFlow(
+      nextTurn(
         call.id,
         s,
         (call.fields.Digits ?? "").slice(0, 8),
         (call.fields.SpeechResult ?? "").slice(0, 300),
+        "phone",
       ),
     );
     if (!row) return response("<Hangup/>");
@@ -287,7 +295,9 @@ export async function twiml(request: Request) {
     const options =
       row.flow.phase === "pin"
         ? 'input="speech dtmf" numDigits="6" speechTimeout="2"'
-        : 'input="speech dtmf" numDigits="1" speechTimeout="auto"';
+        : row.flow.phase === "agent"
+          ? 'input="speech dtmf" speechTimeout="auto" finishOnKey="#"'
+          : 'input="speech dtmf" numDigits="1" speechTimeout="auto"';
     const outside = row.flow.phase === "appointment";
     return response(
       (outside ? spoken : "") +

@@ -202,3 +202,24 @@ export function setAgentModelForTests(factory?: () => AgentModel): void {
   holder.model = factory;
 }
 export const agentStoreForTests = agentStore;
+
+/** The real agent runs when the server has a Claude API key (a test model counts), unless AEGIS_PRESENTER_AGENT=off. */
+export function agentEnabled(): boolean {
+  if (process.env.AEGIS_PRESENTER_AGENT === "off") return false;
+  return Boolean(holder.model || process.env.ANTHROPIC_API_KEY);
+}
+
+/** The caller said nothing: the driver's own check-in line, through the guard. No model turn. */
+export async function agentSilence(presenterId: string, agent: AgentState): Promise<AgentReply> {
+  const { store, driver } = await parts(presenterId);
+  driver.importCall(agent.callId, agent.snapshot);
+  const reply = spoken(await collect(driver.checkIn(agent.callId)));
+  const snapshot = driver.exportCall(agent.callId);
+  return { agent: { ...agent, snapshot }, reply, ended: false, verified: verifiedIn(snapshot), refillRequested: await refillRequested(store, agent.callId) };
+}
+
+/** The demo patient the agent calls, for the presenter's screen until they're verified. */
+export const DEMO_PATIENT = (() => {
+  const sam = SEED.patients.find((p) => p.id === IDS.sam)!;
+  return { name: `${sam.firstName} ${sam.lastName}`, dob: sam.dob };
+})();
