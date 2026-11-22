@@ -364,7 +364,8 @@ export function createPostgresStore(db: SqlDb, seed: Seed = SEED): PostgresStore
    * Store.transaction (Trail #83): fn's writes all commit or none do. One pooled client runs
    * BEGIN, every query fn makes through this store, then COMMIT, or ROLLBACK if fn throws, and
    * the error is rethrown. A transaction inside one already open joins it. On a rollback the
-   * process's cached chain head and clock are dropped, since they may name undone writes.
+   * process's cached chain head, clock and seed tables (cards) are dropped, since they may name
+   * undone writes.
    */
   async function transaction<T>(fn: () => Promise<T>): Promise<T> {
     if (open.getStore()) return fn();
@@ -375,6 +376,7 @@ export function createPostgresStore(db: SqlDb, seed: Seed = SEED): PostgresStore
       } catch (error) {
         head = undefined;
         clock = undefined;
+        fixed = undefined; // a card added inside may have been undone
         throw error;
       }
     });
