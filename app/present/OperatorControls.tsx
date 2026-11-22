@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Badge, Button } from "@/components/ui";
 import { readTestEvents, requestTest, type TestEvent } from "../simulation/live-events";
 import { AssistantLine, type Assistant, type DemoPatient } from "./assistant";
 
@@ -118,6 +119,12 @@ type ScenarioState = {
   phase: "Ready" | "Queued" | "Running" | "Passed" | "Failed" | "Interrupted";
   events: TestEvent[];
 };
+const phaseTone = (phase: ScenarioState["phase"]): "neutral" | "quick" | "accent" | "stop" => {
+  if (phase === "Passed") return "accent";
+  if (phase === "Failed" || phase === "Interrupted") return "stop";
+  if (phase === "Queued" || phase === "Running") return "quick";
+  return "neutral";
+};
 const makeRows = (phase: ScenarioState["phase"]): ScenarioState[] => scenarios.map(() => ({ phase, events: [] }));
 
 function EventLine({ event }: { event: TestEvent }) {
@@ -167,22 +174,49 @@ export function SuiteControl() {
     }
   }
 
-  return <section id="suite" className="presenter-card" aria-labelledby="suite-heading">
-    <h2 id="suite-heading">Business test suite</h2>
-    <p>Run three live synthetic calls in sequence and see how the pharmacy handles each one.</p>
-    <button type="button" className="presenter-primary" onClick={run} disabled={running}>{running ? "Suite running…" : "Run all 3 business tests"}</button>
+  return <section id="suite" className="presenter-card" aria-labelledby="suite-heading" aria-busy={running}>
+    <div className="flex flex-wrap items-start justify-between gap-3">
+      <div>
+        <h2 id="suite-heading">Scripted call suite</h2>
+        <p>Runs three synthetic patient calls in order through the pharmacy workflow.</p>
+      </div>
+      <Badge tone={running ? "quick" : ended ? (rows.some(row => row.phase === "Failed" || row.phase === "Interrupted") ? "stop" : "accent") : "neutral"} dot>
+        {running ? "Running" : ended ? "Finished" : "Ready"}
+      </Badge>
+    </div>
+
+    <div className="mt-4 rounded-card border border-line bg-sunken/40 p-4">
+      <p className="text-xs font-medium uppercase tracking-wide text-ink-3">Configured tests</p>
+      <ul className="mt-2 grid gap-2 text-sm sm:grid-cols-2">
+        {scenarios.map(({ id, name }) => <li key={id} className="flex flex-wrap items-baseline gap-x-2">
+          <span className="font-medium text-ink">{name}</span>
+          <code className="font-mono text-[11px] text-ink-3">{id}</code>
+        </li>)}
+      </ul>
+      <p className="mt-3 text-xs text-ink-3">Synthetic test data · three calls · results stream below and are not a saved release-gate run.</p>
+    </div>
+
+    <div className="mt-4 flex flex-wrap items-center gap-3">
+      <Button onClick={run} disabled={running} aria-busy={running}>
+        {running ? "Running suite…" : "Run scripted suite"}
+      </Button>
+      <p className="text-sm text-ink-2" role="status" aria-live="polite">
+        {running ? "Each call runs in sequence; this control is disabled until the run finishes." : ended ? `Finished · ${rows.filter(r => r.phase === "Passed").length} passed · ${rows.filter(r => r.phase === "Failed").length} failed · ${rows.filter(r => r.phase === "Interrupted").length} interrupted` : "Ready to run the three configured calls."}
+      </p>
+    </div>
+
+    <h3 className="mt-6 text-sm font-semibold text-ink">Live results</h3>
     <ol className="presenter-tests">{scenarios.map(({ id, name }, index) => {
       const row = rows[index];
       const last = row.events.at(-1);
       return <li key={id}>
-        <div className="presenter-test-name"><strong>{name}</strong><span className="presenter-phase" data-phase={row.phase} role="status">{row.phase}</span></div>
+        <div className="presenter-test-name"><strong>{name}</strong><Badge tone={phaseTone(row.phase)}>{row.phase}</Badge></div>
         {last && <p className="presenter-latest"><EventLine event={last} /></p>}
         {row.events.length > 1 && <details><summary>View call events ({row.events.length})</summary>
           <ul>{row.events.map((event, i) => <li key={i}><EventLine event={event} /></li>)}</ul>
         </details>}
       </li>;
     })}</ol>
-    {ended && <p role="status" className="presenter-total">Suite complete · {rows.filter(r => r.phase === "Passed").length} passed · {rows.filter(r => r.phase === "Failed").length} failed · {rows.filter(r => r.phase === "Interrupted").length} interrupted</p>}
   </section>;
 }
 
@@ -226,17 +260,42 @@ export function WorkflowChecks() {
     }
   }
 
-  return <section className="presenter-card presenter-workflow" aria-labelledby="workflow-heading">
-    <h2 id="workflow-heading">Workflow checks</h2>
-    <p>Check the pharmacy’s rules against synthetic records.</p>
-    <button type="button" className="presenter-primary" onClick={run} disabled={running}>{running ? "Checking workflows…" : "Run workflow checks"}</button>
-    {error && <p role="alert" className="presenter-error">{error}</p>}
-    {results && <>
-      <p className="presenter-total" role="status">{results.passed} of {results.total} workflow checks passed</p>
-      <ul className="presenter-tests">{results.checks.map((check, index) => <li key={index}>
-        <div className="presenter-test-name"><strong>{check.label}</strong><span className="presenter-phase" data-phase={check.passed ? "Passed" : "Failed"}>{check.passed ? "Passed" : "Failed"}</span></div>
-        <p className="presenter-latest">{check.detail}</p>
-      </li>)}</ul>
-    </>}
+  const checks = results ? [...results.checks].sort((a, b) => Number(a.passed) - Number(b.passed)) : [];
+
+  return <section className="presenter-card presenter-workflow" aria-labelledby="workflow-heading" aria-busy={running}>
+    <div className="flex flex-wrap items-start justify-between gap-3">
+      <div>
+        <h2 id="workflow-heading">Rule workflow checks</h2>
+        <p>Checks the pharmacy rules against synthetic records. This is a separate run from the scripted call suite.</p>
+      </div>
+      <Badge tone={running ? "quick" : error ? "stop" : results ? (results.passed === results.total ? "accent" : "stop") : "neutral"} dot>
+        {running ? "Running" : error ? "Unavailable" : results ? "Complete" : "Ready"}
+      </Badge>
+    </div>
+
+    <div className="mt-4 rounded-card border border-line bg-sunken/40 p-4">
+      <p className="text-xs font-medium uppercase tracking-wide text-ink-3">Configured checks</p>
+      <p className="mt-2 text-sm text-ink">All available workflow rules · synthetic patient records</p>
+      <p className="mt-1 text-xs text-ink-3">The API returns a fresh check result for this run; it does not replace or score the release gate.</p>
+    </div>
+
+    <div className="mt-4 flex flex-wrap items-center gap-3">
+      <Button onClick={run} disabled={running} aria-busy={running}>
+        {running ? "Checking workflows…" : "Run workflow checks"}
+      </Button>
+      {running && <p className="text-sm text-ink-2" role="status" aria-live="polite">Checking the configured synthetic workflows…</p>}
+    </div>
+    {error && <p role="alert" className="presenter-error">Could not load workflow results: {error}</p>}
+    {results ? (
+      <>
+        <p className="presenter-total" role="status" aria-live="polite">{results.passed} of {results.total} workflow checks passed in this run.</p>
+        <ul className="presenter-tests">{checks.map((check, index) => <li key={`${check.label}-${index}`}>
+          <div className="presenter-test-name"><strong>{check.label}</strong><Badge tone={check.passed ? "accent" : "stop"}>{check.passed ? "Passed" : "Failed"}</Badge></div>
+          <p className="presenter-latest">{check.detail}</p>
+        </li>)}</ul>
+      </>
+    ) : !running && !error ? (
+      <p className="mt-4 text-sm text-ink-3" role="status">No workflow check result yet. Run the checks to see their outcomes.</p>
+    ) : null}
   </section>;
 }
