@@ -117,15 +117,18 @@ function ControlScene() {
   );
 }
 
-function Beat({ id, heading, visual, children }: {
+function Beat({ id, step, heading, visual, children }: {
   id?: string;
+  step: number;
   heading: ReactNode;
   visual: ReactNode;
   children: ReactNode;
 }) {
   return (
     <div id={id} data-story-beat="" className="landing-beat">
+      <span className="landing-beat-marker" data-story-marker="" aria-hidden="true" />
       <div className="landing-beat-copy">
+        <span className="landing-step-label">Step {step} of 6</span>
         {heading}
         {children}
       </div>
@@ -143,40 +146,47 @@ export function RefillStory({ safetyHref }: { safetyHref: string }) {
   const control = <ControlScene />;
 
   return (
-    <div className="landing-story-band">
+    <section id="acts" className="landing-story-band" aria-labelledby="refill-story-title">
+      <header className="landing-container landing-story-intro">
+        <p>Follow one refill</p>
+        <h2 id="refill-story-title">
+          <span>A simpler refill for patients.</span>{" "}
+          <span>A clear next step for pharmacists.</span>
+        </h2>
+      </header>
       <ScrollStory visuals={[ring, verify, refill, review, speech, control]}>
-        <section id="acts" aria-labelledby="call-title">
-          <Beat heading={<h2 id="call-title">A call before you run out.</h2>} visual={ring}>
+        <section aria-labelledby="call-title">
+          <Beat step={1} heading={<h3 id="call-title">A call before you run out.</h3>} visual={ring}>
             <p>The pharmacy calls when it’s time to check in about a refill.</p>
           </Beat>
-          <Beat heading={<h3>First, confirm who’s on the line.</h3>} visual={verify}>
+          <Beat step={2} heading={<h4>First, confirm who’s on the line.</h4>} visual={verify}>
             <p>Aegis texts a verification code and confirms the patient’s identity before discussing a prescription.</p>
           </Beat>
-          <Beat heading={<h3>Check in about the refill.</h3>} visual={refill}>
+          <Beat step={3} heading={<h4>Check in about the refill.</h4>} visual={refill}>
             <p>Aegis asks about the refill and how the patient has been feeling.</p>
           </Beat>
         </section>
 
         <section aria-labelledby="review-title">
-          <Beat id="pharmacist" heading={<h2 id="review-title">A pharmacist takes it from here.</h2>} visual={review}>
+          <Beat id="pharmacist" step={4} heading={<h3 id="review-title">A pharmacist takes it from here.</h3>} visual={review}>
             <p>When the patient mentions a side effect, the pharmacist gets the note and the reason for review.</p>
           </Beat>
         </section>
 
         <section aria-labelledby="speech-title">
-          <Beat id="redacted" heading={<h2 id="speech-title">Things a fooled AI tried to say.</h2>} visual={speech}>
+          <Beat id="redacted" step={5} heading={<h3 id="speech-title">Things a fooled AI tried to say.</h3>} visual={speech}>
             <p>On a test call, the speech guard stopped the agent from saying a refill was already approved.</p>
           </Beat>
         </section>
 
         <section aria-labelledby="safety-title">
-          <Beat id="attacks" heading={<><span id="buttons" className="landing-anchor" /><h2 id="safety-title">We test the rules the calls run on.</h2></>} visual={control}>
+          <Beat id="attacks" step={6} heading={<><span id="buttons" className="landing-anchor" /><h3 id="safety-title">We test the rules the calls run on.</h3></>} visual={control}>
             <p>Routine scenarios and adversarial tests run through the same call driver.</p>
             <p>The control layer checks every one of the agent’s 12 possible actions. The speech guard checks every spoken line.</p>
             <Link href={safetyHref} className="landing-text-link">Explore the Safety suite <span aria-hidden="true">↗</span></Link>
           </Beat>
         </section>
       </ScrollStory>
-    </div>
+    </section>
   );
 }

@@ -12,18 +12,35 @@ export function ScrollStory({ children, visuals }: { children: ReactNode; visual
     const element = story.current;
     if (!element) return;
 
-    const beats = Array.from(element.querySelectorAll("[data-story-beat]"));
+    const beats = Array.from(element.querySelectorAll<HTMLElement>("[data-story-beat]"));
+    const markers = Array.from(element.querySelectorAll("[data-story-marker]"));
     const media = window.matchMedia(STICKY_MEDIA);
     let frame = 0;
+    let activeIndex = -1;
 
     function sync() {
       cancelAnimationFrame(frame);
-      if (!media.matches) return;
 
       frame = requestAnimationFrame(() => {
         const midpoint = window.innerHeight / 2;
-        const index = beats.findLastIndex((beat) => beat.getBoundingClientRect().top <= midpoint);
-        setActive(Math.max(0, index));
+        const beatTops = beats.map((beat) => beat.getBoundingClientRect().top);
+        const index = Math.max(0, markers.findLastIndex((marker) => {
+          const dot = marker.getBoundingClientRect();
+          return dot.top + dot.height / 2 <= midpoint;
+        }));
+
+        // Every segment fills to the same viewport position, including between markers.
+        beats.forEach((beat, position) => {
+          beat.style.setProperty("--rail-fill", `${midpoint - beatTops[position]}px`);
+          if (index !== activeIndex) {
+            beat.setAttribute("data-story-position", position < index ? "passed" : position === index ? "current" : "ahead");
+          }
+        });
+
+        if (index !== activeIndex) {
+          activeIndex = index;
+          setActive(index);
+        }
       });
     }
 
