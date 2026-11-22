@@ -107,6 +107,13 @@ describe("POST /api/rules/:id/approve", () => {
     expect(await getStore().listCards()).toEqual(SEED.cards);
   });
 
+  it("approves once when two approvals arrive together; the other gets 409, not 500", async () => {
+    const draft = await makeDraft();
+    const statuses = (await Promise.all([approve(draft.card.id), approve(draft.card.id)])).map((r) => r.status).sort();
+    expect(statuses).toEqual([200, 409]);
+    expect((await getStore().listCards()).filter((c) => c.id === draft.card.id)).toHaveLength(1);
+  });
+
   it("404s an unknown draft", async () => {
     session.approver = PHARMACIST;
     expect((await approve("w999")).status).toBe(404);
