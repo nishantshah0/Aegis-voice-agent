@@ -25,7 +25,7 @@ export function PairPhone({ patients }: { patients: { id: string; name: string }
   }
 
   return (
-    <section className="mt-10 rounded-card border border-line bg-surface p-5 text-sm shadow-card">
+    <section id="pair" className="mt-10 scroll-mt-24 rounded-card border border-line bg-surface p-5 text-sm shadow-card">
       <h2 className="font-semibold tracking-[-0.01em]">Pair a patient&apos;s phone</h2>
       <p className="mt-1 text-ink-3">Only the paired phone can answer that patient&apos;s calls.</p>
       <div className="mt-4 flex flex-wrap items-center gap-2">
