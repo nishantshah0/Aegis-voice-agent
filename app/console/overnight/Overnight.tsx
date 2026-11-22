@@ -34,7 +34,7 @@ function SourceCard<T>({ title, source, children }: { title: string; source: Sou
   return (
     <Card as="section" className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-2">
-        <h2 className="text-[15px] font-semibold">{title}</h2>
+        <h2 className="text-[22px] leading-tight">{title}</h2>
         {source.state === "ok" && <span className="text-xs text-ink-3">{when(source.ranAt)}</span>}
         {source.state === "error" && <Badge tone="stop">Can&apos;t read</Badge>}
       </div>
