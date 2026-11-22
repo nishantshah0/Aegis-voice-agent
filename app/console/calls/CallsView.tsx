@@ -124,7 +124,7 @@ export async function Calls() {
         <StatTile label="Automatic" value={overview.lanes.automatic} tone="accent" />
         <StatTile label="Quick check" value={overview.lanes.quick_check} tone="quick" />
         <StatTile label="Review" value={overview.lanes.review} tone="review" />
-        <StatTile label="Model calls (log)" value={totalModelCalls} />
+        <StatTile label="Model calls" value={totalModelCalls} />
         <StatTile label="Cost (log)" value={usd(totalCost)} />
       </section>
 
@@ -138,9 +138,7 @@ export async function Calls() {
           <p className="mt-2">
             <Badge tone="accent" dot>
               Record chain verified
-            </Badge>{" "}
-            {overview.chain.entries} entries
-            {overview.chain.headHash && <span className="font-mono text-xs text-ink-3"> · head {overview.chain.headHash.slice(0, 12)}…</span>}
+            </Badge>
           </p>
         ) : (
           <p className="mt-2">

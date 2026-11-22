@@ -8,7 +8,7 @@ export const CONSOLE_TABS: ConsoleTab[] = [
   { key: "today", href: "/console/today", label: "Today" },
   { key: "upcoming", href: "/console/upcoming", label: "Upcoming" },
   { key: "calls", href: "/console/calls", label: "Calls" },
-  { key: "review", href: "/console/review", label: "Review calls" },
+  { key: "review", href: "/console/review", label: "Call quality" },
   { key: "rules", href: "/console/rules", label: "Rules" },
   { key: "overnight", href: "/console/overnight", label: "Overnight" },
 ];

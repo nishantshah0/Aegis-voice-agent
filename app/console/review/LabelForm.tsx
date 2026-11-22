@@ -82,8 +82,9 @@ export function LabelForm({ callId, initial }: { callId: string; initial?: Marks
       </div>
       <label className="flex items-center gap-2 text-sm">
         <input type="checkbox" checked={marks.saveAsTest} onChange={(e) => set("saveAsTest", e.target.checked)} className="size-4 accent-accent" />
-        Save as a test
+        Mark as a saved test example
       </label>
+      <p className="-mt-2 text-xs text-ink-3">This adds the call to the Saved as tests filter. It does not add the call to an automatically run safety suite.</p>
       <input
         value={note}
         onChange={(e) => setNote(e.target.value)}
