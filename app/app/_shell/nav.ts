@@ -1,7 +1,7 @@
 // The app's two product areas and their pages. One list drives the sidebar, the area
 // switcher and the overview's quick links.
 
-export type IconName = "home" | "today" | "calendar" | "outreach" | "calls" | "review" | "gate" | "attack" | "flask" | "moon" | "book" | "phone";
+export type IconName = "home" | "today" | "calendar" | "outreach" | "calls" | "review" | "gate" | "attack" | "flask" | "moon" | "book" | "phone" | "badge";
 export type NavItem = { href: string; label: string; icon: IconName; hint: string };
 export type Area = { key: "pharmacy" | "safety"; label: string; short: string; home: string; items: NavItem[] };
 

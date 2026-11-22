@@ -14,12 +14,12 @@ Calm, precise, clinical but warm. The site leads dark, like the products we meas
 | `public/brand/mark-dark.svg` | The mark on near-black (the stage, the phone, dark slides). |
 | `public/brand/logo.svg` | Mark plus wordmark, on light backgrounds. Text is outlined, so it renders the same everywhere (README, slides). |
 | `public/brand/logo-dark.svg` | Mark plus wordmark, on near-black. |
-| `public/brand/wordmark.svg` | The words alone, for tight spaces where the mark already appears. |
+| `public/brand/wordmark.svg` | The word alone, for tight spaces where the mark already appears. Set in Alfa Slab One (SIL Open Font License), a Clarendon-style slab, and outlined. |
 | `public/brand/icon-512.png` | Square app icon (white mark on green), for slides and Devpost. |
 | `public/brand/social-preview.png` | 1280×640 GitHub and link preview. |
 | `app/icon.svg`, `app/favicon.ico`, `app/apple-icon.png` | Browser and home-screen icons (Next.js file conventions). |
 
-**The mark** is a shield holding a two-tone capsule: the pharmacy (the capsule) inside rules it can't get out of (the shield). In code, use `<Mark />` or `<Logo />` from `components/ui`: they take their colours from the tokens, so they switch with the theme.
+**The mark** is our shield carrying a five-point sheriff's star with ball tips, with the two-tone capsule at its centre: the pharmacy (the capsule) under rules that are the law (the star), inside rules it can't get out of (the shield). The star is our nod to Hack Western, where Aegis was built; it is our own drawing, not Hack Western's logo or art. In code, use `<Mark />` or `<Logo />` from `components/ui`: they take their colours from the tokens, so they switch with the theme.
 
 - Clear space around the logo: at least the mark's width on every side.
 - Minimum size: mark 16 px, full logo 96 px wide.
@@ -50,6 +50,15 @@ Each of `accent`, `quick`, `review` and `stop` has a `-soft` tint for badge back
 
 **Light or dark.** The landing page, the stage (a projector) and the patient's phone (a call screen) are dark; the pharmacist console is light, because it's a work tool used all day. Dark screens: wrap them in `theme-dark` (or `<PageShell theme="dark">`) and every token switches.
 
+## Western touches (Hack Western 13)
+
+A nod to where Aegis was built, kept small so it still reads as a health product.
+
+- **Where:** the landing page, the brand art (logo, icons, social preview) and the README. The dashboard stays plain; its only touches are the badge icon for the Safety suite ("the law") and one empty state ("Nothing waiting. The herd's all set.").
+- **Leather tan** (`tan`: `#8A5A2B` light, `#D4A373` dark, both AA): stitched dividers, the hoofprint trail, the "Built at Hack Western 13" tag. Never for buttons, numbers or status.
+- **Drawings** in `components/landing/Western.tsx`, all our own: `Horseshoe`, `HorseHead` (line drawing), `StitchDivider` (a dashed seam with a horseshoe), `HoofTrail`, `BuiltAtHackWestern`.
+- **Don't:** use Hack Western's logo, mascot or artwork, rope fonts, wanted-poster textures, or slab type for body text.
+
 ## Lanes
 
 Always the same name, colour and order. Use `<LaneBadge lane=... />`.
@@ -62,7 +71,7 @@ Always the same name, colour and order. Use `<LaneBadge lane=... />`.
 
 ## Type
 
-**Inter** for everything, loaded once in `app/layout.tsx` (`--font-inter`, Tailwind `font-sans`). **Geist Mono** only for codes, ids, button names and record entries (`font-mono`).
+**Inter** for everything you read, loaded once in `app/layout.tsx` (`--font-inter`, Tailwind `font-sans`). **Geist Mono** only for codes, ids, button names and record entries (`font-mono`). The wordmark is the one slab: it is an outlined SVG (`<Wordmark />`), so no slab font loads and body text stays clean.
 
 | Style | Classes |
 |---|---|

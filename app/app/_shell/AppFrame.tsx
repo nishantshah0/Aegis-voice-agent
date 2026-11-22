@@ -58,7 +58,10 @@ export function AppFrame({ account, children }: { account: ReactNode; children: 
                   area?.key === a.key ? "bg-surface text-ink shadow-card" : "text-ink-2 hover:text-ink",
                 )}
               >
-                {a.short}
+                <span className="inline-flex items-center justify-center gap-1.5">
+                  <Icon name={a.key === "safety" ? "badge" : "calls"} className="size-4" />
+                  {a.short}
+                </span>
               </Link>
             ))}
           </div>
