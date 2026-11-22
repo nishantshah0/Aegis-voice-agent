@@ -115,7 +115,7 @@ export type PostgresStore = Store & { transaction<T>(fn: () => Promise<T>): Prom
 export function createPostgresStore(db: SqlDb, seed: Seed = SEED): PostgresStore {
   // Inside transaction(fn), every query fn makes, through any store method, goes to the
   // transaction's one client: this holds it for the async calls fn starts.
-  const open = new AsyncLocalStorage<{ query: Query }>();
+  const open = new AsyncLocalStorage<{ query: Query; cardsChanged?: boolean }>();
 
   // Tables are created, and the seed loaded into an empty database, on first use (never at
   // construction, so creating a store makes no connection). A failed setup is retried next time.
@@ -274,6 +274,9 @@ export function createPostgresStore(db: SqlDb, seed: Seed = SEED): PostgresStore
       // The primary key refuses a duplicate id (the insert throws).
       await q(`insert into rg_cards values ($1, (select coalesce(max(pos), -1) + 1 from rg_cards), $2::jsonb)`, [card.id, json(card)]);
       fixed = undefined;
+      // Inside a transaction an outside read can re-cache the list before COMMIT; clear it again after.
+      const tx = open.getStore();
+      if (tx) tx.cardsChanged = true;
       return copy(card);
     },
     async policy() {
@@ -372,7 +375,11 @@ export function createPostgresStore(db: SqlDb, seed: Seed = SEED): PostgresStore
     await ensureReady();
     return oneAtATime(async () => {
       try {
-        return await db.transaction((query) => open.run({ query }, fn));
+        const tx: { query?: Query; cardsChanged?: boolean } = {};
+        const result = await db.transaction((query) => open.run(Object.assign(tx, { query }) as { query: Query; cardsChanged?: boolean }, fn));
+        // A card added inside is visible to other reads only from COMMIT on (Trail #78 review).
+        if (tx.cardsChanged) fixed = undefined;
+        return result;
       } catch (error) {
         head = undefined;
         clock = undefined;
