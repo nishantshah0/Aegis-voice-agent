@@ -74,7 +74,7 @@ describe("applyApprovedCard", () => {
     expect(entry).toMatchObject({ kind: "rule_change", actor: "pharmacist", decision: "allowed", ruleIds: ["w1"] });
     expect(entry.input).toMatchObject({ approver: { id: pharmacist.id, name: pharmacist.name } });
     // Live now: an antibiotic refill routes.
-    const verdict = evaluate(cards, "request_refill", { "drug.class": "antibiotic", "drug.controlled": false, "rx.pct_days_elapsed": 95, "rx.days_late": 0, "rx.refills_left": 2, "rx.expired": false, "rx.days_since_last_fill": 28, "rx.prescribed_interval_days": 30, "recent.blocked_count_10min": 0, "policy.controlled_early_window_days": 3 });
+    const verdict = evaluate(cards, "request_refill", { "drug.class": "antibiotic", "drug.controlled": false, "rx.pct_days_elapsed": 95, "rx.days_late": 0, "rx.refills_left": 2, "rx.expired": false, "rx.days_since_last_fill": 28, "rx.prescribed_interval_days": 30, "recent.blocked_count_10min": 0, "policy.controlled_early_window_days": 3, "request.days_supply": 30, "rx.days_supplied": 30 });
     expect(verdict.deciding).toEqual(["w1"]);
   });
 

@@ -1,6 +1,6 @@
 // The team's starting rule cards (SPEC Part 3, "Rule cards"), as data.
 // Cards whose wording is an "or" are split, because all conditions in `when` must hold:
-// 2 → 2a, 2b; 7 → 7a to 7d; 8 → 8a, 8b.
+// 2 → 2a, 2b; 7 → 7a to 7d; 8 → 8a, 8b. Cards 12 and 13a to 13e are Trail #85's.
 
 import type { RuleCard } from "./rules";
 
@@ -145,5 +145,67 @@ export const STARTING_CARDS: RuleCard[] = [
     appliesTo: ["request_refill", "request_renewal", "set_delivery"],
     risk: "An attack in progress",
     tests: ["T11"],
+  },
+  // Trail #85: days supply and appointments. The lock also checks each of these in code;
+  // the cards put them in the rule book, where an approver can add stricter ones.
+  {
+    ...team,
+    id: "12",
+    wording: "A refill is never for a longer supply than prescribed.",
+    when: [{ field: "request.days_supply", op: ">", value: { field: "rx.days_supplied" } }],
+    then: "refuse",
+    appliesTo: ["request_refill"],
+    risk: "Stockpiling",
+    tests: ["T12"],
+  },
+  {
+    ...team,
+    id: "13a",
+    wording: "Book only a slot that is free.",
+    when: [{ field: "appointment.slot_free", op: "=", value: false }],
+    then: "refuse",
+    appliesTo: ["book_appointment"],
+    risk: "Double booking",
+    tests: ["T13a"],
+  },
+  {
+    ...team,
+    id: "13b",
+    wording: "No appointments before 9 AM.",
+    when: [{ field: "appointment.local_hour", op: "<", value: 9 }],
+    then: "refuse",
+    appliesTo: ["book_appointment"],
+    risk: "Outside business hours",
+    tests: ["T13b"],
+  },
+  {
+    ...team,
+    id: "13c",
+    wording: "No appointments from 6 PM.",
+    when: [{ field: "appointment.local_hour", op: ">=", value: 18 }],
+    then: "refuse",
+    appliesTo: ["book_appointment"],
+    risk: "Outside business hours",
+    tests: ["T13c"],
+  },
+  {
+    ...team,
+    id: "13d",
+    wording: "One booking of each type per patient per day.",
+    when: [{ field: "appointment.same_type_same_day", op: ">=", value: 1 }],
+    then: "refuse",
+    appliesTo: ["book_appointment"],
+    risk: "Hoarding slots",
+    tests: ["T13d"],
+  },
+  {
+    ...team,
+    id: "13e",
+    wording: "Book only for the verified caller.",
+    when: [{ field: "appointment.patient_is_caller", op: "=", value: false }],
+    then: "refuse",
+    appliesTo: ["book_appointment"],
+    risk: "Booking for someone else",
+    tests: ["T13e"],
   },
 ];

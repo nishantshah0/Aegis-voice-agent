@@ -5,9 +5,9 @@
   "reports": [
     {
       "kind": "exhaustive",
-      "sequences": 67648,
-      "presses": 163124,
-      "checks": 200768,
+      "sequences": 88270,
+      "presses": 217268,
+      "checks": 262220,
       "broken": 0,
       "failures": [],
       "ms": 205756

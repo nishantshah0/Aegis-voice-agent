@@ -23,6 +23,14 @@ export const CARD_FIELDS = [
   "recent.renewals_7d",
   "recent.outbound_calls_3d",
   "policy.controlled_early_window_days",
+  // Trail #85: days supply and appointments.
+  "request.days_supply",
+  "rx.days_supplied",
+  "rx.days_until_due",
+  "appointment.slot_free",
+  "appointment.local_hour",
+  "appointment.same_type_same_day",
+  "appointment.patient_is_caller",
 ] as const;
 
 export type CardField = (typeof CARD_FIELDS)[number];

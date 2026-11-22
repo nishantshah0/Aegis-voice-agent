@@ -7,7 +7,7 @@
 import { CARD_FIELDS, type Approver, type CardCondition, type CardField, type RuleCard, type Store } from "@/lib/contract";
 
 /** The buttons rule cards are checked on (lib/control/press.ts), plus rule 7's outbound check. */
-export const CARD_BUTTONS = ["request_refill", "request_renewal", "set_delivery", "outbound_check"] as const;
+export const CARD_BUTTONS = ["request_refill", "request_renewal", "set_delivery", "book_appointment", "outbound_check"] as const;
 export type CardButton = (typeof CARD_BUTTONS)[number];
 
 const OUTCOMES = ["refuse", "route", "flag"] as const;

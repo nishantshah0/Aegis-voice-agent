@@ -7,7 +7,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { createHash, randomInt } from "node:crypto";
 import {
   NEEDS_VERIFIED,
-  type AppointmentSlot,
+  type LegacyAppointmentSlot,
   type ButtonError,
   type ButtonInputs,
   type ButtonName,
@@ -29,11 +29,13 @@ import {
   type StartCallOpts,
   type Store,
 } from "@/lib/contract";
+import { appointmentContext, appointmentFloor, liveAppointments, slotsFrom, MAX_LISTED_SLOTS } from "./appointments";
+import { buildContext, internalOf, loadContext, resultOf, type PressRecordOutput } from "./context";
 import { APPOINTMENT_CONFIRMATION_QUESTION, confirmsBooking } from "@/lib/contract/appointment-consent";
-import { internalOf, loadContext, resultOf, type PressRecordOutput } from "./context";
 import { evaluate, type Verdict } from "./engine";
 import { chooseLane, signalsFromCards } from "./lanes";
-import { addMs, fresh as isFresh, isBefore, MINUTE_MS, within } from "./time";
+import { addMs, DAY_MS, fresh as isFresh, isBefore, MINUTE_MS, within } from "./time";
+import { labelQty, labelUnit, quantityFor } from "./supply";
 import { checkInput, normalise, normaliseDob, normaliseRxNumber } from "./validate";
 
 export const MAX_CODE_TRIES = 3;
@@ -78,6 +80,8 @@ export type ControlOptions = {
 const READY_STATES: ReadonlySet<string> = new Set(["waiting_for_pharmacist", "queued", "approved"]);
 /** Days from the request until a refill is ready (pharmacist check plus fill). Sundays don't count. */
 const READY_AFTER_DAYS = 2;
+/** How far ahead refill_history looks for the next day a refill would pass the cards. */
+const NEXT_ELIGIBLE_DAYS = 120;
 
 /**
  * The weekday a refill asked for at `at` is expected ready, in pharmacy time ("Thursday" for the
@@ -292,8 +296,8 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
     return { result: ok<"check_code">({ verified: false, tries_left: Math.min(MAX_CODE_TRIES - tries, patientLeft) }), decision: "blocked", internal };
   }
 
-  async function refillVerdict(call: Call, patient: Patient, rx: Prescription, reason?: string) {
-    const context = await loadContext(store, patient, rx, call, reason);
+  async function refillVerdict(call: Call, patient: Patient, rx: Prescription, reason?: string, daysSupply?: number) {
+    const context = await loadContext(store, patient, rx, call, reason, daysSupply);
     return { context, verdict: evaluate(await store.listCards(), "request_refill", context) };
   }
 
@@ -341,11 +345,11 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
     };
   }
 
-  function appointmentOffer(slot: AppointmentSlot) {
+  function appointmentOffer(slot: LegacyAppointmentSlot) {
     return { slot_id: slot.id, slot_label: slot.label, availability_text: `The pharmacist has an appointment available on ${slot.label}.` };
   }
 
-  function appointmentConfirmation(slot: AppointmentSlot) {
+  function appointmentConfirmation(slot: LegacyAppointmentSlot) {
     return {
       slot_id: slot.id, slot_label: slot.label, appointment_id: `appt_${slot.id}`,
       confirmation_text: `Your pharmacist appointment is booked for ${slot.label}.`,
@@ -362,7 +366,7 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
     };
   }
 
-  async function bookAppointment(call: Call, slotId: string, patientId: string): Promise<Handled> {
+  async function bookLegacyAppointment(call: Call, slotId: string, patientId: string): Promise<Handled> {
     const [policy, now, record] = await Promise.all([store.policy(), store.now(), store.listRecord(call.id)]);
     const slot = policy.appointmentSlots?.find((s) => s.id === slotId && isBefore(now, s.start));
     if (!slot) return blocked("invalid_input");
@@ -416,6 +420,7 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
     if (state === "waiting_for_pharmacist") return "A pharmacist needs to check this refill before it is approved.";
     if (ruleIds.includes("2a") || ruleIds.includes("2b")) return "This prescription can't be refilled. A renewal can be requested.";
     if (ruleIds.includes("4b")) return "It is too early to refill this prescription.";
+    if (ruleIds.includes("12")) return "That supply can't be done by phone. A pharmacist can help.";
     return "This refill can't be done by phone.";
   }
 
@@ -425,10 +430,10 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
     if (!rx || !patient) return blocked("not_yours", ["1"], { patientId: call.lockedPatientId });
 
     const daysSupply = input.days_supply ?? rx.daysSupplied;
-    if (daysSupply > rx.daysSupplied) return blocked("invalid_input");
-    const open = (await store.listOrders(patient.id)).find(
+
+    const open = daysSupply <= rx.daysSupplied ? (await store.listOrders(patient.id)).find(
       (o) => o.rxId === rx.id && (o.state === "queued" || o.state === "waiting_for_pharmacist" || o.state === "approved"),
-    );
+    ) : undefined;
     if (open) {
       // Older orders predate supply selection and used the full prescription supply.
       const existingDays = open.daysSupply ?? rx.daysSupplied;
@@ -447,16 +452,24 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
       };
     }
 
-    const { verdict, context } = await refillVerdict(call, patient, rx, input.reason);
+    const { verdict, context } = await refillVerdict(call, patient, rx, input.reason, input.days_supply);
     const internal = { patientId: patient.id, rxId: rx.id };
-    if (verdict.outcome === "refuse") {
+    // Rule 12 in code as well as on its card: never longer than prescribed, and a partial fill
+    // only when the label gives the quantity plainly (Trail #85). The quantity is worked out here.
+    const days = input.days_supply;
+    const partial = days !== undefined && days < rx.daysSupplied;
+    const quantity = days === undefined ? undefined : days === rx.daysSupplied ? (labelQty(rx.labelText) ?? quantityFor(rx, days)) : quantityFor(rx, days);
+    const supplyRefused = days !== undefined && (days > rx.daysSupplied || quantity === undefined);
+    if (verdict.outcome === "refuse" || supplyRefused) {
+      const ruleIds = [...new Set([...(verdict.outcome === "refuse" ? verdict.deciding : []), ...(supplyRefused ? ["12"] : [])])];
       return {
-        result: ok<"request_refill">({ state: "refused", rule_ids: verdict.deciding, message: refillMessage("refused", verdict.deciding) }, verdict.deciding),
+        result: ok<"request_refill">({ state: "refused", rule_ids: ruleIds, message: refillMessage("refused", ruleIds) }, ruleIds),
         decision: "blocked",
         internal,
         context,
       };
     }
+    const supply = days !== undefined && quantity !== undefined ? { daysSupply: days, quantity } : undefined;
 
     const signals = [...new Set([...signalsFromCards(verdict), ...(await callSignals(call))])];
     const lane = chooseLane(verdict, signals);
@@ -468,7 +481,7 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
     const taken = new Set((await store.listOrders()).map((o) => o.id));
     let orderId = `o_${call.id}_${rx.id}`;
     for (let n = 2; taken.has(orderId); n++) orderId = `o_${call.id}_${rx.id}_${n}`;
-    const order = await store.saveOrder({ id: orderId, rxId: rx.id, patientId: patient.id, state, daysSupply, createdAt: now });
+    const order = await store.saveOrder({ id: orderId, rxId: rx.id, patientId: patient.id, state, daysSupply, createdAt: now, ...(supply ?? {}) });
     const item = await addItem({
       callId: call.id,
       patientId: patient.id,
@@ -481,6 +494,7 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
       signals,
       notes: [],
       ...(input.reason ? { aiView: input.reason } : {}),
+      ...(partial && supply ? { partialFill: supply } : {}),
     });
     return {
       result: ok<"request_refill">(
@@ -492,6 +506,7 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
           supply_text: `Your refill request is for a ${daysSupply}-day supply.`,
           order_id: order.id,
           ...(READY_STATES.has(state) ? { ready_label: readyDay(now) } : {}),
+          ...(supply ? { days_supply: supply.daysSupply, quantity: supply.quantity } : {}),
         },
         ruleIds,
         lane,
@@ -591,7 +606,7 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
   async function noteForPharmacist(call: Call, input: ButtonInputs["note_for_pharmacist"]): Promise<Handled> {
     const patient = await lockedPatient(call);
     if (!patient) return blocked("not_verified", ["1"]);
-    if (input.kind === "appointment") return bookAppointment(call, input.slot_id, patient.id);
+    if (input.kind === "appointment") return bookLegacyAppointment(call, input.slot_id, patient.id);
     if (input.rx_id !== undefined && !(await ownRx(call, input.rx_id))) return blocked("not_yours", ["1"], { patientId: patient.id });
     const noteId = `n_${call.id}_${(await store.queue()).length + 1}`;
     const note = { id: noteId, kind: input.kind, text: input.text };
@@ -650,6 +665,122 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
     return { result: ok<"escalate">({ flag_id: `f_${item.id}` }, [], "review"), decision: "allowed", internal: { patientId, queueItemId: item.id } };
   }
 
+  // ---------- Trail #85: refill history and appointments ----------
+
+  /**
+   * The first day from now that no card refuses a refill and it isn't early (card 3's signal),
+   * found by running the live cards forward a day at a time. null if that never comes in
+   * NEXT_ELIGIBLE_DAYS (expired, no refills left).
+   */
+  async function nextEligible(call: Call, patient: Patient, rx: Prescription): Promise<string | null> {
+    const [now, record, policy, cards] = await Promise.all([store.now(), store.listRecord(), store.policy(), store.listCards()]);
+    for (let d = 0; d <= NEXT_ELIGIBLE_DAYS; d++) {
+      const at = addMs(now, d * DAY_MS);
+      const verdict = evaluate(cards, "request_refill", buildContext({ now: at, patient, rx, call, record, policy }));
+      if (verdict.outcome !== "refuse" && !signalsFromCards(verdict).includes("early")) return d === 0 ? now : at;
+    }
+    return null;
+  }
+
+  async function refillHistory(call: Call, input: ButtonInputs["refill_history"]): Promise<Handled> {
+    const rx = await ownRx(call, input.rx_id);
+    const patient = await lockedPatient(call);
+    if (!rx || !patient) return blocked("not_yours", ["1"], { patientId: call.lockedPatientId });
+    const next = await nextEligible(call, patient, rx);
+    const weekday = (iso: string) => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Toronto", weekday: "long" }).format(new Date(iso));
+    return {
+      result: ok<"refill_history">({
+        rx_id: rx.id,
+        drug: rx.drug,
+        last_fill: rx.lastFill,
+        last_fill_day: weekday(rx.lastFill),
+        last_fill_quantity: rx.lastFillQuantity ?? labelQty(rx.labelText) ?? quantityFor(rx, rx.daysSupplied) ?? 0,
+        last_fill_unit: labelUnit(rx.labelText),
+        last_fill_days_supply: rx.lastFillDaysSupply ?? rx.daysSupplied,
+        ...(rx.lastFillMethod ? { last_fill_method: rx.lastFillMethod } : {}),
+        refills_left: rx.refillsLeft,
+        days_supply_prescribed: rx.daysSupplied,
+        next_eligible: next,
+        ...(next ? { next_eligible_day: weekday(next) } : {}),
+        ...(rx.prescriber ? { prescriber: rx.prescriber } : {}),
+      }),
+      decision: "allowed",
+      internal: { patientId: patient.id, rxId: rx.id },
+    };
+  }
+
+  async function listAppointmentSlots(call: Call, input: ButtonInputs["list_appointment_slots"]): Promise<Handled> {
+    const patient = await lockedPatient(call);
+    if (!patient) return blocked("not_verified", ["1"]);
+    const [now, policy, record] = await Promise.all([store.now(), store.policy(), store.listRecord()]);
+    const live = liveAppointments(record);
+    const taken = new Set(live.map((a) => a.slotId));
+    const slots = slotsFrom(now, policy)
+      .filter((sl) => sl.type === input.type && !taken.has(sl.id))
+      .slice(0, MAX_LISTED_SLOTS)
+      .map((sl) => ({ slot_id: sl.id, label: sl.label, start: sl.start, end: sl.end }));
+    const booked = live
+      .filter((a) => a.patientId === patient.id && !isBefore(a.start, now))
+      .map((a) => ({ appointment_id: a.appointmentId, type: a.type, label: a.label, start: a.start }));
+    return { result: ok<"list_appointment_slots">({ type: input.type, slots, booked }), decision: "allowed", internal: { patientId: patient.id } };
+  }
+
+  async function bookAppointment(call: Call, input: ButtonInputs["book_appointment"]): Promise<Handled> {
+    const patient = await lockedPatient(call);
+    if (!patient) return blocked("not_verified", ["1"]);
+    const [now, policy, record] = await Promise.all([store.now(), store.policy(), store.listRecord()]);
+    const slot = slotsFrom(now, policy).find((sl) => sl.id === input.slot_id);
+    if (!slot) return blocked("not_found", [], { patientId: patient.id });
+    // Always the locked patient: book_appointment has no patient input (Trail #85).
+    const context = appointmentContext(slot, patient.id, call.lockedPatientId, liveAppointments(record));
+    const verdict = evaluate(await store.listCards(), "book_appointment", context);
+    const floor = appointmentFloor(context);
+    if (verdict.outcome === "refuse" || floor.length > 0) {
+      const ruleIds = [...new Set([...(verdict.outcome === "refuse" ? verdict.deciding : []), ...floor])];
+      return {
+        result: ok<"book_appointment">({ ok: false, rule_ids: ruleIds }, ruleIds),
+        decision: "blocked",
+        internal: { patientId: patient.id },
+        context,
+      };
+    }
+    if (verdict.outcome === "route") {
+      const item = await addItem({
+        callId: call.id,
+        patientId: patient.id,
+        kind: "note",
+        lane: "review",
+        ruleIds: verdict.deciding,
+        signals: signalsFromCards(verdict),
+        notes: [{ id: `n_${call.id}_appt_${record.length}`, kind: "question", text: `Appointment request needs a pharmacist: ${slot.type}, ${slot.label}` }],
+      });
+      return {
+        result: ok<"book_appointment">({ ok: false, rule_ids: verdict.deciding }, verdict.deciding, "review"),
+        decision: "routed",
+        internal: { patientId: patient.id, queueItemId: item.id },
+        context,
+      };
+    }
+    const n = record.filter((e) => e.callId === call.id && e.button === "book_appointment").length + 1;
+    const appointment = { ...slot, appointmentId: `apt_${call.id}_${n}`, slotId: slot.id, patientId: patient.id, callId: call.id };
+    return {
+      result: ok<"book_appointment">({ ok: true, rule_ids: [], appointment_id: appointment.appointmentId, type: slot.type, label: slot.label, start: slot.start }),
+      decision: "allowed",
+      internal: { patientId: patient.id, appointment },
+      context,
+    };
+  }
+
+  async function cancelAppointment(call: Call, input: ButtonInputs["cancel_appointment"]): Promise<Handled> {
+    const patient = await lockedPatient(call);
+    if (!patient) return blocked("not_verified", ["1"]);
+    const appointment = liveAppointments(await store.listRecord()).find((a) => a.appointmentId === input.appointment_id);
+    if (!appointment) return blocked("not_found", [], { patientId: patient.id });
+    if (appointment.patientId !== patient.id) return blocked("not_yours", ["1"], { patientId: patient.id });
+    if (isBefore(appointment.start, await store.now())) return blocked("refused", [], { patientId: patient.id });
+    return { result: ok<"cancel_appointment">({ ok: true, rule_ids: [] }), decision: "allowed", internal: { patientId: patient.id, appointment } };
+  }
+
   async function run(call: Call | undefined, button: ButtonName, input: unknown): Promise<Handled> {
     if (!call) return blocked("not_found");
     if (call.state === "ended") return blocked("call_ended");
@@ -683,6 +814,14 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
         return noteForPharmacist(call, i);
       case "escalate":
         return escalate(call, i);
+      case "refill_history":
+        return refillHistory(call, i);
+      case "list_appointment_slots":
+        return listAppointmentSlots(call, i);
+      case "book_appointment":
+        return bookAppointment(call, i);
+      case "cancel_appointment":
+        return cancelAppointment(call, i);
       default:
         return blocked("invalid_input");
     }

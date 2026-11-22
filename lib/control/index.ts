@@ -7,3 +7,5 @@ export { chooseLane, signalsFromCards, POLICY_ONLY_CARDS } from "./lanes";
 export { buildContext, loadContext, type PressRecordOutput } from "./context";
 export { checkInput } from "./validate";
 export { checkCard, applyApprovedCard, CARD_BUTTONS, type CardButton } from "./cards";
+export { slotsFrom, liveAppointments, appointmentContext, appointmentFloor, slotLabel, localIso, APPOINTMENT_DAYS, OPEN_HOUR, CLOSE_HOUR } from "./appointments";
+export { quantityFor, unitsPerDay, labelQty, labelUnit } from "./supply";

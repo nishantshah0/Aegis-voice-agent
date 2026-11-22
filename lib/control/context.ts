@@ -2,7 +2,7 @@
 // the store and the record, never from the AI. The context is saved in the record, so a
 // card can be replayed against any past request.
 
-import type { ButtonResult, Call, Patient, Prescription, RecordEntry, RuleContext, Store } from "@/lib/contract";
+import type { Appointment, ButtonResult, Call, Patient, Policy, Prescription, RecordEntry, RuleContext, Store } from "@/lib/contract";
 import { DAY_MS, MINUTE_MS, daysBetween, localHour, ms, within } from "./time";
 
 /** What the control layer writes as `output` on a button record entry. */
@@ -20,6 +20,8 @@ export type PressRecordOutput = {
     codeFailed?: boolean;
     queueItemId?: string;
     orderId?: string;
+    /** book_appointment and cancel_appointment: the booking itself, so the record alone says who holds which slot. */
+    appointment?: Appointment;
   };
 };
 
@@ -60,10 +62,12 @@ export type ContextParts = {
   call?: Call;
   reason?: string;
   record: RecordEntry[];
-  policy: { controlledEarlyWindowDays: number };
+  policy: Policy;
+  /** request_refill's days_supply; the prescribed days when none was asked for. */
+  daysSupply?: number;
 };
 
-export function buildContext({ now, patient, rx, call, reason, record, policy }: ContextParts): RuleContext {
+export function buildContext({ now, patient, rx, call, reason, record, policy, daysSupply }: ContextParts): RuleContext {
   const daysSince = daysBetween(rx.lastFill, now);
   return {
     "drug.class": rx.drugClass,
@@ -84,11 +88,14 @@ export function buildContext({ now, patient, rx, call, reason, record, policy }:
     "recent.renewals_7d": renewals7d(record, rx.id, now),
     "recent.outbound_calls_3d": outboundCalls3d(record, rx.id, now),
     "policy.controlled_early_window_days": policy.controlledEarlyWindowDays,
+    "request.days_supply": daysSupply ?? rx.daysSupplied,
+    "rx.days_supplied": rx.daysSupplied,
+    "rx.days_until_due": rx.daysSupplied - daysSince,
   };
 }
 
 /** Convenience: load everything buildContext needs. */
-export async function loadContext(store: Store, patient: Patient, rx: Prescription, call?: Call, reason?: string) {
+export async function loadContext(store: Store, patient: Patient, rx: Prescription, call?: Call, reason?: string, daysSupply?: number) {
   const [now, record, policy] = await Promise.all([store.now(), store.listRecord(), store.policy()]);
-  return buildContext({ now, patient, rx, call, reason, record, policy });
+  return buildContext({ now, patient, rx, call, reason, record, policy, daysSupply });
 }

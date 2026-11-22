@@ -2,7 +2,7 @@
 // address, date and price here is made up. Dates are relative to the demo clock:
 // Tuesday 2026-11-24, 10 AM in London, Ontario (UTC-5).
 
-import { STARTING_CARDS, type Patient, type Prescription, type Seed } from "@/lib/contract";
+import { DEFAULT_APPOINTMENT_SCHEDULE, STARTING_CARDS, type Patient, type Prescription, type Seed } from "@/lib/contract";
 
 export const DEMO_NOW = "2026-11-24T10:00:00-05:00";
 export const PHARMACY_NAME = "Maple Street Pharmacy";
@@ -61,11 +61,28 @@ function patient(p: PatientInput): Patient {
 type RxInput = Omit<Prescription, "prescribedIntervalDays" | "refillsTotal" | "controlled"> &
   Partial<Pick<Prescription, "prescribedIntervalDays" | "refillsTotal" | "controlled">>;
 
+// Made-up prescribers, and how each patient took their last fill (refill_history, Trail #85).
+// The surnames appear nowhere else in the seed or the population, so S2 never mistakes them for a patient.
+const PRESCRIBER: Record<string, string> = {
+  p_sam: "Dr. Fairweather",
+  p_jordan: "Dr. Quillfeather",
+  p_maria: "Dr. Marlowe",
+  p_dev: "Dr. Fairweather",
+  p_grace: "Dr. Marlowe",
+  p_tom: "Dr. Quillfeather",
+  p_lena: "Dr. Marlowe",
+  p_robin: "Dr. Marlowe",
+  p_priya: "Dr. Fairweather",
+};
+const DELIVERED_LAST_TIME = new Set(["p_maria", "p_grace", "p_robin", "p_lena"]);
+
 function rx(r: RxInput): Prescription {
   return {
     controlled: false,
     prescribedIntervalDays: r.daysSupplied,
     refillsTotal: r.refillsLeft,
+    ...(PRESCRIBER[r.patientId] ? { prescriber: PRESCRIBER[r.patientId] } : {}),
+    lastFillMethod: DELIVERED_LAST_TIME.has(r.patientId) ? "delivery" : "pickup",
     ...r,
   };
 }
@@ -386,6 +403,7 @@ export const SEED: Seed = {
   ],
   cards: STARTING_CARDS,
   policy: {
+    appointmentSchedule: DEFAULT_APPOINTMENT_SCHEDULE,
     controlledEarlyWindowDays: 3,
     appointmentSlots: [
       { id: "consult_wed_10", start: "2026-11-25T10:00:00-05:00", label: "Wednesday, November 25 at 10 AM Eastern" },

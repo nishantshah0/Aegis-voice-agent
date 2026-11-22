@@ -14,7 +14,7 @@ import type { EmitFn } from "./events";
 import type { CheckCallerLineFn, GuardSentenceFn } from "./guard";
 import { GUARD_REPLACEMENTS } from "./guard";
 import type { CallId, Lane, PatientId, RuleId } from "./ids";
-import type { Appointment, Call, Order, QueueItem, RecordEntry, Seed, Store } from "./store";
+import type { LegacyAppointment, Call, Order, QueueItem, RecordEntry, Seed, Store } from "./store";
 
 // ---------- Sam's data ----------
 
@@ -112,7 +112,7 @@ export function createFakeStore(seed: Seed = FAKE_SEED): Store {
   let data = clone(seed);
   let now = seed.now;
   let calls = new Map<CallId, Call>();
-  const appointments = new Map<string, Appointment>();
+  const appointments = new Map<string, LegacyAppointment>();
   let record: RecordEntry[] = [];
   let queueItems: QueueItem[] = [];
   let counter = 0;
@@ -381,6 +381,36 @@ export function createFakePress(store: Store, emit: EmitFn = () => {}): PressFn 
         return done({ note_id: `n_${call.id}_${Date.now()}` });
       case "escalate":
         return done({ flag_id: `f_${call.id}_${Date.now()}` });
+      // Trail #85 fakes: shapes only. The real slots, bookings and rules are in lib/control.
+      case "refill_history": {
+        const rx = await ownRx((input as ButtonInputs["refill_history"]).rx_id);
+        if (!rx) return fail("not_yours", ["1"]);
+        return done({
+          rx_id: rx.id,
+          drug: rx.drug,
+          last_fill: rx.lastFill,
+          last_fill_day: new Intl.DateTimeFormat("en-CA", { timeZone: "America/Toronto", weekday: "long" }).format(new Date(rx.lastFill)),
+          last_fill_quantity: rx.lastFillQuantity ?? Number(rx.labelText.match(/qty\.? ?(\d+)/i)?.[1] ?? 0),
+          last_fill_unit: /capsule/i.test(rx.labelText) ? "capsule" : "tablet",
+          last_fill_days_supply: rx.lastFillDaysSupply ?? rx.daysSupplied,
+          ...(rx.lastFillMethod ? { last_fill_method: rx.lastFillMethod } : {}),
+          refills_left: rx.refillsLeft,
+          days_supply_prescribed: rx.daysSupplied,
+          next_eligible: null,
+          ...(rx.prescriber ? { prescriber: rx.prescriber } : {}),
+        });
+      }
+      case "list_appointment_slots": {
+        const { type } = input as ButtonInputs["list_appointment_slots"];
+        return done({ type, slots: [{ slot_id: `ap_${type}_20261126_1000`, label: "Thursday the 26th at 10 AM", start: "2026-11-26T10:00:00-05:00", end: "2026-11-26T10:30:00-05:00" }], booked: [] });
+      }
+      case "book_appointment": {
+        const { slot_id } = input as ButtonInputs["book_appointment"];
+        if (!String(slot_id ?? "").startsWith("ap_")) return fail("not_found");
+        return done({ ok: true, rule_ids: [], appointment_id: `apt_${call.id}_1`, label: "Thursday the 26th at 10 AM", start: "2026-11-26T10:00:00-05:00" });
+      }
+      case "cancel_appointment":
+        return done({ ok: true, rule_ids: [] });
     }
   }
 

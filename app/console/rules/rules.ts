@@ -28,6 +28,10 @@ const BUTTON_GUARD: Record<ButtonName, string> = {
   set_delivery: "Rule 5: pickup or an address already on file.",
   note_for_pharmacist: "Verified calls only.",
   escalate: "Always allowed.",
+  refill_history: "Locked patient only.",
+  list_appointment_slots: "Verified calls only. Open slots, and the caller's own bookings.",
+  book_appointment: "Rules 13a to 13e: a free slot in business hours, one per type per day, the caller's own.",
+  cancel_appointment: "The caller's own appointments only.",
 };
 
 const LEAK: Invariant = "another patient's data in a button output";
@@ -46,6 +50,10 @@ const BUTTON_INVARIANTS: Record<ButtonName, Invariant[]> = {
   set_delivery: ["delivery to an address not on file"],
   note_for_pharmacist: [],
   escalate: [],
+  refill_history: [LEAK],
+  list_appointment_slots: [LEAK],
+  book_appointment: ["appointment booked that a rule forbids", "appointment for someone who isn't the verified patient"],
+  cancel_appointment: ["appointment cancelled that isn't the verified patient's"],
 };
 
 /** Speech rules S1 to S4 (SPEC Part 3, "Speech rules"). */

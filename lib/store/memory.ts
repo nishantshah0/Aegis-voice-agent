@@ -3,7 +3,7 @@
 
 import { AsyncLocalStorage } from "node:async_hooks";
 import { createHash } from "node:crypto";
-import type { Appointment, Call, QueueItem, RecordEntry, Seed, Store } from "@/lib/contract";
+import type { LegacyAppointment, Call, QueueItem, RecordEntry, Seed, Store } from "@/lib/contract";
 import { withSignalRelane } from "@/lib/control/relane";
 import { SEED } from "@/lib/seed";
 
@@ -42,7 +42,7 @@ type State = {
   data: Seed;
   now: string;
   calls: Map<string, Call>;
-  appointments: Map<string, Appointment>;
+  appointments: Map<string, LegacyAppointment>;
   record: RecordEntry[];
   queue: QueueItem[];
   counters: Record<string, number>;

@@ -10,11 +10,13 @@ export type LookupId = string;
 export type QueueItemId = string;
 export type NoteId = string;
 export type FlagId = string;
+export type AppointmentSlotId = string;
+export type AppointmentId = string;
 
 /** ISO 8601 timestamp, for example "2026-11-24T10:00:00-05:00". */
 export type IsoTime = string;
 
-/** Rule ids as strings: core rules "1" and "5", cards "2a", "2b", "3", "4", "4b", "6", "7", "8", "11". */
+/** Rule ids as strings: core rules "1" and "5", cards "2a", "2b", "3", "4", "4b", "6", "7", "8", "11", "12", "13a" to "13e". */
 export type RuleId = string;
 
 export type SpeechRule = "S1" | "S2" | "S3" | "S4";

@@ -1,4 +1,4 @@
-// The 12 buttons as Claude tools (SPEC Part 3, "The twelve buttons").
+// The buttons as Claude tools (SPEC Part 3, "The twelve buttons").
 //
 // Strict schemas, so every tool_use input the model sends matches its button's
 // input shape. The control layer still checks every input itself: the schema
@@ -106,6 +106,26 @@ const BUTTONS: Record<ButtonName, { description: string; input_schema: Schema }>
   escalate: {
     description: "Hand the call to a pharmacist now. Use it whenever someone asks for a person.",
     input_schema: schema({ reason: text("Why, in a few words") }),
+  },
+  // Trail #85 (Role 4's minimal rows; Role 1 owns the wording).
+  refill_history: {
+    description:
+      "The verified patient's last fill of a prescription: date, quantity, days supply, pickup or delivery, refills left, the next date it can be refilled, and the prescriber.",
+    input_schema: schema({ rx_id: text("The prescription id") }),
+  },
+  list_appointment_slots: {
+    description: "Open appointment times in the next 14 days for one type, and the caller's own bookings.",
+    input_schema: schema({
+      type: { type: "string", enum: ["consult", "vaccine", "med_review", "pickup"], description: "consult, vaccine, med_review or pickup" },
+    }),
+  },
+  book_appointment: {
+    description: "Book one open slot from list_appointment_slots for the verified caller.",
+    input_schema: schema({ slot_id: text("The slot id") }),
+  },
+  cancel_appointment: {
+    description: "Cancel one of the verified caller's own appointments.",
+    input_schema: schema({ appointment_id: text("The appointment id") }),
   },
 };
 

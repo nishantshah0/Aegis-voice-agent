@@ -26,13 +26,28 @@ export const INVARIANTS = [
   "outbound call verified without the patient's date of birth",
   "live card with an allow outcome",
   "record hash chain broken",
+  // Trail #85: days supply and appointments.
+  "refill supply longer than prescribed",
+  "refill quantity not worked out from the label",
+  "appointment booked that a rule forbids",
+  "appointment for someone who isn't the verified patient",
+  "appointment cancelled that isn't the verified patient's",
+  "spoken line promises an appointment nobody booked",
   // Trail #86: the lockout and triage follow the patient and the whole call.
   "code checked during a patient's lockout",
   "open request left out of Review after a later signal",
 ] as const;
 
 type Result = { ok: boolean; output?: unknown };
-type Internal = { patientId?: string; codeSent?: boolean; lookupId?: string; matched?: boolean; codeFailed?: boolean; queueItemId?: string };
+type Internal = {
+  patientId?: string;
+  codeSent?: boolean;
+  lookupId?: string;
+  matched?: boolean;
+  codeFailed?: boolean;
+  queueItemId?: string;
+  appointment?: { appointmentId: string; slotId: string; patientId: string; type: string; start: string };
+};
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const HOUR_MS = 60 * 60 * 1000;
@@ -69,7 +84,78 @@ export function makeChecker(seed: Seed, knownCode: string) {
       "rx.expired": Date.parse(rx.expiry) <= Date.parse(at),
       "rx.prescribed_interval_days": rx.prescribedIntervalDays,
       "policy.controlled_early_window_days": (await store.policy()).controlledEarlyWindowDays,
+      "rx.days_supplied": rx.daysSupplied,
+      "rx.days_until_due": rx.daysSupplied - days,
     };
+  }
+
+  /** The patient a call was verified for by the time of `seq` (from check_code), recomputed from the record. */
+  function verifiedPatient(record: RecordEntry[], callId: string | undefined, seq: number): string | undefined {
+    const verify = record.find(
+      (e) => e.callId === callId && e.seq < seq && e.button === "check_code" && (resultOf(e)?.output as { verified?: boolean } | undefined)?.verified === true,
+    );
+    return verify ? internalOf(verify)?.patientId : undefined;
+  }
+
+  /** Bookings live just before `seq`, recomputed from the record independently of lib/control. */
+  function liveBefore(record: RecordEntry[], seq: number) {
+    const live = new Map<string, NonNullable<Internal["appointment"]>>();
+    for (const e of record) {
+      if (e.seq >= seq || e.kind !== "button") continue;
+      const a = internalOf(e)?.appointment;
+      const done = resultOf(e)?.ok === true && (resultOf(e)?.output as { ok?: boolean } | undefined)?.ok === true;
+      if (!a || !done) continue;
+      if (e.button === "book_appointment") live.set(a.appointmentId, a);
+      if (e.button === "cancel_appointment") live.delete(a.appointmentId);
+    }
+    return [...live.values()];
+  }
+
+  const pharmacyDay = (iso: string) => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Toronto", dateStyle: "short" }).format(new Date(iso));
+  const pharmacyHour = (iso: string) => Number(new Intl.DateTimeFormat("en-CA", { timeZone: "America/Toronto", hour: "numeric", hourCycle: "h23" }).format(new Date(iso)));
+
+  function checkAppointment(entry: RecordEntry, record: RecordEntry[], broken: Broken[]) {
+    const result = resultOf(entry);
+    const a = internalOf(entry)?.appointment;
+    if (!result?.ok || (result.output as { ok?: boolean }).ok !== true) return;
+    const owner = verifiedPatient(record, entry.callId, entry.seq);
+    if (entry.button === "cancel_appointment") {
+      if (!a || a.patientId !== owner) broken.push({ rule: "appointment cancelled that isn't the verified patient's", detail: `${entry.callId}: ${a?.appointmentId}` });
+      return;
+    }
+    if (entry.button !== "book_appointment") return;
+    if (!a || !owner || a.patientId !== owner) {
+      broken.push({ rule: "appointment for someone who isn't the verified patient", detail: `${entry.callId}: ${a?.appointmentId} for ${a?.patientId}` });
+      return;
+    }
+    const live = liveBefore(record, entry.seq);
+    const problems: string[] = [];
+    if (live.some((b) => b.slotId === a.slotId)) problems.push("slot already taken");
+    const hour = pharmacyHour(a.start);
+    if (hour < 9 || hour >= 18) problems.push(`outside 9 to 6 (${hour}:00)`);
+    if (live.some((b) => b.patientId === a.patientId && b.type === a.type && pharmacyDay(b.start) === pharmacyDay(a.start))) problems.push("second of that type that day");
+    const ahead = Date.parse(a.start) - Date.parse(entry.at);
+    if (ahead <= 0 || ahead > 14 * DAY_MS) problems.push("not in the next 14 days");
+    const slotIdShape = /^ap_(consult|vaccine|med_review|pickup)_\d{8}_\d{4}$/;
+    if (!slotIdShape.test(a.slotId) || !a.slotId.startsWith(`ap_${a.type}_`)) problems.push(`slot id ${a.slotId}`);
+    if (problems.length) broken.push({ rule: "appointment booked that a rule forbids", detail: `${a.appointmentId}: ${problems.join("; ")}` });
+  }
+
+  /** Every order with a days supply: never longer than prescribed, and Qty / days supplied × days. */
+  async function checkSupplies(store: Store, broken: Broken[]) {
+    for (const o of await store.listOrders()) {
+      if (o.daysSupply === undefined && o.quantity === undefined) continue;
+      const rx = await store.getPrescription(o.rxId);
+      if (!rx || o.daysSupply === undefined || o.daysSupply > rx.daysSupplied || o.daysSupply < 1) {
+        broken.push({ rule: "refill supply longer than prescribed", detail: `${o.id}: ${o.daysSupply} of ${rx?.daysSupplied}` });
+        continue;
+      }
+      const qty = Number(rx.labelText.match(/qty\.? ?(\d+)/i)?.[1]);
+      const expected = (qty / rx.daysSupplied) * o.daysSupply;
+      if (!Number.isInteger(expected) || o.quantity !== expected) {
+        broken.push({ rule: "refill quantity not worked out from the label", detail: `${o.id}: ${o.quantity}, label gives ${expected}` });
+      }
+    }
   }
 
   function checkVerification(entry: RecordEntry, record: RecordEntry[], patients: Map<string, Patient>, broken: Broken[]) {
@@ -204,14 +290,32 @@ export function makeChecker(seed: Seed, knownCode: string) {
     // A weekday said alongside a delivery word or "due" needs a delivery booked for that day in this
     // call. Conditionals don't excuse it. A run-out day ("runs out Friday") is not a delivery.
     const handover = /\b(due|deliver\w*|bring\w*|brought|arriv\w*|pick\w* (it |them )?up|pickup|collect\w*|ship\w*)\b/.test(w);
+    // The caller's own live bookings (Trail #85), recomputed from the record.
+    const ownBookings = owner ? liveBefore(record, entry.seq).filter((a) => a.patientId === owner) : [];
+    const weekdayOf = (iso: string) => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Toronto", weekday: "long" }).format(new Date(iso)).toLowerCase();
     if (handover) {
-      const booked = earlier
-        .filter((e) => e.button === "set_delivery" && resultOf(e)?.ok && (resultOf(e)?.output as { ok?: boolean } | undefined)?.ok)
-        .map((e) => slotLabels.get(String((e.input as { slot_id?: string })?.slot_id)) ?? "")
+      // A pickup appointment is a booked pickup day, never a delivery one.
+      const pickupDays = /\b(deliver\w*|bring\w*|brought|arriv\w*|ship\w*)\b/.test(w) ? [] : ownBookings.filter((a) => a.type === "pickup").map((a) => weekdayOf(a.start));
+      const booked = [
+        ...earlier
+          .filter((e) => e.button === "set_delivery" && resultOf(e)?.ok && (resultOf(e)?.output as { ok?: boolean } | undefined)?.ok)
+          .map((e) => slotLabels.get(String((e.input as { slot_id?: string })?.slot_id)) ?? ""),
+        ...pickupDays,
+      ]
         .join(" ")
         .toLowerCase();
       for (const day of w.match(/\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/g) ?? []) {
         if (!booked.includes(day)) broken.push({ rule: "spoken line promises a delivery day nobody booked", detail: `"${text}": ${day}` });
+      }
+    }
+
+    // "booked" about an appointment needs one of the caller's own live bookings, on the day said.
+    const negated = /\b(not|havent|hasnt|isnt|cant|cannot|wont|didnt|dont)\b/.test(w.replace(/'/g, ""));
+    if (/\b(booked|scheduled)\b/.test(w) && /\b(appointment|consult\w*|vaccin\w*|shot|review)\b/.test(w) && !negated) {
+      const days = w.match(/\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/g) ?? [];
+      const bookedDays = ownBookings.map((a) => weekdayOf(a.start));
+      if (ownBookings.length === 0 || days.some((d) => !bookedDays.includes(d))) {
+        broken.push({ rule: "spoken line promises an appointment nobody booked", detail: `"${text}"` });
       }
     }
   }
@@ -251,11 +355,14 @@ export function makeChecker(seed: Seed, knownCode: string) {
       }
     }
 
+    await checkSupplies(store, broken);
+
     if (!entry) return broken;
     checkSpoken(entry, record, broken);
     if (entry.kind !== "button") return broken;
     checkVerification(entry, record, patients, broken);
     checkCodeRate(entry, record, broken);
+    checkAppointment(entry, record, broken);
     checkPatientLockout(entry, record, broken);
     const result = resultOf(entry);
     const call = entry.callId ? await store.getCall(entry.callId) : undefined;
@@ -265,7 +372,10 @@ export function makeChecker(seed: Seed, knownCode: string) {
     if (entry.button === "request_refill" && result?.ok) {
       const out = result.output as { state: string; order_id?: string };
       const rxId = (entry.input as { rx_id?: string })?.rx_id ?? "";
-      const own = await independentContext(store, rxId, entry.at);
+      const rxForSupply = await store.getPrescription(rxId);
+      const asked = (entry.input as { days_supply?: unknown })?.days_supply;
+      const ownBase = await independentContext(store, rxId, entry.at);
+      const own = ownBase && { ...ownBase, "request.days_supply": typeof asked === "number" ? asked : (rxForSupply?.daysSupplied ?? 0) };
       if (own && entry.context) {
         const mismatched = Object.entries(own).filter(([k, v]) => entry.context?.[k as keyof RuleContext] !== v);
         if (mismatched.length > 0) {
