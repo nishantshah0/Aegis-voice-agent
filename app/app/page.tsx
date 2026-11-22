@@ -38,7 +38,7 @@ async function Pharmacy() {
         <div className="flex items-center justify-between border-b border-line px-5 py-4">
           <div>
             <p className="font-semibold">Needs a pharmacist now</p>
-            <p className="text-sm text-ink-3">{open.length === 0 ? "Nothing waiting." : `${open.length} waiting, Review first.`}</p>
+            <p className="text-sm text-ink-3">{open.length === 0 ? "Nothing waiting. The herd's all set." : `${open.length} waiting, Review first.`}</p>
           </div>
           <Link href="/app/pharmacy/today" className={buttonClass(open.length ? "primary" : "secondary", "sm")}>
             Open Today
@@ -77,7 +77,7 @@ async function Safety() {
     <div className="theme-dark theme-safety rounded-card border border-line bg-canvas p-5 text-ink">
       <div className="flex items-center justify-between">
         <p className="flex items-center gap-2 font-semibold">
-          <Icon name="gate" className="size-[18px] text-accent" /> Safety suite
+          <Icon name="badge" className="size-[18px] text-accent" /> Safety suite
         </p>
         <Link href="/app/safety/overnight" className="text-sm text-ink-2 hover:text-ink">
           Details →

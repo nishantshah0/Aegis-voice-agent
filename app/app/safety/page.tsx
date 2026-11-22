@@ -5,6 +5,7 @@ import { Badge, Card, Eyebrow, PageHeader, cn } from "@/components/ui";
 import { readOvernight, type Source } from "@/app/console/overnight/results";
 import { readLatestBatch, readLatestRun, stillRunning, when } from "./data";
 import { Progress } from "./Progress";
+import { ArenaRunControl } from "./ArenaRunControl";
 import { AutoRefresh, RunButton } from "./RunButton";
 import { SuiteGate } from "./SignedIn";
 
@@ -174,7 +175,7 @@ async function Overview() {
             href="/app/safety/scenarios"
             ranAt={run?.ranAt ?? null}
             live={running}
-            run={<RunButton url="/api/arena/run" label="Run suite" watchMs={60_000} />}
+            run={<ArenaRunControl kind="suite" label="Run suite" compact />}
           >
             {run ? (
               <div className="flex flex-col gap-3">
@@ -190,7 +191,7 @@ async function Overview() {
             title="Overnight attacker"
             href="/app/safety/overnight"
             ranAt={ranAtOf(overnight)}
-            run={<RunButton label="Run overnight" disabledReason="No endpoint yet: asked Role 2 for one. Role 3's overnight run makes the file." />}
+            run={<ArenaRunControl kind="overnight" label="Run overnight" compact />}
           >
             {overnight.state === "ok" ? (
               <Mini items={[["Calls", overnight.data.calls], ["Caught", overnight.data.caught], ["Gaps found", overnight.data.gaps.length]]} />
