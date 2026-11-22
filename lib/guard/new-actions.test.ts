@@ -85,7 +85,10 @@ describe("partial-fill quantities", () => {
     await blocks(say, "Your refill is 7 tablets.", "S3");
     await control.press(callId, "request_refill", { rx_id: IDS.p6Amlodipine, days_supply: 7 });
     await allows(say, "Your refill is 7 tablets.");
-    await allows(say, "That's a 7-day supply, 7 tablets.");
+    await allows(say, "That's a 7-day supply.");
+    await allows(say, "You'll get 7 tablets.");
+    // The supply rule is unchanged: a quantity sits alone or with label clauses only.
+    await blocks(say, "That's a 7-day supply, 7 tablets.", "S3");
     await blocks(say, "Take 7 tablets tonight.", "S3");
     await blocks(say, "Your refill is 14 tablets.", "S3");
   });
