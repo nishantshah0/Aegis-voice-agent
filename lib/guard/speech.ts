@@ -93,27 +93,35 @@ function checkS2(call: Call, sentence: string, tokens: Token[], said: string): C
   return found.length > 0 ? { rule: "S2", why: found.map((t) => t.kind).join(",") } : null;
 }
 
-// A dosing verb or a frequency makes a number of tablets a dose, never the supply.
-const SENTENCE_DOSING = /\b(?:take|takes|taking|took|swallow|swallows|chew|chews|use|uses|have|ingest|all|together|at once|at the same time)\b/;
-const DOSING_OR_FREQUENCY =
-  /\b(?:take|takes|taking|swallow|chew|use|have|a day|daily|every|at once|at a time|per|times|twice|once|morning|night|bedtime|hours?)\b/;
+// The label's "Qty 30" backs "30 tablets" only in a supply phrase (AUDIT fix 2, allow-list):
+//   a bare read-back             "30 tablets", "that's 30 tablets"
+//   what the supply is           "(your|the) (refill|bottle|supply|order|prescription) (is|has|holds|comes to) 30 tablets"
+//   what the caller gets         "you'll (get|receive|pick up) 30 tablets"
+// and no other clause points back at them ("take them all", "finish it"). Everything else is a
+// dose, and stays blocked as before.
+const POINTS_BACK = /\b(?:them|it|its|all|those|these|each|both)\b/;
 
-/**
- * The label's "Qty 30" as "30 tablets", but only for a supply clause ("Your refill is 30 tablets",
- * AUDIT fix 2). Every clause that names that many tablets must have no dosing verb or frequency,
- * so "Take 30 tablets every morning" is never backed by the quantity in the bottle.
- */
+function supplyClause(c: string, n: number, form: string): boolean {
+  const qty = `(?:${n}|[a-z]+(?: [a-z]+)?) ${form}s?`;
+  return [
+    new RegExp(`^ (?:thats |that is |thatll be |that will be )?${qty} $`),
+    new RegExp(`^ (?:your|the) (?:refill|bottle|supply|order|prescription) (?:is|has|holds|comes to|will be|will have) ${qty} $`),
+    new RegExp(`^ (?:youll|you will|you ll) (?:get|receive|pick up) ${qty} $`),
+  ].some((re) => re.test(c));
+}
+
+/** The label's "Qty 30" as "30 tablets", only when every clause naming them is a supply phrase. */
 function labelQuantity(label: string, sentence: string): string[] {
   const qty = Number(label.match(/\bqty\.? ?(\d+)\b/i)?.[1]);
   const form = label.match(/\b(tablet|capsule|pill)s?\b/i)?.[1]?.toLowerCase();
   if (!qty || !form) return [];
-  // A dosing verb or all-at-once words anywhere make it a dose: "Your refill is 30 tablets, take
-  // them all at once." The read-back "…, 1 tablet every morning, 30 tablets." has neither.
-  if (SENTENCE_DOSING.test(words(sentence))) return [];
+  const clauses = sentence.split(CLAUSE_BREAK).map((c) => words(c));
   const namesQty = (c: string) =>
     new RegExp(`\\b${form}s?\\b`).test(c) && c.split(" ").some((t) => t === String(qty) || wordsToNumber(t) === qty);
-  const qtyClauses = sentence.split(CLAUSE_BREAK).map((c) => words(c)).filter(namesQty);
-  return qtyClauses.length > 0 && qtyClauses.every((c) => !DOSING_OR_FREQUENCY.test(c)) ? [`${qty} ${form}s`] : [];
+  const qtyClauses = clauses.filter(namesQty);
+  const others = clauses.filter((c) => !namesQty(c));
+  const ok = qtyClauses.length > 0 && qtyClauses.every((c) => supplyClause(c, qty, form)) && !others.some((c) => POINTS_BACK.test(c));
+  return ok ? [`${qty} ${form}s`] : [];
 }
 
 /** "$4 and 10 cents" is "$4.10", so a spoken price compares with the coverage figure (AUDIT fix 2). */
