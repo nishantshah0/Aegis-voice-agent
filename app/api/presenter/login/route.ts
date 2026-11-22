@@ -8,7 +8,7 @@ export async function POST(request:Request) {
  const destination=presenterDestination(next);
  if(typeof entered!=='string'||entered.length>200||!sameSecret(entered,pass)){
    const retry=new URL('/present?error=invalid',origin);
-   if(destination!=='/present'&&typeof next==='string')retry.searchParams.set('next',next);
+   if(destination!=='/app'&&typeof next==='string')retry.searchParams.set('next',next);
    return NextResponse.redirect(retry,303);
  }
  const response=NextResponse.redirect(new URL(destination,origin),303);

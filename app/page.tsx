@@ -11,8 +11,8 @@ import "@/components/landing/landing.css";
 const REPO = "https://github.com/nishantshah0/namereserve";
 const PHARMACY = "/app/pharmacy/today";
 const hosted = Boolean(process.env.AEGIS_PUBLIC_ORIGIN);
-const SAFETY = hosted ? "/present?next=suite#suite" : "/app/safety/gate";
-const PHONE = hosted ? "/present" : "/phone";
+const SAFETY = hosted ? "/app/safety/business-tests" : "/app/safety/gate";
+const PHONE = hosted ? "/app/pharmacy/phone" : "/phone";
 
 export default function Home() {
   const run = hammerTotals();

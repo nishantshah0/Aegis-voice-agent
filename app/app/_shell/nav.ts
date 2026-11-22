@@ -2,7 +2,7 @@
 // switcher and the overview's quick links.
 
 export type IconName = "home" | "today" | "calendar" | "outreach" | "calls" | "review" | "gate" | "attack" | "flask" | "moon" | "book" | "phone" | "badge" | "chevrons" | "sliders" | "signout" | "check" | "external" | "feed";
-export type NavItem = { href: string; label: string; icon: IconName; hint: string };
+export type NavItem = { href: string; label: string; icon: IconName; hint: string; hosted?: boolean };
 export type Area = { key: "pharmacy" | "safety"; label: string; short: string; home: string; hint: string; items: NavItem[] };
 
 export const OVERVIEW: NavItem = { href: "/app", label: "Home", icon: "home", hint: "What needs you now" };
@@ -16,6 +16,7 @@ export const AREAS: Area[] = [
     hint: "Refill calls and what needs a pharmacist",
     items: [
       { href: "/app/pharmacy/today", label: "Today", icon: "today", hint: "Approve what needs a pharmacist" },
+      { href: "/app/pharmacy/phone", label: "Phone", icon: "phone", hint: "Talk in the browser or call the test handset", hosted: true },
       { href: "/app/pharmacy/upcoming", label: "Upcoming", icon: "calendar", hint: "Refills due in the next 14 days" },
       { href: "/app/pharmacy/outreach", label: "Outreach", icon: "outreach", hint: "Who we'll call, and when" },
       { href: "/app/pharmacy/calls", label: "Calls", icon: "calls", hint: "Every call, press and line" },
@@ -29,6 +30,7 @@ export const AREAS: Area[] = [
     home: "/app/safety",
     hint: "Attacks, scenarios and the rules that hold",
     items: [
+      { href: "/app/safety/business-tests", label: "Business tests", icon: "flask", hint: "Run workflows and replay calls", hosted: true },
       { href: "/app/safety/evals", label: "Evals", icon: "review", hint: "How we know it holds" },
       { href: "/app/safety/attacks", label: "Attack library", icon: "attack", hint: "Every attack, its coverage, run them all" },
       { href: "/app/safety", label: "Overview", icon: "badge", hint: "Rules broken and the latest runs" },

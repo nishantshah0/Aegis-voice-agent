@@ -27,7 +27,7 @@ async function Simulation() {
   return (
     <main className="mx-auto max-w-7xl px-4 py-8 sm:px-8">
       <nav className="mb-6 flex flex-wrap gap-5 text-sm font-medium text-accent" aria-label="Simulation navigation">
-        <Link href="/present">Presenter controls and real phone</Link><a href="#live-test">Live tests</a><a href="#failures">Failed calls</a><a href="#patients">Browse patients</a><a href="#gemini">Gemini call replay</a><Link href="/phone">Demo phone</Link>
+        <Link href="/app">Dashboard</Link><Link href="/app/pharmacy/phone">Pharmacy phone</Link><a href="#live-test">Live tests</a><a href="#failures">Failed calls</a><a href="#patients">Browse patients</a><a href="#gemini">Gemini call replay</a><Link href="/phone">Demo phone</Link>
       </nav>
       <PageHeader title="Patient simulation" description={`Explore ${demo.summary.totals.patients.toLocaleString("en-US")} fictional patients and ${demo.summary.days} days of predicted pharmacy activity. Select a prescription to see its fill history and insurance quote.`} />
       <FailureReview cases={failureCases} />

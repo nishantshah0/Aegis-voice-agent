@@ -1,10 +1,12 @@
 import {createHmac,createHash,timingSafeEqual} from 'node:crypto';
 const destinations = new Map([
  ['pharmacy', '/app/pharmacy/today'], ['simulation', '/simulation'],
- ['stage', '/stage'], ['suite', '/present#suite'],
+ ['stage', '/stage'], ['suite', '/app/safety/business-tests'], ['phone', '/app/pharmacy/phone'],
 ]);
 export function presenterDestination(key: unknown) {
- return typeof key === 'string' ? destinations.get(key) ?? '/present' : '/present';
+ if (typeof key !== 'string') return '/app';
+ if (/^\/app(?:\/[a-zA-Z0-9_-]+)*$/.test(key)) return key;
+ return destinations.get(key) ?? '/app';
 }
 export const presenterCookie='__Host-aegis-presenter';
 export function sameSecret(a:string,b:string) {

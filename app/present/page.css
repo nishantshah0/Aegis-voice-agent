@@ -49,3 +49,8 @@
 .presenter-workflow { margin-top: clamp(.85rem, 2.5vw, 1.6rem); }
 
 .presenter-conversations { display: grid; gap: clamp(.85rem, 2.5vw, 1.6rem); min-width: 0; }
+
+.workspace-controls .presenter-card { border-radius: var(--radius-card, .75rem); padding: 1.25rem; }
+.workspace-controls .presenter-card h2 { font: 600 1.2rem/1.3 var(--font-sans-body), sans-serif; margin-bottom: .35rem; }
+.workspace-controls .presenter-card > p { font-size: .9rem; }
+.workspace-controls .presenter-workflow { margin-top: 0; }

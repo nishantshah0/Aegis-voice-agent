@@ -1,5 +1,5 @@
 import {NextRequest,NextResponse} from 'next/server';
-import {presenterAuthorized,presenterCookie} from '@/lib/auth/presenter';
+import {presenterAuthorized,presenterCookie,presenterDestination} from '@/lib/auth/presenter';
 import { AUTH_ROUTES, getAuth0 } from '@/lib/auth/auth0';
 import { approverFromUser } from '@/lib/auth/session';
 const providerCallbacks=new Set(['/api/presenter/phone/twiml','/api/presenter/phone/event','/api/presenter/phone/clip']);
@@ -26,9 +26,19 @@ export async function proxy(request:NextRequest){
   return NextResponse.next({request:{headers}});
  };
  if(path==='/')return pass();
- if(path==='/api/presenter/login'||providerCallbacks.has(path)||path==='/present')return pass();
+ if(path==='/api/presenter/login'||providerCallbacks.has(path))return pass();
  const signed=presenterAuthorized(request.cookies.get(presenterCookie)?.value);
- if(!signed)return path.startsWith('/api/')?NextResponse.json({error:'Sign in on the presenter page.'},{status:401,headers:noStore}):NextResponse.redirect(new URL(path === '/app/pharmacy/today' ? '/present?next=pharmacy' : path === '/simulation' ? '/present?next=simulation' : path === '/stage' ? '/present?next=stage' : '/present',origin));
+ if(path==='/present'){
+   if(!signed)return pass();
+   return NextResponse.redirect(new URL(presenterDestination(request.nextUrl.searchParams.get('next')),origin));
+ }
+ if(!signed){
+   if(path.startsWith('/api/'))return NextResponse.json({error:'Sign in to the pharmacy dashboard.'},{status:401,headers:noStore});
+   const login=new URL('/present',origin);
+   const destination=path.startsWith('/app/') ? path : path==='/simulation' ? 'simulation' : path==='/stage' ? 'stage' : null;
+   if(destination)login.searchParams.set('next',destination);
+   return NextResponse.redirect(login);
+ }
  if(!['GET','HEAD','OPTIONS'].includes(request.method)&&request.headers.get('origin')!==origin)return NextResponse.json({error:'Request must come from this demo.'},{status:403});
  if(path.startsWith('/api/arena/') || path.startsWith('/api/voice/') || path==='/api/rules/draft'){
    return NextResponse.json({error:'Use the hosted presenter controls for phone calls and the live business suite.'},{status:403,headers:noStore});

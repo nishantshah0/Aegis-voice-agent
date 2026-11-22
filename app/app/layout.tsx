@@ -21,6 +21,7 @@ function Loading() {
 export default function AppLayout({ children }: LayoutProps<"/app">) {
   return (
     <AppFrame
+      hosted={Boolean(process.env.AEGIS_PUBLIC_ORIGIN)}
       account={
         <Suspense fallback={<Skeleton className="h-9 w-full" />}>
           <Account />
