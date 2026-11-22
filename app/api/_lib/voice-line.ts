@@ -6,6 +6,8 @@ import { fail } from "./http";
 import { answerCall, checkInCall, issuePhoneToken, type JoinableDriver } from "./phone";
 import { getControl, getDriver, getStore } from "./runtime";
 import { sendSms, smsConfigured } from "./sms";
+import { checkVerify, spokenCode, startVerify, verifyConfigured } from "./verify-sms";
+import { prefetchLine } from "./voice-gather";
 
 // The real phone line (Trail #70). ElevenLabs Agents answers the phone (Twilio number, speech
 // to text, text to speech) and asks OUR server what to say, as an OpenAI-compatible custom LLM.
@@ -24,7 +26,7 @@ export const VOICE_IDLE_MS = 5 * 60 * 1000;
 /** How long the stream waits for the next guarded line before sending a keep-alive. */
 const KEEP_ALIVE_MS = 2000;
 
-type Turn = {
+export type Turn = {
   lines: string[];
   done: boolean;
   /** The driver ended the call during this turn (or it had ended already). */
@@ -50,6 +52,8 @@ export type VoiceCall = {
   checkIn?: Turn;
   ended: boolean;
   lastSeen: number;
+  /** A Twilio Verify code was texted and not yet read back. */
+  verifyPending?: boolean;
   /** The last verification code hash we delivered, so each code is delivered once. */
   textedCode?: string;
   /** The patient whose paired /phone page holds this call's code (when it couldn't be texted). */
@@ -300,15 +304,22 @@ async function play(call: VoiceCall, turn: Turn, fresh: string[], previous?: Tur
       // isn't a turn. Inbound: ElevenLabs already spoke its first message, the same fixed
       // greeting (scripts/elevenlabs-agent.ts), so the opening only goes on the record.
       if (call.direction === "outbound") {
-        for (const line of opening) say(turn, line);
+        for (const line of opening) {
+          prefetchLine(line);
+          say(turn, line);
+        }
         return;
       }
     }
-    const text = fresh.join(" ").trim().slice(0, VOICE_MAX_LINE);
-    if (!text) return;
+    const said = fresh.join(" ").trim().slice(0, VOICE_MAX_LINE);
+    if (!said) return;
+    const text = await bridgeVerifyCode(call, said);
     for await (const raw of getDriver().callerSays(call.callId, text)) {
       const event = forCaller(raw);
-      if (event.type === "line") say(turn, event.text);
+      if (event.type === "line") {
+        prefetchLine(event.text); // start voicing while the driver goes on
+        say(turn, event.text);
+      }
       if (event.type === "ended") turn.ended = true;
     }
     if ((await getStore().getCall(call.callId))?.state === "ended") turn.ended = true;
@@ -336,6 +347,17 @@ function waitForLine(turn: Turn, seen: number, ms: number): Promise<void> {
     };
     turn.wake.add(done);
   });
+}
+
+/** True if the turn finished within `ms` (the phone line says a filler line when it hasn't). */
+export async function doneWithin(turn: Turn, ms: number): Promise<boolean> {
+  const deadline = Date.now() + ms;
+  while (!turn.done) {
+    const left = deadline - Date.now();
+    if (left <= 0) return false;
+    await waitForLine(turn, turn.lines.length, left);
+  }
+  return true;
 }
 
 export async function untilDone(turn: Turn): Promise<void> {
@@ -436,12 +458,32 @@ async function deliverCode(call: VoiceCall): Promise<"sms" | "device" | undefine
   const code = await getControl().codeFor(call.callId);
   if (!code) return undefined;
   call.textedCode = internal.codeHash;
+  // A Twilio trial can only text through Verify (see verify-sms.ts); it comes first when set up.
+  if (internal.patientId === IDS.sam && verifyConfigured() && (await startVerify())) {
+    call.codeOnDevice = undefined;
+    call.verifyPending = true;
+    return "sms";
+  }
   if (internal.patientId === IDS.sam && smsConfigured() && (await sendSms(`Your pharmacy verification code is ${code}.`))) {
     call.codeOnDevice = undefined;
     return "sms";
   }
   call.codeOnDevice = internal.patientId;
   return "device";
+}
+
+/**
+ * The caller read back the code Verify texted: if Verify approves it, swap it for the
+ * lock's own code so check_code can match; otherwise the line goes on unchanged and fails at the lock.
+ */
+async function bridgeVerifyCode(call: VoiceCall, said: string): Promise<string> {
+  if (!call.verifyPending) return said;
+  const found = spokenCode(said);
+  if (!found || !(await checkVerify(found.code))) return said;
+  const ours = await getControl().codeFor(call.callId);
+  if (!ours) return said;
+  call.verifyPending = false;
+  return found.text.slice(0, found.at) + ours + found.text.slice(found.at + found.length);
 }
 
 /** The code waiting for this patient's paired /phone page: the newest open phone-line call that sent one there. */
