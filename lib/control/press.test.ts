@@ -479,7 +479,8 @@ describe("patient-selected services", () => {
     const c = await verified("sam");
     await control.press(c, "order_status", list);
     expect(await control.press(c, "note_for_pharmacist", { ...consult, slot_id: "lunch" })).toMatchObject({ error: "invalid_input" });
-    await store.setNow("2026-11-27T10:00:00-05:00");
+    // After every seed slot has passed (the last is Tuesday, December 1 at 1 PM).
+    await store.setNow("2026-12-02T10:00:00-05:00");
     expect(await control.press(c, "note_for_pharmacist", consult)).toMatchObject({ ok: false });
     expect(out(await control.press(c, "order_status", list))).toMatchObject({ appointment_slots: [], appointments: [] });
   });

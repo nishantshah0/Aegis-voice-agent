@@ -69,7 +69,8 @@ describe("1.x: through the real driver and lock", () => {
     const CODE = "135790";
     const press = (name: string, input: unknown): ScriptStep => ({ tools: [{ name, input }] });
     const say = (...text: string[]): ScriptStep => ({ text });
-    const store = createMemoryStore(SEED);
+    // The two offers this test is about: the seed's Wednesday and Thursday consults only.
+    const store = createMemoryStore({ ...SEED, policy: { ...SEED.policy, appointmentSlots: SEED.policy.appointmentSlots!.slice(0, 2) } });
     const control = createControl({ store, makeCode: () => CODE });
     const model = scriptedModel([
       say("What is your date of birth?"),

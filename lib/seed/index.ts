@@ -390,6 +390,11 @@ export const SEED: Seed = {
     appointmentSlots: [
       { id: "consult_wed_10", start: "2026-11-25T10:00:00-05:00", label: "Wednesday, November 25 at 10 AM Eastern" },
       { id: "consult_thu_14", start: "2026-11-26T14:00:00-05:00", label: "Thursday, November 26 at 2 PM Eastern" },
+      // More consult times, so the demo morning's bookings fill a believable week and Wednesday stays free.
+      { id: "consult_fri_11", start: "2026-11-27T11:00:00-05:00", label: "Friday, November 27 at 11 AM Eastern" },
+      { id: "consult_fri_15", start: "2026-11-27T15:00:00-05:00", label: "Friday, November 27 at 3 PM Eastern" },
+      { id: "consult_mon_09", start: "2026-11-30T09:00:00-05:00", label: "Monday, November 30 at 9 AM Eastern" },
+      { id: "consult_tue_13", start: "2026-12-01T13:00:00-05:00", label: "Tuesday, December 1 at 1 PM Eastern" },
     ],
   },
 };
