@@ -94,6 +94,11 @@ export type ButtonOutputs = {
         patient_first_name: string;
         /** The locked patient's own prescriptions, so later buttons have an rx_id (inbound calls had none). */
         prescriptions: { rx_id: RxId; drug: string }[];
+        /**
+         * The prescription whose number the caller gave in lookup_patient, when it is this
+         * verified patient's own. Verified results only; never on an outbound call.
+         */
+        matched_rx_id?: RxId;
       }
     | { verified: false; tries_left: number }
     | { locked_until: IsoTime };

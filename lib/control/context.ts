@@ -18,6 +18,8 @@ export type PressRecordOutput = {
     codeSent?: boolean;
     /** check_code compared a code (or date of birth) for this patient and it was wrong (Trail #86). */
     codeFailed?: boolean;
+    /** lookup_patient: the matched patient's prescription whose number the caller gave (check_code returns it once verified). */
+    matchedRxId?: string;
     queueItemId?: string;
     orderId?: string;
   };

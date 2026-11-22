@@ -148,14 +148,16 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
   }
 
   /** The patient a lookup id matched on this call, or null if it matched nobody. undefined if no such lookup. */
-  async function findLookup(call: Call, lookupId: string): Promise<{ patientId: string | null } | undefined> {
+  async function findLookup(call: Call, lookupId: string): Promise<{ patientId: string | null; matchedRxId?: string } | undefined> {
     if (call.direction === "outbound" && lookupId === outboundLookupId(call.id)) {
       return { patientId: call.targetPatientId ?? null };
     }
     const entry = (await store.listRecord(call.id)).find((e) => e.button === "lookup_patient" && internalOf(e)?.lookupId === lookupId);
     if (!entry) return undefined;
     const internal = internalOf(entry);
-    return { patientId: internal?.matched ? (internal.patientId ?? null) : null };
+    if (!internal?.matched) return { patientId: null };
+    const matchedRxId = typeof internal.matchedRxId === "string" ? internal.matchedRxId : undefined;
+    return { patientId: internal.patientId ?? null, matchedRxId };
   }
 
   /** Send a code if this lookup matched and the patient hasn't had too many this hour. */
@@ -183,14 +185,20 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
     const name = normalise(input.name);
     const rxNumber = normaliseRxNumber(input.rx_number);
     let match: string | null = null;
+    let matchedRxId: string | undefined;
     for (const p of await store.listPatients()) {
       if (dob !== p.dob) continue;
       if (!name.includes(normalise(p.firstName)) || !name.includes(normalise(p.lastName))) continue;
       const rxs = await store.getPrescriptions(p.id);
-      if (rxs.some((r) => normaliseRxNumber(r.rxNumber) === rxNumber)) match = p.id;
+      const rx = rxs.find((r) => normaliseRxNumber(r.rxNumber) === rxNumber);
+      if (rx) {
+        match = p.id;
+        matchedRxId = rx.id;
+      }
     }
     if (call.state === "greeting" || call.state === "collecting") await store.saveCall({ ...call, state: "code_sent" });
-    const internal = await maybeSendCode(call, lookupId, match);
+    // Which prescription matched stays in the record's internal part: the output is the same either way.
+    const internal = { ...(await maybeSendCode(call, lookupId, match)), ...(match && matchedRxId ? { matchedRxId } : {}) };
     return { result: ok<"lookup_patient">({ lookup_id: lookupId, message: "code sent if matched" }), decision: "allowed", internal };
   }
 
@@ -246,9 +254,12 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
       }
       await store.saveCall({ ...current, state: "verified", lockedPatientId: lookup.patientId });
       const p = await store.getPatient(lookup.patientId);
-      const prescriptions = (await store.getPrescriptions(lookup.patientId)).map((r) => ({ rx_id: r.id, drug: r.drug }));
+      const own = await store.getPrescriptions(lookup.patientId);
+      const prescriptions = own.map((r) => ({ rx_id: r.id, drug: r.drug }));
+      // Only the verified patient's own prescription, re-checked here, never another patient's.
+      const matched = lookup.matchedRxId && own.some((r) => r.id === lookup.matchedRxId) ? { matched_rx_id: lookup.matchedRxId } : {};
       return {
-        result: ok<"check_code">({ verified: true, patient_first_name: p?.firstName ?? "", prescriptions }),
+        result: ok<"check_code">({ verified: true, patient_first_name: p?.firstName ?? "", prescriptions, ...matched }),
         decision: "allowed",
         internal: { lookupId: input.lookup_id, patientId: lookup.patientId },
       };
