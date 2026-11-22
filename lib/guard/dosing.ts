@@ -8,7 +8,7 @@ import { words } from "./tokens";
 
 // "take" in lines that aren't about medicine: the verification ask, "Take your time.", notes.
 const NOT_DOSING =
-  /\btak(?:e|es|ing|en) (?:(?:your|a|the|any|some|a quick|a few|a little|my|down) )?(?:time|name|names|details|look|message|note|notes|seat|moment|minute|minutes|second|seconds|break|call|number|information|info|address|date of birth|care|it from here)\b|\btaken care of\b|\btake care\b|\b(?:it|that|this|which|delivery|shipping|the order|the refill|itll|it ll|thatll|that ll)(?: s| is| will| would| should| can| could| might| may| usually| normally| typically)? (?:take|takes|taking)\b/g;
+  /\btak(?:e|es|ing|en) (?:(?:your|a|the|any|some|a quick|a few|a little|my|down) )?(?:(?:full|first|last|legal|quick|short|brief|few|contact) )?(?:time|name|names|details|look|message|note|notes|seat|moment|minute|minutes|second|seconds|break|call|number|information|info|address|date of birth|care|it from here)\b|\btaken care of\b|\btake care\b|\b(?:it|that|this|which|delivery|shipping|the order|the refill|itll|it ll|thatll|that ll)(?: s| is| will| would| should| can| could| might| may| usually| normally| typically)? (?:take|takes|taking)\b/g;
 // "Keep taking it as your label says": no amount or time of its own, so nothing to back.
 const AS_DIRECTED =
   /\b(?:as|like) (?:directed|prescribed|(?:the|your) label (?:says|said|reads|shows)|it says on (?:the|your) label|on (?:the|your) label|(?:the|your) (?:pharmacist|doctor) (?:said|says|told you|prescribed))\b/;
