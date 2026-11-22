@@ -369,7 +369,7 @@ async function Body() {
           <Card padded={false}>
             <div className="flex items-start justify-between gap-4 p-5 pb-4">
               <div>
-                <h2 className="text-[15px] font-semibold text-ink">
+                <h2 className="text-[22px] leading-tight text-ink">
                   Needs a pharmacist
                 </h2>
                 <p className="mt-0.5 text-[13px] text-ink-3">

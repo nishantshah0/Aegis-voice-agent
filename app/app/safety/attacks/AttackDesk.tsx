@@ -56,7 +56,7 @@ function BatchProgress({ batch }: { batch: BatchLive }) {
     <Card as="section" aria-live="polite" className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-[15px] font-semibold">Batch progress</h2>
+          <h2 className="text-[22px] leading-tight">Batch progress</h2>
           <p className="text-xs text-ink-3">
             {batch.batch === null
               ? "Live from the event stream. Press Run batch to watch all four cards go through the lock."
