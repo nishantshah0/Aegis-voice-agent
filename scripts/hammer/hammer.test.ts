@@ -218,6 +218,15 @@ describe("the checker catches real breakage", () => {
     expect((await checker.check(base, undefined)).map((b) => b.rule)).toContain("open request left out of Review after a later signal");
   });
 
+  it("an open request left out of Review after wrong codes for its patient on another call", async () => {
+    const base = createMemoryStore(SEED);
+    const item = await base.addQueueItem({ callId: "c_a", patientId: IDS.p6, rxId: IDS.p6Amlodipine, kind: "refill", lane: "automatic", ruleIds: [], signals: [], notes: [] });
+    await base.appendRecord({ callId: "c_a", actor: "agent", kind: "button", button: "request_refill", input: { rx_id: IDS.p6Amlodipine }, output: { result: { ok: true, output: { state: "queued" }, ruleIds: [] }, internal: { queueItemId: item.id } }, decision: "allowed" });
+    await base.appendRecord({ callId: "c_b", actor: "agent", kind: "button", button: "check_code", input: { lookup_id: "lk", code: "000000" }, output: { result: { ok: true, output: { verified: false, tries_left: 2 }, ruleIds: [] }, internal: { patientId: IDS.p6, codeFailed: true } }, decision: "blocked" });
+    await base.updateQueueItem(item.id, { lane: "automatic" });
+    expect((await checker.check(base, undefined)).map((b) => b.rule)).toContain("open request left out of Review after a later signal");
+  });
+
   it("an open request left in Quick check after a later signal on its call", async () => {
     // A raw store, without lib/control's re-lane hook, plays the old behaviour.
     const base = createMemoryStore(SEED);
