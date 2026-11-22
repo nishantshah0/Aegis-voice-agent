@@ -24,3 +24,4 @@ Logged by the rules police. Each line is a rule this lecture already covers, bro
 - 2026-11-21, review fixer and demo agent: after the rules police's 18:55 and 19:30 UTC REQUESTs, summaries kept running over 100 characters (8 between 19:02 and 19:57) and HANDOFFs kept starting with 'demo:' (18:57, 19:23, 19:43) (RULES §6.2).
 - 2026-11-21, Nishant's tools agent: 47551ea (23:16 UTC) went straight to main without an Entire-Checkpoint trailer, the same as 5a50196 (RULES §4, §5.6).
 - 2026-11-22, design agent: 41f24a1 (00:0x UTC) adds app/dashboard/suite/attacks/progress.ts together with its test progress.test.ts in one commit (RULES §4). Its CLAIMs at 00:00-00:15 still start with 'design:' (RULES §6.2).
+- 2026-11-22, design agent: 62dc85e and b00719c (about 00:20 UTC) again put tests and code in one commit, after 41f24a1 was logged (RULES §4).
