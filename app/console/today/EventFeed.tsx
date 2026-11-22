@@ -39,7 +39,7 @@ export function EventFeed() {
         </button>
         <span className="text-sm text-ink-3" aria-live="polite">{status}</span>
       </div>
-      <h2 className="mt-6 text-sm font-semibold">Live events</h2>
+      <h2 className="mt-6 text-[22px] leading-tight">Live events</h2>
       {rows.length === 0 ? (
         <p className="mt-2 text-sm text-ink-3">Waiting for events on /api/events…</p>
       ) : (

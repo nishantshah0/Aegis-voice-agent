@@ -1,129 +1,79 @@
 @import "tailwindcss";
 
 /*
- * Aegis design tokens. Usage rules: docs/BRAND.md.
- * One accent (Refill green) on warm white or near-black. Lane and status colours are
- * for badges and small marks only, never for large fills.
+ * Aegis design tokens: "Herb garden".
+ * One warm green palette, natural tones only. Warm cream paper, a slow drifting glow of sage,
+ * olive, moss and wheat behind every page, deep forest ink, fern green for the signal, and
+ * muted earth tones (ochre, clay, brick) for anything waiting or held. Nothing neon.
+ * The Safety suite uses a cooler eucalyptus green, still in the family.
+ * Corners stay sharp (print, not app).
+ * Every page reads these variables, so changing them here restyles the whole site.
+ * (.theme-dark and .theme-app keep their names so existing pages opt in unchanged.)
  */
 
 :root,
-.theme-light {
-  /* Surfaces */
-  --rg-canvas: #f7f7f4;
-  --rg-surface: #ffffff;
-  --rg-sunken: #efefea;
-  --rg-line: #e3e3dd;
-  --rg-line-strong: #cfcfc7;
-
-  /* Text */
-  --rg-ink: #0c0f0e;
-  --rg-ink-2: #474d4a;
-  --rg-ink-3: #686e6b;
-  --rg-ink-inverse: #ffffff;
-
-  /* The accent: Refill green */
-  --rg-accent: #0a7a4b;
-  --rg-accent-strong: #07623c;
-  --rg-accent-soft: #e4f1ea;
-  --rg-accent-ink: #065232;
-
-  /* Lanes and states (badges, dots, small marks) */
-  --rg-auto: #0a7a4b;
-  --rg-auto-soft: #e4f1ea;
-  --rg-quick: #8a5800;
-  --rg-quick-soft: #f8edd5;
-  --rg-review: #a3360f;
-  --rg-review-soft: #f9e6dd;
-  --rg-stop: #b42318;
-  --rg-stop-soft: #fbe9e7;
-
-  /* Leather tan: the Western accent, landing page and brand art only (never in the dashboard). */
-  --rg-tan: #8a5a2b;
-  --rg-focus: #0a7a4b;
-  --rg-shadow: 0 1px 2px rgb(12 15 14 / 0.04), 0 8px 24px -12px rgb(12 15 14 / 0.12);
-  --rg-raised: #ffffff;
-  --rg-pop: 0 0 0 1px rgb(12 15 14 / 0.06), 0 16px 40px -12px rgb(12 15 14 / 0.25);
-}
-
-/* Dark surfaces: the landing page, the stage (projector) and the phone call screen. Opt in with
- * .theme-dark; nest .theme-light inside it for a light card (and the reverse). */
-.theme-dark {
-  --rg-canvas: #0a0b0a;
-  --rg-surface: #131513;
-  --rg-sunken: #1b1e1b;
-  --rg-line: #252925;
-  --rg-line-strong: #343934;
-
-  --rg-ink: #f3f3ef;
-  --rg-ink-2: #b4b9b5;
-  --rg-ink-3: #8b918d;
-  --rg-ink-inverse: #0a0b0a;
-
-  --rg-accent: #3ddc97;
-  --rg-accent-strong: #5ee6aa;
-  --rg-accent-soft: rgb(61 220 151 / 0.12);
-  --rg-accent-ink: #3ddc97;
-
-  --rg-auto: #3ddc97;
-  --rg-auto-soft: rgb(61 220 151 / 0.12);
-  --rg-quick: #f5c451;
-  --rg-quick-soft: rgb(245 196 81 / 0.12);
-  --rg-review: #ff8a5c;
-  --rg-review-soft: rgb(255 138 92 / 0.13);
-  --rg-stop: #ff6b5e;
-  --rg-stop-soft: rgb(255 107 94 / 0.14);
-
-  --rg-tan: #d4a373;
-  --rg-focus: #3ddc97;
-  --rg-shadow: 0 1px 0 rgb(255 255 255 / 0.03) inset, 0 12px 32px -16px rgb(0 0 0 / 0.6);
-  --rg-raised: #181b18;
-  --rg-pop: 0 0 0 1px rgb(255 255 255 / 0.06), 0 16px 40px -12px rgb(0 0 0 / 0.7);
-  color-scheme: dark;
-}
-
-/* The signed-in app (/app): one dark theme for every page, quieter than the landing's dark,
- * built for reading all day. Use with .theme-dark: class="theme-dark theme-app". Pharmacy
- * pages keep the green accent; Safety pages add .theme-safety for the blue. */
+.theme-light,
+.theme-dark,
 .theme-app {
-  --rg-canvas: #0a0b0b;
-  --rg-surface: #111313;
-  --rg-raised: #161918;
-  --rg-sunken: #1a1d1c;
-  --rg-line: #212523;
-  --rg-line-strong: #2e3431;
+  --rg-canvas: #f7f4ea;
+  --rg-surface: #fdfbf5;
+  --rg-sunken: #efeadb;
+  --rg-line: #e1dac6;
+  --rg-line-strong: #c4bb9f;
 
-  --rg-ink: #f1f3f2;
-  --rg-ink-2: #b1b8b4;
-  --rg-ink-3: #868e8a;
+  --rg-ink: #1f2b1f;
+  --rg-ink-2: #46523f;
+  --rg-ink-3: #77806a;
+  --rg-ink-inverse: #fdfbf5;
 
-  /* Review sits a step further from Quick check than on the landing, so the two stay apart in charts. */
-  --rg-review: #ff7a52;
-  --rg-review-soft: rgb(255 122 82 / 0.13);
+  --rg-accent: #4d7c3a;
+  --rg-accent-strong: #3d672d;
+  --rg-accent-soft: #e3ecd2;
+  --rg-accent-ink: #3a6229;
 
-  --rg-shadow: 0 1px 0 rgb(255 255 255 / 0.025) inset;
-  --rg-pop: 0 0 0 1px rgb(255 255 255 / 0.06), 0 16px 40px -12px rgb(0 0 0 / 0.7);
+  --rg-auto: #4d7c3a;
+  --rg-auto-soft: #e3ecd2;
+  --rg-quick: #9a7424;
+  --rg-quick-soft: #f2e8c9;
+  --rg-review: #a2593c;
+  --rg-review-soft: #f3e0d3;
+  --rg-stop: #a3452e;
+  --rg-stop-soft: #f2dcd2;
+
+  --rg-tan: #8a6a3b;
+  --rg-label: #dfe8bf;
+  --rg-label-ink: #1f2b1f;
+  --rg-cobalt: #4a7f70;
+  --rg-hot: #a3452e;
+  --rg-focus: #4d7c3a;
+  --rg-shadow: 0 1px 2px rgb(31 43 31 / 0.05), 0 12px 32px -18px rgb(31 43 31 / 0.22);
+  --rg-raised: #fffdf7;
+  --rg-pop: 4px 4px 0 0 var(--rg-ink);
 }
 
-/* The Safety suite: the dark tokens with its own accent, so it reads as a separate product.
+/* The Safety suite: eucalyptus instead of fern, so it reads as a separate desk.
  * Use together with .theme-dark: class="theme-dark theme-safety". */
 .theme-safety {
-  --rg-accent: #5cd0f5;
-  --rg-accent-strong: #8fe0fa;
-  --rg-accent-soft: rgb(92 208 245 / 0.12);
-  --rg-accent-ink: #5cd0f5;
-  --rg-focus: #5cd0f5;
+  --rg-accent: #4a7f70;
+  --rg-accent-strong: #3a685b;
+  --rg-accent-soft: #dcebe4;
+  --rg-accent-ink: #355f53;
+  --rg-focus: #4a7f70;
 }
 
-/* Back to the pharmacy green inside a Safety page (the area switcher's Pharmacy tile). */
+/* Back to fern inside a Safety page (the area switcher's Pharmacy tile). */
 .theme-app .theme-pharmacy {
-  --rg-accent: #3ddc97;
-  --rg-accent-strong: #5ee6aa;
-  --rg-accent-soft: rgb(61 220 151 / 0.12);
-  --rg-accent-ink: #3ddc97;
-  --rg-focus: #3ddc97;
+  --rg-accent: #4d7c3a;
+  --rg-accent-strong: #3d672d;
+  --rg-accent-soft: #e3ecd2;
+  --rg-accent-ink: #3a6229;
+  --rg-focus: #4d7c3a;
 }
 
 .theme-light {
+  color-scheme: light;
+}
+.theme-dark {
   color-scheme: light;
 }
 .theme-light,
@@ -155,20 +105,34 @@
   --color-stop: var(--rg-stop);
   --color-stop-soft: var(--rg-stop-soft);
   --color-tan: var(--rg-tan);
+  --color-label: var(--rg-label);
+  --color-cobalt: var(--rg-cobalt);
 
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace;
+  --font-sans: var(--font-sans-body), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-mono-body), ui-monospace, "SF Mono", Menlo, monospace;
+  --font-display: var(--font-instrument), "Times New Roman", Georgia, serif;
+  --font-serif: var(--font-instrument), Georgia, serif;
 
   --shadow-card: var(--rg-shadow);
   --shadow-pop: var(--rg-pop);
-  --radius-card: 0.75rem;
+  --radius-card: 2px;
   --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Print, not app: every rounded corner in the site becomes a cut corner. Pills stay round. */
+@theme {
+  --radius-xs: 1px;
+  --radius-sm: 1px;
+  --radius-md: 2px;
+  --radius-lg: 2px;
+  --radius-xl: 3px;
+  --radius-2xl: 3px;
+  --radius-3xl: 4px;
 }
 
 html {
   background: var(--rg-canvas);
   color: var(--rg-ink);
-  font-feature-settings: "cv11", "ss01", "ss03";
   text-rendering: optimizeLegibility;
 }
 
@@ -178,16 +142,45 @@ body {
   font-family: var(--font-sans);
 }
 
+/* Headlines set like a front page: condensed caps. One weight exists, so never fake bold. */
+/* Headlines: a light editorial serif in sentence case, set tight. One weight exists, so
+ * never fake bold. Anything set in the display face reads the same way. */
+h1,
+h2,
+.font-display {
+  font-family: var(--font-display);
+  font-weight: 400 !important;
+  font-synthesis: none;
+  text-transform: none !important;
+  letter-spacing: -0.025em !important;
+}
+h1,
+h2 {
+  line-height: 0.98;
+}
+
+/* The paper: a fixed grain over everything, under the cursor and never in the way. */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  pointer-events: none;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1.1 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+
+
 ::selection {
-  background: var(--rg-accent-soft);
-  color: var(--rg-ink);
+  background: var(--rg-label);
+  color: var(--rg-label-ink, #1f2b1f);
 }
 
 /* One visible focus ring everywhere, for keyboard users only. */
 :focus-visible {
   outline: 2px solid var(--rg-focus);
   outline-offset: 2px;
-  border-radius: 6px;
+  border-radius: 1px;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -203,38 +196,229 @@ body {
 
 /* Motion: short, eased, and only to show what changed. */
 @keyframes rg-rise {
-  from { opacity: 0; transform: translateY(10px); }
+  from { opacity: 0; transform: translateY(14px); }
   to { opacity: 1; transform: none; }
 }
 @keyframes rg-strike {
-  from { background-size: 0% 1.5px; }
-  to { background-size: 100% 1.5px; }
+  from { background-size: 0% 2px; }
+  to { background-size: 100% 2px; }
 }
 @keyframes rg-ring {
-  0% { box-shadow: 0 0 0 0 rgb(61 220 151 / 0.45); }
-  70% { box-shadow: 0 0 0 18px rgb(61 220 151 / 0); }
-  100% { box-shadow: 0 0 0 0 rgb(61 220 151 / 0); }
+  0% { box-shadow: 0 0 0 0 rgb(77 124 58 / 0.4); }
+  70% { box-shadow: 0 0 0 18px rgb(77 124 58 / 0); }
+  100% { box-shadow: 0 0 0 0 rgb(77 124 58 / 0); }
 }
-.rg-rise { animation: rg-rise 520ms cubic-bezier(0.22, 1, 0.36, 1) both; }
-.rg-rise-1 { animation-delay: 60ms; }
-.rg-rise-2 { animation-delay: 140ms; }
-.rg-rise-3 { animation-delay: 220ms; }
-.rg-rise-4 { animation-delay: 320ms; }
+.rg-rise { animation: rg-rise 620ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.rg-rise-1 { animation-delay: 80ms; }
+.rg-rise-2 { animation-delay: 180ms; }
+.rg-rise-3 { animation-delay: 280ms; }
+.rg-rise-4 { animation-delay: 400ms; }
 /* A struck-through line that draws its strike, for blocked sentences. */
 .rg-strike {
-  background-image: linear-gradient(currentColor, currentColor);
+  background-image: linear-gradient(var(--rg-accent), var(--rg-accent));
   background-repeat: no-repeat;
   background-position: 0 55%;
-  background-size: 100% 1.5px;
+  background-size: 100% 2px;
   animation: rg-strike 700ms 900ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 .rg-ring { animation: rg-ring 1.6s ease-out infinite; }
 
+/* ---- Shared effects ---- */
+
+/* A censor bar that swipes across text. Add .is-on to draw it. */
+.rg-redact {
+  position: relative;
+  display: inline;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  background-image: linear-gradient(var(--rg-ink), var(--rg-ink));
+  background-repeat: no-repeat;
+  background-size: 0% 100%;
+  transition: background-size 620ms cubic-bezier(0.7, 0, 0.2, 1), color 0ms 560ms;
+}
+.rg-redact.is-on {
+  background-size: 100% 100%;
+  color: transparent;
+}
+
+/* A rubber stamp that lands. */
+@keyframes rg-stamp {
+  0% { opacity: 0; transform: rotate(-8deg) scale(1.9); }
+  60% { opacity: 1; transform: rotate(-8deg) scale(0.94); }
+  100% { opacity: 1; transform: rotate(-8deg) scale(1); }
+}
+.rg-stamp {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+  border: 3px solid var(--rg-hot);
+  color: var(--rg-hot);
+  padding: 0.25em 0.6em;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 0.8rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  transform: rotate(-8deg);
+  mix-blend-mode: normal;
+  animation: rg-stamp 420ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+/* A pharmacy auxiliary label: the yellow sticker on the side of a bottle. */
+.rg-sticker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45em;
+  background: var(--rg-label);
+  color: #1f2b1f;
+  padding: 0.35em 0.7em 0.3em;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  box-shadow: 2px 2px 0 0 #1f2b1f;
+  transform: rotate(-2.5deg);
+}
+
+/* A soft gradient that keeps moving, for colour-blocked panels. */
+@keyframes rg-mesh {
+  0% { background-position: 0% 40%, 100% 60%, 50% 100%; }
+  50% { background-position: 60% 0%, 30% 100%, 0% 30%; }
+  100% { background-position: 0% 40%, 100% 60%, 50% 100%; }
+}
+.rg-mesh {
+  background-color: #e4e9cf;
+  background-image:
+    radial-gradient(55% 75% at 12% 20%, #c9dcae 0%, transparent 62%),
+    radial-gradient(50% 70% at 38% 85%, #eadfb8 0%, transparent 60%),
+    radial-gradient(45% 60% at 65% 15%, #d6e2bd 0%, transparent 60%),
+    radial-gradient(50% 70% at 82% 80%, #b9cf9e 0%, transparent 62%),
+    radial-gradient(45% 65% at 95% 25%, #f1e8cc 0%, transparent 62%),
+    radial-gradient(60% 80% at 50% 50%, #dbe6c4 0%, transparent 70%);
+  background-size: 180% 180%, 170% 170%, 190% 190%, 170% 170%, 180% 180%, 200% 200%;
+  animation: rg-drift-mesh 18s ease-in-out infinite;
+}
+@keyframes rg-drift-mesh {
+  0%, 100% { background-position: 0% 0%, 100% 100%, 50% 0%, 100% 50%, 0% 100%, 50% 50%; }
+  33% { background-position: 60% 40%, 20% 60%, 0% 80%, 40% 0%, 80% 20%, 20% 80%; }
+  66% { background-position: 30% 100%, 70% 0%, 100% 40%, 0% 80%, 40% 60%, 80% 20%; }
+}
+/* A thin band of the garden's greens and wheat (the ticker). */
+.rg-rainbow {
+  background: linear-gradient(100deg, #d6e2bd, #eadfb8, #c9dcae, #f1e8cc, #b9cf9e, #e4e9cf, #d6e2bd);
+  background-size: 300% 100%;
+  animation: rg-rainbow 24s linear infinite;
+}
+@keyframes rg-rainbow { from { background-position: 0% 50%; } to { background-position: 300% 50%; } }
+.rg-mesh-cobalt {
+  background-color: #d7e6df;
+  background-image:
+    radial-gradient(60% 80% at 20% 30%, #bcd6cb 0%, transparent 60%),
+    radial-gradient(55% 70% at 80% 70%, #e4ead2 0%, transparent 65%),
+    radial-gradient(70% 60% at 50% 100%, #a9c9bb 0%, transparent 70%);
+  background-size: 160% 160%, 170% 170%, 180% 180%;
+  animation: rg-mesh 20s ease-in-out infinite;
+}
+
+/* The garden light: a living glow behind a page. Put <Aurora /> first inside the page root (no
+ * background of its own) and wrap the content in .rg-lit. Four soft lights drift out of step. */
+.rg-aurora {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background: #f7f4ea;
+}
+.rg-aurora > span {
+  position: absolute;
+  border-radius: 9999px;
+  will-change: transform;
+}
+@keyframes rg-drift-a { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(18vw,12vh) scale(1.25); } }
+@keyframes rg-drift-b { 0%,100% { transform: translate(0,0) scale(1.1); } 50% { transform: translate(-22vw,-8vh) scale(0.85); } }
+@keyframes rg-drift-c { 0%,100% { transform: translate(0,0) scale(0.9); } 50% { transform: translate(-10vw,18vh) scale(1.2); } }
+@keyframes rg-drift-d { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(14vw,-16vh) scale(1.3); } }
+.rg-aurora .a { width: 64vw; height: 64vw; left: -10vw; top: -14vw; background: radial-gradient(closest-side, #cfe0b4 0%, #cfe0b400 100%); opacity: 0.75; animation: rg-drift-a 26s ease-in-out infinite; }
+.rg-aurora .b { width: 56vw; height: 56vw; right: -10vw; top: -6vh; background: radial-gradient(closest-side, #e6dcb4 0%, #e6dcb400 100%); opacity: 0.7; animation: rg-drift-b 32s ease-in-out infinite; }
+.rg-aurora .c { width: 58vw; height: 58vw; left: 30vw; bottom: -18vw; background: radial-gradient(closest-side, #bcd3a2 0%, #bcd3a200 100%); opacity: 0.6; animation: rg-drift-c 38s ease-in-out infinite; }
+.rg-aurora .d { width: 44vw; height: 44vw; left: 52vw; top: 30vh; background: radial-gradient(closest-side, #efe6c8 0%, #efe6c800 100%); opacity: 0.7; animation: rg-drift-d 30s ease-in-out infinite; }
+.rg-aurora .e { width: 50vw; height: 50vw; left: -8vw; bottom: -10vh; background: radial-gradient(closest-side, #d5e3c0 0%, #d5e3c000 100%); opacity: 0.7; animation: rg-drift-b 36s ease-in-out infinite reverse; }
+.rg-aurora .f { width: 38vw; height: 38vw; right: 4vw; bottom: 6vh; background: radial-gradient(closest-side, #c8d8a8 0%, #c8d8a800 100%); opacity: 0.55; animation: rg-drift-a 28s ease-in-out infinite reverse; }
+/* A quieter glow for pages you read all day (the app). */
+.rg-aurora.is-soft > span { animation: none !important; }
+.rg-aurora.is-soft .a, .rg-aurora.is-soft .b, .rg-aurora.is-soft .c, .rg-aurora.is-soft .e { opacity: 0.45; }
+.rg-aurora.is-soft .d, .rg-aurora.is-soft .f { opacity: 0.35; }
+/* Content sits above the lamp. */
+.rg-lit { position: relative; z-index: 1; }
+
+/* Glass: a frosted panel the sky shows through. */
+.rg-glass {
+  background: rgb(253 251 245 / 0.62);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgb(31 43 31 / 0.08);
+}
+
+/* Electric ink: the signal colour with a soft glow. */
+.rg-uv {
+  color: var(--rg-accent);
+  text-shadow: 0 0 16px rgb(77 124 58 / 0.25);
+}
+
+/* The Capsule Run: the capsule rides the track; a checkpoint lights when it arrives. */
+@keyframes rg-pulse-ring {
+  0% { box-shadow: 0 0 0 0 rgb(77 124 58 / 0.45); }
+  100% { box-shadow: 0 0 0 22px rgb(77 124 58 / 0); }
+}
+.rg-pulse { animation: rg-pulse-ring 1.2s ease-out infinite; }
+
+/* A news ticker. */
+@keyframes rg-marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.rg-marquee {
+  display: flex;
+  width: max-content;
+  animation: rg-marquee 38s linear infinite;
+}
+.rg-marquee:hover { animation-play-state: paused; }
+
+/* A blinking print head. */
+@keyframes rg-caret { 50% { opacity: 0; } }
+.rg-caret {
+  display: inline-block;
+  width: 0.55em;
+  height: 1.05em;
+  margin-left: 2px;
+  vertical-align: -0.15em;
+  background: currentColor;
+  animation: rg-caret 900ms steps(1) infinite;
+}
+
+/* Hairline rules like a newspaper: a thick and a thin line together. */
+.rg-double-rule {
+  border-top: 3px solid var(--rg-ink);
+  box-shadow: 0 3px 0 -2px var(--rg-canvas), 0 5px 0 -2px var(--rg-ink);
+}
+
+/* Big outlined numerals. */
+.rg-outline {
+  color: transparent !important;
+  -webkit-text-stroke: 1.5px var(--rg-outline, var(--rg-ink-3));
+  transition: -webkit-text-stroke-color 200ms;
+}
+.group:hover .rg-outline {
+  -webkit-text-stroke-color: var(--rg-accent);
+}
+
 /* The app's page background reaches the window edges (overscroll, short pages). */
 html:has(.theme-app),
 html:has(.theme-app) body {
-  background: #0a0b0b;
-  color-scheme: dark;
+  background: #f7f4ea;
+  color-scheme: light;
 }
 
 /* Loading placeholders: a soft sweep, never a spinner. */
@@ -252,4 +436,14 @@ html:has(.theme-app) body {
 .theme-app * {
   scrollbar-width: thin;
   scrollbar-color: var(--rg-line-strong) transparent;
+}
+
+/* A small label heading (an eyebrow): the mono label face, in capitals, not the serif. */
+h2.rg-eyebrow,
+h3.rg-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.4;
+  text-transform: uppercase !important;
+  letter-spacing: 0.16em !important;
 }

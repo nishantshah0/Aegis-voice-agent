@@ -1,7 +1,7 @@
 import { getApprover, hasRole } from "@/lib/auth/session";
 import { applyApprovedCard } from "@/lib/control";
 import { fail, ok } from "../../../_lib/http";
-import { getDraft, markApproved } from "../../../_lib/rule-drafts";
+import { claimForApproval, getDraft, markApproved, releaseClaim } from "../../../_lib/rule-drafts";
 import { getStore } from "../../../_lib/runtime";
 
 // POST /api/rules/:id/approve → { card }   (AUDIT #9, Trail #78; Role 2 and 3 stand-in)
@@ -17,11 +17,22 @@ export async function POST(_request: Request, ctx: RouteContext<"/api/rules/[id]
 
   const state = getDraft(id);
   if (!state) return fail(404, `No draft ${id}`);
-  if (state.status === "approved") return fail(409, `Rule ${id} is already live`);
+  if (state.status !== "draft") return fail(409, `Rule ${id} is already live or being approved`);
   if (!state.draft.ready) return fail(409, `Draft ${id} isn't ready: ${state.draft.problems.join("; ")}`);
+  // Claimed before any await, so a second approval at the same moment gets 409, not a duplicate.
+  if (!claimForApproval(id)) return fail(409, `Rule ${id} is already live or being approved`);
 
-  const applied = await applyApprovedCard(getStore(), state.draft.card, approver);
-  if (!applied.ok) return fail(409, applied.errors.join("; "));
+  let applied: Awaited<ReturnType<typeof applyApprovedCard>>;
+  try {
+    applied = await applyApprovedCard(getStore(), state.draft.card, approver);
+  } catch (e) {
+    releaseClaim(id);
+    return fail(409, `Couldn't put rule ${id} live: ${e instanceof Error ? e.message : String(e)}`);
+  }
+  if (!applied.ok) {
+    releaseClaim(id);
+    return fail(409, applied.errors.join("; "));
+  }
   markApproved(id);
   return ok({ card: applied.card });
 }

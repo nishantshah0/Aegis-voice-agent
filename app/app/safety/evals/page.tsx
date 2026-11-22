@@ -157,7 +157,7 @@ function RungCard({ n, rung, layer }: { n: number; rung: Rung; layer: Layer }) {
   );
 }
 
-const TRUST: { title: string; body: string; link: { label: string; href: string } }[] = [
+const TRUST: { title: string; body: string; link: { label: string; href: string }; page?: { label: string; href: string } }[] = [
   {
     title: "Scored from the record, not the model's word",
     body: "Every press and every sentence is an entry in the call's record, each one hash-chained to the one before. Scores read those entries, never what the model says it did, and the chain is checked so an entry can't be changed or dropped.",
@@ -177,6 +177,7 @@ const TRUST: { title: string; body: string; link: { label: string; href: string 
     title: "A release gate that blocks a broken rule",
     body: "On every push to main and every pull request, CI runs the type check, lint, every test and the hammer, which fails if any invariant breaks, then the build. Our rule is never to merge on a red gate.",
     link: { label: ".github/workflows/ci.yml", href: code(".github/workflows/ci.yml") },
+    page: { label: "See the latest gate run →", href: "/app/safety/gate-report" },
   },
 ];
 
@@ -236,9 +237,16 @@ async function Evals() {
             <Card key={t.title} className="flex flex-col gap-2">
               <h3 className="text-[15px] font-semibold">{t.title}</h3>
               <p className="text-sm text-ink-2">{t.body}</p>
-              <a href={t.link.href} className={cn(linkClass, "mt-auto font-mono text-xs")}>
-                {t.link.label}
-              </a>
+              <span className="mt-auto flex flex-wrap items-center justify-between gap-2">
+                <a href={t.link.href} className={cn(linkClass, "font-mono text-xs")}>
+                  {t.link.label}
+                </a>
+                {t.page && (
+                  <Link href={t.page.href} className={cn(linkClass, "text-xs")}>
+                    {t.page.label}
+                  </Link>
+                )}
+              </span>
             </Card>
           ))}
         </div>

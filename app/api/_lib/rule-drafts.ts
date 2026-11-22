@@ -5,7 +5,7 @@ import { claudeProposer, sdkProposer, type Proposer, type RuleDraft } from "@/li
 // draft is never live: only POST /api/rules/:id/approve, through lib/control's
 // applyApprovedCard, adds a card to the store. Drafts are lost on restart, which is safe.
 
-type DraftState = { draft: RuleDraft; status: "draft" | "approved" };
+type DraftState = { draft: RuleDraft; status: "draft" | "approving" | "approved" };
 type Holder = { drafts: Map<string, DraftState>; n: number; proposer: Proposer | null };
 
 const holder = globalThis as typeof globalThis & { __ruleDrafts?: Holder };
@@ -22,6 +22,18 @@ export function nextDraftId(cards: RuleCard[]): string {
 
 export const saveDraft = (draft: RuleDraft) => state().drafts.set(draft.id, { draft, status: "draft" });
 export const getDraft = (id: string): DraftState | undefined => state().drafts.get(id);
+/** Claim a draft for approval. Synchronous, so two approvals at once can't both get it. */
+export function claimForApproval(id: string): boolean {
+  const d = state().drafts.get(id);
+  if (!d || d.status !== "draft") return false;
+  d.status = "approving";
+  return true;
+}
+/** Give a claimed draft back when the approval didn't go through. */
+export function releaseClaim(id: string) {
+  const d = state().drafts.get(id);
+  if (d?.status === "approving") d.status = "draft";
+}
 export function markApproved(id: string) {
   const d = state().drafts.get(id);
   if (d) d.status = "approved";
