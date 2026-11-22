@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { IDS } from "@/lib/seed";
-import { scriptedModel, type ScriptStep } from "@/lib/agent/testing/scripted-model";
+import type { ScriptStep } from "@/lib/agent/testing/scripted-model";
 import type { LiveCall } from "../_lib/live-calls";
 import { resetLiveCallsForTests } from "../_lib/live-calls";
 import { resetSpeechBudgetForTests } from "../_lib/phone";
