@@ -5,7 +5,7 @@ import Link from "next/link";
 import { playClip, replayLines, speakReplayLine } from "@/lib/voice/replay";
 import type { LiveCall, LiveTurn } from "@/app/api/_lib/live-calls";
 import { ruleWords } from "@/app/stage/attacks";
-import { Badge, Button, RuleTag, TableEmpty, cn } from "@/components/ui";
+import { Badge, Button, ButtonLink, RuleTag, TableEmpty, When, cn } from "@/components/ui";
 import { RunLiveCallButton, type LiveSourceInput } from "../../live-calls/RunLiveCallButton";
 
 // One live attack call: the attacker AI against the real pharmacy agent, on a simulated
@@ -29,6 +29,20 @@ function progressMessage(progress: NonNullable<LiveCall["progress"]>, caller: Li
     case "failed": return "Call interrupted.";
     case "finished": return "Call complete.";
   }
+}
+
+function callStatus(call: LiveCall) {
+  const state = String(call.state);
+  const phase = call.progress?.phase;
+  if (state === "cancelled" || state === "canceled") return { label: "Cancelled", tone: "neutral" as const };
+  if (state === "failed" || phase === "failed") return { label: "Failed", tone: "stop" as const };
+  if (state === "ended") return { label: "Completed", tone: "accent" as const };
+  if (phase === "finished") return { label: "Finishing", tone: "quick" as const };
+  if (state === "queued") return { label: "Queued", tone: "quick" as const };
+  if (phase === "scoring") return { label: "Scoring", tone: "quick" as const };
+  if (state === "connected" || phase === "caller" || phase === "pharmacy") return { label: "Active", tone: "accent" as const };
+  if (state === "ringing" || phase === "connecting") return { label: "Connecting", tone: "quick" as const };
+  return { label: "Status unavailable", tone: "neutral" as const };
 }
 
 const DECISION_TONE: Record<string, "accent" | "stop" | "quick" | "review" | "neutral"> = { allowed: "accent", blocked: "stop", refused: "stop", routed: "quick", flagged: "review" };
@@ -134,7 +148,7 @@ function TurnRow({ t, playing, onPlay }: { t: LiveTurn; playing: boolean; onPlay
           {time}
           <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-ink-3">Attacker</span>
         </div>
-        <button type="button" onClick={onPlay} title="Play from here" className={cn("max-w-[78%] cursor-pointer rounded-2xl rounded-br-md bg-sunken px-4 py-2.5 text-left text-[15px] hover:brightness-110", ring)}>
+        <button type="button" onClick={onPlay} title="Play from here" className={cn("max-w-[78%] cursor-pointer rounded-2xl rounded-br-md bg-sunken px-4 py-2.5 text-left text-[15px] hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent", ring)}>
           {t.text}
           {t.kind === "safety" && <span className="mt-1 block text-xs text-review">Safety check on this line: {t.decision}</span>}
         </button>
@@ -149,7 +163,7 @@ function TurnRow({ t, playing, onPlay }: { t: LiveTurn; playing: boolean; onPlay
           <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-ink-3">Pharmacy</span>
           {time}
         </div>
-        <button type="button" onClick={onPlay} title="Play from here" className={cn("max-w-[78%] cursor-pointer rounded-2xl rounded-bl-md border border-line px-4 py-2.5 text-left text-[15px] hover:border-line-strong", ring)}>
+        <button type="button" onClick={onPlay} title="Play from here" className={cn("max-w-[78%] cursor-pointer rounded-2xl rounded-bl-md border border-line px-4 py-2.5 text-left text-[15px] hover:border-line-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent", ring)}>
           {t.text}
         </button>
       </li>
@@ -163,7 +177,7 @@ function TurnRow({ t, playing, onPlay }: { t: LiveTurn; playing: boolean; onPlay
           {time}
           {caughtFlag}
         </div>
-        <button type="button" onClick={onPlay} title="Play from here" className={cn("max-w-[78%] cursor-pointer rounded-2xl rounded-bl-md border-2 border-stop/60 bg-stop-soft px-4 py-2.5 text-left text-[15px]", ring)}>
+        <button type="button" onClick={onPlay} title="Play from here" className={cn("max-w-[78%] cursor-pointer rounded-2xl rounded-bl-md border-2 border-stop/60 bg-stop-soft px-4 py-2.5 text-left text-[15px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent", ring)}>
           <span className="flex items-center gap-2 text-xs font-medium text-stop">
             <RuleTag className="border-stop/50 text-stop">{t.rule}</RuleTag> {ruleWords(t.rule ?? "")}: never said, replaced
           </span>
@@ -181,7 +195,7 @@ function TurnRow({ t, playing, onPlay }: { t: LiveTurn; playing: boolean; onPlay
           type="button"
           onClick={onPlay}
           title={t.input ? `Pressed with ${JSON.stringify(t.input)}` : undefined}
-          className={cn("flex cursor-pointer flex-wrap items-center gap-2 rounded-xl border border-dashed px-3 py-1.5 font-mono text-[13px]", t.caught ? "border-stop/60" : "border-line-strong", ring)}
+          className={cn("flex cursor-pointer flex-wrap items-center gap-2 rounded-xl border border-dashed px-3 py-1.5 font-mono text-[13px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent", t.caught ? "border-stop/60" : "border-line-strong", ring)}
         >
           <span className="text-ink-3">pressed</span>
           <span className="font-semibold">{t.button}</span>
@@ -200,30 +214,76 @@ function TurnRow({ t, playing, onPlay }: { t: LiveTurn; playing: boolean; onPlay
 }
 
 export function LiveCallView({ id }: { id: string }) {
-  const [call, setCall] = useState<LiveCall | null>(null);
-  const [missing, setMissing] = useState(false);
+  const [callEntry, setCallEntry] = useState<{ id: string; call: LiveCall } | null>(null);
+  const call = callEntry?.id === id ? callEntry.call : null;
+  const callRef = useRef<LiveCall | null>(null);
+  const [missingId, setMissingId] = useState<string | null>(null);
+  const missing = missingId === id;
+  const [connectionIssueId, setConnectionIssueId] = useState<string | null>(null);
+  const connectionIssue = connectionIssueId === id;
   const [now, setNow] = useState(0);
+  const [newEventCount, setNewEventCount] = useState<{ id: string; count: number }>({ id, count: 0 });
+  const newEvents = newEventCount.id === id ? newEventCount.count : 0;
+  const timelineRef = useRef<HTMLOListElement | null>(null);
+  const nearLatest = useRef(true);
   const [usage, setUsage] = useState<{ used: number; perHour: number } | null>(null);
   const [playing, setPlaying] = useState(false);
   const [cursor, setCursor] = useState(0);
   const voice = useVoice(id);
-  const running = call?.state === "ringing" || call?.state === "connected";
+  const state = String(call?.state ?? "");
+  const phase = call?.progress?.phase;
+  const running = (state === "queued" || state === "ringing" || state === "connected") && phase !== "failed" && phase !== "finished";
+
+  useEffect(() => {
+    const update = () => {
+      nearLatest.current = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 120;
+    };
+    update();
+    window.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("resize", update);
+    return () => {
+      window.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
+    };
+  }, []);
 
   // Follow the call while it's going.
   useEffect(() => {
     let stopped = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
+    callRef.current = null;
     async function load() {
       try {
         const res = await fetch(`/api/arena/live/${encodeURIComponent(id)}`, { cache: "no-store" });
-        if (res.status === 404) setMissing(true);
+        if (stopped) return;
+        if (res.status === 404) {
+          setMissingId(id);
+          return;
+        }
+        if (!res.ok) throw new Error(`Call request failed (${res.status})`);
         if (res.ok) {
           const next = (await res.json()) as LiveCall;
-          setCall(next);
-          if (next.state === "ended" || next.state === "failed") return;
+          if (stopped) return;
+          const previous = callRef.current;
+          const added = previous ? Math.max(0, next.turns.length - previous.turns.length) : 0;
+          if (added > 0 && !nearLatest.current) {
+            setNewEventCount((current) => ({ id, count: (current.id === id ? current.count : 0) + added }));
+          }
+          if (added > 0 && nearLatest.current) {
+            requestAnimationFrame(() => timelineRef.current?.lastElementChild?.scrollIntoView({
+              block: "end",
+              behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+            }));
+          }
+          callRef.current = next;
+          setCallEntry({ id, call: next });
+          setMissingId((current) => current === id ? null : current);
+          setConnectionIssueId((current) => current === id ? null : current);
+          const nextState = String(next.state);
+          if (nextState === "ended" || nextState === "failed" || nextState === "cancelled" || nextState === "canceled" || next.progress?.phase === "failed" || next.progress?.phase === "finished") return;
         }
       } catch {
-        // Try again on the next tick.
+        if (!stopped) setConnectionIssueId(id);
       }
       if (!stopped) timer = setTimeout(load, POLL_MS);
     }
@@ -234,11 +294,13 @@ export function LiveCallView({ id }: { id: string }) {
     };
   }, [id]);
 
-  // The running clock, and the hour's usage.
+  // Update elapsed time only while the saved call is active.
   useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 250);
+    if (!running) return;
+    const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
-  }, []);
+  }, [running]);
+  // The hour's usage.
   useEffect(() => {
     const load = () =>
       fetch("/api/arena/live", { cache: "no-store" })
@@ -261,7 +323,7 @@ export function LiveCallView({ id }: { id: string }) {
     if (signal.aborted) return;
     const turn = audible[cursor];
     if (!turn) return;
-    document.getElementById(`turn-${turn.seq}`)?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    document.getElementById(`turn-${turn.seq}`)?.scrollIntoView({ block: "nearest", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
     try {
       await voice.playTurn(turn, signal);
       if (!signal.aborted) setCursor((c) => c + 1);
@@ -292,16 +354,36 @@ export function LiveCallView({ id }: { id: string }) {
     setPlaying(false);
   };
 
-  if (missing) return <p className="text-sm text-ink-2">No live call with that id. It may be from another server.</p>;
-  if (!call) return <p className="text-sm text-ink-3">Dialling…</p>;
+  if (missing) return (
+    <div role="status" className="mt-4 rounded-card border border-line bg-surface p-5 text-sm text-ink-2">
+      <p className="font-medium text-ink">This simulated call is unavailable on this server.</p>
+      <p className="mt-1">Return to Live calls and open a saved call from this workspace.</p>
+      <Link href="/app/safety/live-calls" className="mt-3 inline-flex text-sm font-medium text-accent underline underline-offset-2">Back to Live calls</Link>
+    </div>
+  );
+  if (!call) return (
+    <div role="status" className="mt-4 rounded-card border border-line bg-surface p-5 text-sm text-ink-2">
+      <p className="font-medium text-ink">{connectionIssue ? "Can’t reach this saved call yet." : "Opening simulated call…"}</p>
+      <p className="mt-1">{connectionIssue ? "Checking again shortly. Keep this page open or return to Live calls." : "Loading its status and transcript."}</p>
+      <Link href="/app/safety/live-calls" className="mt-3 inline-flex text-sm font-medium text-accent underline underline-offset-2">Back to Live calls</Link>
+    </div>
+  );
 
   const start = call.connectedAt ? Date.parse(call.connectedAt) : Date.parse(call.startedAt);
-  const end = call.endedAt ? Date.parse(call.endedAt) : now || start;
-  const duration = Math.max(1, end - start);
+  const end = call.endedAt ? Date.parse(call.endedAt) : now || Date.parse(call.startedAt);
+  const duration = Math.max(0, end - start);
   const span = Math.max(duration, ...turns.map((t) => t.at + 500));
   const caught = turns.filter((t) => t.caught);
   const inbound = call.phone.direction === "inbound";
+  const status = callStatus(call);
   const source: LiveSourceInput | null = call.source.kind === "new" ? null : (call.source as LiveSourceInput);
+  const sourceLabel = call.source.kind === "new" ? "One-off attack" : `${call.source.kind} · ${call.source.id}`;
+
+  function returnToLatest() {
+    setNewEventCount({ id, count: 0 });
+    const last = timelineRef.current?.lastElementChild;
+    last?.scrollIntoView({ block: "end", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -309,7 +391,7 @@ export function LiveCallView({ id }: { id: string }) {
       <section className="rounded-card border border-line bg-surface p-5 shadow-card">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <span className={cn("flex size-12 items-center justify-center rounded-full text-2xl", running ? "bg-accent text-ink-inverse" : "bg-sunken text-ink-2", call.state === "ringing" && "animate-pulse")} aria-hidden>
+            <span className={cn("flex size-12 items-center justify-center rounded-full text-2xl", running ? "bg-accent text-ink-inverse" : "bg-sunken text-ink-2", call.state === "ringing" && "motion-safe:animate-pulse")} aria-hidden>
               ☎
             </span>
             <div>
@@ -329,15 +411,22 @@ export function LiveCallView({ id }: { id: string }) {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <Badge tone={call.state === "failed" ? "stop" : running ? "accent" : "neutral"} dot>
-              {call.state === "ringing" ? "Ringing…" : call.state === "connected" ? "Connected" : call.state === "ended" ? "Call ended" : "Call failed"}
-            </Badge>
-            <span className="font-mono text-3xl font-semibold tabular-nums tracking-[-0.02em]" aria-label="Call duration">
-              {clock(call.connectedAt ? duration : 0)}
+          <div className="flex flex-col items-start gap-1 sm:items-end">
+            <Badge tone={status.tone} dot aria-live="polite">{status.label}</Badge>
+            <span className="font-mono text-2xl font-semibold tabular-nums tracking-[-0.02em]" aria-label={`Elapsed ${clock(duration)}`}>
+              {clock(duration)} <span className="font-sans text-xs font-normal text-ink-3">elapsed</span>
             </span>
           </div>
         </div>
+
+        <dl className="mt-4 grid gap-x-5 gap-y-2 border-t border-line pt-3 text-xs sm:grid-cols-2 lg:grid-cols-4">
+          <div><dt className="text-ink-3">Call ID</dt><dd className="mt-0.5 break-all font-mono text-ink-2">{call.id}</dd></div>
+          <div><dt className="text-ink-3">Test source</dt><dd className="mt-0.5 break-all text-ink-2">{sourceLabel}</dd></div>
+          <div><dt className="text-ink-3">Started</dt><dd className="mt-0.5 text-ink-2"><When iso={call.startedAt} /></dd></div>
+          <div><dt className="text-ink-3">Connected</dt><dd className="mt-0.5 text-ink-2">{call.connectedAt ? <When iso={call.connectedAt} /> : "Not connected"}</dd></div>
+        </dl>
+
+        {connectionIssue && <p role="status" className="mt-3 rounded-md bg-quick-soft px-3 py-2 text-sm text-ink-2">Connection interrupted. Checking for updates again; this view remains on call <code className="font-mono text-xs">{call.id}</code>.</p>}
 
         {call.progress && (
           <div className="mt-4 text-sm text-ink-2" role="status">
@@ -348,19 +437,19 @@ export function LiveCallView({ id }: { id: string }) {
 
         {/* Timeline: every turn at its time; red marks where the lock caught something */}
         <div className="mt-5">
-          <div className="relative h-8 rounded-full bg-sunken" role="list" aria-label="Call timeline">
+          <div className="relative h-8 rounded-full bg-sunken" role="group" aria-label="Call timeline. Select a marker to open and replay that turn.">
             {turns.map((t, i) => (
               <button
                 key={`${t.seq}-${t.kind}`}
                 type="button"
-                role="listitem"
                 onClick={() => {
-                  document.getElementById(`turn-${t.seq}`)?.scrollIntoView({ block: "center", behavior: "smooth" });
+                  document.getElementById(`turn-${t.seq}`)?.scrollIntoView({ block: "center", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
                   playFrom(i);
                 }}
+                aria-label={`${clock(t.at)} · ${t.who === "caller" ? "Attacker" : t.who === "agent" ? "Pharmacy" : "System"}${t.caught ? ` · caught by ${t.rule ?? t.ruleIds.join(", ") ?? t.decision}` : ""}`}
                 title={`${clock(t.at)} · ${t.caught ? `Caught: ${t.rule ?? t.ruleIds.join(", ") ?? t.decision}` : t.kind.replace(/_/g, " ")}`}
                 className={cn(
-                  "absolute top-1/2 -translate-x-1/2 -translate-y-1/2 cursor-pointer rounded-full transition-transform hover:scale-150",
+                  "absolute top-1/2 -translate-x-1/2 -translate-y-1/2 cursor-pointer rounded-full transition-transform hover:scale-150 focus-visible:z-20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
                   t.caught ? "z-10 h-6 w-2 bg-stop" : t.who === "caller" ? "size-2.5 bg-ink-2" : t.kind === "button" ? "size-1.5 bg-ink-3" : "size-2.5 bg-accent",
                   active && i === cursor && "ring-2 ring-accent",
                 )}
@@ -390,22 +479,30 @@ export function LiveCallView({ id }: { id: string }) {
             </Button>
           )}
           <span className="text-xs text-ink-3">
-            {voice.source}. Select a turn to play from there. A buzz marks a blocked line, followed by what the caller heard.
+            {turns.length ? `Transcript replay available · ${voice.source}. Select a turn to play from there. A buzz marks a blocked line, followed by what the caller heard.` : "No transcript audio is available yet."}
           </span>
           {voice.problem && <span role="status" className="text-xs text-stop">{voice.problem}</span>}
         </div>
       </section>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
-        <section aria-live="polite">
+        <section aria-labelledby="transcript-heading">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <h2 id="transcript-heading" className="text-sm font-semibold">Call transcript and events</h2>
+            {newEvents > 0 && (
+              <Button size="sm" variant="secondary" onClick={returnToLatest}>
+                {newEvents} new event{newEvents === 1 ? "" : "s"} · Return to latest
+              </Button>
+            )}
+          </div>
           {turns.length === 0 ? (
-            <TableEmpty>{call.state === "ringing" ? "Ringing…" : "Waiting for the first line…"}</TableEmpty>
+            <TableEmpty>{status.label === "Connecting" ? "Connecting the simulated call…" : "Waiting for the first event…"}</TableEmpty>
           ) : (
-            <ol className="flex flex-col gap-3 rounded-card border border-line bg-surface p-5">
+            <ol ref={timelineRef} className="flex flex-col gap-3 rounded-card border border-line bg-surface p-5">
               {turns.map((t, i) => (
                 <TurnRow key={`${t.seq}-${t.kind}`} t={t} playing={active && i === cursor} onPlay={() => playFrom(i)} />
               ))}
-              {running && <li className="text-center text-xs text-ink-3 animate-pulse">On the line…</li>}
+              {running && <li className="text-center text-xs text-ink-3 motion-safe:animate-pulse">{status.label} · waiting for next event…</li>}
             </ol>
           )}
         </section>
@@ -460,9 +557,9 @@ export function LiveCallView({ id }: { id: string }) {
           {!running && (
             <div className="flex flex-wrap gap-2">
               {source && <RunLiveCallButton source={source} label="Run it again" />}
-              <Link href="/app/safety/live-calls" className="inline-flex h-8 items-center rounded-full border border-line-strong px-3.5 text-[13px] hover:border-ink-3">
+              <ButtonLink href="/app/safety/live-calls" variant="secondary" size="sm">
                 Run another
-              </Link>
+              </ButtonLink>
             </div>
           )}
         </aside>

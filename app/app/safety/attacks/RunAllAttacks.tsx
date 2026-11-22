@@ -20,20 +20,29 @@ export function RunAllAttacks({ attacks }: { attacks: Attack[] }) {
   }, [router]);
   const [status, setStatus] = useState<{ running: RunAll | null; last: RunAll | null } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [statusError, setStatusError] = useState<string | null>(null);
+  const [statusLoaded, setStatusLoaded] = useState(false);
   const [posting, setPosting] = useState(false);
   const seen = useRef("");
 
   const load = useCallback(async () => {
     try {
       const res = await fetch("/api/arena/all", { cache: "no-store" });
-      if (!res.ok) return;
+      if (!res.ok) {
+        setStatusError(`Live run status is unavailable (${res.status}); the last displayed progress may be stale.`);
+        setStatusLoaded(true);
+        return;
+      }
       const next = (await res.json()) as { running: RunAll | null; last: RunAll | null };
       setStatus(next);
+      setStatusError(null);
+      setStatusLoaded(true);
       const mark = JSON.stringify(next.running?.steps.map((s) => [s.state, s.done]) ?? next.last?.finishedAt);
       if (seen.current && mark !== seen.current) routerRef.current.refresh();
       seen.current = mark;
     } catch {
-      // Try again on the next tick.
+      setStatusError("Live run status is unavailable; the last displayed progress may be stale. Check the connection, then retry.");
+      setStatusLoaded(true);
     }
   }, []);
 
@@ -88,6 +97,12 @@ export function RunAllAttacks({ attacks }: { attacks: Attack[] }) {
           {error}
         </p>
       )}
+      {statusError && (
+        <p role="status" className="flex flex-wrap items-center gap-2 text-sm text-ink-2">
+          <span>{statusError}</span>
+          <Button variant="ghost" size="sm" onClick={() => void load()}>Retry status</Button>
+        </p>
+      )}
       {shown && (
         <>
           <ol className="grid gap-2 md:grid-cols-3" aria-live="polite">
@@ -125,6 +140,11 @@ export function RunAllAttacks({ attacks }: { attacks: Attack[] }) {
             )}
           </p>
         </>
+      )}
+      {!shown && !statusError && (
+        <p role="status" className="text-sm text-ink-3">
+          {statusLoaded ? "No all-attacks run is active. Start a run to see its progress here." : "Checking for an active all-attacks run…"}
+        </p>
       )}
     </Card>
   );

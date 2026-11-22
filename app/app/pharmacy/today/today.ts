@@ -8,7 +8,7 @@ const LANE_ORDER: Record<QueueItem["lane"], number> = { review: 0, quick_check: 
 const RECENT = 10;
 
 export type TodayItem = ItemDetail & { createdAt: string; decidedAt?: string };
-export type Today = { appointments: { slotId: string; label: string; patient: string }[]; totals: LaneTotals; waiting: TodayItem[]; automatic: TodayItem[]; decided: TodayItem[] };
+export type Today = { appointments: { slotId: string; label: string; patient: string }[]; totals: LaneTotals; waiting: TodayItem[]; automatic: TodayItem[]; decided: TodayItem[]; linked?: TodayItem };
 
 const at = (i: QueueItem) => Date.parse(i.decidedAt ?? i.createdAt);
 
