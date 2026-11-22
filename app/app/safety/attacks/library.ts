@@ -1,3 +1,4 @@
+import { cacheResult } from "../result-cache";
 import { readdir, readFile, stat } from "node:fs/promises";
 import { join } from "node:path";
 import type { LiveCall } from "@/app/api/_lib/live-calls";
@@ -256,8 +257,12 @@ async function overnightAttacks(dir: string): Promise<Attack[]> {
   return out;
 }
 
+const readHistorical = cacheResult((dir) =>
+  Promise.all([hijackResults(dir), scenarioResults(dir), readCards(), overnightAttacks(dir)]),
+);
+
 export async function readLibrary(dir: string = resultsDir()): Promise<Attack[]> {
-  const [live, hijack, scenarios, cards, night] = await Promise.all([liveBySource(dir), hijackResults(dir), scenarioResults(dir), readCards(), overnightAttacks(dir)]);
+  const [live, [hijack, scenarios, cards, night]] = await Promise.all([liveBySource(dir), readHistorical(dir)]);
 
   const hijackRows: Attack[] = STAGE_ATTACKS.map((a) => {
     const tag = HIJACK_TAGS[a.id];

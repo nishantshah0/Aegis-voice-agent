@@ -24,7 +24,7 @@ const STATUS: Record<QueueItem["status"], string> = { open: "waiting", approved:
 const textOf = (e: RecordEntry) => (e.input as { text?: string } | undefined)?.text ?? "";
 const capital = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
-async function describeCall(store: Store, callId: CallId, record: RecordEntry[], queue: QueueItem[]): Promise<ReviewCall | null> {
+export async function describeCall(store: Store, callId: CallId, record: RecordEntry[], queue: QueueItem[]): Promise<ReviewCall | null> {
   const call = await store.getCall(callId);
   if (!call || call.state !== "ended") return null;
   const patientId = call.lockedPatientId ?? call.targetPatientId;

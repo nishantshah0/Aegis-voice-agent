@@ -76,7 +76,11 @@ export function outreachData(run: SavedRun, runs: RunChoice[] = []): OutreachDat
       skipRate: history.length ? history.filter((e) => e.status === "skipped" || e.status === "stopped").length / history.length : 0,
     };
   });
-  const days: OutreachDay[] = run.days.map((d) => ({
+  return { summary: run.summary, runs, rows, days: outreachDays(run.days) };
+}
+
+export function outreachDays(days: SavedRun["days"]): OutreachDay[] {
+  return days.map((d) => ({
     date: d.date,
     callsByLane: d.callsByLane,
     calls: d.calls.length,
@@ -87,7 +91,6 @@ export function outreachData(run: SavedRun, runs: RunChoice[] = []): OutreachDat
     withoutMedication: d.withoutMedication,
     rxIds: d.calls.map((c) => c.rxId),
   }));
-  return { summary: run.summary, runs, rows, days };
 }
 
 /** The page's loader: checks the session first, so nothing is read for a signed-out request. */

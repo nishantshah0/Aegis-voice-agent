@@ -1,3 +1,5 @@
+import { cacheResult } from "./result-cache";
+import { resultsDir } from "@/app/console/overnight/results";
 import { Suspense, type ReactNode } from "react";
 import Link from "next/link";
 import { connection } from "next/server";
@@ -134,9 +136,13 @@ const ranAtOf = <T,>(s: Source<T>) => (s.state === "ok" ? s.ranAt : null);
 const brokenOf = <T extends { broken: number }>(s: Source<T>) => (s.state === "ok" ? s.data.broken : null);
 
 
+const readOverviewResults = cacheResult((dir) =>
+  Promise.all([readHammerAndOvernight(dir), readLatestBatch(dir, { includeSteps: false })]),
+);
+
 async function Overview() {
   await connection(); // Files change between runs: never prerender.
-  const [view, run, batch, live] = await Promise.all([readHammerAndOvernight(), readLatestRun(), readLatestBatch(undefined, { includeSteps: false }), listLiveCalls(5)]);
+  const [[view, batch], run, live] = await Promise.all([readOverviewResults(resultsDir()), readLatestRun(), listLiveCalls(5)]);
   const { hammer, overnight } = view;
   const running = stillRunning(run);
 

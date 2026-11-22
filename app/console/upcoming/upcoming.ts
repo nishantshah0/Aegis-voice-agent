@@ -32,12 +32,12 @@ const addDays = (date: string, days: number) => new Date(Date.parse(`${date}T00:
 async function lastCalls(store: Store, record: Awaited<ReturnType<Store["listRecord"]>>): Promise<Map<string, NonNullable<UpcomingRow["lastCall"]>>> {
   const starts = record.filter((e) => e.kind === "safety" && (e.input as { check?: string })?.check === "call_start" && e.callId);
   const latest = new Map<string, NonNullable<UpcomingRow["lastCall"]>>();
-  for (let i = 0; i < starts.length; i += 16) {
-    const calls = await Promise.all(starts.slice(i, i + 16).map((entry) => store.getCall(entry.callId as CallId)));
-    for (const call of calls) {
-      const patientId = call?.targetPatientId ?? call?.lockedPatientId;
-      if (call && patientId) latest.set(patientId, { callId: call.id, direction: call.direction, state: call.state, startedAt: call.startedAt });
-    }
+  const calls = await store.getCalls(starts.map((entry) => entry.callId as CallId));
+  const byId = new Map(calls.map((call) => [call.id, call]));
+  for (const entry of starts) {
+    const call = byId.get(entry.callId as CallId);
+    const patientId = call?.targetPatientId ?? call?.lockedPatientId;
+    if (call && patientId) latest.set(patientId, { callId: call.id, direction: call.direction, state: call.state, startedAt: call.startedAt });
   }
   return latest;
 }
@@ -56,8 +56,8 @@ async function nextReminder(store: Parameters<typeof outboundPreview>[0] & Param
 }
 
 export async function upcoming(store: Store): Promise<Upcoming> {
-  const [now, record, policy, cards, patients, orders] = await Promise.all([
-    store.now(), store.listRecord(), store.policy(), store.listCards(), store.listPatients(), store.listOrders(),
+  const [now, record, policy, cards, patients, orders, prescriptions] = await Promise.all([
+    store.now(), store.listRecord(), store.policy(), store.listCards(), store.listPatients(), store.listOrders(), store.listPrescriptions(),
   ]);
   const today = now.slice(0, 10);
   const ordersByPatient = Map.groupBy(orders, (order) => order.patientId);
@@ -71,29 +71,25 @@ export async function upcoming(store: Store): Promise<Upcoming> {
   const calls = await lastCalls(store, record);
   const rows: UpcomingRow[] = [];
 
-  for (let i = 0; i < patients.length; i += 16) {
-    const batch = await Promise.all(patients.slice(i, i + 16).map(async (patient) => ({
-      patient, prescriptions: await store.getPrescriptions(patient.id),
-    })));
-    for (const { patient, prescriptions } of batch) {
-      for (const rx of prescriptions) {
-        const left = daysLeft(rx, now);
-        if (left > WINDOW_DAYS) continue;
-        const preview = await refillPreview(previewStore, patient, rx);
-        const runOut = addDays(today, left);
-        rows.push({
-          patientId: patient.id,
-          rxId: rx.id,
-          initials: `${patient.firstName[0]}.${patient.lastName[0]}.`,
-          drug: `${rx.drug} ${rx.strength}`,
-          controlled: rx.controlled,
-          daysLeft: left,
-          runOut,
-          preview,
-          lastCall: calls.get(patient.id),
-          nextReminder: await nextReminder(previewStore, patient, rx, preview, left, runOut),
-        });
-      }
+  const prescriptionsByPatient = Map.groupBy(prescriptions, (rx) => rx.patientId);
+  for (const patient of patients) {
+    for (const rx of prescriptionsByPatient.get(patient.id) ?? []) {
+      const left = daysLeft(rx, now);
+      if (left > WINDOW_DAYS) continue;
+      const preview = await refillPreview(previewStore, patient, rx);
+      const runOut = addDays(today, left);
+      rows.push({
+        patientId: patient.id,
+        rxId: rx.id,
+        initials: `${patient.firstName[0]}.${patient.lastName[0]}.`,
+        drug: `${rx.drug} ${rx.strength}`,
+        controlled: rx.controlled,
+        daysLeft: left,
+        runOut,
+        preview,
+        lastCall: calls.get(patient.id),
+        nextReminder: await nextReminder(previewStore, patient, rx, preview, left, runOut),
+      });
     }
   }
   rows.sort((a, b) => a.daysLeft - b.daysLeft);

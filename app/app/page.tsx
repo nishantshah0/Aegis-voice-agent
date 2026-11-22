@@ -1,3 +1,4 @@
+import { listRuns, readRunDays } from "@/lib/sim/files";
 import Link from "next/link";
 import { Suspense } from "react";
 import { connection } from "next/server";
@@ -31,7 +32,7 @@ import {
   readOvernight,
   type OvernightView,
 } from "@/app/console/overnight/results";
-import { loadOutreach, type OutreachDay } from "./pharmacy/outreach/data";
+import { outreachDays, type OutreachDay } from "./pharmacy/outreach/data";
 import { readLatestBatch, type BatchView } from "./safety/data";
 import { Live } from "./pharmacy/_parts/Live";
 import { HistoryNote, ScriptedTag } from "./pharmacy/_parts/HistoryNote";
@@ -392,17 +393,36 @@ function RecentCalls({ recent, scripted, scriptedCount }: {
 }
 
 // Everything here is read from the store, the record and results/. Nothing is typed in.
+async function HomeSafety() {
+  const [safety, batch] = await Promise.all([
+    readOvernight(),
+    readLatestBatch(undefined, { includeSteps: false }),
+  ]);
+  return <SafetyCard o={safety} batch={batch} />;
+}
+
+async function HomeForecast() {
+  const [summary] = await listRuns();
+  const days = summary ? await readRunDays(summary.runId) : null;
+  return summary && days ? (
+    <Forecast days={outreachDays(days)} runId={summary.runId}
+      callsNext7={summary.totals.callsNext7} reviewLoad={summary.totals.reviewLoad} />
+  ) : (
+    <Card>
+      <SectionHeader title="Outreach forecast" />
+      <TableEmpty>No simulation run saved yet. Make one from Outreach.</TableEmpty>
+    </Card>
+  );
+}
+
 async function Body() {
   await connection();
   // The proxy already requires sign-in for /app; this is the second lock on the data itself.
   if (!(await getApprover())) return null;
   const store = getStore();
-  const [overview, queue, safety, batch, outreach] = await Promise.all([
+  const [overview, queue] = await Promise.all([
     homeCalls(store),
     store.queue(),
-    readOvernight(),
-    readLatestBatch(undefined, { includeSteps: false }),
-    loadOutreach().catch(() => null),
   ]);
   const open = queue
     .filter((q) => q.status === "open" && q.lane !== "automatic")
@@ -541,25 +561,15 @@ async function Body() {
             />
           </section>
         </div>
-        <SafetyCard o={safety} batch={batch} />
+        <Suspense fallback={<Skeleton className="h-40 rounded-xl" />}>
+          <HomeSafety />
+        </Suspense>
       </div>
 
       <div className="mt-4 grid items-start gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
-        {outreach?.state === "ok" ? (
-          <Forecast
-            days={outreach.data.days}
-            runId={outreach.data.summary.runId}
-            callsNext7={outreach.data.summary.totals.callsNext7}
-            reviewLoad={outreach.data.summary.totals.reviewLoad}
-          />
-        ) : (
-          <Card>
-            <SectionHeader title="Outreach forecast" />
-            <TableEmpty>
-              No simulation run saved yet. Make one from Outreach.
-            </TableEmpty>
-          </Card>
-        )}
+        <Suspense fallback={<Skeleton className="h-40 rounded-xl" />}>
+          <HomeForecast />
+        </Suspense>
         <RecentCalls
           recent={overview.recent}
           scripted={overview.scripted}

@@ -65,3 +65,14 @@ export async function readRun(runId: string, dir = simDir()): Promise<SavedRun |
     return null;
   }
 }
+
+/** The saved day data used by the Home forecast. */
+export async function readRunDays(runId: string, dir = simDir()): Promise<SimDay[] | null> {
+  if (!isRunId(runId)) return null;
+  try {
+    const days: unknown = JSON.parse(await readFile(/* turbopackIgnore: true */ join(dir, runId, "days.json"), "utf8"));
+    return Array.isArray(days) ? days : null;
+  } catch {
+    return null;
+  }
+}
