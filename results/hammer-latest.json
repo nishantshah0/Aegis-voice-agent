@@ -1,25 +1,25 @@
 {
-  "ranAt": "2026-11-22T04:44:56.909Z",
+  "ranAt": "2026-11-22T08:01:41.171Z",
   "mode": "hammer",
   "depth": 3,
   "reports": [
     {
       "kind": "exhaustive",
-      "sequences": 67648,
-      "presses": 163124,
-      "checks": 200768,
+      "sequences": 88270,
+      "presses": 217268,
+      "checks": 262220,
       "broken": 0,
       "failures": [],
-      "ms": 217883
+      "ms": 70934
     },
     {
       "kind": "random",
       "sequences": 10000,
-      "presses": 111974,
-      "checks": 179134,
+      "presses": 117216,
+      "checks": 177508,
       "broken": 0,
       "failures": [],
-      "ms": 249170
+      "ms": 65662
     }
   ]
 }

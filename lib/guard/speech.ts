@@ -6,6 +6,7 @@
 //   S4 every promise matches the record (approved, sent, booked, a price, a day)
 
 import { GUARD_REPLACEMENTS, type Call, type EmitFn, type GuardResult, type GuardSentenceFn, type RecordEntry, type SpeechRule, type Store } from "@/lib/contract";
+import { liveAppointments } from "@/lib/control/appointments";
 import { internalOf, resultOf } from "@/lib/control/context";
 import { canonical, unbackedDoses, wordsToNumber } from "./doses";
 import { mentions, tokensFor, words, type Token } from "./tokens";
@@ -23,6 +24,9 @@ const NOT_A_PROMISE = new RegExp(
   [
     "\\b(?:you|youre|you are|are you|were|we are|im|i am|whenever youre|when youre) ready\\b",
     "\\blast filled\\b",
+    // The last fill's history, not this one (Trail #85): "It was delivered last time."
+    "\\b(?:delivered|picked (?:it |them )?up) last time\\b",
+    "\\blast time (?:it was |they were |you |we )?(?:delivered|picked (?:it |them )?up)\\b",
     // Identity checks, not the order: "Your identity is confirmed.", "that's confirmed: your date of birth matches".
     "\\b(?:your identity|your date of birth|your dob|your details|your code|that code|the code) (?:is |are |s |has been |have been |was )?confirmed\\b",
     // Questions to the caller, and the agent's own state: "Are you done?", "I'm all set to help."
@@ -130,12 +134,19 @@ function supplyClause(c: string, n: number, form: string): boolean {
     new RegExp(`^ (?:thats |that is |thatll be |that will be )?${qty} $`),
     new RegExp(`^ (?:your|the) (?:refill|bottle|supply|order|prescription) (?:is|has|holds|comes to|will be|will have) ${qty} $`),
     new RegExp(`^ (?:youll|you will|you ll) (?:get|receive|pick up) ${qty} $`),
+    // The last fill, read back (Trail #85): "Last time you got 30 tablets.", "Your last fill was 30 tablets."
+    new RegExp(`^ (?:last time )?(?:you got|you received|you picked up) ${qty}(?: last time)? $`),
+    new RegExp(`^ (?:your )?last (?:fill|refill) (?:was|had|came to) ${qty} $`),
   ].some((re) => re.test(c));
 }
 
-/** The label's "Qty 30" as "30 tablets", only when every clause naming them is a supply phrase. */
-function labelQuantity(label: string, sentence: string): string[] {
-  const qty = Number(label.match(/\bqty\.? ?(\d+)\b/i)?.[1]);
+/**
+ * The label's "Qty 30" as "30 tablets", only when every clause naming them is a supply phrase.
+ * `qty` may instead be a quantity this call's record gave for the prescription (Trail #85: a
+ * partial fill's quantity, or refill_history's last fill); the same supply phrases apply.
+ */
+function labelQuantity(label: string, sentence: string, recorded?: number): string[] {
+  const qty = recorded ?? Number(label.match(/\bqty\.? ?(\d+)\b/i)?.[1]);
   const form = label.match(/\b(tablet|capsule|pill)s?\b/i)?.[1]?.toLowerCase();
   if (!qty || !form) return [];
   const clauses = sentence.split(CLAUSE_BREAK).map((c) => words(c));
@@ -152,11 +163,27 @@ export function spokenPrices(sentence: string): string {
   return sentence.replace(/\$(\d+) and (\d{1,2}) cents?\b/gi, (_m, dollars: string, cents: string) => `$${dollars}.${cents.padStart(2, "0")}`);
 }
 
-async function checkS3(store: Store, call: Call, sentence: string): Promise<Check> {
+/** Quantities this call's record gave per prescription: request_refill's quantity and refill_history's last fill (Trail #85). */
+function recordedQuantities(record: RecordEntry[]): Map<string, number[]> {
+  const out = new Map<string, number[]>();
+  for (const e of record) {
+    const r = resultOf(e);
+    if (e.kind !== "button" || !r?.ok) continue;
+    const o = r.output as { rx_id?: string; quantity?: number; last_fill_quantity?: number; state?: string };
+    const rxId = e.button === "request_refill" ? internalOf(e)?.rxId : e.button === "refill_history" ? o.rx_id : undefined;
+    const n = e.button === "request_refill" ? (o.state === "refused" ? undefined : o.quantity) : e.button === "refill_history" ? o.last_fill_quantity : undefined;
+    if (rxId && typeof n === "number" && Number.isInteger(n) && n > 0) out.set(rxId, [...(out.get(rxId) ?? []), n]);
+  }
+  return out;
+}
+
+async function checkS3(store: Store, call: Call, sentence: string, record: RecordEntry[]): Promise<Check> {
   const records: string[] = [];
   if (call.state === "verified" && call.lockedPatientId) {
+    const recorded = recordedQuantities(record);
     for (const rx of await store.getPrescriptions(call.lockedPatientId)) {
       records.push(rx.labelText, `${rx.strength} ${rx.drug}`, ...labelQuantity(rx.labelText, sentence));
+      for (const n of recorded.get(rx.id) ?? []) records.push(...labelQuantity(rx.labelText, sentence, n));
     }
   }
   const missing = unbackedDoses(sentence, records);
@@ -280,7 +307,121 @@ export function unexcusedCompletion(sentence: string, drugNames: string[] = []):
   });
 }
 
-function checkS4(sentence: string, record: RecordEntry[], bookedLabels: string[], drugNames: string[] = [], approvableItems?: Set<string>): Check {
+// ---------- Trail #85: what refill_history and the appointment buttons back ----------
+
+/** Read-back facts from this call's presses, and the locked patient's live bookings. */
+export type ReadBack = {
+  /** Weekdays (lowercase) refill_history gave as last_fill_day. */
+  lastFillDays: string[];
+  /** Weekdays (lowercase) refill_history gave as next_eligible_day. */
+  eligibleDays: string[];
+  /** Labels of the locked patient's live bookings ("Thursday the 26th at 10 AM"), with their type. */
+  booked: { label: string; type: string }[];
+  /** Labels of open slots this call's list_appointment_slots returned, with their type. */
+  listed: { label: string; type: string }[];
+  /** A cancel_appointment succeeded on this call. */
+  cancelled: boolean;
+};
+
+const NO_READ_BACK: ReadBack = { lastFillDays: [], eligibleDays: [], booked: [], listed: [], cancelled: false };
+
+// "last filled", "last fill", "last refill": the clause is about the fill that already happened.
+const LAST_FILL_CLAUSE = /\blast (?:filled|fill|refill)\b/;
+const ELIGIBLE_CLAUSE = /\beligible\b/;
+// A clause that names an appointment. "review" alone isn't one ("a pharmacist will review it").
+const APPOINTMENT_CLAUSE =
+  /\b(?:appointments?|consults?|consultation|vaccines?|vaccination|flu shot|shot|medication review|med review|pickup (?:appointment|time|slot))\b/;
+// Anything about getting the order to the caller: an appointment never backs these.
+const ORDER_CLAUSE = /\b(?:deliver\w*|bring\w*|brought|arriv\w*|ship\w*|drop\w* (?:it |them )?off|courier|mail\w*|refills?|prescriptions?|orders?|medications?|medicines?|meds|rx)\b/;
+// An offer of a listed slot: "is open", "openings", "would ... work".
+const OFFER_CLAUSE = /\b(?:open|opening|openings|available|free|slots?|works?|work for)\b/;
+const CANCELLED = /\b(?:cancelled|canceled)\b/;
+const TYPE_WORDS: Record<string, RegExp> = {
+  consult: /\b(?:consults?|consultation)\b/,
+  vaccine: /\b(?:vaccines?|vaccination|flu shot|shot)\b/,
+  med_review: /\b(?:medication review|med review)\b/,
+  pickup: /\bpickup\b/,
+};
+
+type ClockTime = { h: number; m: number; pm?: boolean };
+
+/** Times said in a clause: "10 AM", "4:30 pm", "noon", "at 10". */
+function timesIn(raw: string): ClockTime[] {
+  const t = raw.toLowerCase().replace(/\b(\d)(?:st|nd|rd|th)\b/g, "$1");
+  const out: ClockTime[] = [];
+  for (const m of t.matchAll(/\b(\d{1,2})(?::(\d{2}))? ?([ap])\.?m\b\.?/g)) out.push({ h: Number(m[1]), m: Number(m[2] ?? 0), pm: m[3] === "p" });
+  for (const m of t.matchAll(/\bat (\d{1,2})(?::(\d{2}))?(?! ?[ap]\.?m\b)(?! ?(?:th|st|nd|rd)\b)\b/g)) out.push({ h: Number(m[1]), m: Number(m[2] ?? 0) });
+  if (/\bnoon\b/.test(t)) out.push({ h: 12, m: 0, pm: true });
+  return out;
+}
+
+const sameTime = (said: ClockTime, slot: ClockTime) => said.h === slot.h && said.m === slot.m && (said.pm === undefined || said.pm === slot.pm);
+
+/**
+ * Is weekday `day` in this clause backed by an appointment? Only in a clause that names an
+ * appointment (of the slot's type, or "appointment") and nothing about the order or its
+ * delivery; a listed slot only in an offer; and every time said must be that slot's time.
+ */
+function appointmentDay(cw: string, raw: string, day: string, rb: ReadBack, question: boolean, drugNames: string[]): boolean {
+  if (!APPOINTMENT_CLAUSE.test(cw) || ORDER_CLAUSE.test(cw.replace(/\bpickup (?:appointment|time|slot)\b/g, " "))) return false;
+  if (namesDrug(cw, drugNames) || isCompletionPromise(cw)) return false;
+  const offer = question || OFFER_CLAUSE.test(cw);
+  const candidates = [...rb.booked, ...(offer ? rb.listed : [])].filter((a) => {
+    if (!a.label.toLowerCase().includes(day)) return false;
+    const named = Object.entries(TYPE_WORDS).filter(([, re]) => re.test(cw)).map(([t]) => t);
+    return named.length === 0 || named.includes(a.type);
+  });
+  if (candidates.length === 0) return false;
+  // "the 27th": a day of the month said must be the slot's.
+  const dates = [...raw.toLowerCase().matchAll(/\bthe (\d{1,2})(?:st|nd|rd|th)?\b/g)].map((m) => m[1]);
+  if (!dates.every((n) => candidates.some((a) => new RegExp(`\\bthe ${n}(?:st|nd|rd|th)\\b`).test(a.label.toLowerCase())))) return false;
+  const said = timesIn(raw);
+  if (said.length === 0) return true;
+  const slotTimes = candidates.flatMap((a) => timesIn(a.label));
+  return said.every((t) => slotTimes.some((s) => sameTime(t, s)));
+}
+
+const namesDrug = (cw: string, drugNames: string[]) => drugNames.some((d) => d.trim() && cw.includes(words(d)));
+
+/**
+ * A history clause (Trail #85) backs its day only when it says nothing else: no delivery,
+ * pickup or booking, no drug being promised, and no completion word ("ready", "approved").
+ * "last filled" itself is dropped first, as NOT_A_PROMISE does.
+ */
+function historyClause(cw: string, re: RegExp): boolean {
+  if (!re.test(cw) || HANDOVER.test(cw) || BOOKING.test(cw)) return false;
+  return !isCompletionPromise(cw);
+}
+
+/** "booked" about an appointment (and nothing about the order) needs a live booking of that type. */
+function appointmentBooking(cw: string, rb: ReadBack): boolean | undefined {
+  if (!APPOINTMENT_CLAUSE.test(cw) || ORDER_CLAUSE.test(cw.replace(/\bpickup (?:appointment|time|slot)\b/g, " "))) return undefined;
+  const named = Object.entries(TYPE_WORDS).filter(([, re]) => re.test(cw)).map(([t]) => t);
+  return rb.booked.some((a) => named.length === 0 || named.includes(a.type));
+}
+
+/** Read-back facts for S4 from the record (Trail #85). */
+export function readBackFacts(callRecord: RecordEntry[], wholeRecord: RecordEntry[], lockedPatientId: string | undefined): ReadBack {
+  if (!lockedPatientId) return NO_READ_BACK;
+  const ok = callRecord.flatMap((e) => {
+    const r = e.kind === "button" ? resultOf(e) : undefined;
+    return r?.ok ? [{ e, o: r.output as Record<string, unknown> }] : [];
+  });
+  const day = (v: unknown) => (typeof v === "string" ? [v.toLowerCase()] : []);
+  return {
+    lastFillDays: ok.filter(({ e }) => e.button === "refill_history").flatMap(({ o }) => day(o.last_fill_day)),
+    eligibleDays: ok.filter(({ e }) => e.button === "refill_history").flatMap(({ o }) => day(o.next_eligible_day)),
+    booked: liveAppointments(wholeRecord)
+      .filter((a) => a.patientId === lockedPatientId)
+      .map((a) => ({ label: a.label, type: a.type })),
+    listed: ok
+      .filter(({ e }) => e.button === "list_appointment_slots")
+      .flatMap(({ o }) => ((o.slots as { label?: string }[] | undefined) ?? []).map((sl) => ({ label: String(sl.label ?? ""), type: String(o.type ?? "") }))),
+    cancelled: ok.some(({ e, o }) => e.button === "cancel_appointment" && o.ok === true),
+  };
+}
+
+function checkS4(sentence: string, record: RecordEntry[], bookedLabels: string[], drugNames: string[] = [], approvableItems?: Set<string>, rb: ReadBack = NO_READ_BACK): Check {
   const results = record.filter((e) => e.kind === "button").map((e) => ({ e, r: resultOf(e) }));
   // Only an approval of a refill or renewal (AUDIT fix 4a): approving a plain note or question
   // never makes "your refill is approved" true.
@@ -317,6 +458,7 @@ function checkS4(sentence: string, record: RecordEntry[], bookedLabels: string[]
   // off. A clause is excused only by a booking said as the condition, or a negation that governs
   // the word ("haven't booked", "can't deliver it Friday"). Prices never are.
   let ledByMatch = false;
+  const question = /\?\s*$/.test(sentence);
   for (const raw of sentence.split(CLAUSE_BREAK)) {
     const cw = words(raw);
     // Only a booking said as the condition ("once it's booked for Friday") excuses its own clause.
@@ -331,12 +473,26 @@ function checkS4(sentence: string, record: RecordEntry[], bookedLabels: string[]
     if (excused) continue;
 
     const m = cw.match(BOOKING);
-    if (m && !negatedNear(cw, m.index ?? 0) && !booked) return { rule: "S4", why: "booking without set_delivery" };
+    if (m && !negatedNear(cw, m.index ?? 0)) {
+      // About an appointment: needs a live booking of it. Anything else still needs set_delivery.
+      const appointment = appointmentBooking(cw, rb);
+      if (appointment === false) return { rule: "S4", why: "appointment booking without book_appointment" };
+      if (appointment === undefined && !booked) return { rule: "S4", why: "booking without set_delivery" };
+    }
+    const c = cw.match(CANCELLED);
+    if (c && !negatedNear(cw, c.index ?? 0) && !(rb.cancelled && APPOINTMENT_CLAUSE.test(cw) && !ORDER_CLAUSE.test(cw))) {
+      return { rule: "S4", why: "cancelled without cancel_appointment" };
+    }
 
     for (const d of cw.matchAll(DAYS)) {
       if (negatedNear(cw, d.index, true)) continue;
       // ready_label backs the day only in a "ready <day>" clause about the refill, never a delivery.
       if (READY_CLAUSE.test(cw) && !HANDOVER.test(cw) && readyLabels.includes(d[0])) continue;
+      // refill_history's days (Trail #85): the last fill's in a "last fill" clause, the eligible
+      // day in an "eligible" clause, never alongside a delivery, pickup or booking.
+      if (rb.lastFillDays.includes(d[0]) && historyClause(cw, LAST_FILL_CLAUSE) && !/\b(?:next|will|ll|going to)\b/.test(cw)) continue;
+      if (rb.eligibleDays.includes(d[0]) && historyClause(cw, ELIGIBLE_CLAUSE)) continue;
+      if (appointmentDay(cw, raw, d[0], rb, question, drugNames)) continue;
       if (!bookedLabels.some((l) => l.toLowerCase().includes(d[0]))) return { rule: "S4", why: `day ${d[0]} not booked or a run-out day` };
     }
 
@@ -377,13 +533,14 @@ export function createSpeechGuard({ store, emit = () => {} }: { store: Store; em
         found =
           checkS1(call, sentence, tokens, said, record) ??
           checkS2(call, sentence, tokens, said) ??
-          (await checkS3(store, call, sentence)) ??
+          (await checkS3(store, call, sentence, record)) ??
           checkS4(
             spokenPrices(sentence),
             record,
             bookedLabels,
             tokens.filter((t) => t.kind === "drug").map((t) => t.text),
             new Set((await store.queue()).filter((q) => q.kind === "refill" || q.kind === "renewal").map((q) => q.id)),
+            call.state === "verified" ? readBackFacts(record, await store.listRecord(), call.lockedPatientId) : NO_READ_BACK,
           );
 
         if (found?.rule === "S3" && call.lockedPatientId) {

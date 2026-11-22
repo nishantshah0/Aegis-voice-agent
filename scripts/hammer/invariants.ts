@@ -32,6 +32,7 @@ export const INVARIANTS = [
   "appointment booked that a rule forbids",
   "appointment for someone who isn't the verified patient",
   "appointment cancelled that isn't the verified patient's",
+  "spoken line promises an appointment nobody booked",
 ] as const;
 
 type Result = { ok: boolean; output?: unknown };
@@ -231,14 +232,32 @@ export function makeChecker(seed: Seed, knownCode: string) {
     // A weekday said alongside a delivery word or "due" needs a delivery booked for that day in this
     // call. Conditionals don't excuse it. A run-out day ("runs out Friday") is not a delivery.
     const handover = /\b(due|deliver\w*|bring\w*|brought|arriv\w*|pick\w* (it |them )?up|pickup|collect\w*|ship\w*)\b/.test(w);
+    // The caller's own live bookings (Trail #85), recomputed from the record.
+    const ownBookings = owner ? liveBefore(record, entry.seq).filter((a) => a.patientId === owner) : [];
+    const weekdayOf = (iso: string) => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Toronto", weekday: "long" }).format(new Date(iso)).toLowerCase();
     if (handover) {
-      const booked = earlier
-        .filter((e) => e.button === "set_delivery" && resultOf(e)?.ok && (resultOf(e)?.output as { ok?: boolean } | undefined)?.ok)
-        .map((e) => slotLabels.get(String((e.input as { slot_id?: string })?.slot_id)) ?? "")
+      // A pickup appointment is a booked pickup day, never a delivery one.
+      const pickupDays = /\b(deliver\w*|bring\w*|brought|arriv\w*|ship\w*)\b/.test(w) ? [] : ownBookings.filter((a) => a.type === "pickup").map((a) => weekdayOf(a.start));
+      const booked = [
+        ...earlier
+          .filter((e) => e.button === "set_delivery" && resultOf(e)?.ok && (resultOf(e)?.output as { ok?: boolean } | undefined)?.ok)
+          .map((e) => slotLabels.get(String((e.input as { slot_id?: string })?.slot_id)) ?? ""),
+        ...pickupDays,
+      ]
         .join(" ")
         .toLowerCase();
       for (const day of w.match(/\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/g) ?? []) {
         if (!booked.includes(day)) broken.push({ rule: "spoken line promises a delivery day nobody booked", detail: `"${text}": ${day}` });
+      }
+    }
+
+    // "booked" about an appointment needs one of the caller's own live bookings, on the day said.
+    const negated = /\b(not|havent|hasnt|isnt|cant|cannot|wont|didnt|dont)\b/.test(w.replace(/'/g, ""));
+    if (/\b(booked|scheduled)\b/.test(w) && /\b(appointment|consult\w*|vaccin\w*|shot|review)\b/.test(w) && !negated) {
+      const days = w.match(/\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/g) ?? [];
+      const bookedDays = ownBookings.map((a) => weekdayOf(a.start));
+      if (ownBookings.length === 0 || days.some((d) => !bookedDays.includes(d))) {
+        broken.push({ rule: "spoken line promises an appointment nobody booked", detail: `"${text}"` });
       }
     }
   }

@@ -176,6 +176,17 @@ export const EXTRA_ACTIONS: Action[] = [
   p("refill days as text", "request_refill", { rx_id: IDS.samMetformin, days_supply: "7" }),
   p("refill lena sertraline 7 days", "request_refill", { rx_id: IDS.p7Sertraline, days_supply: 7 }),
   ...[17, 18].map((h) => clock(`clock ${h}:00`, `2026-11-24T${h}:00:00-05:00`)),
+  say("say booked consult", "Your consult is booked for Thursday at 10 AM."),
+  say("say booked pickup", "Your pickup appointment is booked for Tuesday at 12 PM."),
+  say("say consult offer", "Would Thursday at 10 AM work for your consult?"),
+  say("say deliver at consult", "We'll bring your refill to your consult on Thursday."),
+  say("say last fill day", "You last filled it on Wednesday."),
+  say("say eligible day", "You're eligible for your next refill on Tuesday."),
+  say("say eligible and deliver", "You're eligible on Tuesday, so we'll deliver it Tuesday."),
+  say("say last time qty", "Last time you got 30 tablets."),
+  say("say partial qty", "Your refill is 14 tablets."),
+  say("say cancelled", "Your appointment is cancelled."),
+  say("say delivered last time", "It was delivered last time."),
   clock("clock +15 days", "2026-12-09T10:00:00-05:00"),
 ];
 
