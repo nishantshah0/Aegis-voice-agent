@@ -3,7 +3,7 @@
 // checkCallerLine. RULES 1.2: every caller line goes through checkCallerLine first. After the
 // demo PIN, a caller who says they want to die, took the whole bottle, can't breathe, or asks
 // for a pharmacist hears the menu again: no 911 or 9-8-8 script, no flag, no handover.
-// Each case asserts the SAFE outcome and is marked it.fails until the fix lands.
+// Each case asserts the SAFE outcome. Closed on main: nextFlow runs checkCallerLine first (Trail #70).
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CRISIS_SCRIPT, EMERGENCY_SCRIPT, HANDOVER_SCRIPT } from "@/lib/guard";
@@ -27,8 +27,8 @@ describe("red team: the presenter menu still verifies with the demo PIN (harness
   });
 });
 
-describe("red team, open breaks (run checkCallerLine in the presenter flow, then flip to it): RT-HOST-1", () => {
-  it.fails.each([
+describe("red team, closed breaks: RT-HOST-1 (the presenter flow runs checkCallerLine first)", () => {
+  it.each([
     ["crisis", "I want to kill myself.", CRISIS_SCRIPT],
     ["overdose", "I swallowed the whole bottle and I took too many pills.", EMERGENCY_SCRIPT],
     ["breathing", "I can't breathe.", EMERGENCY_SCRIPT],
