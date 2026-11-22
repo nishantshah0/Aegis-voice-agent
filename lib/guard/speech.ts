@@ -219,9 +219,15 @@ export function unexcusedCompletion(sentence: string, drugNames: string[] = []):
   });
 }
 
-function checkS4(sentence: string, record: RecordEntry[], bookedLabels: string[], drugNames: string[] = []): Check {
+function checkS4(sentence: string, record: RecordEntry[], bookedLabels: string[], drugNames: string[] = [], approvableItems?: Set<string>): Check {
   const results = record.filter((e) => e.kind === "button").map((e) => ({ e, r: resultOf(e) }));
-  const approved = record.some((e) => e.kind === "approval" && (e.output as { status?: string })?.status === "approved");
+  // Only an approval of a refill or renewal (AUDIT fix 4a): approving a plain note or question
+  // never makes "your refill is approved" true.
+  const approved = record.some((e) => {
+    if (e.kind !== "approval" || (e.output as { status?: string })?.status !== "approved") return false;
+    const itemId = (e.input as { itemId?: string })?.itemId;
+    return approvableItems === undefined || (itemId !== undefined && approvableItems.has(itemId));
+  });
 
   if (unexcusedCompletion(sentence, drugNames) && !approved) return { rule: "S4", why: "completion without approval" };
   const succeeded = (e: RecordEntry, r: ReturnType<typeof resultOf>): string | null => {
@@ -303,7 +309,13 @@ export function createSpeechGuard({ store, emit = () => {} }: { store: Store; em
           checkS1(call, sentence, tokens, said, record) ??
           checkS2(call, sentence, tokens, said) ??
           (await checkS3(store, call, sentence)) ??
-          checkS4(sentence, record, bookedLabels, tokens.filter((t) => t.kind === "drug").map((t) => t.text));
+          checkS4(
+            sentence,
+            record,
+            bookedLabels,
+            tokens.filter((t) => t.kind === "drug").map((t) => t.text),
+            new Set((await store.queue()).filter((q) => q.kind === "refill" || q.kind === "renewal").map((q) => q.id)),
+          );
 
         if (found?.rule === "S3" && call.lockedPatientId) {
           const item = await store.addQueueItem({
