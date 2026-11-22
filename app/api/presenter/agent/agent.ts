@@ -90,10 +90,63 @@ async function takeTurn(presenterId: string, kind: "open" | "turn"): Promise<voi
   await db.query("INSERT INTO aegis_presenter_agent_turns (presenter_id, kind) VALUES ($1, $2)", [presenterId, kind]);
 }
 
+/** The database getStore() uses (the same choice runtime.ts makes): the hosted demo's own, else DATABASE_URL. */
+function dashboardStoreUrl(): string | undefined {
+  const hostedDemo = !!process.env.AEGIS_PUBLIC_ORIGIN && process.env.PATIENT_SIMULATION === "community-demo";
+  return (hostedDemo ? process.env.AEGIS_DEMO_STORAGE_URL : process.env.DATABASE_URL) || undefined;
+}
+export const dashboardStoreUrlForTests = dashboardStoreUrl;
+
 /** The dashboard's store. On Vercel it must be Postgres: a memory store isn't shared between instances. */
 function dashboardStore(): Store {
-  if (process.env.VERCEL && !process.env.DATABASE_URL) throw new AgentUnavailable("DATABASE_URL is required on Vercel");
+  if (process.env.VERCEL && !dashboardStoreUrl()) throw new AgentUnavailable("The dashboard's database isn't configured on Vercel");
   return getStore();
+}
+
+// ---------- The demo clock ----------
+
+/** `iso` moved by `ms`, written with the same offset it had (the pharmacy's local hour matters). */
+function shift(iso: string, ms: number): string {
+  const zone = /(Z|[+-]\d{2}:\d{2})$/.exec(iso)?.[1] ?? "Z";
+  const offsetMin = zone === "Z" ? 0 : (zone[0] === "-" ? -1 : 1) * (Number(zone.slice(1, 3)) * 60 + Number(zone.slice(4, 6)));
+  const local = new Date(Date.parse(iso) + ms + offsetMin * 60_000).toISOString().slice(0, 19);
+  return local + zone;
+}
+
+/**
+ * The hosted store's clock only moves when someone moves it, so a code lockout set on it would
+ * never end. Each presenter call moves it forward by the real time since the last presenter call:
+ * forward only, never past what real time allows, and not at all after a reset (the clock went
+ * back, so we start counting again). Every move is on the record.
+ */
+export async function advanceDemoClock(store: Store): Promise<void> {
+  const db = pool();
+  await db.query("CREATE TABLE IF NOT EXISTS aegis_presenter_clock (id int PRIMARY KEY, store_clock text NOT NULL, real_at timestamptz NOT NULL)");
+  const now = await store.now();
+  const { rows } = await db.query<{ store_clock: string; elapsed_ms: number }>(
+    "SELECT store_clock, (extract(epoch FROM now() - real_at) * 1000)::bigint AS elapsed_ms FROM aegis_presenter_clock WHERE id = 1",
+  );
+  let next = now;
+  const last = rows[0];
+  if (last && Date.parse(now) >= Date.parse(last.store_clock)) {
+    const target = Date.parse(last.store_clock) + Math.max(0, Number(last.elapsed_ms));
+    if (target > Date.parse(now)) next = shift(now, target - Date.parse(now));
+  }
+  if (next !== now) {
+    await store.setNow(next);
+    await store.appendRecord({ actor: "system", kind: "safety", input: { check: "demo_clock_advanced", from: now, to: next }, decision: "allowed" });
+  }
+  await db.query(
+    "INSERT INTO aegis_presenter_clock (id, store_clock, real_at) VALUES (1, $1, now()) ON CONFLICT (id) DO UPDATE SET store_clock = EXCLUDED.store_clock, real_at = EXCLUDED.real_at",
+    [next],
+  );
+}
+
+/** After a Reset demo: forget the last presenter call's clock, so counting starts again. */
+export async function forgetDemoClock(): Promise<void> {
+  const db = pool();
+  await db.query("CREATE TABLE IF NOT EXISTS aegis_presenter_clock (id int PRIMARY KEY, store_clock text NOT NULL, real_at timestamptz NOT NULL)");
+  await db.query("DELETE FROM aegis_presenter_clock");
 }
 
 function modelFor(channel: Channel): AgentModel {
@@ -190,6 +243,7 @@ const INBOUND_REASON = (ruleIds: string[]) =>
 export async function openAgent(presenterId: string, channel: Channel): Promise<AgentReply> {
   const { store, control, driver } = parts(presenterId, channel);
   await takeTurn(presenterId, "open");
+  await advanceDemoClock(store);
   const started = await control.startOutboundCall(IDS.sam, IDS.samConcerta);
   if (!started.ok) {
     // Rule 7 decides (opt-in, hours, frequency) and is never loosened. When it says no, the
