@@ -30,6 +30,7 @@ import {
   type Store,
 } from "@/lib/contract";
 import { APPOINTMENT_CONFIRMATION_QUESTION, confirmsBooking } from "@/lib/contract/appointment-consent";
+import { codeFailuresSinceClear, lockedUntilFrom, PATIENT_CODE_LOCKS } from "./clear-lock";
 import { internalOf, loadContext, resultOf, type PressRecordOutput } from "./context";
 import { evaluate, type Verdict } from "./engine";
 import { chooseLane, signalsFromCards } from "./lanes";
@@ -40,6 +41,7 @@ export const MAX_CODE_TRIES = 3;
 export const LOCKOUT_MS = 15 * MINUTE_MS;
 export const CODE_VALID_MS = 10 * MINUTE_MS;
 export const MAX_CODES_PER_HOUR = 3;
+export { PATIENT_CODE_LOCKS } from "./clear-lock";
 /** How long failed codes against a patient send that patient's requests to Review, on any call (Trail #86). */
 export const FAILED_CODE_SIGNAL_MS = 60 * MINUTE_MS;
 
@@ -199,25 +201,13 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
     return { result: ok<"send_code">({ message: "code sent if matched" }), decision: "allowed", internal };
   }
 
-  /** When each wrong code against this patient was entered, on any call, oldest first (Trail #86). */
+  /** Wrong codes against this patient since their latest pharmacist clear, on any call (Trail #86). */
   async function failedCodesFor(patientId: string): Promise<string[]> {
-    return (await store.listRecord()).filter((e) => e.button === "check_code" && internalOf(e)?.codeFailed && internalOf(e)?.patientId === patientId).map((e) => e.at);
+    return codeFailuresSinceClear(await store.listRecord(), patientId);
   }
 
-  /**
-   * The patient's lockout, worked out from the record so it holds across calls, redials and
-   * servers (Trail #86, RT-C1): any three wrong codes within 15 minutes lock that patient for 15
-   * minutes from the third. A clock moved back never ends it early.
-   */
-  function patientLockedUntil(failures: string[], now: string): string | undefined {
-    let until: number | undefined;
-    for (let i = MAX_CODE_TRIES - 1; i < failures.length; i++) {
-      if (Date.parse(failures[i]) - Date.parse(failures[i - (MAX_CODE_TRIES - 1)]) <= LOCKOUT_MS) {
-        until = Math.max(until ?? 0, Date.parse(failures[i]) + LOCKOUT_MS);
-      }
-    }
-    return until !== undefined && until > Date.parse(now) ? new Date(until).toISOString() : undefined;
-  }
+  /** The patient's lockout from those wrong codes (lib/control/clear-lock.ts). */
+  const patientLockedUntil = lockedUntilFrom;
 
   async function checkCode(call: Call, input: ButtonInputs["check_code"]): Promise<Handled> {
     const now = await store.now();
@@ -269,13 +259,14 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
     // This wrong code counts against the patient too: it may be their third in 15 minutes.
     const lockNow = lookup?.patientId ? patientLockedUntil([...patientFailures, now], now) : undefined;
     if (tries >= MAX_CODE_TRIES || lockNow) {
-      const until = lockNow && tries < MAX_CODE_TRIES ? lockNow : addMs(now, LOCKOUT_MS);
+      const callUntil = tries >= MAX_CODE_TRIES ? addMs(now, LOCKOUT_MS) : undefined;
+      const until = [lockNow, callUntil].filter((t): t is string => t !== undefined).sort((a, b) => Date.parse(b) - Date.parse(a))[0];
       await store.saveCall({ ...current, state: current.state === "verified" ? "verified" : "locked_out", failedCodeTries: tries, lockedUntil: until });
       return { result: ok<"check_code">({ locked_until: until }), decision: "blocked", internal };
     }
     await store.saveCall({ ...current, failedCodeTries: tries });
     const patientLeft = lookup?.patientId
-      ? MAX_CODE_TRIES - [...patientFailures, now].filter((at) => within(at, now, LOCKOUT_MS)).length
+      ? Math.min(...PATIENT_CODE_LOCKS.map((rule) => rule.wrong - [...patientFailures, now].filter((at) => within(at, now, rule.withinMs)).length))
       : MAX_CODE_TRIES;
     return { result: ok<"check_code">({ verified: false, tries_left: Math.min(MAX_CODE_TRIES - tries, patientLeft) }), decision: "blocked", internal };
   }

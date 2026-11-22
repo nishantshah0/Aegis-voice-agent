@@ -106,3 +106,52 @@ describe("the failed-code signal follows the patient", () => {
     expect((await store.queue()).find((q) => q.rxId === IDS.samMetformin)?.signals).not.toContain("failed_code_attempts");
   });
 });
+
+describe("the daily cap on failed codes (Trail #86 review low)", () => {
+  // Two wrong codes per call every 16 minutes never trips the 15-minute lock; six in a day does.
+  async function spread(control: ReturnType<typeof lock>["control"], store: ReturnType<typeof lock>["store"], wrong: number) {
+    let t = Date.parse("2026-11-24T10:00:00-05:00");
+    let left = wrong;
+    while (left > 0) {
+      await store.setNow(new Date(t).toISOString());
+      const first = await guess(control, `00000${left}`);
+      left--;
+      if (left > 0) {
+        await control.press(first.callId, "check_code", { lookup_id: first.lookupId, code: `00001${left}` });
+        left--;
+      }
+      // An hour on, so the three-codes-an-hour limit never stops the code going out.
+      t += 61 * 60 * 1000;
+    }
+    return t;
+  }
+
+  it("five wrong codes in a day, never three in 15 minutes: the right code still verifies", async () => {
+    const { control, store } = lock();
+    const t = await spread(control, store, 5);
+    await store.setNow(new Date(t).toISOString());
+    expect((await guess(control, CODE)).result).toMatchObject({ output: { verified: true } });
+  });
+
+  it("the sixth wrong code in 24 hours locks the patient for 2 hours from it, on any call (the pharmacist can clear it sooner)", async () => {
+    const { control, store } = lock();
+    const t = await spread(control, store, 6);
+    const failures = (await store.listRecord()).filter((e) => (e.output as { internal?: { codeFailed?: boolean } })?.internal?.codeFailed);
+    expect(failures).toHaveLength(6);
+    const sixth = Date.parse(failures[5].at);
+    const lockedTo = new Date(sixth + 2 * 3600 * 1000).toISOString();
+    expect((failures[5].output as { result: { output: unknown } }).result.output).toMatchObject({ locked_until: lockedTo });
+    await store.setNow(new Date(Math.min(t, sixth + 3600 * 1000)).toISOString());
+    expect((await guess(control, CODE)).result).toMatchObject({ output: { locked_until: lockedTo } });
+    await store.setNow(new Date(sixth + 2 * 3600 * 1000 + 61 * 60 * 1000).toISOString());
+    expect((await guess(control, CODE)).result).toMatchObject({ output: { verified: true } });
+  });
+
+  it("after the 2 hours, one more wrong code that day locks again at once", async () => {
+    const { control, store } = lock();
+    await spread(control, store, 6);
+    const sixth = Date.parse((await store.listRecord()).filter((e) => (e.output as { internal?: { codeFailed?: boolean } })?.internal?.codeFailed).at(-1)!.at);
+    await store.setNow(new Date(sixth + 3 * 3600 * 1000).toISOString());
+    expect((await guess(control, "000099")).result).toMatchObject({ output: { locked_until: new Date(sixth + 5 * 3600 * 1000).toISOString() } });
+  });
+});

@@ -1,7 +1,9 @@
 import { APPOINTMENT_CONFIRMATION_QUESTION, confirmsBooking } from "@/lib/contract/appointment-consent";
 import type { AppointmentOffer } from "@/lib/contract/buttons";
 import { createControl } from "@/lib/control";
-import { createSpeechGuard } from "@/lib/guard";
+import { createSafetyCheck, createSpeechGuard } from "@/lib/guard";
+import { emit } from "@/lib/events";
+import { getStore } from "../../_lib/runtime";
 import { IDS, SEED } from "@/lib/seed";
 import { createMemoryStore } from "@/lib/store/memory";
 import { demoCode, equal } from "./config";
@@ -172,8 +174,23 @@ async function appointment(id: string, previous: Flow, digits: string, said: str
   };
 }
 
+/**
+ * RULES 1.2 (RT-HOST-1): every caller line goes through checkCallerLine first, on the menu too,
+ * before the PIN as well as after. Its script beats the menu: an emergency or a request for a
+ * person ends the demo call; a crisis line keeps the caller on the line. The line is recorded
+ * and flagged for a pharmacist on the dashboard's store.
+ */
+async function safetyFirst(id: string, previous: Flow, speech: string): Promise<Flow | undefined> {
+  if (!speech.trim()) return undefined;
+  const result = await createSafetyCheck({ store: getStore(), emit })(`pm_${id.slice(0, 8)}`, speech.slice(0, 500));
+  if (result.action === "continue") return undefined;
+  return { ...previous, offered: undefined, reply: result.script, phase: result.action === "crisis" ? previous.phase : "end" };
+}
+
 export async function nextFlow(id: string, previous: Flow, digits: string, speech: string): Promise<Flow> {
   if (previous.phase === "end") return previous;
+  const safe = await safetyFirst(id, previous, speech);
+  if (safe) return safe;
   const finish = (reply: string) => ({ ...previous, phase: "end" as const, reply });
   const said = normalize(speech);
   if (previous.phase === "pin") {

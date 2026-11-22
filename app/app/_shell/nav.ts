@@ -7,27 +7,37 @@ export type Area = { key: "pharmacy" | "safety"; label: string; short: string; h
 
 export const OVERVIEW: NavItem = { href: "/app", label: "Home", icon: "home", hint: "What needs you now" };
 
+export const PHARMACY_NAV = {
+  today: { href: "/app/pharmacy/today", label: "Today", icon: "today", hint: "Approve what needs a pharmacist" },
+  upcoming: { href: "/app/pharmacy/upcoming", label: "Upcoming refills", icon: "calendar", hint: "Refills due in the next 14 days" },
+  forecast: { href: "/app/pharmacy/outreach", label: "Simulated forecast", icon: "outreach", hint: "Projected calls and pharmacist workload from a saved simulation" },
+  calls: { href: "/app/pharmacy/calls", label: "Calls", icon: "calls", hint: "Every call, press and line" },
+  quality: { href: "/app/pharmacy/review", label: "Call quality", icon: "review", hint: "Label finished calls" },
+} as const satisfies Record<string, NavItem>;
+
+export const SAFETY_HOME = "/app/safety";
+
 export const AREAS: Area[] = [
   {
     key: "pharmacy",
     label: "Pharmacy calls",
     short: "Pharmacy",
-    home: "/app/pharmacy/today",
+    home: PHARMACY_NAV.today.href,
     hint: "Refill calls and what needs a pharmacist",
     items: [
-      { href: "/app/pharmacy/today", label: "Today", icon: "today", hint: "Approve what needs a pharmacist" },
-      { href: "/app/pharmacy/phone", label: "Phone", icon: "phone", hint: "Talk in the browser or call the test handset", hosted: true },
-      { href: "/app/pharmacy/upcoming", label: "Upcoming", icon: "calendar", hint: "Refills due in the next 14 days" },
-      { href: "/app/pharmacy/outreach", label: "Outreach", icon: "outreach", hint: "Who we'll call, and when" },
-      { href: "/app/pharmacy/calls", label: "Calls", icon: "calls", hint: "Every call, press and line" },
-      { href: "/app/pharmacy/review", label: "Review calls", icon: "review", hint: "Label finished calls" },
+      PHARMACY_NAV.today,
+      PHARMACY_NAV.upcoming,
+      PHARMACY_NAV.forecast,
+      PHARMACY_NAV.calls,
+      PHARMACY_NAV.quality,
+      { href: "/app/pharmacy/phone", label: "Phone (DEMO ONLY)", icon: "phone", hint: "Talk in the browser or call the test handset", hosted: true },
     ],
   },
   {
     key: "safety",
     label: "Safety suite",
     short: "Safety",
-    home: "/app/safety",
+    home: SAFETY_HOME,
     hint: "Attacks, scenarios and the rules that hold",
     items: [
       { href: "/app/safety/business-tests", label: "Business tests", icon: "flask", hint: "Run workflows and replay calls", hosted: true },
