@@ -1,13 +1,39 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Badge, Card, cn, Eyebrow, LaneBadge, RuleTag, StatTile, Table, TableEmpty, Td, Th, THead, Tr, type Lane } from "@/components/ui";
+import {
+  Badge,
+  Card,
+  chipClass,
+  cn,
+  inputClass,
+  LaneBadge,
+  RowNav,
+  RuleTag,
+  SectionHeader,
+  StatTile,
+  Table,
+  TableEmpty,
+  Td,
+  Th,
+  THead,
+  Tr,
+  type Lane,
+} from "@/components/ui";
 import type { OutreachData, OutreachRow } from "./data";
 import { Calendar } from "./Calendar";
-import { dayLabel, leftLabel, OUTCOME_LABEL, PATTERN_LABEL, pharmacyDate, shortDate } from "./format";
+import {
+  dayLabel,
+  leftLabel,
+  OUTCOME_LABEL,
+  PATTERN_LABEL,
+  pharmacyDate,
+  shortDate,
+} from "./format";
 import { PatientPanel } from "./PatientPanel";
 
-type SortKey = "name" | "drug" | "daysLeft" | "risk" | "nextCall" | "lane" | "lastOutcome";
+type SortKey =
+  "name" | "drug" | "daysLeft" | "risk" | "nextCall" | "lane" | "lastOutcome";
 type LaneFilter = "all" | Lane | "refused";
 
 /** Within-days slider's top stop means "any". */
@@ -15,8 +41,14 @@ const ANY = 31;
 /** "Usually skips": a fifth or more of past refills skipped or stopped. */
 const SKIPS = 0.2;
 
-const LANE_ORDER: Record<string, number> = { automatic: 0, quick_check: 1, review: 2, refused: 3 };
-const laneOf = (r: OutreachRow): Lane | "refused" => ("lane" in r.laneNow ? r.laneNow.lane : "refused");
+const LANE_ORDER: Record<string, number> = {
+  automatic: 0,
+  quick_check: 1,
+  review: 2,
+  refused: 3,
+};
+const laneOf = (r: OutreachRow): Lane | "refused" =>
+  "lane" in r.laneNow ? r.laneNow.lane : "refused";
 
 function sortValue(r: OutreachRow, key: SortKey): string | number {
   switch (key) {
@@ -41,18 +73,59 @@ function RiskMeter({ score, band }: OutreachRow["risk"]) {
   return (
     <span className="inline-flex items-center gap-2">
       <span className="h-1.5 w-14 overflow-hidden rounded-full bg-sunken">
-        <span className={cn("block h-full rounded-full", band === "high" ? "bg-stop" : band === "medium" ? "bg-quick" : "bg-auto")} style={{ width: `${Math.max(4, score)}%` }} />
+        <span
+          className={cn(
+            "block h-full rounded-full",
+            band === "high"
+              ? "bg-stop"
+              : band === "medium"
+                ? "bg-quick"
+                : "bg-auto",
+          )}
+          style={{ width: `${Math.max(4, score)}%` }}
+        />
       </span>
-      <span className={cn("tabular-nums", band === "high" ? "font-semibold text-stop" : "text-ink-2")}>{score}</span>
+      <span
+        className={cn(
+          "tabular-nums",
+          band === "high" ? "font-semibold text-stop" : "text-ink-2",
+        )}
+      >
+        {score}
+      </span>
     </span>
   );
 }
 
-function SortTh({ k, sort, onSort, children, className }: { k: SortKey; sort: { key: SortKey; dir: 1 | -1 }; onSort: (k: SortKey) => void; children: React.ReactNode; className?: string }) {
+function SortTh({
+  k,
+  sort,
+  onSort,
+  children,
+  className,
+}: {
+  k: SortKey;
+  sort: { key: SortKey; dir: 1 | -1 };
+  onSort: (k: SortKey) => void;
+  children: React.ReactNode;
+  className?: string;
+}) {
   const active = sort.key === k;
   return (
-    <Th className={className} aria-sort={active ? (sort.dir === 1 ? "ascending" : "descending") : "none"}>
-      <button type="button" onClick={() => onSort(k)} className={cn("inline-flex items-center gap-1 hover:text-ink", active && "text-ink")}>
+    <Th
+      className={className}
+      aria-sort={
+        active ? (sort.dir === 1 ? "ascending" : "descending") : "none"
+      }
+    >
+      <button
+        type="button"
+        onClick={() => onSort(k)}
+        className={cn(
+          "inline-flex items-center gap-1 hover:text-ink",
+          active && "text-ink",
+        )}
+      >
         {children}
         <span aria-hidden className="text-[10px]">
           {active ? (sort.dir === 1 ? "▲" : "▼") : ""}
@@ -62,13 +135,21 @@ function SortTh({ k, sort, onSort, children, className }: { k: SortKey; sort: { 
   );
 }
 
-function Toggle({ on, onChange, children }: { on: boolean; onChange: (v: boolean) => void; children: React.ReactNode }) {
+function Toggle({
+  on,
+  onChange,
+  children,
+}: {
+  on: boolean;
+  onChange: (v: boolean) => void;
+  children: React.ReactNode;
+}) {
   return (
     <button
       type="button"
       aria-pressed={on}
       onClick={() => onChange(!on)}
-      className={cn("h-9 rounded-full border px-3.5 text-[13px] font-medium transition-colors", on ? "border-accent bg-accent-soft text-accent-ink" : "border-line-strong bg-surface text-ink-2 hover:text-ink")}
+      className={chipClass(on)}
     >
       {children}
     </button>
@@ -83,20 +164,33 @@ export function OutreachView({ data }: { data: OutreachData }) {
   const [controlled, setControlled] = useState(false);
   const [lane, setLane] = useState<LaneFilter>("all");
   const [day, setDay] = useState<string | null>(null);
-  const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: "nextCall", dir: 1 });
+  const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({
+    key: "nextCall",
+    dir: 1,
+  });
   const [openId, setOpenId] = useState<string | null>(null);
   const [limit, setLimit] = useState(60);
 
   const t = summary.totals;
-  const reviewPerDay = days.length ? days.reduce((s, d) => s + d.reviewLoad, 0) / days.length : 0;
-  const peak = days.reduce((a, d) => (d.reviewLoad > a.reviewLoad ? d : a), days[0]);
+  const reviewPerDay = days.length
+    ? days.reduce((s, d) => s + d.reviewLoad, 0) / days.length
+    : 0;
+  const peak = days.reduce(
+    (a, d) => (d.reviewLoad > a.reviewLoad ? d : a),
+    days[0],
+  );
 
   const shown = useMemo(() => {
     const needle = q.trim().toLowerCase();
-    const dayRx = day ? new Set(days.find((d) => d.date === day)?.rxIds ?? []) : null;
+    const dayRx = day
+      ? new Set(days.find((d) => d.date === day)?.rxIds ?? [])
+      : null;
     const out = rows.filter(
       (r) =>
-        (!needle || r.name.toLowerCase().includes(needle) || r.drug.toLowerCase().includes(needle) || r.phone.includes(needle)) &&
+        (!needle ||
+          r.name.toLowerCase().includes(needle) ||
+          r.drug.toLowerCase().includes(needle) ||
+          r.phone.includes(needle)) &&
         (within === ANY || r.daysLeft <= within) &&
         (!skips || r.skipRate >= SKIPS) &&
         (!controlled || r.controlled) &&
@@ -110,25 +204,36 @@ export function OutreachView({ data }: { data: OutreachData }) {
     });
   }, [rows, days, q, within, skips, controlled, lane, day, sort]);
 
-  const onSort = (key: SortKey) => setSort((s) => (s.key === key ? { key, dir: s.dir === 1 ? -1 : 1 } : { key, dir: key === "risk" ? -1 : 1 }));
+  const onSort = (key: SortKey) =>
+    setSort((s) =>
+      s.key === key
+        ? { key, dir: s.dir === 1 ? -1 : 1 }
+        : { key, dir: key === "risk" ? -1 : 1 },
+    );
   const open = rows.find((r) => r.rxId === openId);
 
   return (
-    <div className="mt-6 space-y-6">
-      <Card className="flex flex-wrap items-start gap-x-6 gap-y-3 border-quick/30 bg-quick-soft/40">
-        <Badge tone="quick" dot>
-          Simulated population
-        </Badge>
-        <div className="min-w-0 flex-1 text-sm text-ink-2">
+    <div className="mt-8 space-y-6">
+      <div className="flex flex-wrap items-start gap-x-4 gap-y-2 rounded-card border border-quick/25 bg-quick-soft/30 px-4 py-3">
+        <div className="min-w-0 flex-1 text-[13px] text-ink-2">
           <p>
-            {t.patients} made-up patients ({t.prescriptions} prescriptions), {summary.days} days from {dayLabel(pharmacyDate(summary.start))}. Every number here comes from saved run{" "}
-            <code className="font-mono text-xs text-ink">results/sim/{summary.runId}/</code>, not from real patients.
+            {t.patients} made-up patients ({t.prescriptions} prescriptions),{" "}
+            {summary.days} days from {dayLabel(pharmacyDate(summary.start))}.
+            Every number here comes from saved run{" "}
+            <code className="font-mono text-xs text-ink">
+              results/sim/{summary.runId}/
+            </code>
+            , not from real patients.
           </p>
           <details className="mt-1.5">
-            <summary className="cursor-pointer text-xs font-medium text-ink">What&apos;s real code and what&apos;s the simulation&apos;s model</summary>
+            <summary className="cursor-pointer text-xs font-medium text-ink">
+              What&apos;s real code and what&apos;s the simulation&apos;s model
+            </summary>
             <div className="mt-2 grid gap-3 text-xs md:grid-cols-2">
               <div>
-                <p className="font-medium text-ink">Real code, imported read only</p>
+                <p className="font-medium text-ink">
+                  Real code, imported read only
+                </p>
                 <ul className="mt-1 list-disc space-y-0.5 pl-4">
                   {summary.sources.real.map((s) => (
                     <li key={s}>{s}</li>
@@ -136,7 +241,9 @@ export function OutreachView({ data }: { data: OutreachData }) {
                 </ul>
               </div>
               <div>
-                <p className="font-medium text-ink">Simulation&apos;s model (not in the product)</p>
+                <p className="font-medium text-ink">
+                  Simulation&apos;s model (not in the product)
+                </p>
                 <ul className="mt-1 list-disc space-y-0.5 pl-4">
                   {summary.sources.model.map((s) => (
                     <li key={s}>{s}</li>
@@ -146,30 +253,49 @@ export function OutreachView({ data }: { data: OutreachData }) {
             </div>
           </details>
         </div>
-      </Card>
+      </div>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatTile label="Calls, next 7 days" value={t.callsNext7} hint={`${t.calls} over ${summary.days} days · simulated`} />
-        <StatTile label="High-risk patients" value={t.atRisk} tone={t.atRisk ? "stop" : "neutral"} hint="Risk 55+ · simulation's model" />
+        <StatTile
+          label="Calls, next 7 days"
+          value={t.callsNext7}
+          hint={`${t.calls} over ${summary.days} days · simulated`}
+        />
+        <StatTile
+          label="High-risk patients"
+          value={t.atRisk}
+          tone={t.atRisk ? "stop" : "neutral"}
+          hint="Risk 55+ · simulation's model"
+        />
         <StatTile
           label="Review lane per day"
           value={reviewPerDay.toFixed(1)}
           tone="review"
-          hint={peak ? `Peak ${peak.reviewLoad} on ${shortDate(peak.date)} · simulated` : "simulated"}
+          hint={
+            peak
+              ? `Peak ${peak.reviewLoad} on ${shortDate(peak.date)} · simulated`
+              : "simulated"
+          }
         />
-        <StatTile label="Days without medication" value={t.daysWithout} hint={`Summed over prescriptions · ${t.refills} refills · simulated`} />
+        <StatTile
+          label="Days without medication"
+          value={t.daysWithout}
+          hint={`Summed over prescriptions · ${t.refills} refills · simulated`}
+        />
       </div>
 
       <Card as="section">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <div>
-            <Eyebrow>Calls per day, by lane</Eyebrow>
-            <p className="mt-1 text-sm text-ink-2">Who the daily check would ring each day, stacked by the lane a refill on that call lands in.</p>
-          </div>
-          <span className="text-xs text-ink-3">
-            {t.outcomes.answered} answered · {t.outcomes.voicemail} voicemail · {t.outcomes.no_answer} no answer · {t.outcomes.asked_for_pharmacist} asked for a pharmacist
-          </span>
-        </div>
+        <SectionHeader
+          title="Calls per day, by lane"
+          description="Who the daily check would ring each day, stacked by the lane a refill on that call lands in."
+          action={
+            <span className="text-xs text-ink-3">
+              {t.outcomes.answered} answered · {t.outcomes.voicemail} voicemail
+              · {t.outcomes.no_answer} no answer ·{" "}
+              {t.outcomes.asked_for_pharmacist} asked for a pharmacist
+            </span>
+          }
+        />
         <div className="mt-4">
           <Calendar days={days} selected={day} onSelect={setDay} />
         </div>
@@ -196,12 +322,22 @@ export function OutreachView({ data }: { data: OutreachData }) {
             onChange={(e) => setQ(e.target.value)}
             placeholder="Search name, drug or phone"
             aria-label="Search patients"
-            className="h-9 w-64 rounded-full border border-line-strong bg-surface px-4 text-sm text-ink placeholder:text-ink-3"
+            className={inputClass("w-64")}
           />
-          <label className="inline-flex h-9 items-center gap-2 rounded-full border border-line-strong bg-surface px-3.5 text-[13px] text-ink-2">
+          <label className="inline-flex h-8 items-center gap-2 rounded-lg border border-line-strong bg-sunken px-3 text-[13px] text-ink-2">
             Runs out within
-            <input type="range" min={0} max={ANY} value={within} onChange={(e) => setWithin(Number(e.target.value))} aria-label="Runs out within days" className="w-28 accent-[var(--color-accent)]" />
-            <span className="w-14 tabular-nums text-ink">{within === ANY ? "any" : `${within} days`}</span>
+            <input
+              type="range"
+              min={0}
+              max={ANY}
+              value={within}
+              onChange={(e) => setWithin(Number(e.target.value))}
+              aria-label="Runs out within days"
+              className="w-28 accent-[var(--color-accent)]"
+            />
+            <span className="w-14 tabular-nums text-ink">
+              {within === ANY ? "any" : `${within} days`}
+            </span>
           </label>
           <Toggle on={skips} onChange={setSkips}>
             Usually skips
@@ -213,7 +349,7 @@ export function OutreachView({ data }: { data: OutreachData }) {
             value={lane}
             onChange={(e) => setLane(e.target.value as LaneFilter)}
             aria-label="Lane"
-            className="h-9 rounded-full border border-line-strong bg-surface px-3.5 text-[13px] text-ink-2"
+            className={inputClass("text-ink-2")}
           >
             <option value="all">Any lane</option>
             <option value="automatic">Automatic</option>
@@ -222,7 +358,11 @@ export function OutreachView({ data }: { data: OutreachData }) {
             <option value="refused">Refused</option>
           </select>
           {day && (
-            <button type="button" onClick={() => setDay(null)} className="h-9 rounded-full bg-accent-soft px-3.5 text-[13px] font-medium text-accent-ink">
+            <button
+              type="button"
+              onClick={() => setDay(null)}
+              className="h-8 rounded-full bg-accent-soft px-3 text-[13px] font-medium text-accent-ink"
+            >
               Called {shortDate(day)} ✕
             </button>
           )}
@@ -235,87 +375,126 @@ export function OutreachView({ data }: { data: OutreachData }) {
           {shown.length === 0 ? (
             <TableEmpty>No simulated patients match these filters.</TableEmpty>
           ) : (
-            <Table>
-              <THead>
-                <tr>
-                  <SortTh k="name" sort={sort} onSort={onSort}>
-                    Patient · pattern
-                  </SortTh>
-                  <SortTh k="drug" sort={sort} onSort={onSort}>
-                    Medication
-                  </SortTh>
-                  <SortTh k="daysLeft" sort={sort} onSort={onSort}>
-                    Days left · runs out
-                  </SortTh>
-                  <SortTh k="risk" sort={sort} onSort={onSort}>
-                    Risk
-                  </SortTh>
-                  <SortTh k="nextCall" sort={sort} onSort={onSort}>
-                    Next call
-                  </SortTh>
-                  <SortTh k="lane" sort={sort} onSort={onSort}>
-                    Lane today
-                  </SortTh>
-                  <SortTh k="lastOutcome" sort={sort} onSort={onSort}>
-                    Last call
-                  </SortTh>
-                </tr>
-              </THead>
-              <tbody>
-                {shown.slice(0, limit).map((r) => (
-                  <Tr key={r.rxId} className="cursor-pointer" onClick={() => setOpenId(r.rxId)}>
-                    <Td className="whitespace-nowrap">
-                      <button type="button" onClick={() => setOpenId(r.rxId)} className="text-left font-medium text-ink hover:underline">
-                        {r.name}
-                      </button>
-                      <span className="block text-xs text-ink-3">
-                        {PATTERN_LABEL[r.pattern]}
-                        {!r.optedIn && " · not opted in"}
-                      </span>
-                    </Td>
-                    <Td className="whitespace-nowrap">
-                      {r.drug}
-                      {r.controlled && <span className="block text-xs text-quick">Controlled</span>}
-                    </Td>
-                    <Td className="whitespace-nowrap">
-                      <span className={cn(r.daysLeft < 0 ? "font-medium text-stop" : r.daysLeft <= 3 ? "text-ink" : "")}>{leftLabel(r.daysLeft)}</span>
-                      <span className="text-ink-3"> · {shortDate(r.runOut)}</span>
-                    </Td>
-                    <Td>
-                      <RiskMeter {...r.risk} />
-                    </Td>
-                    <Td className="whitespace-nowrap">
-                      {r.nextCall ? (
-                        <>
-                          {shortDate(pharmacyDate(r.nextCall.at))}
-                          {r.nextCall.source === "early_reach" && <span className="ml-1 text-xs text-ink-3">early</span>}
-                          {r.calls > 1 && <span className="ml-1 text-xs text-ink-3">×{r.calls}</span>}
-                        </>
-                      ) : (
-                        <span className="text-ink-3">none</span>
-                      )}
-                    </Td>
-                    <Td className="whitespace-nowrap">
-                      {"lane" in r.laneNow ? (
-                        <LaneBadge lane={r.laneNow.lane} />
-                      ) : (
-                        <span className="inline-flex items-center gap-1">
-                          <Badge tone="stop">Refused</Badge>
-                          {r.laneNow.refused.map((id) => (
-                            <RuleTag key={id}>{id}</RuleTag>
-                          ))}
+            <RowNav>
+              <Table>
+                <THead>
+                  <tr>
+                    <SortTh k="name" sort={sort} onSort={onSort}>
+                      Patient · pattern
+                    </SortTh>
+                    <SortTh k="drug" sort={sort} onSort={onSort}>
+                      Medication
+                    </SortTh>
+                    <SortTh k="daysLeft" sort={sort} onSort={onSort}>
+                      Days left · runs out
+                    </SortTh>
+                    <SortTh k="risk" sort={sort} onSort={onSort}>
+                      Risk
+                    </SortTh>
+                    <SortTh k="nextCall" sort={sort} onSort={onSort}>
+                      Next call
+                    </SortTh>
+                    <SortTh k="lane" sort={sort} onSort={onSort}>
+                      Lane today
+                    </SortTh>
+                    <SortTh k="lastOutcome" sort={sort} onSort={onSort}>
+                      Last call
+                    </SortTh>
+                  </tr>
+                </THead>
+                <tbody>
+                  {shown.slice(0, limit).map((r) => (
+                    <Tr
+                      key={r.rxId}
+                      aria-selected={r.rxId === openId}
+                      onClick={() => setOpenId(r.rxId)}
+                    >
+                      <Td className="whitespace-nowrap">
+                        <span className="font-medium text-ink">{r.name}</span>
+                        <span className="block text-xs text-ink-3">
+                          {PATTERN_LABEL[r.pattern]}
+                          {!r.optedIn && " · not opted in"}
                         </span>
-                      )}
-                    </Td>
-                    <Td className="whitespace-nowrap">{r.lastOutcome ? OUTCOME_LABEL[r.lastOutcome] : <span className="text-ink-3">—</span>}</Td>
-                  </Tr>
-                ))}
-              </tbody>
-            </Table>
+                      </Td>
+                      <Td className="whitespace-nowrap">
+                        {r.drug}
+                        {r.controlled && (
+                          <span className="block text-xs text-quick">
+                            Controlled
+                          </span>
+                        )}
+                      </Td>
+                      <Td className="whitespace-nowrap">
+                        <span
+                          className={cn(
+                            r.daysLeft < 0
+                              ? "font-medium text-stop"
+                              : r.daysLeft <= 3
+                                ? "text-ink"
+                                : "",
+                          )}
+                        >
+                          {leftLabel(r.daysLeft)}
+                        </span>
+                        <span className="text-ink-3">
+                          {" "}
+                          · {shortDate(r.runOut)}
+                        </span>
+                      </Td>
+                      <Td>
+                        <RiskMeter {...r.risk} />
+                      </Td>
+                      <Td className="whitespace-nowrap">
+                        {r.nextCall ? (
+                          <>
+                            {shortDate(pharmacyDate(r.nextCall.at))}
+                            {r.nextCall.source === "early_reach" && (
+                              <span className="ml-1 text-xs text-ink-3">
+                                early
+                              </span>
+                            )}
+                            {r.calls > 1 && (
+                              <span className="ml-1 text-xs text-ink-3">
+                                ×{r.calls}
+                              </span>
+                            )}
+                          </>
+                        ) : (
+                          <span className="text-ink-3">none</span>
+                        )}
+                      </Td>
+                      <Td className="whitespace-nowrap">
+                        {"lane" in r.laneNow ? (
+                          <LaneBadge lane={r.laneNow.lane} />
+                        ) : (
+                          <span className="inline-flex items-center gap-1">
+                            <Badge tone="stop">Refused</Badge>
+                            {r.laneNow.refused.map((id) => (
+                              <RuleTag key={id}>{id}</RuleTag>
+                            ))}
+                          </span>
+                        )}
+                      </Td>
+                      <Td className="whitespace-nowrap">
+                        {r.lastOutcome ? (
+                          OUTCOME_LABEL[r.lastOutcome]
+                        ) : (
+                          <span className="text-ink-3">—</span>
+                        )}
+                      </Td>
+                    </Tr>
+                  ))}
+                </tbody>
+              </Table>
+            </RowNav>
           )}
           {shown.length > limit && (
             <div className="mt-3 flex justify-center">
-              <button type="button" onClick={() => setLimit((n) => n + 100)} className="text-sm font-medium text-accent hover:underline">
+              <button
+                type="button"
+                onClick={() => setLimit((n) => n + 100)}
+                className="text-sm font-medium text-accent hover:underline"
+              >
                 Show {Math.min(100, shown.length - limit)} more
               </button>
             </div>

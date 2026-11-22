@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
-import { Card, Eyebrow, PageHeader, StatTile } from "@/components/ui";
+import { Card, Eyebrow, PageHeader, SkeletonRows, SkeletonTiles, StatTile } from "@/components/ui";
 import { getApprover } from "@/lib/auth/session";
 import { getStore } from "@/app/api/_lib/runtime";
 import { finishedCalls } from "@/app/console/review/calls";
@@ -61,8 +61,8 @@ async function Body() {
   );
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="grid gap-3 sm:grid-cols-4">
+    <div className="mt-8 flex flex-col gap-6">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatTile label="Finished calls" value={n(calls.length)} />
         <StatTile
           label="To label"
@@ -120,9 +120,13 @@ export default function ReviewPage() {
         description="Finished calls from the record. Label each one: right outcome, anything promised wrongly, unsafe or advice-like, tone, and whether to keep it as a test."
         actions={<Live />}
       />
-      <div className="mt-6" />
       <Suspense
-        fallback={<p className="text-sm text-ink-3">Loading finished calls…</p>}
+        fallback={
+          <div className="mt-8">
+            <SkeletonTiles />
+            <SkeletonRows className="mt-6" rows={4} />
+          </div>
+        }
       >
         <Body />
       </Suspense>

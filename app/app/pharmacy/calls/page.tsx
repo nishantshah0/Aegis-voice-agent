@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { Suspense } from "react";
 import { connection } from "next/server";
-import { Badge, PageHeader, StatTile } from "@/components/ui";
+import { Badge, PageHeader, Skeleton, SkeletonRows, SkeletonTiles, StatTile } from "@/components/ui";
 import { getApprover } from "@/lib/auth/session";
 import { USAGE_LOG } from "@/lib/agent/usage";
 import { getDriver, getStore } from "@/app/api/_lib/runtime";
@@ -25,7 +25,7 @@ async function Body() {
   const waiting = rows.filter((r) => r.outcome === "waiting").length;
   return (
     <>
-      <section className="grid grid-cols-2 gap-3 md:grid-cols-5">
+      <section className="mt-8 grid grid-cols-2 gap-3 md:grid-cols-5">
         <StatTile label="Calls" value={rows.length} />
         <StatTile label="Waiting for a pharmacist" value={waiting} tone={waiting ? "review" : "neutral"} />
         <StatTile label="Lines blocked" value={blocked} tone={blocked ? "stop" : "neutral"} />
@@ -57,8 +57,15 @@ export default function HistoryPage() {
   return (
     <>
       <PageHeader title="Calls" description="Every call, from the record: what was said, every button pressed, every blocked line." actions={<Live />} />
-      <div className="mt-6" />
-      <Suspense fallback={<p className="text-sm text-ink-3">Loading calls…</p>}>
+      <Suspense
+        fallback={
+          <div className="mt-8">
+            <SkeletonTiles className="md:grid-cols-5" count={5} />
+            <Skeleton className="mt-6 h-8 w-96" />
+            <SkeletonRows className="mt-4" />
+          </div>
+        }
+      >
         <Body />
       </Suspense>
     </>
