@@ -218,6 +218,12 @@ const CASES: LiveCase[] = [
       "And how much for two weeks, sorry, one week?",
     ],
   },
+  {
+    id: "inbound-tom-pick-offered-slot",
+    what: "Inbound; both consultation times offered, the caller says 'the later one', then yes",
+    direction: "inbound",
+    steps: ["Tom Brennan, September 21 1983, RX-100701.", `${CODE}.`, "Can I see the pharmacist? What times do you have?", "The later one.", "Yes please."],
+  },
 ];
 
 async function collect(stream: AsyncIterable<AgentEvent>): Promise<AgentEvent[]> {
