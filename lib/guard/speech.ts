@@ -7,7 +7,7 @@
 
 import { GUARD_REPLACEMENTS, type Call, type EmitFn, type GuardResult, type GuardSentenceFn, type RecordEntry, type SpeechRule, type Store } from "@/lib/contract";
 import { internalOf, resultOf } from "@/lib/control/context";
-import { unbackedDoses } from "./doses";
+import { unbackedDoses, wordsToNumber } from "./doses";
 import { mentions, tokensFor, words, type Token } from "./tokens";
 
 export const S4_REPLACEMENT = "A pharmacist will check it first, and I'll confirm once it's approved.";
@@ -93,11 +93,23 @@ function checkS2(call: Call, sentence: string, tokens: Token[], said: string): C
   return found.length > 0 ? { rule: "S2", why: found.map((t) => t.kind).join(",") } : null;
 }
 
-/** The label's "Qty 30" as the quantity it means, "30 tablets" (AUDIT fix 2). */
-function labelQuantity(label: string): string[] {
-  const qty = label.match(/\bqty\.? ?(\d+)\b/i)?.[1];
+// A dosing verb or a frequency makes a number of tablets a dose, never the supply.
+const DOSING_OR_FREQUENCY =
+  /\b(?:take|takes|taking|swallow|chew|use|have|a day|daily|every|at once|at a time|per|times|twice|once|morning|night|bedtime|hours?)\b/;
+
+/**
+ * The label's "Qty 30" as "30 tablets", but only for a supply clause ("Your refill is 30 tablets",
+ * AUDIT fix 2). Every clause that names that many tablets must have no dosing verb or frequency,
+ * so "Take 30 tablets every morning" is never backed by the quantity in the bottle.
+ */
+function labelQuantity(label: string, sentence: string): string[] {
+  const qty = Number(label.match(/\bqty\.? ?(\d+)\b/i)?.[1]);
   const form = label.match(/\b(tablet|capsule|pill)s?\b/i)?.[1]?.toLowerCase();
-  return qty && form ? [`${qty} ${form}s`] : [];
+  if (!qty || !form) return [];
+  const namesQty = (c: string) =>
+    new RegExp(`\\b${form}s?\\b`).test(c) && c.split(" ").some((t) => t === String(qty) || wordsToNumber(t) === qty);
+  const qtyClauses = sentence.split(CLAUSE_BREAK).map((c) => words(c)).filter(namesQty);
+  return qtyClauses.length > 0 && qtyClauses.every((c) => !DOSING_OR_FREQUENCY.test(c)) ? [`${qty} ${form}s`] : [];
 }
 
 /** "$4 and 10 cents" is "$4.10", so a spoken price compares with the coverage figure (AUDIT fix 2). */
@@ -108,7 +120,9 @@ export function spokenPrices(sentence: string): string {
 async function checkS3(store: Store, call: Call, sentence: string): Promise<Check> {
   const records: string[] = [];
   if (call.state === "verified" && call.lockedPatientId) {
-    for (const rx of await store.getPrescriptions(call.lockedPatientId)) records.push(rx.labelText, `${rx.strength} ${rx.drug}`, ...labelQuantity(rx.labelText));
+    for (const rx of await store.getPrescriptions(call.lockedPatientId)) {
+      records.push(rx.labelText, `${rx.strength} ${rx.drug}`, ...labelQuantity(rx.labelText, sentence));
+    }
   }
   const missing = unbackedDoses(sentence, records);
   return missing.length > 0 ? { rule: "S3", why: missing.join(";") } : null;
