@@ -50,7 +50,9 @@ export function agentConfig({ llmUrl, secretId, voiceId }: AgentConfigInput) {
           tool_ids: [],
         },
       },
-      tts: { model_id: "eleven_flash_v2", ...(voiceId ? { voice_id: voiceId } : {}) },
+      // u-law 8000 both ways: what Twilio streams, and what register-call calls need.
+      asr: { user_input_audio_format: "ulaw_8000" },
+      tts: { model_id: "eleven_flash_v2", agent_output_audio_format: "ulaw_8000", ...(voiceId ? { voice_id: voiceId } : {}) },
       // Nothing ElevenLabs would say on its own: no filler while we think, no noise warning, no
       // guessing a turn early. Silence and time-limit messages stay empty.
       turn: { soft_timeout_config: { timeout_seconds: -1 }, noisy_environment_detection: false, speculative_turn: false },

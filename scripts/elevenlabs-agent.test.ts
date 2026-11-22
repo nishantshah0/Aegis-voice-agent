@@ -41,4 +41,10 @@ describe("scripts/elevenlabs-agent.ts", () => {
     expect(config.conversation_config.turn).toEqual({ soft_timeout_config: { timeout_seconds: -1 }, noisy_environment_detection: false, speculative_turn: false });
     expect(config.platform_settings.auth.enable_auth).toBe(true);
   });
+
+  it("speaks and listens in Twilio's audio format (u-law 8000), as register-call needs", () => {
+    const config = agentConfig({ llmUrl: "https://example.test/api/voice/llm", secretId: "sec_1" });
+    expect(config.conversation_config.asr).toEqual({ user_input_audio_format: "ulaw_8000" });
+    expect(config.conversation_config.tts.agent_output_audio_format).toBe("ulaw_8000");
+  });
 });
