@@ -1,7 +1,9 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
+import { redirect } from "next/navigation";
+import { SIGN_IN_TO_APP } from "../../_shell/RequireSignIn";
 import { Badge, Card, PageHeader } from "@/components/ui";
-import { loadOutreach } from "./data";
+import { loadOutreachSignedIn } from "./data";
 import { OutreachView } from "./OutreachView";
 import { RunControls } from "./RunControls";
 
@@ -10,7 +12,9 @@ export const metadata = { title: "Outreach · Pharmacy · Aegis" };
 async function Outreach({ searchParams }: { searchParams: Promise<{ run?: string | string[] }> }) {
   await connection();
   const { run } = await searchParams;
-  const load = await loadOutreach(typeof run === "string" ? run : undefined);
+  // Sign-in is checked here, before any saved run is read (the /app proxy and layout check too).
+  const load = await loadOutreachSignedIn(typeof run === "string" ? run : undefined);
+  if (load.state === "signed_out") redirect(SIGN_IN_TO_APP);
   const current = load.state === "ok" ? load.data.summary.runId : load.state === "missing" ? load.runId : undefined;
   const runs = load.state === "ok" ? load.data.runs : load.runs;
   return (

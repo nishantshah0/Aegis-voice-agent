@@ -1,6 +1,7 @@
 // The Outreach viewer's data, read only from a saved simulation run in results/sim/<run>/.
 // Nothing here is typed in: no saved run means "no run yet" and the command that makes one.
 
+import { getApprover } from "@/lib/auth/session";
 import { listRuns, readRun, type ForecastRow, type LaneCounts, type SimCall, type SimRefill, type SimSummary } from "@/lib/sim";
 import type { FillEvent, PastCall, PreferredCallTime, StoppedMed } from "@/lib/seed/population";
 
@@ -37,7 +38,7 @@ export type RunChoice = Pick<SimSummary, "runId" | "ranAt" | "outcomeSeed" | "ea
 
 export type OutreachData = { summary: SimSummary; runs: RunChoice[]; rows: OutreachRow[]; days: OutreachDay[] };
 
-export type OutreachLoad = { state: "none"; runs: RunChoice[]; command: string } | { state: "missing"; runId: string; runs: RunChoice[] } | { state: "ok"; data: OutreachData };
+export type OutreachLoad = { state: "signed_out" } | { state: "none"; runs: RunChoice[]; command: string } | { state: "missing"; runId: string; runs: RunChoice[] } | { state: "ok"; data: OutreachData };
 
 const choice = (s: SimSummary): RunChoice => ({ runId: s.runId, ranAt: s.ranAt, outcomeSeed: s.outcomeSeed, earlyReach: s.earlyReach, populationSize: s.populationSize, populationSeed: s.populationSeed });
 
@@ -80,4 +81,10 @@ export async function loadOutreach(runId?: string): Promise<OutreachLoad> {
     rxIds: d.calls.map((c) => c.rxId),
   }));
   return { state: "ok", data: { summary: run.summary, runs, rows, days } };
+}
+
+/** The page's loader: checks the session first, so nothing is read for a signed-out request. */
+export async function loadOutreachSignedIn(runId?: string): Promise<OutreachLoad> {
+  if (!(await getApprover())) return { state: "signed_out" };
+  return loadOutreach(runId);
 }
