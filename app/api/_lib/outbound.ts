@@ -1,8 +1,9 @@
-import type { CallId, Lane, Patient, Prescription, RuleId, Signal, Store } from "@/lib/contract";
+import type { CallId, Lane, Order, Patient, Prescription, RuleId, Signal, Store } from "@/lib/contract";
 import { chooseLane, evaluate, loadContext, signalsFromCards, type Control } from "@/lib/control";
 import { emit } from "@/lib/events";
 import { PHARMACY_NAME } from "@/lib/seed";
 import { recordRing } from "./devices";
+import { wasAnswered } from "./phone";
 
 // Shared by the daily check, Call now and the Upcoming dashboard. Due-soon is ours; every
 // decision comes from the control layer's own engine, run read-only, or from
@@ -46,6 +47,14 @@ export async function notDueReason(store: Store, patient: Patient, rx: Prescript
   return preview.kind === "refused" ? preview.ruleIds : null;
 }
 
+/** Order states that mean a refill is already on its way (AUDIT fix 14). */
+const ON_ITS_WAY: readonly Order["state"][] = ["queued", "waiting_for_pharmacist", "approved"];
+
+/** This prescription's refill that is already on its way, if any: no ring, no reminder. */
+export async function refillOnItsWay(store: Store, patientId: string, rxId: string): Promise<Order | undefined> {
+  return (await store.listOrders(patientId)).find((o) => o.rxId === rxId && ON_ITS_WAY.includes(o.state));
+}
+
 /** Patients with an outbound call that hasn't ended. */
 export async function patientsOnOpenCalls(store: Store): Promise<Set<string>> {
   const starts = (await store.listRecord()).filter(
@@ -55,11 +64,44 @@ export async function patientsOnOpenCalls(store: Store): Promise<Set<string>> {
   return new Set(calls.filter((c) => c && c.state !== "ended" && c.targetPatientId).map((c) => c!.targetPatientId!));
 }
 
-/** Start an outbound call through rule 7 and ring the patient's paired phone. */
-export async function ringPatient(control: Control, patientId: string, rxId: string): Promise<{ ok: true; callId: CallId } | { ok: false; ruleIds: RuleId[] }> {
+/**
+ * Start an outbound call through rule 7 and ring the patient's paired phone. Given the store,
+ * a ring nobody answers ends as a missed call after ringTimeoutMs() (AUDIT fix 14).
+ */
+export async function ringPatient(control: Control, patientId: string, rxId: string, store?: Store): Promise<{ ok: true; callId: CallId } | { ok: false; ruleIds: RuleId[] }> {
   const started = await control.startOutboundCall(patientId, rxId);
   if (!started.ok) return { ok: false, ruleIds: started.ruleIds };
   recordRing(started.callId, patientId);
   emit({ type: "phone", callId: started.callId, kind: "ring", text: `${PHARMACY_NAME} is calling` });
+  if (store) await hangUpIfUnanswered(store, control, started.callId);
   return { ok: true, callId: started.callId };
+}
+
+/** How long a demo-phone ring lasts before it's a missed call (AUDIT fix 14). RING_TIMEOUT_SECONDS overrides. */
+export const ringTimeoutMs = () => (Number(process.env.RING_TIMEOUT_SECONDS) || 120) * 1000;
+
+/**
+ * After the ring time, end the call as a missed call if its phone never picked up: a
+ * "no_answer" safety entry, then the call ends. Each ring has its own marker, because call ids
+ * restart after a demo reset: a newer ring of the same id replaces it, and the old timer stops.
+ */
+const ringsHolder = globalThis as typeof globalThis & { __refillGuardRingMarks?: Map<CallId, object> };
+const ringMarks = () => (ringsHolder.__refillGuardRingMarks ??= new Map());
+
+async function hangUpIfUnanswered(store: Store, control: Control, callId: CallId): Promise<void> {
+  const mark = {};
+  ringMarks().set(callId, mark);
+  const timer = setTimeout(() => void endIfUnanswered(store, control, callId, mark).catch(() => {}), ringTimeoutMs());
+  (timer as { unref?: () => void }).unref?.();
+}
+
+async function endIfUnanswered(store: Store, control: Control, callId: CallId, mark: object): Promise<boolean> {
+  if (ringMarks().get(callId) !== mark) return false; // a newer ring of this id
+  ringMarks().delete(callId);
+  const call = await store.getCall(callId);
+  if (!call || call.state === "ended" || wasAnswered(callId)) return false;
+  await store.appendRecord({ callId, actor: "system", kind: "safety", input: { check: "no_answer" }, decision: "allowed" });
+  await control.endCall(callId);
+  emit({ type: "phone", callId, kind: "status", text: "Missed call" });
+  return true;
 }

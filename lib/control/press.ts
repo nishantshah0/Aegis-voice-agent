@@ -50,6 +50,12 @@ export type ControlOptions = {
    * Only a test that asks for the old text turns this on.
    */
   broadcastCodes?: boolean;
+  /**
+   * What each call id starts with; the number after it counts this store's calls. The live
+   * pharmacy keeps "c_" (c_0001, c_0002…). A run on its own store (an attack card, a scenario)
+   * passes its own, so its calls never share an id with a real one (AUDIT fix 14).
+   */
+  callIdPrefix?: string;
 };
 
 export const CODE_SENT_TEXT = "A verification code was sent to your phone.";
@@ -63,7 +69,7 @@ type Handled = {
 
 const hashCode = (lookupId: string, code: string) => createHash("sha256").update(`${lookupId}:${code}`).digest("hex");
 
-export function createControl({ store, emit = () => {}, makeCode, broadcastCodes = false }: ControlOptions) {
+export function createControl({ store, emit = () => {}, makeCode, broadcastCodes = false, callIdPrefix = "c_" }: ControlOptions) {
   const newCode = makeCode ?? (() => String(randomInt(0, 1_000_000)).padStart(6, "0"));
   // Codes in plain text live only here, in memory, never in the record or on the stream.
   const sentCodes = new Map<CallId, { code: string; hash: string }>();
@@ -562,7 +568,7 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
   /** Start an inbound call. Outbound calls must go through startOutboundCall (rule 7). */
   async function startInboundCall(): Promise<CallId> {
     const n = (await store.listRecord()).filter((e) => e.kind === "safety" && (e.input as { check?: string })?.check === "call_start").length + 1;
-    const id = `c_${String(n).padStart(4, "0")}`;
+    const id = `${callIdPrefix}${String(n).padStart(4, "0")}`;
     const now = await store.now();
     await store.saveCall({ id, direction: "inbound", state: "greeting", startedAt: now, failedCodeTries: 0, callerSaid: [] });
     await store.appendRecord({ callId: id, actor: "system", kind: "safety", input: { check: "call_start", direction: "inbound" }, decision: "allowed" });
@@ -596,7 +602,7 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
     const check = await checkOutbound(patientId, rxId);
     if (!check.allowed) return { ok: false, ruleIds: check.ruleIds };
     const n = (await store.listRecord()).filter((e) => e.kind === "safety" && (e.input as { check?: string })?.check === "call_start").length + 1;
-    const id = `c_${String(n).padStart(4, "0")}`;
+    const id = `${callIdPrefix}${String(n).padStart(4, "0")}`;
     const now = await store.now();
     await store.saveCall({ id, direction: "outbound", state: "code_sent", targetPatientId: patientId, startedAt: now, failedCodeTries: 0, callerSaid: [] });
     await store.appendRecord({ callId: id, actor: "system", kind: "safety", input: { check: "call_start", direction: "outbound", rx_id: rxId }, decision: "allowed" });

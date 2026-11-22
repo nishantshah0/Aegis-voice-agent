@@ -23,7 +23,7 @@ export async function POST(request: Request) {
   if (!(await store.getPatient(patientId)) || !rx || rx.patientId !== patientId) return fail(404, "No such prescription for this patient");
   if ((await patientsOnOpenCalls(store)).has(patientId)) return fail(409, "This patient is already on a call");
 
-  const rang = await ringPatient(getControl(), patientId, rxId);
+  const rang = await ringPatient(getControl(), patientId, rxId, getStore());
   if (!rang.ok) return Response.json({ error: `The rules won't ring this patient now (rule ${rang.ruleIds.join(", ")})`, ruleIds: rang.ruleIds }, { status: 409 });
   return ok({ callId: rang.callId });
 }

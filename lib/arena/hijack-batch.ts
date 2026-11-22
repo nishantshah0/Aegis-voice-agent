@@ -105,12 +105,14 @@ export async function runHijackBatch(options: {
   let caught = 0;
   let broken = 0;
   const batch = ++batchRuns;
+  // Each card's call gets its own id, unique across batches and server restarts (AUDIT fix 14).
+  const stamp = `${Date.now().toString(36)}${batch.toString(36)}`;
 
   for (const card of HIJACK_CARDS) {
     const fixture = fixtureFor(card, seed, code);
     const store = createMemoryStore(seed);
     const emit = cardEmit(options.emit, `hijack_${batch}_${card}`);
-    const control = createControl({ store, emit, makeCode: () => code });
+    const control = createControl({ store, emit, makeCode: () => code, callIdPrefix: `hijack_${stamp}_${card}_` });
     const driver = createHijackDriver({
       store,
       startCall: control.startCall,

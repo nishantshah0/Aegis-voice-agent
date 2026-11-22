@@ -1,5 +1,5 @@
 import type { Call, CallId, Patient, Prescription, Store } from "@/lib/contract";
-import { DUE_WITHIN_DAYS, daysLeft, outboundPreview, refillPreview, type Preview } from "@/app/api/_lib/outbound";
+import { DUE_WITHIN_DAYS, daysLeft, outboundPreview, refillOnItsWay, refillPreview, type Preview } from "@/app/api/_lib/outbound";
 
 // 2.9a: what the pharmacist sees coming. Every prescription whose supply runs out within
 // 14 days, with the lane its refill would land in today (the rule cards run read-only:
@@ -40,7 +40,11 @@ async function lastCalls(store: Store): Promise<Map<string, NonNullable<Upcoming
   return latest;
 }
 
+const ORDER_STATE: Record<string, string> = { queued: "queued", waiting_for_pharmacist: "waiting for a pharmacist", approved: "approved" };
+
 async function nextReminder(store: Store, patient: Patient, rx: Prescription, preview: Preview, left: number, runOut: string): Promise<string> {
+  const order = await refillOnItsWay(store, patient.id, rx.id);
+  if (order) return `refill ${ORDER_STATE[order.state] ?? "on its way"}`; // AUDIT fix 14: no reminder
   if (!patient.optedInToCalls) return "not opted in";
   if (preview.kind === "refused") return `won't ring: rule ${preview.ruleIds.join(", ")}`;
   if (left > DUE_WITHIN_DAYS) return addDays(runOut, -DUE_WITHIN_DAYS);

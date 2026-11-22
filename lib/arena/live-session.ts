@@ -27,6 +27,8 @@ export function watchStore(store: Store, onRecord?: OnRecord): Store {
   return watched;
 }
 
+let sessions = 0;
+
 export function liveSessionMaker({
   model,
   code,
@@ -43,7 +45,8 @@ export function liveSessionMaker({
 }) {
   return async (seed: Seed, target: ScenarioTarget): Promise<ScenarioSession> => {
     const store = watchStore(createMemoryStore(seed), onRecord);
-    const control = createControl({ store, makeCode: () => code });
+    // Every session's calls get their own ids, never the live pharmacy's c_0001 (AUDIT fix 14).
+    const control = createControl({ store, makeCode: () => code, callIdPrefix: `arena_${Date.now().toString(36)}${(++sessions).toString(36)}_` });
     // The driver turns a model failure into a hand-over, which would score as the
     // agent's own choice. Note it instead, so the attempt is rerun, never scored.
     let failure: unknown;

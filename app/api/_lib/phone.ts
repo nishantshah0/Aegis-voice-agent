@@ -22,6 +22,11 @@ export function issuePhoneToken(callId: CallId): string | null {
   return token;
 }
 
+/** Whether this call's phone has picked up (it was handed a token). */
+export function wasAnswered(callId: CallId): boolean {
+  return tokens().has(callId);
+}
+
 const speechHolder = globalThis as typeof globalThis & { __refillGuardSpeakCounts?: Map<CallId, number> };
 const speechCounts = () => (speechHolder.__refillGuardSpeakCounts ??= new Map());
 
