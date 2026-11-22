@@ -34,7 +34,7 @@ export function AppFrame({ account, children }: { account: ReactNode; children: 
   const isActive = (href: string) => isActivePath(pathname, href);
 
   return (
-    <div className={cn("min-h-screen bg-canvas text-ink lg:flex", area?.key === "safety" && "theme-dark theme-safety")}>
+    <div className={cn("theme-dark theme-app min-h-screen bg-canvas text-ink lg:flex", area?.key === "safety" && "theme-safety")}>
       <aside className="border-b border-line bg-surface lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col lg:border-b-0 lg:border-r">
         <div className="flex items-center justify-between px-5 pt-5 lg:pb-2">
           <Link href="/" aria-label="Aegis home" className="rounded-md">
