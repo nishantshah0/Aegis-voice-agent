@@ -1,5 +1,5 @@
 export type Clip = { url?: string; ticket?: string; skip?: boolean };
-export type PlaybackState = { mode: "idle" | "waiting" | "loading" | "playing" | "paused" | "done" | "error" | "blocked"; index: number; problem: string };
+export type PlaybackState = { mode: "idle" | "waiting" | "loading" | "playing" | "paused" | "done" | "error" | "blocked"; index: number; problem: string; muted?: boolean };
 
 // A single silent PCM sample lets the initial click authorize this element before the live server's first reply.
 const SILENCE = "data:audio/wav;base64,UklGRiYAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQIAAAAAAA==";
@@ -14,6 +14,7 @@ export class CallPlayback {
   private attached = -1;
   private wanted = false;
   private cache = new Map<string, string>();
+  private muted = false;
 
   constructor(clips: Clip[] = [], finished = false) {
     this.clips = [...clips];
@@ -23,13 +24,20 @@ export class CallPlayback {
   snapshot = () => this.state;
   subscribe = (fn: () => void) => { this.listeners.add(fn); return () => { this.listeners.delete(fn); }; };
   private update(mode: PlaybackState["mode"], index = this.state.index, problem = "") {
-    this.state = { mode, index, problem };
+    this.state = { mode, index, problem, muted: this.muted };
     this.listeners.forEach(fn => fn());
   }
 
   append(clip: Clip) {
     this.clips.push(clip);
     if (this.wanted && this.state.mode === "waiting") this.pump();
+  }
+
+  /** Silence the call without stopping it: the lines keep moving, so unmuting picks up live. */
+  mute(on: boolean) {
+    this.muted = on;
+    if (this.audio) this.audio.muted = on;
+    this.update(this.state.mode);
   }
 
   finish() {
@@ -41,6 +49,7 @@ export class CallPlayback {
     this.wanted = true;
     if (this.state.mode === "done") this.update("idle", 0);
     this.audio ??= new Audio();
+    this.audio.muted = this.muted;
     if (!this.clips[this.state.index]?.url && this.attached === -1) {
       this.audio.src = SILENCE;
       void this.audio.play().catch(() => {}); // An actual blocked line offers the Enable sound button.

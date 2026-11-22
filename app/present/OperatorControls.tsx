@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { Badge, Button } from "@/components/ui";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { Badge, Button, chipClass } from "@/components/ui";
+import { CallPlayback } from "../simulation/call-playback";
+import { clipsFor, clipsFromEvents } from "../simulation/live-clips";
 import { readTestEvents, requestTest, type TestEvent } from "../simulation/live-events";
 import { AssistantLine, type Assistant, type DemoPatient } from "./assistant";
 
@@ -136,12 +138,41 @@ function EventLine({ event }: { event: TestEvent }) {
   return <>Test started</>;
 }
 
+/** Hear the suite: the caller and the pharmacy in two voices, a tone for a replaced line. */
+function SuiteAudio({ player, live, setLive, muted, setMuted }: { player: CallPlayback; live: boolean; setLive: (on: boolean) => void; muted: boolean; setMuted: (on: boolean) => void }) {
+  const state = useSyncExternalStore(player.subscribe, player.snapshot, player.snapshot);
+  const active = ["playing", "waiting", "loading"].includes(state.mode);
+  const words = state.problem || ({ playing: "Playing the call", waiting: "Waiting for the next line", loading: "Loading the next line", paused: "Paused", done: "Finished", idle: "", error: "", blocked: "" } as const)[state.mode];
+  return <div className="mt-4 flex flex-wrap items-center gap-2" aria-label="Call audio">
+    <button type="button" aria-pressed={live} onClick={() => setLive(!live)} className={chipClass(live, "cursor-pointer")}>Hear calls live</button>
+    <button type="button" aria-pressed={muted} onClick={() => setMuted(!muted)} className={chipClass(muted, "cursor-pointer")}>{muted ? "Muted" : "Mute"}</button>
+    {active && <Button size="sm" variant="secondary" onClick={() => player.pause()}>Pause audio</Button>}
+    {(state.mode === "paused" || state.mode === "blocked" || state.mode === "error") && <Button size="sm" variant="secondary" onClick={() => player.play()}>{state.mode === "blocked" ? "Enable sound" : "Resume audio"}</Button>}
+    <span role="status" className="text-xs text-ink-2">{words}</span>
+    <span className="w-full text-xs text-ink-3">Caller and pharmacy in two ElevenLabs voices. A line the guard replaced plays a short tone, then what was said instead; the blocked text is never voiced.</span>
+  </div>;
+}
+
 export function SuiteControl() {
   const [rows, setRows] = useState<ScenarioState[]>(() => makeRows("Ready"));
   const [running, setRunning] = useState(false);
   const [ended, setEnded] = useState(false);
+  const [live, setLive] = useState(true);
+  const [muted, setMutedState] = useState(false);
+  const [player, setPlayer] = useState(() => new CallPlayback());
   const request = useRef<AbortController | null>(null);
   useEffect(() => () => request.current?.abort(), []);
+  useEffect(() => () => player.dispose(), [player]);
+  const setMuted = (on: boolean) => { setMutedState(on); player.mute(on); };
+
+  /** Replay one finished call with the same player. */
+  function replay(events: TestEvent[]) {
+    player.stop();
+    const again = new CallPlayback(clipsFromEvents(events), true);
+    again.mute(muted);
+    setPlayer(again);
+    again.play();
+  }
 
   async function run() {
     if (request.current) return;
@@ -150,6 +181,12 @@ export function SuiteControl() {
     setRows(makeRows("Queued"));
     setRunning(true);
     setEnded(false);
+    player.stop();
+    const playback = new CallPlayback();
+    playback.mute(muted);
+    setPlayer(playback);
+    // The click is the user's gesture, so the browser allows sound from here on.
+    if (live) playback.play();
     try {
       for (const [index, scenario] of scenarios.entries()) {
         if (controller.signal.aborted) break;
@@ -161,6 +198,7 @@ export function SuiteControl() {
           const response = await requestTest("live", scenario.id, controller.signal);
           await readTestEvents(response, event => {
             if (controller.signal.aborted) return;
+            for (const clip of clipsFor(event)) playback.append(clip);
             const phase = event.type === "verdict" ? (event.passed ? "Passed" : "Failed") : event.type === "error" ? "Interrupted" : "Running";
             update(phase, event);
           });
@@ -170,6 +208,7 @@ export function SuiteControl() {
       }
     } finally {
       request.current = null;
+      playback.finish();
       if (!controller.signal.aborted) { setRunning(false); setEnded(true); }
     }
   }
@@ -205,12 +244,16 @@ export function SuiteControl() {
       </p>
     </div>
 
+    <SuiteAudio player={player} live={live} setLive={setLive} muted={muted} setMuted={setMuted} />
+
     <h3 className="mt-6 text-sm font-semibold text-ink">Live results</h3>
     <ol className="presenter-tests">{scenarios.map(({ id, name }, index) => {
       const row = rows[index];
       const last = row.events.at(-1);
       return <li key={id}>
-        <div className="presenter-test-name"><strong>{name}</strong><Badge tone={phaseTone(row.phase)}>{row.phase}</Badge></div>
+        <div className="presenter-test-name"><strong>{name}</strong><Badge tone={phaseTone(row.phase)}>{row.phase}</Badge>
+          {!running && row.events.some(e => e.type === "line") && <Button size="sm" variant="ghost" onClick={() => replay(row.events)}>Replay call</Button>}
+        </div>
         {last && <p className="presenter-latest"><EventLine event={last} /></p>}
         {row.events.length > 1 && <details><summary>View call events ({row.events.length})</summary>
           <ul>{row.events.map((event, i) => <li key={i}><EventLine event={event} /></li>)}</ul>
