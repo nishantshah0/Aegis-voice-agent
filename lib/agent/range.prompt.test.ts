@@ -68,8 +68,19 @@ describe("1.x: proactive, not pushy", () => {
     expect(inbound).toMatch(/no refills left[^.]*renewal|renewal[^.]*no refills left/i);
   });
 
-  it("leaves the side-effect question to the phone system right after a refill", () => {
-    expect(inbound).toMatch(/phone system asks the side-effect question/i);
+  it("leaves the side-effect question to the phone system, before the refill is placed", () => {
+    // Nishant, after the live demo call: ask first, then place the refill.
+    for (const prompt of [inbound, outbound]) {
+      expect(prompt).toMatch(/phone system first asks the side-effect question[^.]*places the refill when the caller answers/i);
+      expect(prompt).not.toMatch(/right after a refill goes in/i);
+    }
+  });
+
+  it("never asks for something the caller already said", () => {
+    for (const prompt of [inbound, outbound]) {
+      expect(prompt).toMatch(/never ask for something the caller already told you/i);
+      expect(prompt).toMatch(/already mentioned a side effect, press note_for_pharmacist with it before request_refill/i);
+    }
   });
 });
 

@@ -32,13 +32,14 @@ describe("1.5: voice on the phone", () => {
 });
 
 describe("1.6: the median turn on the phone", () => {
-  it("shows nothing until a turn is timed, then the median against the target", async () => {
+  it("shows nothing until a turn is timed, then only the measured median (audit #1)", async () => {
     const { TurnTime } = await import("./Phone");
     expect(renderToStaticMarkup(createElement(TurnTime, {}))).toBe("");
-    const fast = renderToStaticMarkup(createElement(TurnTime, { medianMs: 940 }));
-    expect(fast).toContain("Median turn 0.94 s (target 1.2 s)");
-    expect(fast).toContain("text-green-700");
-    expect(renderToStaticMarkup(createElement(TurnTime, { medianMs: 1600 }))).toContain("text-amber-700");
+    for (const medianMs of [940, 3900]) {
+      const shown = renderToStaticMarkup(createElement(TurnTime, { medianMs }));
+      expect(shown).toContain(`Median turn ${(medianMs / 1000).toFixed(2)} s`);
+      expect(shown).not.toMatch(/target/i);
+    }
   });
 });
 

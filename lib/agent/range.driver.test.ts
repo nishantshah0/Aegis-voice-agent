@@ -209,7 +209,7 @@ describe("1.x: after verification the driver checks the prescription and its cos
 });
 
 describe("1.x: the flows the prompt teaches pass the real guard", () => {
-  it("several requests in one turn: copay, refill, then pickup, each confirmed", async () => {
+  it("several requests in one turn: copay, then the side-effect question, then the refill and pickup", async () => {
     const order = "o_c_0001_rx_sam_metformin";
     const t2 = await samOutbound([
       verifySam(LOOKUP),
@@ -217,22 +217,27 @@ describe("1.x: the flows the prompt teaches pass the real guard", () => {
       // "Refill my metformin, what's my copay on it, and can I pick it up Wednesday afternoon?"
       { tools: [{ name: "check_coverage", input: { rx_id: IDS.samMetformin } }] },
       { tools: [{ name: "request_refill", input: { rx_id: IDS.samMetformin } }] },
+      { text: ["You pay $2.00 for your Metformin."] },
+      // "No side effects." The driver places the refill; the model books the pickup it asked for.
       { tools: [{ name: "set_delivery", input: { order_id: order, slot_id: "slot_wed_pm", address_id: "pickup" } }] },
-      { text: ["You pay $2.00 for your Metformin. ", "A pharmacist will check the refill first. ", "Pickup is booked for Wednesday 1 to 5."] },
+      { text: ["A pharmacist will check the refill first. ", "Pickup is booked for Wednesday 1 to 5."] },
     ]);
     await collect(t2.driver.callerSays(t2.callId, `${CODE}, March 14 1990.`));
-    const evs = await collect(t2.driver.callerSays(t2.callId, "Refill my metformin, what's my copay on it, and can I pick it up Wednesday afternoon?"));
+    const ask = await collect(t2.driver.callerSays(t2.callId, "Refill my metformin, what's my copay on it, and can I pick it up Wednesday afternoon?"));
+    // The refill is held: the copay, then the question (from the label, read for it), and nothing placed yet.
+    expect(presses(ask).map((p) => p.button)).toEqual(["check_coverage", "read_label"]);
+    const said = lines(ask);
+    expect(said[0]).toBe("You pay $2.00 for your Metformin.");
+    expect(said[1]).toMatch(/^Before I put it in: .*side effects/);
+    expect(said).toHaveLength(2);
 
-    expect(presses(evs).map((p) => p.button)).toEqual(["check_coverage", "request_refill", "set_delivery", "read_label"]);
+    const evs = await collect(t2.driver.callerSays(t2.callId, "No side effects."));
+    expect(presses(evs).map((p) => p.button)).toEqual(["request_refill", "set_delivery"]);
     // Metformin is 60% through its supply, so a pharmacist checks it first (rule 3).
-    expect(presses(evs)[1].result).toMatchObject({ ok: true, output: { state: "waiting_for_pharmacist", order_id: order } });
-    expect(presses(evs)[2].result).toMatchObject({ ok: true, output: { ok: true } });
-    expect(blocked(evs)).toEqual([]);
-    const said = lines(evs);
-    expect(said.slice(0, 3)).toEqual(["You pay $2.00 for your Metformin.", "A pharmacist will check the refill first.", "Pickup is booked for Wednesday 1 to 5."]);
-    // Then the side-effect question, once, from the driver.
-    expect(said).toHaveLength(4);
-    expect(said[3]).toMatch(/side effects/);
+    expect(presses(evs)[0].result).toMatchObject({ ok: true, output: { state: "waiting_for_pharmacist", order_id: order } });
+    expect(presses(evs)[1].result).toMatchObject({ ok: true, output: { ok: true } });
+    expect(blocked([...ask, ...evs])).toEqual([]);
+    expect(lines(evs)).toEqual(["A pharmacist will check the refill first.", "Pickup is booked for Wednesday 1 to 5."]);
   });
 
   it("after the side-effect answer, the model is told to offer delivery or pickup if it isn't settled", async () => {
@@ -286,10 +291,12 @@ describe("1.x: the flows the prompt teaches pass the real guard", () => {
       verifySam(LOOKUP),
       { text: ["Thanks, Sam. ", "Want me to send the refill to the pharmacist?"] },
       { tools: [{ name: "request_refill", input: { rx_id: IDS.samConcerta } }] },
+      { text: ["Sure."] },
       { text: ["A pharmacist will check it first, and it should be ready Thursday once it's approved."] },
     ]);
     await collect(t2.driver.callerSays(t2.callId, `${CODE}, March 14 1990.`));
-    const evs = await collect(t2.driver.callerSays(t2.callId, "Yes please."));
+    await collect(t2.driver.callerSays(t2.callId, "Yes please."));
+    const evs = await collect(t2.driver.callerSays(t2.callId, "No side effects."));
     expect(presses(evs)[0].result).toMatchObject({ ok: true, output: { state: "waiting_for_pharmacist", ready_label: "Thursday" } });
     expect(blocked(evs)).toEqual([]);
     expect(lines(evs)[0]).toBe("A pharmacist will check it first, and it should be ready Thursday once it's approved.");

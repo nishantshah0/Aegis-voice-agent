@@ -12,6 +12,8 @@ describe("1.2: Sam's typed inbound call against the fakes", () => {
       { text: ["If those details match, I've sent a code to the phone on file."] },
       { tools: [{ name: "check_code", input: { lookup_id: "lk_c_fake_1_1", code: FAKE_CODE } }] },
       { tools: [{ name: "request_refill", input: { rx_id: SAM_CONCERTA } }] },
+      // 1.x: the driver holds the refill and asks the side-effect question; the answer places it.
+      { text: ["Sure."] },
       { text: ["A pharmacist will check your refill first."] },
     ]);
     const driver = createAgentDriver({
@@ -27,7 +29,8 @@ describe("1.2: Sam's typed inbound call against the fakes", () => {
     const turn2 = await collect(driver.callerSays(callId, `The code is ${FAKE_CODE}, and I'd like my Concerta refilled.`));
 
     expect(turn1.filter((e) => e.type === "line")).toEqual([{ type: "line", text: "If those details match, I've sent a code to the phone on file." }]);
-    const pressed = turn2.flatMap((e) => (e.type === "press" ? [e] : []));
+    const turn3 = await collect(driver.callerSays(callId, "No side effects."));
+    const pressed = [...turn2, ...turn3].flatMap((e) => (e.type === "press" ? [e] : []));
     expect(pressed[0].result).toMatchObject({ ok: true, output: { verified: true, patient_first_name: "Sam" } });
     // 1.x (Trail #75): after the code checks out, the driver checks each prescription and its cost.
     expect(pressed.map((e) => e.button)).toEqual(expect.arrayContaining(["check_prescription", "check_coverage"]));
