@@ -2,7 +2,8 @@ import { mkdir, mkdtemp, rm, utimes, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { readOvernight } from "./results";
+import { readLatestBatch } from "@/app/app/safety/data";
+import { COMMANDS, readOvernight } from "./results";
 
 // The Overnight safety tab reads only files real runs saved under results/.
 // These tests build a throwaway results folder, so every number below is one the
@@ -207,5 +208,40 @@ describe("readOvernight", () => {
       expect(hammer.command).toBe("npm run hammer");
     }
     expect(totals).toBeNull();
+  });
+
+  it("skips a judge's single pick on the stage, which isn't a batch, so it reads the same batch as the Overview (AUDIT #8)", async () => {
+    await put("hijack/2026-11-21T11-00-00-000Z/early_refill.json", hijackRun("early_refill", 6, 0), new Date("2026-11-21T11:00:00Z"));
+    await put("hijack/2026-11-21T11-00-00-000Z/new_address.json", hijackRun("new_address", 3, 0), new Date("2026-11-21T11:00:01Z"));
+    await put(
+      "hijack/pick-2026-11-21T12-00-00-000Z/hijack_pick_1_text.json",
+      { pick: { kind: "text", text: "90 today" }, tag: "hijack_pick_1_text", callId: "c_0001", record: [], stopped: 2, routed: 0 },
+      new Date("2026-11-21T12:00:00Z"),
+    );
+    const view = await readOvernight(dir);
+    const overview = await readLatestBatch(dir);
+    expect(view.hijack.state).toBe("ok");
+    if (view.hijack.state !== "ok" || !overview) throw new Error("expected a batch");
+    expect(view.hijack.data).toMatchObject({ batches: 1, cards: 2, caught: 9, broken: 0 });
+    expect({ cards: view.hijack.data.cards, caught: view.hijack.data.caught, broken: view.hijack.data.broken }).toEqual({
+      cards: overview.cards,
+      caught: overview.caught,
+      broken: overview.broken,
+    });
+    expect(view.gaps).toEqual([]);
+    expect(view.totals).toEqual({ calls: 2, caught: 9, broken: 0 });
+  });
+
+  it("says nothing is missing when only picks are saved", async () => {
+    await put("hijack/pick-2026-11-21T12-00-00-000Z/hijack_pick_1_text.json", { tag: "hijack_pick_1_text", record: [], stopped: 1, routed: 0 });
+    const view = await readOvernight(dir);
+    expect(view.hijack.state).toBe("none");
+    expect(view.gaps).toEqual([]);
+  });
+
+  it("names the real buttons that produce each file, with no stale 'not built yet' copy", () => {
+    for (const command of Object.values(COMMANDS)) expect(command).not.toMatch(/not built/i);
+    expect(COMMANDS.overnight).toMatch(/Run overnight/);
+    expect(COMMANDS.suite).toMatch(/Run suite|POST \/api\/arena\/run/);
   });
 });
