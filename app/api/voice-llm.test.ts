@@ -25,7 +25,6 @@ vi.mock("@/lib/auth/session", async (importOriginal) => ({
 }));
 
 const SECRET = "test-voice-secret-0123456789";
-const route = { params: Promise.resolve({ path: ["v1", "chat", "completions"] }) };
 
 type Msg = { role: "system" | "user" | "assistant"; content: string };
 const system = (conversation = "conv_test_1"): Msg => ({ role: "system", content: `[aegis-conversation:${conversation}] The pharmacy's server answers.` });
@@ -85,7 +84,7 @@ describe("POST /api/voice/llm: who may call it", () => {
     const asOther = await llm(chat([{ role: "user", content: "Hi" }], { elevenlabs_extra_body: { aegis_call_id: callId } }));
     expect(asOther.status).toBe(404);
     expect((await llm(chat([{ role: "user", content: "Hi" }]))).status).toBe(400);
-    expect((await llm(new Request("http://test.local/api/voice/llm", { method: "POST", headers: { Authorization: `Bearer ${SECRET}` }, body: "nope" }), route)).status).toBe(400);
+    expect((await llm(new Request("http://test.local/api/voice/llm", { method: "POST", headers: { Authorization: `Bearer ${SECRET}` }, body: "nope" }))).status).toBe(400);
   });
 });
 
