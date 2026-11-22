@@ -24,7 +24,7 @@ export const first: Flow = {
   attempts: 0,
   requested: false,
   reply:
-    "Hi, this is Aegis calling for a fictional pharmacy demonstration. No real prescription will be changed. Enter the six-digit demo code on the presenter screen using your keypad, or hang up to stop.",
+    "Hi, this is Aegis calling for a fictional pharmacy demonstration. No real prescription will be changed. Say the six digits shown on the presenter screen, one digit at a time, or enter them on your keypad.",
 };
 const normalize = (s: string) =>
   s
@@ -32,6 +32,16 @@ const normalize = (s: string) =>
     .replace(/[^a-z0-9 ]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+
+const digitWords: Record<string, string> = {
+  zero: "0", oh: "0", one: "1", two: "2", three: "3", four: "4",
+  five: "5", six: "6", seven: "7", eight: "8", nine: "9",
+};
+
+function spokenPin(said: string) {
+  const words = said.replace(/^(?:(?:my|the) (?:demo )?code is|it is|it s) /, "").split(" ");
+  return words.map(word => /^\d+$/.test(word) ? word : digitWords[word] ?? "?").join("");
+}
 
 async function verifiedRecord(id: string) {
   // A persisted successful demo PIN authorizes this synthetic patient only. Rebuild
@@ -155,14 +165,15 @@ export async function nextFlow(id: string, previous: Flow, digits: string, speec
   const finish = (reply: string) => ({ ...previous, phase: "end" as const, reply });
   const said = normalize(speech);
   if (previous.phase === "pin") {
-    if (digits.length === 6 && equal(digits, demoCode(id)))
+    const entered = digits || spokenPin(said);
+    if (/^\d{6}$/.test(entered) && equal(entered, demoCode(id)))
       return { ...previous, verified: true, phase: "menu", reply: "You're in the fictional record. " + menu };
     const attempts = previous.attempts + 1;
     if (attempts >= 3) return finish("We couldn't verify the demo code. Goodbye.");
     return {
       ...previous,
       attempts,
-      reply: "That code didn't match. Enter the six digits from the presenter screen.",
+      reply: "That code didn't match. Say or enter the six digits from the presenter screen.",
     };
   }
   if (!previous.verified) return finish("The demo record is unavailable. Goodbye.");
@@ -186,9 +197,9 @@ export async function nextFlow(id: string, previous: Flow, digits: string, speec
     }
     return { ...previous, phase: "menu", reply: "I left the refill unchanged. " + menu };
   }
-  if (digits === "1" || /\b(?:last fill|last refill|history|last filled)\b/.test(said))
+  if (digits === "1" || /\b(?:last fill|last refill|history|last filled|last pickup|last picked up)\b/.test(said))
     return { ...previous, reply: (await recordAnswer(id, "history")) + " " + menu };
-  if (digits === "2" || /\b(?:price|cost|pay|insurance|copay)\b/.test(said))
+  if (digits === "2" || /\b(?:how much|quote|price|cost|pay|insurance|copay)\b/.test(said))
     return { ...previous, reply: (await recordAnswer(id, "price")) + " " + menu };
   if (digits === "3" || /\brefill\b/.test(said)) {
     if (previous.requested)

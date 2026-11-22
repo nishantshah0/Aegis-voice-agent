@@ -25,9 +25,15 @@ export async function Account() {
         <span className="block truncate text-[13px] font-medium text-ink">{approver.name}</span>
         <span className="block text-[11px] capitalize text-ink-3">{approver.role}</span>
       </span>
-      <a href={AUTH_ROUTES.logout} title="Sign out" aria-label="Sign out" className="rounded-md p-1.5 text-ink-3 transition-colors hover:bg-sunken hover:text-ink">
+      {process.env.AEGIS_PUBLIC_ORIGIN ? (
+        <form method="post" action="/api/presenter/logout">
+          <button type="submit" title="Sign out" aria-label="Sign out" className="rounded-md p-1.5 text-ink-3 hover:bg-sunken">
+            <Icon name="signout" className="size-4" />
+          </button>
+        </form>
+      ) : <a href={AUTH_ROUTES.logout} title="Sign out" aria-label="Sign out" className="rounded-md p-1.5 text-ink-3 transition-colors hover:bg-sunken hover:text-ink">
         <Icon name="signout" className="size-4" />
-      </a>
+      </a>}
     </div>
   );
 }

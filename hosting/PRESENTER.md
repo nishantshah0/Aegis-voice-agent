@@ -11,3 +11,5 @@ Use AEGIS_PUBLIC_ORIGIN, AEGIS_PRESENTER_SECRET, AEGIS_PRESENTER_PASSCODE, PATIE
 Real-call state and signed audio data live in PostgreSQL so that callbacks work across Vercel function instances. Run archives hold redacted transcripts and verdicts. A failed verdict is a completed test. A transport or provider error is an interrupted test. The patient handset sees its own test call only. The presenter shows the per-call demo code during verification.
 
 The deployed environment runs fixed business evaluations. The public Entire judging page remains available for synthetic audio playback and benchmark evidence. Neither page requires the presenter's laptop to be running.
+
+The public homepage serves the redesign. Take the Call opens the presenter desk. To talk in the browser, start a conversation, allow the microphone, record a reply and send it. The browser sends each recording for ElevenLabs transcription and plays the pharmacy's voiced response. Typed replies and audio replay are also available. Browser conversations run independently of handset calls. Use fictional information throughout the demo.

@@ -2,28 +2,30 @@ import Image from "next/image";
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { Suspense } from "react";
-import { presenterAuthorized, presenterCookie } from "@/lib/auth/presenter";
+import { presenterAuthorized, presenterCookie, presenterDestination } from "@/lib/auth/presenter";
 import { PhoneControl, SuiteControl, WorkflowChecks } from "./OperatorControls";
+import BrowserConversation from "./BrowserConversation";
 import "./page.css";
 
 export const metadata = { title: "Presenter desk · Aegis", robots: { index: false, follow: false } };
 
-type PageProps = { searchParams: Promise<{ error?: string | string[] }> };
+type PageProps = { searchParams: Promise<{ error?: string | string[]; next?: string }> };
 
 async function Desk({ searchParams }: PageProps) {
   const jar = await cookies();
   const signedIn = presenterAuthorized(jar.get(presenterCookie)?.value);
-  const invalid = !signedIn && (await searchParams).error === "invalid";
+  const params = await searchParams;
+  const invalid = !signedIn && params.error === "invalid";
 
   return <main className="presenter">
     <header className="presenter-top">
-      <Image src="/brand/logo.svg" width={101} height={40} alt="Aegis" priority />
+      <Link href="/" aria-label="Aegis home"><Image src="/brand/logo.svg" width={101} height={40} alt="Aegis" priority /></Link>
       {signedIn && <form method="post" action="/api/presenter/logout"><button className="presenter-plain" type="submit">Sign out</button></form>}
     </header>
     {signedIn ? <>
       <h1>Presenter desk</h1>
       <div className="presenter-grid">
-        <PhoneControl />
+        <div className="presenter-conversations"><BrowserConversation /><PhoneControl /></div>
         <SuiteControl />
       </div>
       <WorkflowChecks />
@@ -36,6 +38,7 @@ async function Desk({ searchParams }: PageProps) {
     </> : <section className="presenter-login">
       <h1>Presenter sign-in</h1>
       <form action="/api/presenter/login" method="post">
+        {presenterDestination(params.next) !== "/present" && <input type="hidden" name="next" value={params.next} />}
         <label htmlFor="presenter-pass">Presenter passcode</label>
         <input type="password" name="passcode" id="presenter-pass" required maxLength={200} autoComplete="current-password" aria-invalid={invalid} aria-describedby={invalid ? "presenter-error" : undefined} />
         {invalid && <p role="alert" id="presenter-error">That passcode didn’t match. Try again.</p>}

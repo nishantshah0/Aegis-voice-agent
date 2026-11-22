@@ -8,7 +8,7 @@ export const SIGN_IN_HREF = `${AUTH_ROUTES.login}?returnTo=${encodeURIComponent(
 /** "Sign in" before Auth0 knows you, "Open dashboard" after. Static fallback: Sign in. */
 export function SignInLink({ size = "sm" }: { size?: "sm" | "lg" }) {
   return (
-    <a href={SIGN_IN_HREF} className={buttonClass("primary", size)}>
+    <a href={process.env.AEGIS_PUBLIC_ORIGIN ? "/present" : SIGN_IN_HREF} className={buttonClass("primary", size)}>
       Sign in
     </a>
   );
@@ -18,7 +18,7 @@ export async function AuthButton({ size = "sm" }: { size?: "sm" | "lg" }) {
   const approver = await getApprover();
   if (!approver) return <SignInLink size={size} />;
   return (
-    <Link href="/app" className={buttonClass("primary", size)}>
+    <Link href={process.env.AEGIS_PUBLIC_ORIGIN ? "/present" : "/app"} className={buttonClass("primary", size)}>
       Open dashboard
     </Link>
   );

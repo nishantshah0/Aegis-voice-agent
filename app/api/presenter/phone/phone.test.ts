@@ -175,6 +175,17 @@ describe("presenter phone on a synthetic record, with in-memory PostgreSQL and o
     expect((await (await status(presenter(endpoint))).json()).appointmentBooked).toMatch(/^Thursday/);
     expect(await gather(offer, "1")).toBe(xml);
   });
+  it("accepts a spoken six-digit code and a spoken history request without a keypad", async () => {
+    const call = await (await start(startReq())).json();
+    const words = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"];
+    const spoken = [...String(call.demoCode)].map(digit => words[Number(digit)]).join(" ");
+    let xml = await gather(dialBody.get("Url")!);
+    expect(xml).toContain('input="speech dtmf" numDigits="6"');
+    xml = await gather(attr(xml, "action"), "", "My code is " + spoken);
+    expect(voiceTexts.at(-1)).toContain("in the fictional record");
+    await gather(attr(xml, "action"), "", "When was my last refill?");
+    expect(voiceTexts.at(-1)).toMatch(/30 tablets|amlodipine/i);
+  });
   it("closes after three wrong codes, falls back to spoken TwiML and discloses no fictional history beforehand", async () => {
     const result = await (await start(startReq())).json();
     const wrong = result.demoCode === "000000" ? "000001" : "000000";

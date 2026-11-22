@@ -25,10 +25,10 @@ export async function proxy(request:NextRequest){
   headers.set('x-forwarded-host',new URL(origin).host);headers.set('x-forwarded-proto','https');
   return NextResponse.next({request:{headers}});
  };
- if(path==='/')return NextResponse.redirect(new URL('/present',origin));
+ if(path==='/')return pass();
  if(path==='/api/presenter/login'||providerCallbacks.has(path)||path==='/present')return pass();
  const signed=presenterAuthorized(request.cookies.get(presenterCookie)?.value);
- if(!signed)return path.startsWith('/api/')?NextResponse.json({error:'Sign in on the presenter page.'},{status:401,headers:noStore}):NextResponse.redirect(new URL('/present',origin));
+ if(!signed)return path.startsWith('/api/')?NextResponse.json({error:'Sign in on the presenter page.'},{status:401,headers:noStore}):NextResponse.redirect(new URL(path === '/app/pharmacy/today' ? '/present?next=pharmacy' : path === '/simulation' ? '/present?next=simulation' : path === '/stage' ? '/present?next=stage' : '/present',origin));
  if(!['GET','HEAD','OPTIONS'].includes(request.method)&&request.headers.get('origin')!==origin)return NextResponse.json({error:'Request must come from this demo.'},{status:403});
  if(path.startsWith('/api/arena/') || path.startsWith('/api/voice/') || path==='/api/rules/draft'){
    return NextResponse.json({error:'Use the hosted presenter controls for phone calls and the live business suite.'},{status:403,headers:noStore});

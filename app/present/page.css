@@ -47,3 +47,5 @@
   .presenter-links { flex-direction: column; align-items: flex-start; }
 }
 .presenter-workflow { margin-top: clamp(.85rem, 2.5vw, 1.6rem); }
+
+.presenter-conversations { display: grid; gap: clamp(.85rem, 2.5vw, 1.6rem); min-width: 0; }

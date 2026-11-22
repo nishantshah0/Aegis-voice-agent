@@ -286,7 +286,7 @@ export async function twiml(request: Request) {
     const next = xml(turnUrl(row, row.step + 1));
     const options =
       row.flow.phase === "pin"
-        ? 'input="dtmf" numDigits="6"'
+        ? 'input="speech dtmf" numDigits="6" speechTimeout="2"'
         : 'input="speech dtmf" numDigits="1" speechTimeout="auto"';
     const outside = row.flow.phase === "appointment";
     return response(
