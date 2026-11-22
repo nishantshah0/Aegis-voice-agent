@@ -1,0 +1,396 @@
+{
+  "revision": "68ef0f482393b79f0beb14ecd53606fdfdf43c6a",
+  "model": "claude-haiku-5-5",
+  "metric": "sum of provider input and output per request, including repeated context",
+  "tasks": [
+    [
+      "weekday",
+      "Which helper computes the weekday a patient's current supply will run out, and which time zone does it default to?",
+      "lib/guard/speech.ts",
+      "runOutDay",
+      "America/Toronto"
+    ],
+    [
+      "label",
+      "Which helper extracts listed side effects from prescription label text, and what does it return if the label lists none?",
+      "lib/agent/lines.ts",
+      "labelSideEffects",
+      "null"
+    ],
+    [
+      "walkin",
+      "Which simulation helper samples when a patient would walk in for a refill on their own, and what does it return for a sampled skipped refill?",
+      "lib/sim/model.ts",
+      "selfRefillDelay",
+      "null"
+    ]
+  ],
+  "results": [
+    {
+      "id": "weekday",
+      "arm": "Graph",
+      "repeat": 1,
+      "input": 3360,
+      "output": 191,
+      "operations": [
+        {
+          "op": "graph",
+          "query": "function that computes the weekday when a patient's current supply runs out, default time zone"
+        },
+        {
+          "op": "answer",
+          "file": "lib/guard/speech.ts",
+          "symbol": "runOutDay",
+          "value": "Computes the weekday (lowercase) a supply runs out: last fill + days supplied. Defaults to the \"America/Toronto\" time zone."
+        }
+      ],
+      "correct": true
+    },
+    {
+      "id": "weekday",
+      "arm": "Baseline",
+      "repeat": 1,
+      "input": 32129,
+      "output": 547,
+      "operations": [
+        {
+          "op": "search",
+          "query": "weekday|runout|run_out|runOut|supply"
+        },
+        {
+          "op": "read",
+          "file": "app/api/_lib/outbound.ts",
+          "start": 1
+        },
+        {
+          "op": "read",
+          "file": "app/app/pharmacy/outreach/format.ts",
+          "start": 1
+        },
+        {
+          "op": "read",
+          "file": "app/app/pharmacy/upcoming/UpcomingTable.tsx",
+          "start": 25
+        },
+        {
+          "op": "search",
+          "query": "runOut|run_out|runsOut|outOn|out_on"
+        },
+        {
+          "op": "read",
+          "file": "lib/guard/speech.ts",
+          "start": 50
+        },
+        {
+          "op": "answer",
+          "file": "lib/guard/speech.ts",
+          "symbol": "runOutDay",
+          "value": "runOutDay(lastFill, daysSupplied, timeZone = \"America/Toronto\") returns the lowercase weekday the supply runs out (last fill + days supplied). Default time zone is America/Toronto (pharmacy time)."
+        }
+      ],
+      "correct": true
+    },
+    {
+      "id": "label",
+      "arm": "Graph",
+      "repeat": 1,
+      "input": 3293,
+      "output": 210,
+      "operations": [
+        {
+          "op": "graph",
+          "query": "function that extracts listed side effects from prescription label text"
+        },
+        {
+          "op": "answer",
+          "file": "lib/agent/lines.ts",
+          "symbol": "labelSideEffects",
+          "value": "Returns null when the label lists no side effects (no match, or empty captured text); otherwise returns the trimmed, whitespace-normalized list text. Matches \"side effects ... include/:\" first, then falls back to \"may cause\"."
+        }
+      ],
+      "correct": true
+    },
+    {
+      "id": "label",
+      "arm": "Baseline",
+      "repeat": 1,
+      "input": 31626,
+      "output": 577,
+      "operations": [
+        {
+          "op": "search",
+          "query": "side.?effect"
+        },
+        {
+          "op": "search",
+          "query": "(extract|parse|list)\\w*(side|adverse)\\w*|adverse|sideEffects\\s*[:=]"
+        },
+        {
+          "op": "search",
+          "query": "label|warning|sideEffect|side_effect",
+          "dir": "lib"
+        },
+        {
+          "op": "search",
+          "query": "function \\w*(side|effect|adverse)\\w*\\s*\\("
+        },
+        {
+          "op": "search",
+          "query": "(const|function)\\s+\\w*(Side|Effect|Adverse|Warning)\\w*\\s*(=|\\()"
+        },
+        {
+          "op": "search",
+          "query": "label_text|labelText"
+        },
+        {
+          "op": "read",
+          "file": "lib/agent/lines.ts",
+          "start": 100
+        },
+        {
+          "op": "answer",
+          "file": "lib/agent/lines.ts",
+          "symbol": "labelSideEffects",
+          "value": "Returns the side-effect text quoted verbatim from the label (whitespace-normalized), or null when the label lists none. Callers then use the no-named-effects question wording (sideEffectQuestion / sideEffectQuestionBeforeRefill)."
+        }
+      ],
+      "correct": true
+    },
+    {
+      "id": "walkin",
+      "arm": "Graph",
+      "repeat": 1,
+      "input": 3392,
+      "output": 214,
+      "operations": [
+        {
+          "op": "graph",
+          "query": "simulation helper that samples when a patient walks in for a refill on their own, returns value for skipped refill"
+        },
+        {
+          "op": "answer",
+          "file": "lib/sim/model.ts",
+          "symbol": "selfRefillDelay",
+          "value": "Returns null (no self refill) for a sampled skipped refill; otherwise returns a delay in days (for recently_lapsed patients, 25% chance of 5–24 days, else null)."
+        }
+      ],
+      "correct": true
+    },
+    {
+      "id": "walkin",
+      "arm": "Baseline",
+      "repeat": 1,
+      "input": 21404,
+      "output": 476,
+      "operations": [
+        {
+          "op": "search",
+          "query": "refill"
+        },
+        {
+          "op": "search",
+          "query": "walk.?in|walkin|skip"
+        },
+        {
+          "op": "search",
+          "query": "(simulat|sample|random).*(refill|skip)|(refill|skip).*(simulat|sample|random)"
+        },
+        {
+          "op": "search",
+          "query": "walk|skip|sample",
+          "dir": "lib/sim"
+        },
+        {
+          "op": "read",
+          "file": "lib/sim/model.ts",
+          "start": 80
+        },
+        {
+          "op": "answer",
+          "file": "lib/sim/model.ts",
+          "symbol": "selfRefillDelay",
+          "value": "Returns null for a sampled skipped (or stopped) refill, meaning no walk-in; only a call brings them back. Otherwise returns days after run-out for the walk-in (late: daysLate; on time: random -3 to 0; no history: random -2 to 2; recently_lapsed: 25% chance of 5-24 days, else null)."
+        }
+      ],
+      "correct": true
+    },
+    {
+      "id": "weekday",
+      "arm": "Baseline",
+      "repeat": 2,
+      "input": 39503,
+      "output": 559,
+      "operations": [
+        {
+          "op": "search",
+          "query": "weekday|runout|run_out|runOut|supply"
+        },
+        {
+          "op": "read",
+          "file": "app/api/_lib/outbound.ts",
+          "start": 1
+        },
+        {
+          "op": "read",
+          "file": "app/app/pharmacy/outreach/format.ts",
+          "start": 1
+        },
+        {
+          "op": "read",
+          "file": "app/app/pharmacy/upcoming/UpcomingTable.tsx",
+          "start": 25
+        },
+        {
+          "op": "search",
+          "query": "runOut|run_out|runsOut|run out"
+        },
+        {
+          "op": "search",
+          "query": "runOutDay"
+        },
+        {
+          "op": "read",
+          "file": "lib/guard/speech.ts",
+          "start": 50
+        },
+        {
+          "op": "answer",
+          "file": "lib/guard/speech.ts",
+          "symbol": "runOutDay",
+          "value": "runOutDay(lastFill, daysSupplied, timeZone) returns the lowercase weekday (last fill + days supplied); defaults to the America/Toronto time zone"
+        }
+      ],
+      "correct": true
+    },
+    {
+      "id": "weekday",
+      "arm": "Graph",
+      "repeat": 2,
+      "input": 3356,
+      "output": 205,
+      "operations": [
+        {
+          "op": "graph",
+          "query": "helper that computes the weekday when a patient's current supply runs out, default time zone"
+        },
+        {
+          "op": "answer",
+          "file": "lib/guard/speech.ts",
+          "symbol": "runOutDay",
+          "value": "Computes the weekday (lowercase) a supply runs out: last fill date plus days supplied, formatted with Intl en-CA weekday long. Default time zone is America/Toronto."
+        }
+      ],
+      "correct": true
+    },
+    {
+      "id": "label",
+      "arm": "Baseline",
+      "repeat": 2,
+      "input": 14097,
+      "output": 432,
+      "operations": [
+        {
+          "op": "search",
+          "query": "side.?effect"
+        },
+        {
+          "op": "search",
+          "query": "(extract|parse|find|list)\\w*(side|adverse)\\w*|adverse"
+        },
+        {
+          "op": "search",
+          "query": "label.*(side|adverse|effect)|(side|adverse|effect).*label"
+        },
+        {
+          "op": "read",
+          "file": "lib/agent/lines.ts",
+          "start": 100
+        },
+        {
+          "op": "answer",
+          "file": "lib/agent/lines.ts",
+          "symbol": "labelSideEffects",
+          "value": "Returns the side effects the label lists, quoted exactly as printed (e.g. \"trouble sleeping, less appetite, headaches or stomach aches\"), or null when the label lists none. It never falls back to memory. (Pattern matches \"side effects [may include]: ...\" or else \"may cause ...\".) When null, sideEffectQuestion asks a generic question naming no side effects."
+        }
+      ],
+      "correct": true
+    },
+    {
+      "id": "label",
+      "arm": "Graph",
+      "repeat": 2,
+      "input": 3293,
+      "output": 201,
+      "operations": [
+        {
+          "op": "graph",
+          "query": "function that extracts listed side effects from prescription label text"
+        },
+        {
+          "op": "answer",
+          "file": "lib/agent/lines.ts",
+          "symbol": "labelSideEffects",
+          "value": "Extracts side-effect text via regex (side effects / may cause, up to a period) and returns the trimmed, whitespace-normalized list; returns null if none is listed (or the matched text is empty)."
+        }
+      ],
+      "correct": true
+    },
+    {
+      "id": "walkin",
+      "arm": "Baseline",
+      "repeat": 2,
+      "input": 21557,
+      "output": 452,
+      "operations": [
+        {
+          "op": "search",
+          "query": "refill"
+        },
+        {
+          "op": "search",
+          "query": "skip|walk.?in|self.?refill|on their own"
+        },
+        {
+          "op": "search",
+          "query": "simulat\\w*.*(refill|walk|skip)|(sample|simulate)\\w*\\s*\\("
+        },
+        {
+          "op": "search",
+          "query": "(walk_in|walkin|walk-in|selfRefill|self_refill|unprompted|baseline)"
+        },
+        {
+          "op": "read",
+          "file": "lib/sim/model.ts",
+          "start": 80
+        },
+        {
+          "op": "answer",
+          "file": "lib/sim/model.ts",
+          "symbol": "selfRefillDelay",
+          "value": "Returns null for a sampled skipped (or stopped) refill, meaning no walk-in; only a call brings the patient back. Otherwise returns days after run-out (late: daysLate; on-time: a -3..0 offset; no history: -2..2)."
+        }
+      ],
+      "correct": true
+    },
+    {
+      "id": "walkin",
+      "arm": "Graph",
+      "repeat": 2,
+      "input": 3392,
+      "output": 192,
+      "operations": [
+        {
+          "op": "graph",
+          "query": "simulation helper that samples when a patient walks in for a refill on their own, returns value for skipped refill"
+        },
+        {
+          "op": "answer",
+          "file": "lib/sim/model.ts",
+          "symbol": "selfRefillDelay",
+          "value": "Returns null (no self refill) for a sampled skipped refill; otherwise a delay in days (or null for stopped)."
+        }
+      ],
+      "correct": true
+    }
+  ]
+}

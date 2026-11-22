@@ -1,0 +1,62 @@
+{
+  "revision": "68ef0f482393b79f0beb14ecd53606fdfdf43c6a",
+  "dashboard": {
+    "source": "team-supplied Entire Analytics screenshot text",
+    "checkpoints": 592,
+    "mergedTrails": 62,
+    "totalTrails": 86
+  },
+  "changes": {
+    "25": {
+      "title": "Trail #25: 4.3: side effect moves the open refill to Review (SPEC inbound step 8)",
+      "mergedChange": "https://entire.com/gh/nishantshah0/-/trails/25/changes/namereserve/24"
+    },
+    "27": {
+      "title": "Trail #27: 4.4: lock review fixes (S4 completion, RUN_OUT due, outbound dob, hammer)",
+      "mergedChange": "https://entire.com/gh/nishantshah0/-/trails/27/changes/namereserve/25"
+    },
+    "39": {
+      "title": "Trail #39: Two-refill workflow regression",
+      "mergedChange": "https://entire.com/gh/nishantshah0/-/trails/39/changes/namereserve/37"
+    },
+    "52": {
+      "title": "Trail #52: 1.3: side-effect follow-up (when it started, mild or severe) recorded for the pharmacist",
+      "mergedChange": "https://entire.com/gh/nishantshah0/-/trails/52/changes/namereserve/50"
+    }
+  },
+  "trail27Counts": {
+    "Open": 0,
+    "OpenHigh": 0,
+    "OpenMedium": 0,
+    "OpenLow": 0,
+    "Resolved": 11,
+    "Dismissed": 0,
+    "Stale": 3
+  },
+  "memoryCounts": "active=33 total=33 distilled=0 authored=33 superseded=0 retracted=0 proposals=0 verified_anchors=0 unsigned_anchors=33",
+  "retrievedMemories": [
+    "[fact] fact:202079edea1be33a6409cc1a  architecture.agent.driver\nEverything is a call: patient calls, scenarios and attacks all use the same AgentDriver interface, rules and record. Never build a separate testing path.",
+    "[fact] fact:90bba6111a65b35789c3c84d  architecture.arena.scoring\nScenario runs use a fresh Store and AgentDriver session; score only decision-record entries, and save the run before emitting a score event. Never reset the live shared Store or show unsaved metrics."
+  ],
+  "s4RuleHistory": {
+    "id": "S4",
+    "title": "Speech rule S4: no promise the record doesn't back",
+    "file": "lib/guard/speech.ts",
+    "line": 226,
+    "status": "checkpoint",
+    "commit": "05ecce4f",
+    "checkpointId": "01M7ZQRGR94MTT60FRRR196W6Q",
+    "sessionId": "4025b53a-932a-45b2-adf0-fdc8a1e2e386",
+    "agent": "Claude Code",
+    "model": "claude-opus-5-5"
+  },
+  "offerFixCheckpoint": "01M7ZX50KFXRRDKZZ3MB7CHFZW",
+  "tests": {
+    "side-effect-followup.test.ts": 4,
+    "two-refill.test.ts": 3,
+    "ready-label.test.ts": 3,
+    "side-effect-review.test.ts": 5,
+    "s4-clauses.test.ts": 149
+  },
+  "knownExpectedFailure": "two-refill.test.ts / delivers status for the exact refill and clarifies an ambiguous referent (it.fails)"
+}

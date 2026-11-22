@@ -1,0 +1,22 @@
+{
+  "before": {
+    "revision": "aeb45221ccc3ebaa271f4c969eb0c2801bc6b67a",
+    "exit": 1,
+    "matches": [
+      {
+        "test": "allows: I can check whether it's ready for a refill, what it would cost on your plan, or book it for you.",
+        "status": "failed"
+      }
+    ]
+  },
+  "after": {
+    "revision": "f9ec386a1839e8395cac876d2f64c454699c6062",
+    "exit": 0,
+    "matches": [
+      {
+        "test": "allows: I can check whether it's ready for a refill, what it would cost on your plan, or book it for you.",
+        "status": "passed"
+      }
+    ]
+  }
+}
