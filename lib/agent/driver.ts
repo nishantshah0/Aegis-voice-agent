@@ -94,6 +94,8 @@ type CallState = {
   callNote: string;
   /** Notes for the model, sent as one system message after the next user message. */
   notes: string[];
+  /** 1.x: the model was warmed with the system prompt, so it can't take more call-note text. */
+  warmed?: boolean;
   /** Prescriptions refilled this call whose side-effect question has been asked. */
   askedSideEffects: Set<RxId>;
   /** Set right after the side-effect question, so the caller's answer is read as one. */
@@ -201,8 +203,21 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
 
   /** A fixed line the driver said goes into the history as the agent's own words. */
   function pushSaid(call: CallState, line: string) {
-    if (call.messages.length === 0) call.callNote += `\nYou have already said to the caller: "${line}"`;
+    // Once warmed, the system prompt is fixed, so the line goes into the history instead.
+    if (call.messages.length === 0 && !call.warmed) call.callNote += `\nYou have already said to the caller: "${line}"`;
     else call.messages.push({ role: "assistant", content: line });
+  }
+
+  /** The system prompt for this call: the same on every turn, and the one a warmed model started with. */
+  function systemFor(call: CallState): string {
+    return `${systemPrompt({ pharmacyName, direction: call.direction, style: call.style })}\n\n${call.callNote}`.trim();
+  }
+
+  /** 1.x (audit fix 1): let the model start up while the opening plays, not on the first caller line. */
+  function warmModel(callId: CallId, call: CallState) {
+    if (!model.warm || call.warmed) return;
+    call.warmed = true;
+    model.warm({ callId, system: systemFor(call), messages: [], tools: BUTTON_TOOLS });
   }
 
   /**
@@ -316,6 +331,7 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
         const greeting = inboundGreeting(pharmacyName);
         yield* speak(callId, greeting);
         pushSaid(call, greeting);
+        warmModel(callId, call);
         return;
       }
       // Outbound: the opener says who we are and who we're calling for, nothing else,
@@ -328,6 +344,7 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
         call.callNote +=
           "\nThe code has been sent to the phone on file. Ask them to read it back and to confirm their date of birth, then press check_code with both: the code, and the date of birth as dob.";
       }
+      warmModel(callId, call);
     },
 
     speakLine: speakFixed,
@@ -363,7 +380,7 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
         if (call.sideEffectLinesLeft === 0) call.awaitingSideEffect = undefined;
       }
       pushUser(call, text);
-      const system = `${systemPrompt({ pharmacyName, direction: call.direction, style: call.style })}\n\n${call.callNote}`.trim();
+      const system = systemFor(call);
       const refilled: RxId[] = [];
 
       for (let step = 0; step < maxSteps; step++) {
