@@ -55,7 +55,7 @@ export async function start(request: Request) {
     const body = await readObject(request);
     if (!body || Object.keys(body).length !== 0) return fail(400, "Start with an empty JSON object.");
     const id = randomUUID();
-    const row = await openSession(id, await openFlow(id));
+    const row = await openSession(id, await openFlow(id, "browser"));
     return view(row, {
       "Set-Cookie":
         cookieName(row.session_id) +

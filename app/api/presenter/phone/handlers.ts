@@ -112,7 +112,7 @@ export async function start(request: Request) {
     if (!claim.dial) return view(claim.row);
     const { id } = claim.row;
     // The agent's guarded opener is ready before Twilio dials, so step 0 only plays it.
-    claim.row = (await setFirstFlow(id, await openFlow(id))) ?? claim.row;
+    claim.row = (await setFirstFlow(id, await openFlow(id, "phone"))) ?? claim.row;
     const body = new URLSearchParams({
       From: process.env.TWILIO_PHONE_NUMBER!,
       To: process.env.TEST_PATIENT_PHONE!,
