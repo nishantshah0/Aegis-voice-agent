@@ -172,10 +172,13 @@ describe("S4: completion synonyms and prices in words", () => {
     expect(await rule(callId, "You'll pay four dollars and ten cents.")).toBe("S4");
   });
 
+  // A price is spoken only in the coverage wording ("$4.10", "$4 and 10 cents"), as
+  // patient-facts.ts reads it on main: a price in words is replaced even when it's right.
   it.each([
-    ["You'll pay four dollars and ten cents.", null],
-    ["The plan pays forty-one dollars and twenty cents.", null],
-    ["It's four dollars ten.", null],
+    ["You pay $4.10.", null],
+    ["You'll pay four dollars and ten cents.", "S4"],
+    ["The plan pays forty-one dollars and twenty cents.", "S4"],
+    ["It's four dollars ten.", "S4"],
     ["You'll pay four dollars and fifty cents.", "S4"],
     ["You'll pay three dollars.", "S4"],
     ["It's just fifty cents.", "S4"],
