@@ -31,7 +31,7 @@ function completed(raw: unknown, id: DemoScenarioId): SavedRun | undefined {
   const checks = dialogue.filter(e => e.type === "check");
   if (!checks.length || !dialogue.some(e => e.type === "line") || dialogue.some(e => e.type === "start" || e.type === "verdict")) return;
   if (checks.every(check => check.passed) !== verdict.passed) return;
-  let identityPhase = id !== "greeting_slang_recovery";
+  let identityPhase = id !== "greeting_slang_recovery" && id !== "family_callback";
   for (const event of events) {
     if (event.type === "action" && event.label === "Verified caller identity") identityPhase = false;
     if (event.type === "line") event.text = redactPublicText(event.text, event.speaker === "caller", identityPhase);

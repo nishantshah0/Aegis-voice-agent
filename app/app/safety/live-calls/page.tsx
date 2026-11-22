@@ -1,3 +1,6 @@
+import Link from "next/link";
+import { HostedLivePlayer } from "./HostedLivePlayer";
+import { SuiteGate } from "../SignedIn";
 import { Suspense } from "react";
 import { connection } from "next/server";
 import { Card, Eyebrow, PageHeader, SkeletonRows } from "@/components/ui";
@@ -14,11 +17,19 @@ import { RunLiveCallButton } from "./RunLiveCallButton";
 export const metadata = { title: "Live calls · Safety suite · Aegis" };
 
 export default function LiveCallsPage() {
+  if (process.env.AEGIS_PUBLIC_ORIGIN) return <SuiteGate>
+    <PageHeader title="Live calls" description="Run a fixed synthetic call against the pharmacy assistant. Follow the conversation, listen to replies, and inspect the checks and verdict." />
+    <Card className="mt-6"><HostedLivePlayer /></Card>
+    <nav aria-label="Related call evidence" className="mt-5 flex flex-wrap gap-5 text-sm font-medium text-accent">
+      <Link href="/app/safety/business-tests">Business test suite</Link>
+      <Link href="/simulation#gemini">Saved Gemini evaluation</Link>
+    </nav>
+  </SuiteGate>;
   return (
     <>
       <PageHeader
         title="Live calls"
-        description="An attacker AI rings the real pharmacy agent. Watch it turn by turn, hear both sides, and see the moment the lock catches it."
+        description="Synthetic test calls · simulated line. Watch an attacker AI test the real pharmacy agent turn by turn and inspect the saved evidence."
         actions={
           <div className="flex flex-wrap items-center gap-4">
             <AttackerPicker />

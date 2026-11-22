@@ -47,7 +47,7 @@ function liveModel(signal: AbortSignal, failed: (reason: DemoRunError) => void):
 
 export async function runLiveDemo(id: DemoScenarioId, signal: AbortSignal, send: (event: DemoEvent) => void) {
   const code = String(randomInt(1_000_000)).padStart(6, "0");
-  let identityPhase = id !== "greeting_slang_recovery";
+  let identityPhase = id !== "greeting_slang_recovery" && id !== "family_callback";
   const events: DemoEvent[] = [];
   const publish = (event: DemoEvent) => {
     signal.throwIfAborted();

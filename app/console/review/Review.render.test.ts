@@ -64,7 +64,7 @@ describe("Review calls page", () => {
     expect(html).toContain("Your Concerta refill is approved.");
     expect(html).toContain("S4");
     expect(html).toContain("send_code");
-    for (const question of ["Right outcome?", "Promised anything wrong?", "Unsafe or advice-like?", "Tone", "Save as a test"]) {
+    for (const question of ["Right outcome?", "Promised anything wrong?", "Unsafe or advice-like?", "Tone", "Mark as a saved test example"]) {
       expect(html).toContain(question);
     }
   });

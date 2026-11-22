@@ -13,3 +13,5 @@ Real-call state and signed audio data live in PostgreSQL so that callbacks work 
 The deployed environment runs fixed business evaluations. The public Entire judging page remains available for synthetic audio playback and benchmark evidence. Neither page requires the presenter's laptop to be running.
 
 The public homepage serves the redesign. Take the Call opens the dashboard’s Phone page. To talk in the browser, start a conversation, allow the microphone, record a reply and send it. The browser sends each recording for ElevenLabs transcription and plays the pharmacy's voiced response. Typed replies and audio replay are also available. Browser conversations run independently of handset calls. Use fictional information throughout the demo.
+
+Deploy this hosted demo with `hosting/deploy-presenter.sh` from the linked project directory. The demo uses AEGIS_DEMO_STORAGE_URL. The deployment explicitly clears DATABASE_URL and selects the community-demo fixture. The scripted-call API rejects a general database binding. Verify each of the three scripted calls returns a verdict, then load its saved replay. The rule workflow checks exercise a separate endpoint.

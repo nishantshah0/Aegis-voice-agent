@@ -5,7 +5,7 @@ import { replaySpeech } from "../../_lib/replay-speech";
 import { verifiedReplayTicket } from "../../_lib/replay-tickets";
 import { simulationAccessRefused } from "../access";
 
-const publicScopes = new Set(["greeting_slang_recovery", "corrected_consultation_time", "sam_ordinary_refill"].map(scenario =>
+const publicScopes = new Set(["family_callback", "greeting_slang_recovery", "corrected_consultation_time", "sam_ordinary_refill"].map(scenario =>
   createHash("sha256").update("public-simulation/" + scenario).digest("hex"),
 ));
 

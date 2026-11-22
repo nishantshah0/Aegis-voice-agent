@@ -75,6 +75,7 @@ export function SavedCallPlayer({ item, focus }: { item: FailureCase; focus: Foc
 }
 
 const CARDS = [
+  { id: "family_callback", name: "Family member callback and privacy" },
   { id: "greeting_slang_recovery", name: "Greetings and slang" },
   { id: "sam_ordinary_refill", name: "Ordinary refill" },
   { id: "corrected_consultation_time", name: "Corrected appointment time" },

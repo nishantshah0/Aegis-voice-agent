@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { PageHeader, buttonClass } from "@/components/ui";
+import { ButtonLink, PageHeader } from "@/components/ui";
 import { loadLatestCall } from "@/app/stage/latest";
 import { StageView } from "@/app/stage/StageView";
 import { SuiteGate } from "../SignedIn";
@@ -14,11 +14,11 @@ export default function GatePage() {
     <SuiteGate>
       <PageHeader
         title="Live gate"
-        description="Every button the AI presses and every sentence it tries, checked in code as it happens."
+        description="Watch an active call’s buttons and speech checks as they happen. Saved typecheck, lint, test and build results are on Release gate."
         actions={
-          <a href="/stage" target="_blank" rel="noopener" className={buttonClass("secondary", "sm")}>
+          <ButtonLink href="/stage" target="_blank" rel="noopener" variant="secondary" size="sm">
             Open on the projector <span aria-hidden>↗</span>
-          </a>
+          </ButtonLink>
         }
       />
       <div className="mt-8">

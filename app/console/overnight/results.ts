@@ -23,7 +23,7 @@ export type Source<T> =
   | { state: "ok"; path: string; ranAt: string; data: T };
 
 export type Fix = { status: string; trail?: string };
-export type Gap = { source: "overnight" | "suite" | "hijack" | "hammer"; scenario: string; detail: string; fix: Fix };
+export type Gap = { source: "overnight" | "suite" | "hijack" | "hammer"; scenario: string; detail: string; fix: Fix; href?: string; ranAt?: string };
 export type Replay = { source: "hijack" | "hammer"; title: string; steps: string[]; call?: { entries: ReplayEntry[]; verdict: string }; path: string; command: string };
 
 type HammerFailure = { sequence: string[]; broken: { rule: string; detail: string }[] };
@@ -48,7 +48,20 @@ export type SuiteView = {
 };
 type HijackCardRun = { cardId: string; callId: string; passed: boolean; failedChecks: string[]; caught: number; broken: number; path: string; steps: string[]; entries: ReplayEntry[] };
 export type HijackView = { batches: number; cards: number; caught: number; broken: number; runs: HijackCardRun[] };
-export type NightView = { calls: number; caught: number; broken: number; gaps: Gap[] };
+export type NightView = {
+  calls: number;
+  caught: number;
+  broken: number;
+  failedCalls?: number;
+  badPlans?: number;
+  attacker: string;
+  attackerModel: string;
+  agentModel: string;
+  updatedAt: string;
+  stoppedBecause: string;
+  tactics: { id: string; goal: string; calls: number; caught: number; gaps: number }[];
+  gaps: Gap[];
+};
 
 export type OvernightView = {
   hammer: Source<HammerView>;
@@ -243,6 +256,20 @@ function parseNight(json: unknown, mtime: Date): { ranAt: string; data: NightVie
       calls: num(file.calls),
       caught: num(file.caught),
       broken: num(file.broken),
+      ...(typeof file.failedCalls === "number" ? { failedCalls: num(file.failedCalls) } : {}),
+      ...(typeof file.badPlans === "number" ? { badPlans: num(file.badPlans) } : {}),
+      attacker: str(file.attacker),
+      attackerModel: str(file.attackerModel),
+      agentModel: str(file.model),
+      updatedAt: str(file.updatedAt),
+      stoppedBecause: str(file.stoppedBecause),
+      tactics: arr(file.tactics).map(obj).map((t) => ({
+        id: str(t.id),
+        goal: str(t.goal),
+        calls: num(t.calls),
+        caught: num(t.caught),
+        gaps: num(t.gaps),
+      })),
       gaps: arr(file.gaps).map((g) => {
         const gap = obj(g);
         const fix = obj(gap.fix);
@@ -258,15 +285,30 @@ function parseNight(json: unknown, mtime: Date): { ranAt: string; data: NightVie
   };
 }
 
+async function attachNightEvidence(source: Source<NightView>): Promise<Source<NightView>> {
+  if (source.state !== "ok") return source;
+  const runId = basename(join(source.path, ".."));
+  const callsDir = join(source.path, "..", "calls");
+  const gaps = await Promise.all(source.data.gaps.map(async (gap) => {
+    const number = gap.scenario.match(/^overnight_(\d+)_/)?.[1];
+    if (!number) return gap;
+    const callId = number.padStart(3, "0");
+    const callPath = join(callsDir, `${callId}.json`);
+    if (!(await exists(callPath))) return gap;
+    return { ...gap, href: `/app/safety/attacks/overnight/${encodeURIComponent(`${runId}~${callId}`)}` };
+  }));
+  return { ...source, data: { ...source.data, gaps } };
+}
+
 // ---------- everything ----------
 
 export async function readHammerAndOvernight(dir: string = resultsDir()) {
   const nightRoot = join(dir, "arena", "overnight");
   const [hammer, overnight] = await Promise.all([
     readSource(join(dir, "hammer-latest.json"), join(dir, "hammer-latest.json"), COMMANDS.hammer, parseHammer),
-    newest(nightRoot, "report.json").then((file): Promise<Source<NightView>> | Source<NightView> =>
+    newest(nightRoot, "report.json").then(async (file): Promise<Source<NightView>> =>
       file
-        ? readSource(file.path, file.path, COMMANDS.overnight, parseNight)
+        ? attachNightEvidence(await readSource(file.path, file.path, COMMANDS.overnight, parseNight))
         : { state: "none", where: join(nightRoot, "<run>", "report.json"), command: COMMANDS.overnight },
     ),
   ]);
@@ -286,15 +328,26 @@ export async function readOvernight(dir: string = resultsDir()): Promise<Overnig
   ]);
 
   const gaps: Gap[] = [];
-  if (overnight.state === "ok") gaps.push(...overnight.data.gaps);
+  if (overnight.state === "ok") gaps.push(...overnight.data.gaps.map((gap) => ({ ...gap, ranAt: overnight.ranAt })));
   if (suite.state === "ok") {
-    for (const f of suite.data.failed) gaps.push({ source: "suite", scenario: f.id, detail: `${f.group}: didn't pass 3 runs out of 3`, fix: NO_FIX });
+    for (const f of suite.data.failed) gaps.push({ source: "suite", scenario: f.id, detail: `${f.group}: didn't pass 3 runs out of 3`, fix: NO_FIX, href: `/app/safety/scenarios/${encodeURIComponent(f.id)}`, ranAt: suite.ranAt });
   }
   const brokenCards = hijack.state === "ok" ? hijack.data.runs.filter((r) => r.broken > 0 || !r.passed) : [];
-  for (const r of brokenCards) gaps.push({ source: "hijack", scenario: r.cardId, detail: `failed checks: ${r.failedChecks.join(", ") || "none listed"}`, fix: NO_FIX });
+  for (const r of brokenCards) {
+    const batch = basename(join(r.path, ".."));
+    gaps.push({
+      source: "hijack",
+      scenario: r.cardId,
+      detail: `failed checks: ${r.failedChecks.join(", ") || "none listed"}`,
+      fix: NO_FIX,
+      href: `/app/safety/attacks/hijack/${encodeURIComponent(`${batch}~${r.cardId}`)}`,
+      ranAt: hijack.state === "ok" ? hijack.ranAt : undefined,
+    });
+  }
   const hammerFailures = hammer.state === "ok" ? hammer.data.failures : [];
+  const hammerRanAt = hammer.state === "ok" ? hammer.ranAt : undefined;
   for (const f of hammerFailures) {
-    gaps.push({ source: "hammer", scenario: f.sequence.join(" → "), detail: f.broken.map((b) => b.rule).join(", "), fix: NO_FIX });
+    gaps.push({ source: "hammer", scenario: f.sequence.join(" → "), detail: f.broken.map((b) => b.rule).join(", "), fix: NO_FIX, ranAt: hammerRanAt });
   }
 
   let replay: Replay | null = null;

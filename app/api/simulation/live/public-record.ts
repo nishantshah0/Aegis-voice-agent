@@ -1,11 +1,13 @@
 import { join } from "node:path";
 import type { RecordEntry } from "@/lib/contract";
 import ordinaryRefill from "@/scenarios/sam-ordinary-refill.json";
+import familyCallback from "./family-callback.json";
 import greeting from "@/scenarios/greeting-slang-recovery.json";
 import appointment from "@/scenarios/corrected-consultation-time.json";
 import { replayTickets } from "../../_lib/replay-tickets";
 
 export const scenarios = {
+  family_callback: familyCallback,
   greeting_slang_recovery: greeting,
   sam_ordinary_refill: ordinaryRefill,
   corrected_consultation_time: appointment,
