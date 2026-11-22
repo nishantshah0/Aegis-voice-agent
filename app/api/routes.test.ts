@@ -1,3 +1,6 @@
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resetBusForTests, subscribe } from "@/lib/events/bus";
 import type { Delivered } from "@/lib/events/types";
@@ -160,10 +163,36 @@ describe("POST /api/queue/:id/decide", () => {
   });
 });
 
-describe("endpoints for later tasks", () => {
-  it("say which task builds them", async () => {
+describe("GET /api/gate/latest (AUDIT #9)", () => {
+  const before = process.env.RESULTS_DIR;
+  afterEach(() => {
+    if (before === undefined) delete process.env.RESULTS_DIR;
+    else process.env.RESULTS_DIR = before;
+  });
+  const saveRun = (dir: string, ranAt: string, passed: boolean, commit: string) =>
+    writeFileSync(
+      join(dir, "gate", `${ranAt.replace(/[:.]/g, "-")}.json`),
+      JSON.stringify({ ranAt, passed, commit, branch: "main", dirty: false, ms: 1, checks: [{ name: "Tests", passed, required: true, detail: "x", ms: 1 }] }),
+    );
+
+  it("says there's no gate run yet, and the command that makes one", async () => {
+    process.env.RESULTS_DIR = mkdtempSync(join(tmpdir(), "gate-api-"));
     const res = await gateLatest();
-    expect(res.status).toBe(501);
-    expect((await res.json()).error).toMatch(/Role 4/);
+    expect(res.status).toBe(404);
+    expect((await res.json()).error).toMatch(/node scripts\/gate\.ts/);
+  });
+
+  it("returns the newest saved run with its commit, and the run before it", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "gate-api-"));
+    mkdirSync(join(dir, "gate"));
+    saveRun(dir, "2026-11-22T01:00:00.000Z", false, "aaa1111");
+    saveRun(dir, "2026-11-22T02:00:00.000Z", true, "bbb2222");
+    process.env.RESULTS_DIR = dir;
+    const res = await gateLatest();
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body).toMatchObject({ ranAt: "2026-11-22T02:00:00.000Z", passed: true, commit: "bbb2222", branch: "main" });
+    expect(body.checks).toEqual([{ name: "Tests", passed: true, required: true, detail: "x", ms: 1 }]);
+    expect(body.previous).toEqual({ ranAt: "2026-11-22T01:00:00.000Z", passed: false, commit: "aaa1111" });
   });
 });

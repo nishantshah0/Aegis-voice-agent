@@ -30,10 +30,10 @@ export const AREAS: Area[] = [
     hint: "Attacks, scenarios and the rules that hold",
     items: [
       { href: "/app/safety/evals", label: "Evals", icon: "review", hint: "How we know it holds" },
+      { href: "/app/safety/attacks", label: "Attack library", icon: "attack", hint: "Every attack, its coverage, run them all" },
       { href: "/app/safety", label: "Overview", icon: "badge", hint: "Rules broken and the latest runs" },
       { href: "/app/safety/gate", label: "Live gate", icon: "gate", hint: "Every press and sentence, live" },
       { href: "/app/safety/live-calls", label: "Live calls", icon: "calls", hint: "An attacker AI rings the real agent" },
-      { href: "/app/safety/attacks", label: "Attacks", icon: "attack", hint: "Swap in a compromised AI" },
       { href: "/app/safety/scenarios", label: "Scenarios", icon: "flask", hint: "The scripted test calls" },
       { href: "/app/safety/overnight", label: "Overnight", icon: "moon", hint: "What the attackers tried" },
       { href: "/app/safety/rules", label: "Rules", icon: "book", hint: "The buttons, speech rules and why" },
