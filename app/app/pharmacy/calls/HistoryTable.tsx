@@ -43,7 +43,14 @@ const OUTCOMES: HistoryFilter["outcome"][] = [
   "refused",
   "nothing",
 ];
-const href = (id: string) => `/app/pharmacy/calls/${encodeURIComponent(id)}`;
+const href = (id: string, filter: HistoryFilter) => {
+  const params = new URLSearchParams();
+  if (filter.query.trim()) params.set("q", filter.query.trim());
+  if (filter.lane !== "all") params.set("lane", filter.lane);
+  if (filter.outcome !== "all") params.set("outcome", filter.outcome);
+  const query = params.toString();
+  return `/app/pharmacy/calls/${encodeURIComponent(id)}${query ? `?${query}` : ""}`;
+};
 
 function Chip({
   on,
@@ -110,15 +117,11 @@ function Peek({
 }
 
 /** Every call. "/" searches, ↑/↓ or J/K move, Enter opens. */
-export function HistoryTable({ rows, scripted = [] }: { rows: HistoryRow[]; scripted?: string[] }) {
+export function HistoryTable({ rows, scripted = [], initialFilter }: { rows: HistoryRow[]; scripted?: string[]; initialFilter?: HistoryFilter }) {
   const isScripted = useMemo(() => new Set(scripted), [scripted]);
   const router = useRouter();
   const search = useRef<HTMLInputElement>(null);
-  const [filter, setFilter] = useState<HistoryFilter>({
-    query: "",
-    lane: "all",
-    outcome: "all",
-  });
+  const [filter, setFilter] = useState<HistoryFilter>(initialFilter ?? { query: "", lane: "all", outcome: "all" });
   const [active, setActive] = useState(0);
   const [peek, setPeek] = useState<{
     row: HistoryRow;
@@ -161,34 +164,51 @@ export function HistoryTable({ rows, scripted = [] }: { rows: HistoryRow[]; scri
         document.querySelector<HTMLElement>(`[data-row="${next}"]`)?.focus();
       }
       if (e.key === "Enter" && typing(e.target) && shown[active])
-        router.push(href(shown[active].callId));
+        router.push(href(shown[active].callId, filter));
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [shown, active, router]);
+  }, [shown, active, router, filter]);
+
+  const activeFilters = [
+    filter.query.trim() ? `Search “${filter.query.trim()}”` : "",
+    filter.lane !== "all" ? `Routing: ${filter.lane === "none" ? "No request" : LANE_LABEL[filter.lane]}` : "",
+    filter.outcome !== "all" ? `Outcome: ${OUTCOME_LABEL[filter.outcome]}` : "",
+  ].filter(Boolean);
 
   return (
     <>
       <div className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center gap-3">
-          <input
-            ref={search}
-            type="search"
-            value={filter.query}
-            onChange={(e) => set({ query: e.target.value })}
-            placeholder="Search calls, initials or words said   /"
-            aria-label="Search calls"
-            className={inputClass("w-80 max-w-full")}
-          />
+          <label className="flex w-full max-w-xl min-w-0 items-center gap-2">
+            <span className="shrink-0 text-sm font-medium text-ink">Search</span>
+            <input
+              ref={search}
+              type="search"
+              value={filter.query}
+              onChange={(e) => set({ query: e.target.value })}
+              placeholder="Name, call ID, or words said"
+              aria-label="Search calls"
+              className={inputClass("h-10 min-w-0 flex-1 border-ink-3 bg-surface shadow-card focus:ring-2 focus:ring-accent/20")}
+            />
+          </label>
           <span className="text-xs text-ink-3" aria-live="polite">
-            {shown.length} of {rows.length} calls
+            {shown.length} matching {shown.length === 1 ? "call" : "calls"} · {rows.length} total
           </span>
         </div>
+        {activeFilters.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2 text-xs text-ink-3" aria-label="Active filters">
+            <span>Filtered by {activeFilters.join(" · ")}</span>
+            <button type="button" className="font-medium text-accent underline-offset-4 hover:underline" onClick={() => set({ query: "", lane: "all", outcome: "all" })}>
+              Clear filters
+            </button>
+          </div>
+        )}
         <div
           className="flex flex-wrap items-center gap-1.5"
-          aria-label="Filter by lane"
+          aria-label="Filter by routing"
         >
-          <span className="mr-1 w-16 text-xs font-medium text-ink-3">Lane</span>
+          <span className="mr-1 w-16 text-xs font-medium text-ink-3">Routing</span>
           {LANES.map((l) => (
             <Chip
               key={l}
@@ -241,6 +261,7 @@ export function HistoryTable({ rows, scripted = [] }: { rows: HistoryRow[]; scri
                 <Th>Call</Th>
                 <Th>Patient</Th>
                 <Th>Started</Th>
+                <Th>Source</Th>
                 <Th>State</Th>
                 <Th>Lanes</Th>
                 <Th>Outcome</Th>
@@ -254,13 +275,13 @@ export function HistoryTable({ rows, scripted = [] }: { rows: HistoryRow[]; scri
                   key={r.callId}
                   data-row={i}
                   tabIndex={0}
-                  onClick={() => router.push(href(r.callId))}
+                  onClick={() => router.push(href(r.callId, filter))}
                   onFocus={(e) => (setActive(i), showPeek(r, e.currentTarget))}
                   onBlur={() => setPeek(null)}
                   onMouseEnter={(e) => showPeek(r, e.currentTarget)}
                   onMouseLeave={() => setPeek(null)}
                   onKeyDown={(e) =>
-                    e.key === "Enter" && router.push(href(r.callId))
+                    e.key === "Enter" && router.push(href(r.callId, filter))
                   }
                   aria-selected={i === active}
                   aria-label={`Call ${r.callId}${r.patient ? ` with ${r.patient}` : ""}: open`}
@@ -274,6 +295,9 @@ export function HistoryTable({ rows, scripted = [] }: { rows: HistoryRow[]; scri
                   <Td className="whitespace-nowrap">
                     <When iso={r.startedAt} />{" "}
                     <span className="text-ink-3">· {r.direction}</span>
+                  </Td>
+                  <Td className="whitespace-nowrap text-xs text-ink-3">
+                    {isScripted.has(r.callId) ? <ScriptedTag /> : "Call record"}
                   </Td>
                   <Td>
                     <Badge

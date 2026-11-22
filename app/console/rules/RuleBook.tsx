@@ -1,6 +1,8 @@
 import { relative } from "node:path";
 import { connection } from "next/server";
 import { Badge, Card, Eyebrow, RuleTag, StatTile, Table, Td, Th, THead, TimelineStrip, Tr } from "@/components/ui";
+import { getStore } from "@/app/api/_lib/runtime";
+import { CORE_RULES } from "@/app/console/today/detail";
 import { readRules } from "./rules";
 
 const fmt = (n: number) => n.toLocaleString("en-US");
@@ -23,7 +25,7 @@ function HammerCell({ broken, invariants }: { broken: number | null; invariants:
 // from results/hammer-latest.json. Nothing on this page can change a rule.
 export async function RuleBook() {
   await connection(); // The hammer file changes between runs: never prerender.
-  const { hammer, buttons, speech } = await readRules();
+  const [{ hammer, buttons, speech }, cards] = await Promise.all([readRules(), getStore().listCards()]);
 
   return (
     <div className="mt-8 flex flex-col gap-8">
@@ -56,6 +58,26 @@ export async function RuleBook() {
             </p>
           </Card>
         )}
+      </section>
+
+      <section>
+        <Eyebrow>Routing rules</Eyebrow>
+        <p className="mt-1 mb-3 text-sm text-ink-2">Rules linked from a call&apos;s routing record. Open any linked rule from the call detail.</p>
+        <Table>
+          <THead><tr><Th>Rule</Th><Th>When it applies</Th></tr></THead>
+          <tbody>
+            {Object.entries(CORE_RULES).map(([id, wording]) => (
+              <Tr key={id} id={`rule-${id}`} className="scroll-mt-24">
+                <Td><RuleTag>{id}</RuleTag></Td><Td>{wording}</Td>
+              </Tr>
+            ))}
+            {cards.map((card) => (
+              <Tr key={card.id} id={`rule-${card.id}`} className="scroll-mt-24">
+                <Td><RuleTag>{card.id}</RuleTag></Td><Td>{card.wording}</Td>
+              </Tr>
+            ))}
+          </tbody>
+        </Table>
       </section>
 
       <section>
@@ -105,7 +127,7 @@ export async function RuleBook() {
           </THead>
           <tbody>
             {speech.map((s) => (
-              <Tr key={s.id}>
+              <Tr key={s.id} id={`rule-${s.id}`} className="scroll-mt-24">
                 <Td>
                   <RuleTag>{s.id}</RuleTag>
                 </Td>

@@ -17,7 +17,7 @@ export default function CallsPage() {
     >
       <ConsoleNav current="calls" />
       <div className="mt-8" />
-      <PageHeader title="Calls" description="What the voice agent did, from the record: every press, every blocked line, every word." />
+      <PageHeader title="Calls" />
       <Suspense fallback={<p className="mt-6 text-sm text-ink-3">Loading…</p>}>
         <Calls />
       </Suspense>
