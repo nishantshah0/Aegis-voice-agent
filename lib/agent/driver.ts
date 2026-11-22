@@ -295,6 +295,8 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
     if (name === "check_code" && "verified" in result.output && result.output.verified) {
       call.verified = true;
       call.facts.prescriptions = result.output.prescriptions;
+      // 1.x: the prescription whose number the caller gave becomes the call's default (fact questions use it).
+      if (result.output.matched_rx_id && !call.rxId) call.rxId = result.output.matched_rx_id;
     }
     const rxId = (input as { rx_id?: unknown })?.rx_id;
     if (name === "check_prescription" && typeof rxId === "string") call.refillable.set(rxId, (result.output as { refillable_today: boolean }).refillable_today);
