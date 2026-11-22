@@ -37,6 +37,8 @@ export const AREAS: Area[] = [
       { href: "/app/safety/scenarios", label: "Scenarios", icon: "flask", hint: "The scripted test calls" },
       { href: "/app/safety/overnight", label: "Overnight", icon: "moon", hint: "What the attackers tried" },
       { href: "/app/safety/rules", label: "Rules", icon: "book", hint: "The buttons, speech rules and why" },
+      { href: "/app/safety/gate-report", label: "Release gate", icon: "check", hint: "Is main releasable" },
+      { href: "/app/safety/rule-writer", label: "Rule writer", icon: "feed", hint: "Write a rule, a pharmacist approves" },
     ],
   },
 ];
