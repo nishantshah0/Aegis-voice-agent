@@ -10,6 +10,7 @@
 // it's created, and covers every caller of it.
 
 import type { QueueItem, RecordEntry, RecordEntryInput, Signal, Store } from "@/lib/contract";
+import { internalOf } from "./context";
 
 /** The signal a record entry raises for its call, if any. */
 export function signalOf(e: RecordEntry | RecordEntryInput): Signal | undefined {
@@ -23,14 +24,20 @@ export function signalOf(e: RecordEntry | RecordEntryInput): Signal | undefined 
 const RELANED_KINDS: ReadonlySet<QueueItem["kind"]> = new Set(["refill", "renewal", "delivery"]);
 
 /**
- * Move the call's open requests to Review for this entry's signal. Safety words on a verified
- * call also move that patient's open requests from their other calls (Trail #86 review medium):
- * a crisis is about the person, not the call. Returns the items it changed.
+ * Move the call's open requests to Review for this entry's signal. Two signals are about a
+ * person, not a call, so they also move that patient's open requests on their other calls
+ * (Trail #86 review medium, RT-C4): safety words on a call verified as them, and a wrong code
+ * against them (the lookup's patient), whoever is calling. Returns the items it changed.
  */
 export async function relaneForSignal(store: Store, entry: RecordEntry): Promise<QueueItem[]> {
   const signal = signalOf(entry);
   if (!signal || !entry.callId) return [];
-  const patientId = signal === "safety_words" ? (await store.getCall(entry.callId))?.lockedPatientId : undefined;
+  const patientId =
+    signal === "safety_words"
+      ? (await store.getCall(entry.callId))?.lockedPatientId
+      : signal === "failed_code_attempts" && internalOf(entry)?.codeFailed
+        ? internalOf(entry)?.patientId
+        : undefined;
   const mine = (q: QueueItem) => q.callId === entry.callId || (patientId !== undefined && q.patientId === patientId);
   const open = (await store.queue()).filter(
     (q) => q.status === "open" && mine(q) && RELANED_KINDS.has(q.kind) && (q.lane !== "review" || !q.signals.includes(signal)),
