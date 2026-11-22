@@ -11,7 +11,11 @@ LIVE_AGENT=1 LIVE_RUN=<name> npx vitest run lib/agent/live-range.test.ts
 | range-1 | before the warm-up and the double-confirm fix | 1 (stopped) | 7 | 8.98 s | 6.90 s | 1 |
 | range-2 | warm-up, one read-back | 5 (stopped to stay under the hourly cap) | 41 | 3.97 s | 1.72 s | 4 |
 | range-3 | plus label prefetch, code line word for word, booked not done | 3 | 17 | 3.93 s | 1.88 s | 2 |
+| side-effects-first | the side-effect question before the refill (driver holds it) | 2 | 11 | 3.11 s | 1.24 s | 0 |
+| side-effects-first-2 | plus one question, not two | 2 | 11 | 3.10 s | 2.32 s | 0 |
 
 Timings were taken on a heavily loaded machine (load average about 220, other sessions running test suites), so they are an upper bound. The first turn of range-1 took 37 s, almost all of it the Agent SDK starting up; the warm-up in `opening()` moved that cost off the first caller line.
 
 What each run found, and what changed because of it, is in the Trail #75 commits: range-1 led to the warm-up and "a yes to the offer is the yes"; range-2 to the label prefetch (Haiku guessed a strength), the code line said word for word, booking a window the caller already named, and "booked" instead of "done"; range-3 to "sorted" and "all set" counting as done-words, and not repeating the name on a bare "hello".
+
+side-effects-first found the model asking its own side-effect question after the driver held the refill, then the driver asking again; side-effects-first-2 is the same two calls after the fix: one question, then the refill on the answer, and a volunteered side effect noted with no question.

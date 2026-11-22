@@ -1,0 +1,162 @@
+{
+  "id": "outbound-sam-question-before-refill",
+  "what": "Outbound; the caller says yes, and the side-effect question comes before the refill is placed",
+  "direction": "outbound",
+  "model": "claude-haiku-5-5",
+  "at": "2026-11-22T05:56:29.295Z",
+  "modelCalls": 6,
+  "turns": [
+    {
+      "caller": "(call connects)",
+      "agent": [
+        "This is Maple Street Pharmacy calling for Sam Rivera. To continue, I'll send a code to this phone."
+      ],
+      "presses": [
+        {
+          "button": "send_code",
+          "input": {
+            "lookup_id": "out_c_0001"
+          },
+          "ok": true,
+          "output": "{\"message\":\"code sent if matched\"}",
+          "ruleIds": []
+        }
+      ],
+      "blocked": [],
+      "safety": [],
+      "wallMs": 0
+    },
+    {
+      "caller": "Yes, this is Sam. 112358, March 14 1990.",
+      "agent": [
+        "Thank you, Sam, you're verified.",
+        "I'm calling because your Concerta is due for a refill.",
+        "It's 36 mg, and your cost on your plan is $4.10.",
+        "Would you like me to request that refill?"
+      ],
+      "presses": [
+        {
+          "button": "check_code",
+          "input": {
+            "lookup_id": "out_c_0001",
+            "code": "112358",
+            "dob": "1990-03-14"
+          },
+          "ok": true,
+          "output": "{\"verified\":true,\"patient_first_name\":\"Sam\",\"prescriptions\":[{\"rx_id\":\"rx_sam_concerta\",\"drug\":\"Concerta\"},{\"rx_id\":\"rx_sam_metformin\",\"drug\":\"Metformin\"}]}",
+          "ruleIds": []
+        },
+        {
+          "button": "check_prescription",
+          "input": {
+            "rx_id": "rx_sam_concerta",
+            "include_other_names": false
+          },
+          "ok": true,
+          "output": "{\"rx_id\":\"rx_sam_concerta\",\"drug\":\"Concerta\",\"status\":\"active\",\"refills_left\":2,\"expiry\":\"2027-04-28T15:00:00.000Z\",\"last_fill\":\"2026-10-28T15:00:00.000Z\",\"refillable_today\":true,\"others_refillable_count\":1}",
+          "ruleIds": []
+        },
+        {
+          "button": "check_coverage",
+          "input": {
+            "rx_id": "rx_sam_concerta"
+          },
+          "ok": true,
+          "output": "{\"plan_pays\":\"$41.20\",\"patient_pays\":\"$4.10\"}",
+          "ruleIds": []
+        },
+        {
+          "button": "read_label",
+          "input": {
+            "rx_id": "rx_sam_concerta"
+          },
+          "ok": true,
+          "output": "{\"label_text\":\"CONCERTA 36 MG TABLET. Take 1 tablet by mouth every morning. Qty 30.\"}",
+          "ruleIds": []
+        }
+      ],
+      "blocked": [],
+      "safety": [],
+      "wallMs": 3986
+    },
+    {
+      "caller": "Yes please.",
+      "agent": [
+        "Before I place it, is there any side effect you've noticed from your Concerta?",
+        "If not, just say no.",
+        "Before I put it in: since your last refill, have you noticed any side effects, or anything new?"
+      ],
+      "presses": [],
+      "blocked": [],
+      "safety": [],
+      "wallMs": 2637
+    },
+    {
+      "caller": "No, nothing like that.",
+      "agent": [
+        "Thanks, Sam.",
+        "Your Concerta refill is with the pharmacist now, and I'll let you know once it's approved.",
+        "It should be ready Thursday once it's approved.",
+        "Would you like delivery, or would you rather pick it up?"
+      ],
+      "presses": [
+        {
+          "button": "request_refill",
+          "input": {
+            "rx_id": "rx_sam_concerta"
+          },
+          "ok": true,
+          "output": "{\"state\":\"waiting_for_pharmacist\",\"rule_ids\":[\"4\"],\"message\":\"A pharmacist needs to check this refill before it is approved.\",\"order_id\":\"o_c_0001_rx_sam_concerta\",\"ready_label\":\"Thursday\"}",
+          "ruleIds": [
+            "4"
+          ]
+        }
+      ],
+      "blocked": [],
+      "safety": [],
+      "wallMs": 1067
+    },
+    {
+      "caller": "That's all, thanks.",
+      "agent": [
+        "Your Concerta refill is with the pharmacist, and it should be ready Thursday once it's approved.",
+        "Bye for now, Sam."
+      ],
+      "presses": [],
+      "blocked": [],
+      "safety": [],
+      "wallMs": 3330
+    }
+  ],
+  "turnTimings": [
+    {
+      "receivedAt": 14286.657,
+      "firstModelTextMs": 2262.673917,
+      "firstGuardedMs": 2365.789166999999
+    },
+    {
+      "receivedAt": 18272.349417,
+      "firstModelTextMs": 1057.6902499999997,
+      "firstGuardedMs": 1238.7342499999977
+    },
+    {
+      "receivedAt": 20909.538125,
+      "firstModelTextMs": 785.844000000001,
+      "firstGuardedMs": 825.7223330000015
+    },
+    {
+      "receivedAt": 21976.387042,
+      "firstModelTextMs": 848.3332910000026,
+      "firstGuardedMs": 953.1686660000014
+    }
+  ],
+  "lanes": {
+    "quickCheck": 1,
+    "review": 0
+  },
+  "guardRecord": {
+    "lineSpoken": 14,
+    "lineBlocked": 0
+  },
+  "hashChainIntact": true
+}
