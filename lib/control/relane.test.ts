@@ -123,3 +123,27 @@ describe("safety words re-lane the verified patient's requests on other calls (T
     expect((await refillItem(s)).lane).toBe("automatic");
   });
 });
+
+describe("failed codes re-lane the looked-up patient's requests on other calls (RT-C4)", () => {
+  it("someone else's wrong code for Tom holds Tom's earlier Automatic refill", async () => {
+    const s = await tomQueued();
+    await s.control.endCall(s.callId);
+    const b = await s.control.startInboundCall();
+    const lookup = await s.control.press(b, "lookup_patient", { name: "Tom Brennan", dob: "1983-09-21", rx_number: "RX-100701" });
+    await s.control.press(b, "check_code", { lookup_id: lookup.ok ? lookup.output.lookup_id : "", code: "000000" });
+    const item = await refillItem(s);
+    expect(item).toMatchObject({ lane: "review", signals: ["failed_code_attempts"] });
+    expect((await s.store.listOrders(IDS.p6)).find((o) => o.id === item.orderId)?.state).toBe("waiting_for_pharmacist");
+    expect((await s.store.listRecord(b)).filter(isRelaneEntry)).toMatchObject([{ input: { signal: "failed_code_attempts", patient_id: IDS.p6 } }]);
+  });
+
+  it("wrong codes for a lookup that matched nobody move nobody's requests", async () => {
+    const s = await tomQueued();
+    await s.control.endCall(s.callId);
+    const b = await s.control.startInboundCall();
+    const lookup = await s.control.press(b, "lookup_patient", { name: "Tom Brennan", dob: "1983-09-22", rx_number: "RX-100701" });
+    await s.control.press(b, "check_code", { lookup_id: lookup.ok ? lookup.output.lookup_id : "", code: "000000" });
+    expect((await refillItem(s)).lane).toBe("automatic");
+  });
+});
+
