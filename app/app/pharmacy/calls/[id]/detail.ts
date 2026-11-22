@@ -1,5 +1,6 @@
 import type { Call, CallId, Lane, Order, RecordDecision, RecordEntry, RuleId, SpeechRule, Store } from "@/lib/contract";
 import { recordedConversation } from "@/app/api/_lib/call-recording";
+import { patientCodeLock } from "@/lib/control";
 import { findBrokenLink } from "@/lib/store/memory";
 import type { ServerTurnTiming } from "@/lib/voice/timing";
 import type { TimingSource } from "@/app/console/calls/calls";
@@ -48,6 +49,10 @@ export type CallDetail = {
   startedAt: string;
   endedAt?: string;
   patient?: string;
+  /** The call's patient (the one rung, or the one it was locked to), for the lockout control. */
+  patientId?: string;
+  /** Set while that patient's code lockout holds (Trail #86). */
+  lockedUntil?: string;
   verified: boolean;
   outcome: CallOutcome;
   hasRecording?: boolean;
@@ -171,7 +176,8 @@ export async function callDetail(store: Store, callId: CallId, { driver, usageLo
     state: call.state,
     startedAt: call.startedAt,
     ...(call.endedAt ? { endedAt: call.endedAt } : {}),
-    ...(patient ? { patient: `${patient.firstName[0]}.${patient.lastName[0]}.` } : {}),
+    ...(patient ? { patient: `${patient.firstName[0]}.${patient.lastName[0]}.`, patientId: patient.id } : {}),
+    ...(patient ? await patientCodeLock(store, patient.id).then(({ lockedUntil }) => (lockedUntil ? { lockedUntil } : {})) : {}),
     verified: Boolean(call.lockedPatientId),
     outcome: outcomeOf(presses, mine),
     hasRecording: call.state === "ended" && Boolean(recordedConversation(entries)),

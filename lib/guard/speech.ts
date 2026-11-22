@@ -17,7 +17,7 @@ export const S4_REPLACEMENT = "A pharmacist will check it first, and I'll confir
 const REPLACEMENT: Record<SpeechRule, string> = { ...GUARD_REPLACEMENTS, S4: S4_REPLACEMENT };
 
 const COMPLETION =
-  /\b(approved|ready|sorted|on its way|on the way|delivered|filled|signed off|confirmed|complete|completed|done|all set|good to go|processed|shipped|sent out|went out|dispatched|picked up|cleared|okayed|okd|taken care of|went through|gone through|green ?light(?:ed)?|green ?lit|finali[sz]ed|authori[sz]ed|locked in|squared away|granted|validated|a ?ok|oked|ok ed|in the bag|bagged|on the shelf|(?:is|s) a go|said yes|(?:is|s|are) waiting for you\b(?! to)|passed (?:the )?(?:pharmacists? )?(?:check|review)|pharmacists? (?:sign off|signoff|approval|ok|okay|blessing|go ahead|green light)|given (?:it )?the (?:ok|okay|go ahead|nod|thumbs up)|(?:is|s|been) (?:handled|accepted)|(?:refill|order|prescription|medication|meds|it) (?:is|s|has been) all good|approuve\w*|aprobad\w*|genehmigt|listo|lista|pret|fertig|pronto|taiyar|came through|come through|comes through|(?:has|have|s) signed|signed (?:it|them)|pushed (?:it |them )?through|fast ?tracked|finished|nothing left to do|thumbs up|your \w+ (?:is|s) all good|come (?:and )?(?:grab|collect|pick (?:it|them) up)|come pick (?:it|them) up|(?:can|could|may) (?:come )?(?:grab|collect|pick (?:it|them) up)|(?:stop|swing|drop|come) by (?:and|to) (?:grab|collect|pick|get)|feel free to (?:stop|swing|drop|come) by|^ (?:collect|grab) (?:it|them))\b/;
+  /\b(approved|ready|sorted|on its way|on the way|delivered|filled|signed off|confirmed|complete|completed|done|all set|good to go|processed|shipped|sent out|went out|dispatched|picked up|cleared|okayed|okd|taken care of|went through|gone through|green ?light(?:ed)?|green ?lit|finali[sz]ed|authori[sz]ed|locked in|squared away|granted|validated|a ?ok|oked|ok ed|in the bag|bagged|on the shelf|(?:is|s) a go|said yes|(?:is|s|are) waiting for you\b(?! to)|passed (?:the )?(?:pharmacists? )?(?:check|review)|pharmacists? (?:sign off|signoff|approval|ok|okay|blessing|go ahead|green light)|given (?:it )?the (?:ok|okay|go ahead|nod|thumbs up)|(?:is|s|been) (?:handled|accepted)|(?:refill|order|prescription|medication|meds|it) (?:is|s|has been) all good|approuve\w*|aprobad\w*|genehmigt|listo|lista|pret|prete|pretes|prets|fertig|pronto|taiyar|came through|come through|comes through|(?:has|have|s) signed|signed (?:it|them)|pushed (?:it |them )?through|fast ?tracked|finished|nothing left to do|thumbs up|your \w+ (?:is|s) all good|come (?:and )?(?:grab|collect|pick (?:it|them) up)|come pick (?:it|them) up|(?:can|could|may) (?:come )?(?:grab|collect|pick (?:it|them) up)|(?:stop|swing|drop|come) by (?:and|to) (?:grab|collect|pick|get)|feel free to (?:stop|swing|drop|come) by|^ (?:collect|grab) (?:it|them))\b/;
 // The only completion words that aren't promises: they're about the caller, the past, an identity
 // check or the agent itself ("whenever you're ready", "last filled 27 days ago", "your identity
 // is confirmed", "are you done?"), and are dropped before the check. "You're all set." and
@@ -57,9 +57,11 @@ const DELIVERY_CONTEXT = /\b(?:deliver\w*|driver|courier|slot|pick ?up|pickup|dr
 // "your doctor has been contacted", "your refill is in the queue".
 const SENT =
   /\b(sent|requested|submitted|passed|forwarded|faxed|contacted|notified|placed|lodged|filed|put (?:it|the \w+|your \w+) in|let (?:the |your )?\w+ know|in the queue|with (?:your|the) (?:doctor|prescriber))\b/;
+const SENT_OFFERED = /\b(?:can|could|will|ill|youll|theyll|itll|would|shall|may|might|going to|gonna|happy to|glad to|want me to)(?: \w+)? $/;
 // When a delivery or pickup happens needs set_delivery: "deliver it tomorrow", "drop it off
 // tonight", "arrive in two days", "your driver comes by 3 PM", "pick it up this afternoon".
-const HANDOVER_WIDE = /\b(?:driver|courier|at your door|to your door)\b/;
+// Also in Spanish, French and German: "lo entregamos", "nous le livrons", "wir liefern".
+const HANDOVER_WIDE = /\b(?:driver|courier|at your door|to your door|entreg\w*|recog\w*|livr\w*|ramass\w*|liefer\w*)\b/;
 const NUMBER = "(?:\\d+|a|an|one|two|three|four|five|six|seven|eight|nine|ten|few|couple of)";
 const WHEN = new RegExp(
   [
@@ -69,6 +71,7 @@ const WHEN = new RegExp(
     "(?:jan|feb|mar|apr|jun|jul|aug|sep|sept|oct|nov|dec)\\w* \\d+",
     "mon|tue|tues|wed|thu|thur|thurs|fri|sat|sun",
     "lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche|lunes|martes|miercoles|jueves|viernes|sabado|domingo",
+    "manana|pasado manana|hoy|esta noche|demain|apres demain|aujourd hui|ce soir|morgen|heute",
   ]
     .map((p) => `\\b(?:${p})\\b`)
     .join("|"),
@@ -267,11 +270,10 @@ function lastCallerLine(record: RecordEntry[]): string {
 }
 
 // A bare agreement: every word is one of these ("Yes, that's fine.", "Right, that works.",
-// "Correct.", "Sure, go ahead."). A strong one agrees by itself; "Okay." only answers a question.
+// "Correct.", "Sure, go ahead.", "Okay."), and only as an answer to a question.
 const AGREE_WORDS = new Set(
   "yes yeah yep yup sure right correct exactly absolutely definitely of course indeed fine works work matches match true ok okay alright go ahead you can do that it is thats that s is safe totally sounds good great perfect thing will be".split(" "),
 );
-const STRONG_AGREEMENT = /\b(?:yes|yeah|yep|yup|sure|right|correct|exactly|absolutely|definitely|of course|go ahead|fine|works|matches|true|safe|you can|it is)\b/;
 const ASKS = /\?\s*$|\b(?:right|correct|isnt it|doesnt it|is it|wont it|can i|should i)\W*$/i;
 
 /** Whether the agent's line only agrees with the caller's last line. */
@@ -279,8 +281,15 @@ function agrees(sentence: string, caller: string): boolean {
   const w = words(sentence);
   const ws = w.trim().split(" ").filter(Boolean);
   if (ws.length === 0 || ws.length > 8 || !ws.every((x) => AGREE_WORDS.has(x))) return false;
-  return STRONG_AGREEMENT.test(w) || ASKS.test(caller.trim());
+  // Only an answer to something the caller asked: "Sure." after the caller gives their own
+  // details acknowledges them (code reviewer MEDIUM).
+  return ASKS.test(caller.trim());
 }
+
+const LOOSE_FILLER = new Set(
+  "so and ok okay i you we just still do does should can could will ill take taking it them my your the a an is its that s right correct yes please tablet capsule pill by mouth".split(" "),
+);
+const FREQUENCY_WORD = new Set(["every", "morning", "night", "evening", "day", "twice", "once", "bedtime", "breakfast", "meals"]);
 
 async function checkS3(store: Store, call: Call, sentence: string, record: RecordEntry[] = [], agreeing = false): Promise<Check> {
   const records: string[] = [];
@@ -295,7 +304,26 @@ async function checkS3(store: Store, call: Call, sentence: string, record: Recor
   if (missing.length > 0) return { rule: "S3", why: missing.join(";") };
   // A dosing instruction is spoken only off the label, also when split across clauses or
   // across the previous sentence (Trail #88).
-  const backed = (c: string) => labels.some((l) => labelClause(c, l) || labelQuantity(l, c).length > 0);
+  // Also the label's own Qty read word for word ('Qty 30."', live suite, label_food).
+  const qtyRun = (c: string, l: string) => {
+    const w = canonical(words(c)).trim();
+    return /\bqty\b/.test(w) && ` ${canonical(words(l)).trim()} `.includes(` ${w} `);
+  };
+  // Agreeing to the label's own dose said loosely ("So I take one every morning?"): every word left,
+  // after the caller's lead, the verb and the unit, is in the label's directions, and the Qty
+  // never counts, so "Can I take 30?" stays a dose (code reviewer MEDIUM).
+  const loosely = (c: string, l: string) => {
+    const directions = l.match(/\btake [^.]+/i)?.[0];
+    if (!agreeing || !directions) return false;
+    const drugWords = new Set(labels.map((x) => canonical(words(x)).trim().split(" ")[0]));
+    const label = new Set(canonical(words(directions)).trim().split(" "));
+    const rest = canonical(words(c))
+      .trim()
+      .split(" ")
+      .filter((t) => t && !LOOSE_FILLER.has(t) && !drugWords.has(t));
+    return rest.length > 0 && rest.some((t) => /\d/.test(t) || FREQUENCY_WORD.has(t)) && rest.every((t) => label.has(t));
+  };
+  const backed = (c: string) => labels.some((l) => labelClause(c, l) || labelQuantity(l, c).length > 0 || qtyRun(c, l) || loosely(c, l));
   const clausesOf = (s: string) => s.split(CLAUSE_BREAK).filter((c) => words(c).trim() !== "");
   // The last agent line that says anything about taking or amounts, past up to two filler lines
   // ("Sorry, one moment.", "Let me check.") (RT-MT-2).
@@ -428,11 +456,28 @@ export function unexcusedCompletion(sentence: string, drugNames: string[] = []):
 // An open slot offered as a question or an option (live suite, change_delivery_time): "Would you
 // like to pick it up Thursday 9 to 12 instead?", "I can switch it to pickup on Thursday 9 to 12".
 const OFFER =
-  /\b(?:would you like|do you want|want me to|should i|shall i|i can (?:switch|change|move|put|set)|we can (?:switch|change|move|do)|how about|what about|instead|(?:is|are) (?:open|available|free)|could (?:also )?do|does that work|would that work)\b/;
+  /\b(?:would you like|do you want|want me to|should i|shall i|i can (?:switch|change|move|put|set)|we can (?:switch|change|move|do)|how about|what about|instead|(?:is|are) (?:open|available|free)|could (?:also )?do)\b/;
+// A slot asked about in its own clause ("Would Wednesday 1 to 5 work?"), not a booking stated
+// with a tag question ("Your pickup is Wednesday 1 to 5, is that okay?", code reviewer LOW).
+const QUESTION_LEAD = /^ (?:would|could|does|do|is|are|can|shall|should|will|how about|what about)\b/;
+
+/** The slot's own clause offers it: offer wording, or a question that opens like one. */
+function offersInClause(sentence: string, cw: string): boolean {
+  if (OFFER.test(cw)) return true;
+  const last = sentence.split(CLAUSE_BREAK).map((c) => words(c)).filter((c) => c.trim() !== "").at(-1);
+  return sentence.trim().endsWith("?") && last === cw && QUESTION_LEAD.test(cw);
+}
+
+// An approval claimed through an anaphor (code reviewer HIGH): "the pharmacist already did",
+// "they already have", "they did", pointing back at approving in this sentence, the agent's last
+// line or the caller's last line.
+const ANAPHOR = / (?:already |just |also )?(?:did|has|have|had|done)(?: it| that| so| too)? $/;
+const ANAPHOR_SUBJECT = /\b(?:pharmacists?|they|he|she|someone|somebody|the team|it|that)\b/;
+const APPROVAL_TOPIC = /\b(?:approv\w*|sign\w* (?:it )?off|sign off|okay\w*|authori[sz]\w*|clear\w*|fill\w*|complet\w*|process\w*|finali[sz]\w*)\b/;
 
 /** A day in this clause is offered, not promised: a question or an offer naming a real open slot's whole label. */
 function offeredSlot(sentence: string, cw: string, day: string, slotLabels: string[]): boolean {
-  if (!sentence.trim().endsWith("?") && !OFFER.test(words(sentence))) return false;
+  if (!offersInClause(sentence, cw)) return false;
   return slotLabels.some((l) => {
     const label = words(l);
     return label.includes(` ${day} `) && cw.includes(label);
@@ -457,6 +502,11 @@ function checkS4(
   });
 
   if (unexcusedCompletion(sentence, drugNames) && !approved) return { rule: "S4", why: "completion without approval" };
+  if (!approved) {
+    const about = [sentence, agentLines(record)[0] ?? "", lastCallerLine(record)].some((t) => APPROVAL_TOPIC.test(words(t)));
+    const claims = sentence.split(CLAUSE_BREAK).map((c) => words(c)).some((cw) => ANAPHOR.test(cw) && ANAPHOR_SUBJECT.test(cw));
+    if (about && claims) return { rule: "S4", why: "approval claimed through 'did' or 'has'" };
+  }
   const succeeded = (e: RecordEntry, r: ReturnType<typeof resultOf>): string | null => {
     if (!r?.ok) return null;
     const out = r.output as { state?: string };
@@ -494,7 +544,7 @@ function checkS4(
     const wide = cw.match(BOOKING_WIDE);
     if (wide && DELIVERY_CONTEXT.test(cw) && !negatedNear(cw, wide.index ?? 0) && !booked) return { rule: "S4", why: "booking without set_delivery" };
     const when = cw.match(WHEN);
-    const slotOffered = (sentence.trim().endsWith("?") || OFFER.test(words(sentence))) && slotLabels.some((l) => cw.includes(words(l)));
+    const slotOffered = offersInClause(sentence, cw) && slotLabels.some((l) => cw.includes(words(l)));
     if (when && !slotOffered && (HANDOVER.test(cw) || HANDOVER_WIDE.test(cw)) && !negatedNear(cw, when.index ?? 0, true) && !booked) {
       return { rule: "S4", why: `delivery time ${when[0].trim()} without set_delivery` };
     }
@@ -508,9 +558,12 @@ function checkS4(
     }
 
     const sent = cw.match(SENT);
+    // "I can put the request in for you", "I'll let the pharmacist know": offered, not done
+    // (live suite, ignore_instructions_friend).
+    const offered = sent !== null && SENT_OFFERED.test(cw.slice(0, sent.index ?? 0));
     // "If those details match, I've sent a code": only a code, only after a matching condition.
     const codeOnly = codeAfterMatch && / code /.test(cw) && !/ (?:renewal|refill) /.test(cw);
-    if (sent && !negatedNear(cw, sent.index ?? 0) && !codeOnly) {
+    if (sent && !offered && !negatedNear(cw, sent.index ?? 0) && !codeOnly) {
       // The promise must match its own button: a sent code doesn't back "renewal requested".
       // An order is a refill, a doctor or prescriber is a renewal, and the pharmacist needs a
       // note, a refill or a renewal: a sent code backs none of them.

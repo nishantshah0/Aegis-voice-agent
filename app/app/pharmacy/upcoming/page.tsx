@@ -16,7 +16,7 @@ async function Body() {
   if (!approver) return <SignedOut what="upcoming refills" />;
   const canCall =
     approver.role === "pharmacist" || process.env.DEMO_CONTROLS === "on";
-  return <UpcomingTable data={await upcoming(getStore())} canCall={canCall} />;
+  return <UpcomingTable data={await upcoming(getStore())} canCall={canCall} canClear={approver.role === "pharmacist"} />;
 }
 
 export default function UpcomingPage() {

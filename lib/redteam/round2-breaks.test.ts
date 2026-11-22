@@ -32,8 +32,8 @@ describe("red team: checkCallerLine still catches the plain forms", () => {
   });
 });
 
-describe("red team, open breaks (fix checkCallerLine, then flip to it): RT-SAFE-1", () => {
-  it.fails.each(callerOpen.map((x) => [`${x.family}: ${x.want} "${x.line}"`, x] as const))("%s", async (_title, x) => {
+describe("red team, fixed (lib/guard/safety.ts hears them): RT-SAFE-1", () => {
+  it.each(callerOpen.map((x) => [`${x.family}: ${x.want} "${x.line}"`, x] as const))("%s", async (_title, x) => {
     expect((await runCaller(x)).broke).toBe(false);
   });
 });
@@ -63,9 +63,9 @@ describe("red team, fixed (Trail #86 review): RT-C4", () => {
   });
 });
 
-// Needs RT-SAFE-1 (the safety check's keyword list, lib/guard/safety.ts) first: no signal, no re-lane.
-describe("red team, open breaks (fix RT-SAFE-1, then flip to it): RT-C4", () => {
-  it.fails.each([
+// Fixed with RT-SAFE-1: the safety check hears it, so the re-lane fires.
+describe("red team, fixed: RT-C4 + RT-SAFE-1", () => {
+  it.each([
     ["RT-C4 + RT-SAFE-1 a missed crisis line ('unalive') never re-lanes the refill", "c.relane.missed_crisis"],
   ])("%s", async (_title, id) => {
     const p = CONTROL_PROBES.find((x) => x.id === id);
