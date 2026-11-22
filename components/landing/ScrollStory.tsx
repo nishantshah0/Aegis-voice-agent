@@ -14,6 +14,7 @@ export function ScrollStory({ children, visuals }: { children: ReactNode; visual
 
     const beats = Array.from(element.querySelectorAll<HTMLElement>("[data-story-beat]"));
     const markers = Array.from(element.querySelectorAll("[data-story-marker]"));
+    const panel = element.querySelector<HTMLElement>(".landing-sticky");
     const media = window.matchMedia(STICKY_MEDIA);
     let frame = 0;
     let activeIndex = -1;
@@ -24,15 +25,19 @@ export function ScrollStory({ children, visuals }: { children: ReactNode; visual
       frame = requestAnimationFrame(() => {
         const midpoint = window.innerHeight / 2;
         const beatTops = beats.map((beat) => beat.getBoundingClientRect().top);
-        const index = Math.max(0, markers.findLastIndex((marker, position) => {
-          if (media.matches) return beatTops[position] + beats[position].offsetHeight / 2 <= midpoint;
+        const markerCenters = markers.map((marker) => {
           const dot = marker.getBoundingClientRect();
-          return dot.top + dot.height / 2 <= midpoint;
-        }));
+          return dot.top + dot.height / 2;
+        });
+        // The first circle reaches this line just as the graphic pins.
+        const readingLine = media.matches && panel && markers.length
+          ? parseFloat(getComputedStyle(panel).top) + markerCenters[0] - beatTops[0]
+          : midpoint;
+        const index = Math.max(0, markerCenters.findLastIndex((center) => center <= readingLine));
 
         // Every segment fills to the same viewport position, including between markers.
         beats.forEach((beat, position) => {
-          beat.style.setProperty("--rail-fill", `${midpoint - beatTops[position]}px`);
+          beat.style.setProperty("--rail-fill", `${readingLine - beatTops[position]}px`);
           if (index !== activeIndex) {
             beat.setAttribute("data-story-position", position < index ? "passed" : position === index ? "current" : "ahead");
           }
