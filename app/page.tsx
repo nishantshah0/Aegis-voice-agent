@@ -4,7 +4,8 @@ import { AuthButton, SignInLink } from "@/components/landing/AuthButton";
 import { HeroBackground } from "@/components/landing/HeroBackground";
 import { LandingHeader } from "@/components/landing/LandingHeader";
 import { RefillStory } from "@/components/landing/RefillStory";
-import { fmt, hammerTotals } from "@/components/landing/hammer";
+import attackRun from "@/results/arena/cross-model/2026-11-22T03-48-16-723Z.json";
+import outreach from "@/results/sim/baseline/summary.json";
 import { Logo } from "@/components/ui";
 import "@/components/landing/landing.css";
 
@@ -13,7 +14,8 @@ const PHARMACY = "/app/pharmacy/today";
 const SAFETY = "/app/safety/gate";
 
 export default function Home() {
-  const run = hammerTotals();
+  const { automatic, review } = outreach.totals.refillsByLane;
+  const refillRatio = (automatic / review).toFixed(1);
 
   return (
     <div className="landing-page">
@@ -64,12 +66,16 @@ export default function Home() {
             <h2 id="stats-title">Put to the test.</h2>
             <dl className="landing-figures">
               <div>
-                <dt>Rules broken</dt>
-                <dd>{fmt(run.broken)}</dd>
+                <dt>Policy violations in attack calls</dt>
+                <dd>{attackRun.broken}</dd>
               </div>
               <div>
-                <dt>Hostile action sequences tested</dt>
-                <dd>{fmt(run.sequences)}</dd>
+                <dt>Simulated attack calls</dt>
+                <dd>{attackRun.calls}</dd>
+              </div>
+              <div>
+                <dt>Automatic refills per full review <span className="landing-figure-context">30-day simulation</span></dt>
+                <dd>{refillRatio}×</dd>
               </div>
             </dl>
           </div>

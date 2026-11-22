@@ -760,13 +760,14 @@
 }
 
 .landing-stats {
-  background: var(--rg-accent-soft);
+  color: var(--rg-surface);
+  background: radial-gradient(circle at 50% 46%, #35432a 0%, #263628 52%, #202f24 100%);
 }
 
 .landing-figures {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  max-width: 51rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  max-width: 60rem;
   margin: clamp(1.5rem, 4vw, 3rem) auto 0;
 }
 
@@ -779,7 +780,7 @@
 }
 
 .landing-figures > div + div {
-  border-left: 1px solid color-mix(in srgb, var(--rg-accent) 35%, var(--rg-line));
+  border-left: 1px solid rgb(255 255 255 / 22%);
 }
 
 .landing-figures dt {
@@ -788,15 +789,16 @@
 }
 
 .landing-figures dd {
-  color: var(--rg-accent-ink);
+  color: var(--rg-surface);
   font: 400 clamp(3rem, 9vw, 7rem)/0.95 var(--font-display);
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.04em;
 }
 
-.landing-stats p {
-  margin-top: 1.75rem;
-  color: var(--rg-ink-3);
+.landing-figure-context {
+  display: block;
+  color: rgb(255 255 255 / 76%);
+  font-weight: 400;
   font-size: 0.875rem;
 }
 
