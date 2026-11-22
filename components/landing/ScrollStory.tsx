@@ -24,7 +24,8 @@ export function ScrollStory({ children, visuals }: { children: ReactNode; visual
       frame = requestAnimationFrame(() => {
         const midpoint = window.innerHeight / 2;
         const beatTops = beats.map((beat) => beat.getBoundingClientRect().top);
-        const index = Math.max(0, markers.findLastIndex((marker) => {
+        const index = Math.max(0, markers.findLastIndex((marker, position) => {
+          if (media.matches) return beatTops[position] + beats[position].offsetHeight / 2 <= midpoint;
           const dot = marker.getBoundingClientRect();
           return dot.top + dot.height / 2 <= midpoint;
         }));

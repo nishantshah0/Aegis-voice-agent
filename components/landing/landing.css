@@ -799,7 +799,7 @@
 
   .landing-story[data-sticky-ready] .landing-beat {
     --rail-offset: 0.4375rem;
-    --marker-top: 50%;
+    --marker-top: 3.0625rem;
     --beat-padding: 2.125rem;
 
     min-height: var(--beat-height);
