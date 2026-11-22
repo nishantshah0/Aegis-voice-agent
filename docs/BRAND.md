@@ -48,7 +48,9 @@ Each of `accent`, `quick`, `review` and `stop` has a `-soft` tint for badge back
 
 **One accent.** Green is the only colour used at size. Lane and state colours are for badges, dots and small text, never large fills.
 
-**Light or dark.** The landing page, the stage (a projector) and the patient's phone (a call screen) are dark; the pharmacist console is light, because it's a work tool used all day. Dark screens: wrap them in `theme-dark` (or `<PageShell theme="dark">`) and every token switches.
+**Dark everywhere.** The landing page, the stage (a projector), the patient's phone (a call screen) and the signed-in app (`/app`) are dark. The app uses `theme-dark theme-app` (quieter surfaces for all-day reading); Pharmacy pages keep the green accent, Safety pages add `theme-safety` for the blue. Other dark screens: wrap them in `theme-dark` (or `<PageShell theme="dark">`) and every token switches.
+
+**In the app (Trail #72):** times are `<When iso>` (relative, full time on hover), loading is `Skeleton*`, empty states are one line plus the next step (`TableEmpty action=…`), charts are `Sparkline`, `StackedBar` and `Columns` from real data only, and demo levers live in the top bar's Demo menu, never on a page.
 
 ## Western touches (Hack Western 13)
 
@@ -85,7 +87,7 @@ Always the same name, colour and order. Use `<LaneBadge lane=... />`.
 
 ## Components
 
-The shared kit is `components/ui/` (import from `@/components/ui`): `Logo`, `Mark`, `Button`, `ButtonLink`, `Card`, `Eyebrow`, `Badge`, `LaneBadge`, `RuleTag`, `StatTile`, `SiteHeader`, `PageShell`, `PageHeader`. Build new screens from these before writing new styles.
+The shared kit is `components/ui/` (import from `@/components/ui`): `Logo`, `Mark`, `Button`, `ButtonLink`, `Card`, `Eyebrow`, `Badge`, `LaneBadge`, `RuleTag`, `StatTile`, `SiteHeader`, `PageShell`, `PageHeader`, `SectionHeader`, `Table` (+ `RowNav`), `TableEmpty`, `When`, `Skeleton`, `Sparkline`, `StackedBar`, `Columns`, `chipClass`, `inputClass`. Build new screens from these before writing new styles.
 
 - Buttons are pills. One primary (green) per view. `approve` and `deny` variants for decisions.
 - Cards: `rounded-card`, hairline `border-line`, `shadow-card`. No heavy shadows.
