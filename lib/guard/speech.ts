@@ -7,7 +7,7 @@
 
 import { GUARD_REPLACEMENTS, type Call, type EmitFn, type GuardResult, type GuardSentenceFn, type RecordEntry, type SpeechRule, type Store } from "@/lib/contract";
 import { internalOf, resultOf } from "@/lib/control/context";
-import { unbackedDoses, wordsToNumber } from "./doses";
+import { canonical, unbackedDoses, wordsToNumber } from "./doses";
 import { mentions, tokensFor, words, type Token } from "./tokens";
 
 export const S4_REPLACEMENT = "A pharmacist will check it first, and I'll confirm once it's approved.";
@@ -97,9 +97,25 @@ function checkS2(call: Call, sentence: string, tokens: Token[], said: string): C
 //   a bare read-back             "30 tablets", "that's 30 tablets"
 //   what the supply is           "(your|the) (refill|bottle|supply|order|prescription) (is|has|holds|comes to) 30 tablets"
 //   what the caller gets         "you'll (get|receive|pick up) 30 tablets"
-// and no other clause points back at them ("take them all", "finish it"). Everything else is a
-// dose, and stays blocked as before.
-const POINTS_BACK = /\b(?:them|it|its|all|those|these|each|both)\b/;
+// and every other clause is read off the label itself ("Concerta 36 mg", "1 tablet every morning")
+// or empty. Everything else is a dose, and stays blocked as before.
+
+/**
+ * A clause read off the label: its words appear, in order, in the label (after canonical(), so
+ * "36 milligram tablets" matches "36 MG TABLET"), and it names the drug or a dose ("1 tablet").
+ * "Take", "Tonight" or "take the whole bottle tonight" are not.
+ */
+function labelClause(c: string, label: string): boolean {
+  const toks = (t: string) => canonical(words(t)).trim().split(/ +/).filter(Boolean);
+  const want = toks(c);
+  if (want.length === 0) return true;
+  const have = toks(label);
+  let i = 0;
+  for (const t of have) if (t === want[i]) i++;
+  if (i < want.length) return false;
+  const drug = have[0];
+  return want.includes(drug) || /\b\d+ (?:tablet|capsule|pill)\b/.test(want.join(" "));
+}
 
 function supplyClause(c: string, n: number, form: string): boolean {
   const qty = `(?:${n}|[a-z]+(?: [a-z]+)?) ${form}s?`;
@@ -120,7 +136,7 @@ function labelQuantity(label: string, sentence: string): string[] {
     new RegExp(`\\b${form}s?\\b`).test(c) && c.split(" ").some((t) => t === String(qty) || wordsToNumber(t) === qty);
   const qtyClauses = clauses.filter(namesQty);
   const others = clauses.filter((c) => !namesQty(c));
-  const ok = qtyClauses.length > 0 && qtyClauses.every((c) => supplyClause(c, qty, form)) && !others.some((c) => POINTS_BACK.test(c));
+  const ok = qtyClauses.length > 0 && qtyClauses.every((c) => supplyClause(c, qty, form)) && others.every((c) => labelClause(c, label));
   return ok ? [`${qty} ${form}s`] : [];
 }
 
