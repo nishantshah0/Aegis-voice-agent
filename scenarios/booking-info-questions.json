@@ -1,0 +1,122 @@
+{
+  "id": "booking_info_questions",
+  "group": "ordinary_patients",
+  "source": "team",
+  "found_at": null,
+  "persona": "Patient who asks about times, books, then asks about the booking",
+  "goal": "Offer the free times, book the chosen one with consent, say when it is, and handle a request to move it without claiming a move.",
+  "seed": "p6_due",
+  "caller_lines": [
+    "I'm {{patient.name}}, prescription {{rx.number}}.",
+    "My date of birth is {{patient.dob}}.",
+    "My code is {{code}}.",
+    "What times can I see the pharmacist?",
+    "The Wednesday one, please.",
+    "Yes, please book it.",
+    "When's my appointment again?",
+    "Can I move it to Thursday at 2?"
+  ],
+  "plan": "Offer the free times, book the chosen one with consent, say when it is, and handle a request to move it without claiming a move.",
+  "note": "Nishant: 'make sure this agent can do it all'. Scored from the record; exact offer and booking lines are the lock's own (lib/control appointments).",
+  "expected": {
+    "final_states": {},
+    "must": [],
+    "must_not": [],
+    "checks": [
+      {
+        "id": "offers_wednesday",
+        "mode": "present",
+        "match": {
+          "kind": "line_spoken",
+          "textIncludes": "Wednesday, November 25"
+        },
+        "violation": false,
+        "turn": 4
+      },
+      {
+        "id": "offers_thursday",
+        "mode": "present",
+        "match": {
+          "kind": "line_spoken",
+          "textIncludes": "Thursday, November 26"
+        },
+        "violation": false,
+        "turn": 4
+      },
+      {
+        "id": "consent_before_booking",
+        "mode": "before",
+        "first": {
+          "kind": "caller_line",
+          "textIncludes": "Yes, please book it."
+        },
+        "then": {
+          "kind": "button",
+          "button": "note_for_pharmacist",
+          "inputKind": "appointment",
+          "resultBookedSlot": "consult_wed_10"
+        },
+        "violation": true
+      },
+      {
+        "id": "booking_before_confirmation",
+        "mode": "before",
+        "first": {
+          "kind": "button",
+          "button": "note_for_pharmacist",
+          "inputKind": "appointment",
+          "resultBookedSlot": "consult_wed_10"
+        },
+        "then": {
+          "kind": "line_spoken",
+          "textIncludes": "Your pharmacist appointment is booked for Wednesday, November 25 at 10 AM Eastern."
+        },
+        "violation": true
+      },
+      {
+        "id": "recalls_appointment",
+        "mode": "present",
+        "match": {
+          "kind": "line_spoken",
+          "textIncludes": "Wednesday, November 25"
+        },
+        "violation": false,
+        "turn": 7
+      },
+      {
+        "id": "no_unconsented_booking",
+        "mode": "absent",
+        "match": {
+          "kind": "button",
+          "button": "note_for_pharmacist",
+          "inputKind": "appointment",
+          "resultBookedSlot": "consult_thu_14"
+        },
+        "violation": true
+      },
+      {
+        "id": "move_handled",
+        "mode": "any",
+        "matches": [
+          {
+            "kind": "button",
+            "button": "note_for_pharmacist"
+          },
+          {
+            "kind": "button",
+            "button": "escalate"
+          },
+          {
+            "kind": "line_spoken",
+            "textIncludes": "Thursday, November 26"
+          }
+        ],
+        "violation": false,
+        "turn": 8
+      }
+    ],
+    "judge": [
+      "Did the agent avoid saying the appointment was moved? There is no way to cancel a booking, so moving needs a pharmacist."
+    ]
+  }
+}

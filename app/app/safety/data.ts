@@ -1,3 +1,7 @@
+import type { RecordEntry } from "@/lib/contract";
+import { scenarioSeed, scenarioTokens, type Scenario } from "@/lib/arena/runner";
+import { SEED } from "@/lib/seed";
+import { displayRecord, failuresForAttempt, type FailureEvidence } from "./scenarios/failure-evidence";
 import { readdir, readFile, stat } from "node:fs/promises";
 import { isAbsolute, join, relative } from "node:path";
 import { describeEntry, resultsDir } from "@/app/console/overnight/results";
@@ -34,7 +38,7 @@ export type Card = {
   file: string;
   group: string;
   source: string;
-  /** Only team cards outside the regression set are in the fixed 28-card suite. */
+  /** Only team cards outside the regression set are in the fixed suite. */
   inSuite: boolean;
   direction: "inbound" | "outbound";
   persona: string;
@@ -170,7 +174,7 @@ export type Entry = {
   prevHash: string;
 };
 
-export type AttemptFile = { n: number; path: string; callId: string; record: Entry[]; score: AttemptScore | null };
+export type AttemptFile = { n: number; path: string; callId: string; record: Entry[]; score: AttemptScore | null; failures: FailureEvidence[] };
 
 export function parseEntry(v: unknown): Entry {
   const e = obj(v);
@@ -217,29 +221,30 @@ async function attemptPaths(runDir: string, id: string): Promise<{ n: number; pa
   return [...byN.entries()].sort((a, b) => a[0] - b[0]).map(([n, path]) => ({ n, path }));
 }
 
-export async function readAttempts(run: ScenarioRun, id: string): Promise<AttemptFile[]> {
+export async function readAttempts(run: ScenarioRun, id: string, cardFile?: string): Promise<AttemptFile[]> {
+  const card = cardFile ? await readJson(join(scenariosDir(), cardFile)) as Scenario | null : null;
+  let tokens: Record<string, string> = {};
+  if (card) {
+    // Older/custom definitions may no longer have a matching seed. Unresolved
+    // predicates retain their recorded verdict without attributing a turn.
+    try { tokens = scenarioTokens(card, scenarioSeed(card, SEED), "{{code}}"); } catch { /* optional historical fixture */ }
+  }
+  const resolve = (v: string) => v.replace(/\{\{([^}]+)\}\}/g, (token, name) => ["code", "wrong_code"].includes(name) ? token : tokens[name] ?? token);
   const paths = await attemptPaths(run.dir, id);
   const files = await Promise.all(
     paths.map(async ({ n, path }) => {
       const file = obj(await readJson(path));
       if (!Array.isArray(file.record)) return null;
       const score = obj(file.score);
+      const savedScore: AttemptScore | null = file.score ? {
+        n, callId: str(file.callId), passed: score.automatedPassed === true,
+        caught: num(score.caught), broken: num(score.broken), checks: arr(score.checks).map(parseCheck),
+        manualReview: strs(score.manualReview),
+      } : run.outcomes.find(o => o.id === id)?.attempts.find(a => a.n === n) ?? null;
+      const record = displayRecord(file.record.map(parseEntry));
       return {
-        n,
-        path,
-        callId: str(file.callId),
-        record: arr(file.record).map(parseEntry),
-        score: file.score
-          ? {
-              n,
-              callId: str(file.callId),
-              passed: score.automatedPassed === true,
-              caught: num(score.caught),
-              broken: num(score.broken),
-              checks: arr(score.checks).map(parseCheck),
-              manualReview: strs(score.manualReview),
-            }
-          : null,
+        n, path, callId: str(file.callId), record, score: savedScore,
+        failures: failuresForAttempt(savedScore?.checks ?? [], card?.expected, file.record as RecordEntry[], record, resolve),
       };
     }),
   );

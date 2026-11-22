@@ -68,6 +68,20 @@ export function PatientPanel({ row, onClose }: { row: OutreachRow; onClose: () =
         </header>
 
         <div className="space-y-7 px-6 py-6">
+          {row.prescription && (
+            <section>
+              <Eyebrow>Synthetic prescription record</Eyebrow>
+              <dl className="mt-2 divide-y divide-line">
+                <Row k="Demo date of birth">{row.dob}</Row>
+                <Row k="Prescription number">{row.prescription.number}</Row>
+                <Row k="Last fill">{longDate(row.prescription.lastFill)}</Row>
+                <Row k="Days supplied">{row.prescription.days}</Row>
+                {row.prescription.quantity && <Row k="Quantity">{row.prescription.quantity} {row.prescription.unit}</Row>}
+                <Row k="Insurance pays">{row.prescription.plan.startsWith("$") ? row.prescription.plan : "No saved quote"}</Row>
+                <Row k="Patient pays">{row.prescription.patient.startsWith("$") ? row.prescription.patient : "No saved quote"}</Row>
+              </dl>
+            </section>
+          )}
           <section>
             <Eyebrow>Why and when the line calls</Eyebrow>
             {row.nextCall ? (

@@ -1,6 +1,8 @@
 # Runs made from the Outreach page or scripts/sim.ts stay on this machine.
-# Only the baseline run is committed.
+# The two curated, fictional runs ship with the demo.
 *
 !.gitignore
 !baseline/
 !baseline/**
+!community-demo/
+!community-demo/**

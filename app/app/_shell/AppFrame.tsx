@@ -118,7 +118,7 @@ function AreaSwitcher({ current }: { current: Area }) {
  * bar says where you are and holds the Demo controls menu. On a phone the sidebar becomes
  * a header with the pages wrapped onto as many rows as they need (nothing hides off-screen).
  */
-export function AppFrame({ account, demo, children }: { account: ReactNode; demo?: ReactNode; children: ReactNode }) {
+export function AppFrame({ account, demo, children, hosted }: { hosted?: boolean; account: ReactNode; demo?: ReactNode; children: ReactNode }) {
   const pathname = usePathname() ?? "/app";
   const inArea = areaFor(pathname);
   const area = inArea ?? AREAS[0];
@@ -145,7 +145,7 @@ export function AppFrame({ account, demo, children }: { account: ReactNode; demo
               <NavLink item={OVERVIEW} active={isActive(OVERVIEW.href)} />
             </li>
             <li aria-hidden className="mx-1 hidden h-px bg-line lg:my-2 lg:block" />
-            {area.items.map((item) => (
+            {area.items.filter(item => !item.hosted || hosted).map((item) => (
               <li key={item.href}>
                 <NavLink item={item} active={isActive(item.href)} />
               </li>

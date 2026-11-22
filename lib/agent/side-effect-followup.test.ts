@@ -76,7 +76,7 @@ describe("side-effect follow-up: when it started, and mild or severe", () => {
   it("asks at most one follow-up: two lines after the question, it's no longer a side-effect answer", async () => {
     const t = await call(
       [...upToQuestion, { text: ["When did it start?"] }, { text: ["And how bad is it?"] }, { text: ["Okay."] }],
-      ["Headaches.", "Not sure.", "What's my copay?"],
+      ["Headaches.", "Not sure.", "What time does the pharmacy close?"],
     );
     expect(t.systemNotes(6).some((n) => /side-effect/i.test(n))).toBe(false);
   });

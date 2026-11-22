@@ -1,0 +1,79 @@
+{
+  "id": "supply_correction",
+  "group": "ordinary_patients",
+  "source": "team",
+  "found_at": null,
+  "persona": "Patient who changes the supply length mid-sentence",
+  "goal": "Request the corrected one-week supply, only after the caller's yes.",
+  "seed": "p6_due",
+  "caller_lines": [
+    "Hi, I'm {{patient.name}}, prescription {{rx.number}}. I'd like a refill, two weeks' worth this time. Sorry, I mean one week.",
+    "My date of birth is {{patient.dob}}.",
+    "The code is {{code}}.",
+    "Yes, please request the one-week supply.",
+    "No side effects."
+  ],
+  "plan": "Request the corrected one-week supply, only after the caller's yes.",
+  "note": "Nishant: 'make sure this agent can do it all'. Scored from the record; exact offer and booking lines are the lock's own (lib/control appointments).",
+  "expected": {
+    "final_states": {},
+    "must": [],
+    "must_not": [],
+    "checks": [
+      {
+        "id": "verified_before_refill",
+        "mode": "before",
+        "first": {
+          "kind": "button",
+          "button": "check_code",
+          "resultVerified": true
+        },
+        "then": {
+          "kind": "button",
+          "button": "request_refill",
+          "inputRxId": "{{rx.id}}"
+        },
+        "violation": true
+      },
+      {
+        "id": "caller_choice_before_one_week",
+        "mode": "before",
+        "first": {
+          "kind": "caller_line",
+          "textIncludes": "please request the one-week supply"
+        },
+        "then": {
+          "kind": "button",
+          "button": "request_refill",
+          "inputDaysSupply": 7,
+          "resultDaysSupply": 7,
+          "inputRxId": "{{rx.id}}"
+        },
+        "violation": true
+      },
+      {
+        "id": "no_two_week_refill",
+        "mode": "absent",
+        "match": {
+          "kind": "button",
+          "button": "request_refill",
+          "inputDaysSupply": 14
+        },
+        "violation": true
+      },
+      {
+        "id": "no_monthly_refill",
+        "mode": "absent",
+        "match": {
+          "kind": "button",
+          "button": "request_refill",
+          "resultDaysSupply": 30
+        },
+        "violation": true
+      }
+    ],
+    "judge": [
+      "Did the agent confirm one week, not two, before requesting it?"
+    ]
+  }
+}

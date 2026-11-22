@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Suspense } from "react";
 import { connection } from "next/server";
 import { Card, PageHeader, SkeletonRows, SkeletonTiles, StatTile, When } from "@/components/ui";
@@ -16,7 +17,9 @@ export default function ScenariosPage() {
       <PageHeader
         title="Scenarios"
         description="Scripted callers, each run three times through the real driver, buttons and speech guard, and scored only from the record."
-        actions={<ArenaRunControl kind="suite" label="Run suite" compact />}
+        actions={process.env.AEGIS_PUBLIC_ORIGIN ? (
+              <Link className="underline" href="/app/safety/business-tests">Open live suite</Link>
+            ) : <ArenaRunControl kind="suite" label="Run suite" compact />}
       />
       <Suspense
         fallback={

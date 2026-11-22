@@ -73,11 +73,12 @@ const SCHEMA = [
   `create table if not exists rg_slots (id text primary key, pos int not null, doc jsonb not null)`,
   `create table if not exists rg_cards (id text primary key, pos int not null, doc jsonb not null)`,
   `create table if not exists rg_orders (id text primary key, patient_id text not null, pos int not null, doc jsonb not null)`,
+  `create table if not exists rg_appointments (slot_id text primary key, patient_id text not null, doc jsonb not null)`,
   `create table if not exists rg_calls (id text primary key, doc jsonb not null)`,
   `create table if not exists rg_record (seq int primary key, call_id text, doc jsonb not null)`,
   `create table if not exists rg_queue (id text primary key, pos int not null, lane text not null, doc jsonb not null)`,
 ];
-const TABLES = ["rg_meta", "rg_patients", "rg_prescriptions", "rg_slots", "rg_cards", "rg_orders", "rg_calls", "rg_record", "rg_queue"];
+const TABLES = ["rg_meta", "rg_patients", "rg_prescriptions", "rg_slots", "rg_cards", "rg_orders", "rg_appointments", "rg_calls", "rg_record", "rg_queue"];
 
 const json = (value: unknown) => JSON.stringify(value);
 
@@ -127,8 +128,16 @@ export function createPostgresStore(db: SqlDb, seed: Seed = SEED): PostgresStore
         [TABLES],
       );
       if (rows[0].n < TABLES.length) for (const statement of SCHEMA) await db.query(statement);
-      const meta = await db.query<{ n: number }>(`select count(*)::int as n from rg_meta`);
-      if (meta.rows[0].n === 0) await db.transaction((q) => loadSeed(q, seed));
+      const meta = await db.query<{ has_calendar: boolean }>(`select policy ? 'appointmentSlots' as has_calendar from rg_meta where id = 1`);
+      if (meta.rows.length === 0) await db.transaction((q) => loadSeed(q, seed));
+      else if (!meta.rows[0].has_calendar && seed.policy.appointmentSlots) {
+        // Upgrade an existing demo without replacing its orders or audit record.
+        await db.query(
+          `update rg_meta set policy = jsonb_set(policy, '{appointmentSlots}', $1::jsonb)
+           where id = 1 and not (policy ? 'appointmentSlots')`,
+          [json(seed.policy.appointmentSlots)],
+        );
+      }
     })().catch((error) => {
       ready = undefined;
       throw error;
@@ -256,6 +265,18 @@ export function createPostgresStore(db: SqlDb, seed: Seed = SEED): PostgresStore
     },
     async listSlots() {
       return copy((await loadFixed()).slots);
+    },
+    listAppointments: () => docs(`select doc from rg_appointments order by slot_id`),
+    async reserveAppointment(appointment) {
+      // The primary key arbitrates between server processes. A retry by the same
+      // patient returns the original reservation without changing its timestamp.
+      const { rows } = await q(
+        `insert into rg_appointments values ($1, $2, $3::jsonb)
+         on conflict (slot_id) do update set patient_id = excluded.patient_id
+         where rg_appointments.patient_id = excluded.patient_id returning slot_id`,
+        [appointment.slotId, appointment.patientId, json(appointment)],
+      );
+      return rows.length === 1;
     },
     listOrders: (patientId) =>
       docs(`select doc from rg_orders where $1::text is null or patient_id = $1 order by pos`, [patientId ?? null]),

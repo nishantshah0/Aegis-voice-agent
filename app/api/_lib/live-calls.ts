@@ -81,6 +81,8 @@ export type LiveCall = {
   phone: { pharmacy: string; other: string; direction: "inbound" | "outbound"; simulated: true };
   turns: LiveTurn[];
   verdict?: LiveVerdict;
+  /** Absent on older saved calls. Count only completed caller/pharmacy exchanges. */
+  progress?: { completed: number; turn: number; phase: "connecting" | "caller" | "pharmacy" | "scoring" | "finished" | "failed" };
   message?: string;
   model?: string;
   /** Which model family played the attacking caller (3.7g), and its model id. */
@@ -310,6 +312,7 @@ export function claimLiveCall(attack: LiveAttack, source: LiveSource, attackerMo
     startedAt: new Date().toISOString(),
     phone: { pharmacy: PHARMACY_NAME, other: attack.direction === "outbound" ? (patient?.phone ?? ATTACKER_NUMBER) : ATTACKER_NUMBER, direction: attack.direction, simulated: true },
     turns: [],
+    progress: { completed: 0, turn: 0, phase: "connecting" },
     attacker: attackerFamily(attackerModel),
     attackerModel,
   };
@@ -373,22 +376,29 @@ export async function runLiveCall(call: LiveCall): Promise<void> {
     })(fixture, { direction: attack.direction, patientId: patient?.id ?? "", rxId: tokens["rx.id"] ?? "" });
     store = session.store;
     const callId = await session.driver.startCall({ direction: attack.direction, ...(attack.direction === "outbound" && patient ? { patientId: patient.id } : {}) });
-    t0 = Date.now();
-    call.state = "connected";
-    call.connectedAt = new Date(t0).toISOString();
-    // Entries written while starting (the call_start check) are bookkeeping, not turns.
-    call.turns = call.turns.filter((t) => t.kind !== "other");
-    if (attack.direction === "outbound" && session.opening) await session.opening(callId);
+    try {
+      t0 = Date.now();
+      call.state = "connected";
+      call.connectedAt = new Date(t0).toISOString();
+      // Entries written while starting (the call_start check) are bookkeeping, not turns.
+      call.turns = call.turns.filter((t) => t.kind !== "other");
+      if (attack.direction === "outbound" && session.opening) await session.opening(callId);
 
-    for (let turn = 1; turn <= attack.turns; turn++) {
-      const tactic: Tactic = { id: "live", goal: attackerBrief(attack, call.turns, turn), seed: attack.seed, direction: attack.direction };
-      const { lines } = await attacker({ tactic, history: [] });
-      const line = fill(lines[0] ?? "", tokens);
-      if (!line) break;
-      for await (const event of session.driver.callerSays(callId, line)) void event;
-      await save(call);
+      for (let turn = 1; turn <= attack.turns; turn++) {
+        call.progress = { completed: turn - 1, turn, phase: "caller" };
+        const tactic: Tactic = { id: "live", goal: attackerBrief(attack, call.turns, turn), seed: attack.seed, direction: attack.direction };
+        const { lines } = await attacker({ tactic, history: [] });
+        const line = fill(lines[0] ?? "", tokens);
+        if (!line) throw new Error("The caller model returned no usable line.");
+        call.progress.phase = "pharmacy";
+        for await (const event of session.driver.callerSays(callId, line)) void event;
+        call.progress.completed = turn;
+        await save(call);
+      }
+      if (call.progress) call.progress.phase = "scoring";
+    } finally {
+      await session.driver.endCall(callId);
     }
-    await session.driver.endCall(callId);
   } catch (error) {
     failure = error instanceof Error ? error.message : String(error);
   } finally {
@@ -397,6 +407,7 @@ export async function runLiveCall(call: LiveCall): Promise<void> {
     const record = store ? await store.listRecord() : [];
     const final: LiveCall = {
       ...call,
+      ...(call.progress && { progress: { ...call.progress, phase: failure === null ? "finished" : "failed" } }),
       state: failure === null ? "ended" : "failed",
       ...(failure === null ? {} : { message: failure }),
       endedAt: new Date().toISOString(),

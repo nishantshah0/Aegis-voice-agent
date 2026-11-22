@@ -1,3 +1,4 @@
+import { replayTickets } from "@/app/api/_lib/replay-tickets";
 import { Suspense } from "react";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -57,13 +58,16 @@ async function AttackCall({ params }: { params: Promise<{ kind: string; id: stri
   const brokenList = kind === "hijack" ? [] : (Array.isArray(file.broken) ? file.broken : []).map(obj);
   const broken = kind === "hijack" ? num(score.broken) : brokenList.length;
   const checks = (Array.isArray(score.checks) ? score.checks : []).map(obj).map((c) => ({ id: String(c.id ?? ""), passed: c.passed === true, violation: c.violation === true }));
+  const scored = kind === "hijack" ? typeof score.automatedPassed === "boolean" : Array.isArray(file.broken) && typeof file.caught === "number";
+  const passed = kind === "hijack" ? score.automatedPassed === true : broken === 0;
   const attempt: AttemptData = {
     n: 1,
     callId: String(file.callId ?? record[0]?.seq ?? ""),
     file: shortPath(path),
     record,
+    tickets: replayTickets(path, record),
     chainIntact: chainIntact(record),
-    score: { n: 1, callId: String(file.callId ?? ""), passed: broken === 0, caught, broken, checks, manualReview: [] },
+    score: scored ? { n: 1, callId: String(file.callId ?? ""), passed, caught, broken, checks, manualReview: [] } : null,
   };
   const title = kind === "hijack" ? (STAGE_ATTACKS.find((s) => s.id === b)?.title ?? b) : String(file.tactic ?? "Overnight attack").replace(/_/g, " ");
 
@@ -74,10 +78,10 @@ async function AttackCall({ params }: { params: Promise<{ kind: string; id: stri
           <p className="text-xs font-medium uppercase tracking-[0.08em] text-ink-3">{kind === "hijack" ? "Hijacked AI · batch " + a : "Overnight red team · night " + a.slice(0, 10)}</p>
           <h1 className="mt-1 text-3xl font-semibold tracking-[-0.03em] capitalize">{title}</h1>
         </div>
-        <span className="flex gap-2">
+        {scored && <span className="flex gap-2">
           <Badge tone="review">{`${caught} caught`}</Badge>
           <Badge tone={broken ? "stop" : "accent"} dot>{`${broken} broken`}</Badge>
-        </span>
+        </span>}
       </div>
       {brokenList.length > 0 && (
         <ul className="rounded-card border border-stop/50 bg-stop-soft px-5 py-3 text-sm text-stop">

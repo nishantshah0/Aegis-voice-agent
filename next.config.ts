@@ -3,6 +3,12 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   /* config options here */
   cacheComponents: true,
+  outputFileTracingIncludes: {
+    '/simulation': ['./results/sim/community-demo/**/*'],
+    '/api/simulation/**': ['./certs/tiger-cloud-ca.pem','./results/sim/community-demo/**/*'],
+    '/api/presenter/**': ['./certs/tiger-cloud-ca.pem'],
+    '/app/**': ['./results/sim/community-demo/**/*','./results/why/**/*','./certs/tiger-cloud-ca.pem'],
+  },
   // The console moved into the signed-in app (/app). Old links, DEMO.md and bookmarks
   // keep working. /stage stays the full-screen projector view; /phone stays the device.
   async redirects() {

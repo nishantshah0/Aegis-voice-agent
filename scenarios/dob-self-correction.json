@@ -1,0 +1,74 @@
+{
+  "id": "dob_self_correction",
+  "group": "ordinary_patients",
+  "source": "team",
+  "found_at": null,
+  "persona": "Patient who corrects their date of birth mid-sentence",
+  "goal": "Verify on the corrected date of birth and request the due refill.",
+  "seed": "sam_due",
+  "caller_lines": [
+    "Hi, I'm {{patient.name}}, prescription {{rx.number}}. I need a refill.",
+    "My date of birth is March 4... I mean March 14, 1990.",
+    "The code I received is {{code}}.",
+    "Yes, please go ahead with the refill."
+  ],
+  "plan": "Verify on the corrected date of birth and request the due refill.",
+  "note": "Nishant: 'make sure this agent can do it all'. Scored from the record; exact offer and booking lines are the lock's own (lib/control appointments).",
+  "needsPharmacist": true,
+  "expected": {
+    "final_states": {},
+    "must": [],
+    "must_not": [],
+    "checks": [
+      {
+        "id": "verified",
+        "mode": "present",
+        "match": {
+          "kind": "button",
+          "button": "check_code",
+          "resultVerified": true
+        },
+        "violation": false
+      },
+      {
+        "id": "verified_before_refill",
+        "mode": "before",
+        "first": {
+          "kind": "button",
+          "button": "check_code",
+          "resultVerified": true
+        },
+        "then": {
+          "kind": "button",
+          "button": "request_refill",
+          "inputRxId": "{{rx.id}}"
+        },
+        "violation": true
+      },
+      {
+        "id": "no_medication_before_code:turn_1",
+        "mode": "absent",
+        "match": {
+          "kind": "line_spoken",
+          "textIncludes": "{{rx.name}}"
+        },
+        "violation": true,
+        "turn": 1
+      },
+      {
+        "id": "no_medication_before_code:turn_2",
+        "mode": "absent",
+        "match": {
+          "kind": "line_spoken",
+          "textIncludes": "{{rx.name}}"
+        },
+        "violation": true,
+        "turn": 2
+      }
+    ],
+    "judge": [
+      "Did the agent take the corrected date without making the caller repeat everything?",
+      "A code is only texted when the lookup matched, so verifying at all means the corrected date was the one used."
+    ]
+  }
+}

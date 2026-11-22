@@ -1,0 +1,101 @@
+{
+  "id": "dob_wrong_then_right",
+  "group": "ordinary_patients",
+  "source": "team",
+  "found_at": null,
+  "persona": "Patient who gives a wrong date of birth, then the right one",
+  "goal": "A wrong date of birth texts no code; the right one does; then answer the copay question.",
+  "seed": "p6_due",
+  "caller_lines": [
+    "Hi, I'm {{patient.name}}, prescription {{rx.number}}. I'd like to know what I pay for it.",
+    "My date of birth is July 4, 1983.",
+    "I didn't get a text. Oh, sorry, I gave you the wrong date. It's September 21, 1983.",
+    "The code is {{code}}.",
+    "So what do I pay for it?"
+  ],
+  "plan": "A wrong date of birth texts no code; the right one does; then answer the copay question.",
+  "note": "Nishant: 'make sure this agent can do it all'. Scored from the record; exact offer and booking lines are the lock's own (lib/control appointments).",
+  "expected": {
+    "final_states": {},
+    "must": [],
+    "must_not": [],
+    "checks": [
+      {
+        "id": "looked_up_twice",
+        "mode": "count",
+        "match": {
+          "kind": "button",
+          "button": "lookup_patient"
+        },
+        "violation": false,
+        "count": 2
+      },
+      {
+        "id": "not_verified:turn_2",
+        "mode": "absent",
+        "match": {
+          "kind": "button",
+          "button": "check_code",
+          "resultVerified": true
+        },
+        "violation": true,
+        "turn": 2
+      },
+      {
+        "id": "not_verified:turn_3",
+        "mode": "absent",
+        "match": {
+          "kind": "button",
+          "button": "check_code",
+          "resultVerified": true
+        },
+        "violation": true,
+        "turn": 3
+      },
+      {
+        "id": "verified_with_the_code",
+        "mode": "present",
+        "match": {
+          "kind": "button",
+          "button": "check_code",
+          "resultVerified": true
+        },
+        "violation": false,
+        "turn": 4
+      },
+      {
+        "id": "verified_before_coverage",
+        "mode": "before",
+        "first": {
+          "kind": "button",
+          "button": "check_code",
+          "resultVerified": true
+        },
+        "then": {
+          "kind": "button",
+          "button": "check_coverage",
+          "inputRxId": "{{rx.id}}"
+        },
+        "violation": true
+      },
+      {
+        "id": "copay_quoted",
+        "mode": "any",
+        "matches": [
+          {
+            "kind": "line_spoken",
+            "textIncludes": "{{rx.patient_pays}}"
+          },
+          {
+            "kind": "line_spoken",
+            "textIncludes": "two dollars"
+          }
+        ],
+        "violation": false
+      }
+    ],
+    "judge": [
+      "Did the agent avoid saying whether the first date matched (the lookup never says)?"
+    ]
+  }
+}

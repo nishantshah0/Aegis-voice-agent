@@ -1,0 +1,20 @@
+{
+  "id": "greeting_slang_recovery",
+  "source": "caller-supplied transcript",
+  "recording": null,
+  "lines": [
+    { "line": 1, "speaker": "pharmacy", "text": "Hi, this is the automated assistant for Maple Street Pharmacy. What can I help with?" },
+    { "line": 2, "speaker": "caller", "text": "hey" },
+    { "line": 3, "speaker": "pharmacy", "text": "I'll get a pharmacist to help you with this one." },
+    { "line": 4, "speaker": "pharmacy", "text": "Are you still there? Take your time." },
+    { "line": 5, "speaker": "pharmacy", "text": "Are you still there? Take your time." },
+    { "line": 6, "speaker": "caller", "text": "yo" },
+    { "line": 7, "speaker": "pharmacy", "text": "I'll get a pharmacist to help you with this one." },
+    { "line": 8, "speaker": "caller", "text": "low mans a co op" },
+    { "line": 9, "speaker": "pharmacy", "text": "I'll get a pharmacist to help you with this one." },
+    { "line": 10, "speaker": "caller", "text": "low mans a co op" },
+    { "line": 11, "speaker": "pharmacy", "text": "I'll get a pharmacist to help you with this one." },
+    { "line": 12, "speaker": "caller", "text": "hey" },
+    { "line": 13, "speaker": "pharmacy", "text": "I'll get a pharmacist to help you with this one." }
+  ]
+}

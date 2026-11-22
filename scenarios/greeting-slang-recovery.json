@@ -1,0 +1,224 @@
+{
+  "id": "greeting_slang_recovery",
+  "group": "ordinary_patients",
+  "source": "team",
+  "found_at": null,
+  "persona": "Caller opening with slang",
+  "goal": "Keep the call open through greetings, an unclear phrase and two idle checks.",
+  "seed": "p6_due",
+  "caller_lines": [
+    "hey",
+    "yo",
+    "low mans a co op",
+    "low mans a co op",
+    "hey"
+  ],
+  "silence_after_turns": [
+    1,
+    1
+  ],
+  "plan": "Replay the five caller turns and poll twice during the first pause.",
+  "expected": {
+    "final_states": {},
+    "must": [
+      "Offer pharmacy help on each greeting",
+      "Respond to unclear speech",
+      "Check in once during the pause"
+    ],
+    "must_not": [
+      "Transfer an ordinary caller without a request"
+    ],
+    "checks": [
+      {
+        "id": "no_unrequested_transfer",
+        "mode": "absent",
+        "match": {
+          "kind": "button",
+          "button": "escalate"
+        }
+      },
+      {
+        "id": "no_spoken_handoff",
+        "mode": "absent",
+        "match": {
+          "kind": "line_spoken",
+          "textIncludes": "get a pharmacist to help you"
+        }
+      },
+      {
+        "id": "one_prompt_during_the_pause",
+        "turn": 1,
+        "mode": "count",
+        "count": 1,
+        "match": {
+          "kind": "line_spoken",
+          "textIncludes": "Are you still there"
+        }
+      },
+      {
+        "id": "offers_pharmacy_help_turn_1",
+        "turn": 1,
+        "mode": "present",
+        "match": {
+          "kind": "line_spoken",
+          "textIncludes": "refill"
+        }
+      },
+      {
+        "id": "offers_pharmacy_help_turn_2",
+        "turn": 2,
+        "mode": "present",
+        "match": {
+          "kind": "line_spoken",
+          "textIncludes": "refill"
+        }
+      },
+      {
+        "id": "offers_pharmacy_help_turn_5",
+        "turn": 5,
+        "mode": "present",
+        "match": {
+          "kind": "line_spoken",
+          "textIncludes": "refill"
+        }
+      },
+      {
+        "id": "clarifies_or_offers_help_turn_3",
+        "turn": 3,
+        "mode": "any",
+        "matches": [
+          {
+            "kind": "line_spoken",
+            "textIncludes": "say that"
+          },
+          {
+            "kind": "line_spoken",
+            "textIncludes": "say it"
+          },
+          {
+            "kind": "line_spoken",
+            "textIncludes": "catch"
+          },
+          {
+            "kind": "line_spoken",
+            "textIncludes": "repeat"
+          },
+          {
+            "kind": "line_spoken",
+            "textIncludes": "rephrase"
+          },
+          {
+            "kind": "line_spoken",
+            "textIncludes": "could you explain"
+          },
+          {
+            "kind": "line_spoken",
+            "textIncludes": "tell me"
+          },
+          {
+            "kind": "line_spoken",
+            "textIncludes": "what do you mean"
+          },
+          {
+            "kind": "line_spoken",
+            "textIncludes": "what can i help"
+          },
+          {
+            "kind": "line_spoken",
+            "textIncludes": "what do you need help"
+          },
+          {
+            "kind": "line_spoken",
+            "textIncludes": "what brings you"
+          },
+          {
+            "kind": "line_spoken",
+            "textIncludes": "calling about"
+          },
+          {
+            "kind": "line_spoken",
+            "textIncludes": "refill"
+          },
+          {
+            "kind": "line_spoken",
+            "textIncludes": "appointment"
+          },
+          {
+            "kind": "line_spoken",
+            "textIncludes": "prescription"
+          }
+        ]
+      },
+      {
+        "id": "clarifies_or_offers_help_turn_4",
+        "turn": 4,
+        "mode": "any",
+        "matches": [
+          {
+            "kind": "line_spoken",
+            "textIncludes": "say that"
+          },
+          {
+            "kind": "line_spoken",
+            "textIncludes": "say it"
+          },
+          {
+            "kind": "line_spoken",
+            "textIncludes": "catch"
+          },
+          {
+            "kind": "line_spoken",
+            "textIncludes": "repeat"
+          },
+          {
+            "kind": "line_spoken",
+            "textIncludes": "rephrase"
+          },
+          {
+            "kind": "line_spoken",
+            "textIncludes": "could you explain"
+          },
+          {
+            "kind": "line_spoken",
+            "textIncludes": "tell me"
+          },
+          {
+            "kind": "line_spoken",
+            "textIncludes": "what do you mean"
+          },
+          {
+            "kind": "line_spoken",
+            "textIncludes": "what can i help"
+          },
+          {
+            "kind": "line_spoken",
+            "textIncludes": "what do you need help"
+          },
+          {
+            "kind": "line_spoken",
+            "textIncludes": "what brings you"
+          },
+          {
+            "kind": "line_spoken",
+            "textIncludes": "calling about"
+          },
+          {
+            "kind": "line_spoken",
+            "textIncludes": "refill"
+          },
+          {
+            "kind": "line_spoken",
+            "textIncludes": "appointment"
+          },
+          {
+            "kind": "line_spoken",
+            "textIncludes": "prescription"
+          }
+        ]
+      }
+    ],
+    "judge": [
+      "Did the clarification help the caller recover when the phrase was repeated?"
+    ]
+  }
+}

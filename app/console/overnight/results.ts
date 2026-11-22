@@ -1,5 +1,6 @@
 import { readdir, readFile, stat } from "node:fs/promises";
 import { basename, join } from "node:path";
+import type { ReplayEntry } from "@/lib/voice/replay";
 import { INVARIANTS } from "@/scripts/hammer/invariants";
 
 // What the Overnight safety tab shows, read only from files real runs saved under
@@ -23,7 +24,7 @@ export type Source<T> =
 
 export type Fix = { status: string; trail?: string };
 export type Gap = { source: "overnight" | "suite" | "hijack" | "hammer"; scenario: string; detail: string; fix: Fix };
-export type Replay = { source: "hijack" | "hammer"; title: string; steps: string[]; path: string; command: string };
+export type Replay = { source: "hijack" | "hammer"; title: string; steps: string[]; call?: { entries: ReplayEntry[]; verdict: string }; path: string; command: string };
 
 type HammerFailure = { sequence: string[]; broken: { rule: string; detail: string }[] };
 export type HammerView = {
@@ -45,7 +46,7 @@ export type SuiteView = {
   broken: number;
   failed: { id: string; group: string }[];
 };
-type HijackCardRun = { cardId: string; callId: string; passed: boolean; failedChecks: string[]; caught: number; broken: number; path: string; steps: string[] };
+type HijackCardRun = { cardId: string; callId: string; passed: boolean; failedChecks: string[]; caught: number; broken: number; path: string; steps: string[]; entries: ReplayEntry[] };
 export type HijackView = { batches: number; cards: number; caught: number; broken: number; runs: HijackCardRun[] };
 export type NightView = { calls: number; caught: number; broken: number; gaps: Gap[] };
 
@@ -208,6 +209,9 @@ async function readHijack(root: string): Promise<Source<HijackView>> {
           broken: num(score.broken),
           path,
           steps: arr(run.record).map(describeEntry),
+          entries: arr(run.record).map(obj).map((e) => ({
+            seq: num(e.seq), kind: str(e.kind), text: str(obj(e.input).text), replacement: str(obj(e.output).replacement),
+          })),
         };
       }),
     );
@@ -287,7 +291,7 @@ export async function readOvernight(dir: string = resultsDir()): Promise<Overnig
   let replay: Replay | null = null;
   const card = brokenCards[0];
   if (card) {
-    replay = { source: "hijack", title: `Hijack card ${card.cardId} (${card.callId})`, steps: card.steps, path: card.path, command: COMMANDS.hijack };
+    replay = { source: "hijack", title: `Hijack card ${card.cardId} (${card.callId})`, steps: card.steps, call: { entries: card.entries, verdict: `Failed · ${card.caught} caught · ${card.broken} rules broken` }, path: card.path, command: COMMANDS.hijack };
   } else if (hammer.state === "ok" && hammerFailures[0]) {
     replay = { source: "hammer", title: `Hammer sequence breaking: ${hammerFailures[0].broken.map((b) => b.rule).join(", ")}`, steps: hammerFailures[0].sequence, path: hammer.path, command: COMMANDS.hammer };
   }
