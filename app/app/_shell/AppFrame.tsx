@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { Logo, cn } from "@/components/ui";
 import { Icon } from "./Icon";
-import { AREAS, OVERVIEW, areaFor, type NavItem } from "./nav";
+import { AREAS, OVERVIEW, areaFor, isActivePath, type NavItem } from "./nav";
 
 function NavLink({ item, active }: { item: NavItem; active: boolean }) {
   return (
@@ -31,7 +31,7 @@ function NavLink({ item, active }: { item: NavItem; active: boolean }) {
 export function AppFrame({ account, children }: { account: ReactNode; children: ReactNode }) {
   const pathname = usePathname() ?? "/app";
   const area = areaFor(pathname);
-  const isActive = (href: string) => (href === "/app" ? pathname === "/app" : pathname === href || pathname.startsWith(`${href}/`));
+  const isActive = (href: string) => isActivePath(pathname, href);
 
   return (
     <div className={cn("min-h-screen bg-canvas text-ink lg:flex", area?.key === "safety" && "theme-dark theme-safety")}>

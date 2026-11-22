@@ -25,8 +25,9 @@ export const AREAS: Area[] = [
     key: "safety",
     label: "Safety suite",
     short: "Safety",
-    home: "/app/safety/gate",
+    home: "/app/safety",
     items: [
+      { href: "/app/safety", label: "Overview", icon: "badge", hint: "Rules broken and the latest runs" },
       { href: "/app/safety/gate", label: "Live gate", icon: "gate", hint: "Every press and sentence, live" },
       { href: "/app/safety/attacks", label: "Attacks", icon: "attack", hint: "Swap in a compromised AI" },
       { href: "/app/safety/scenarios", label: "Scenarios", icon: "flask", hint: "The scripted test calls" },
@@ -35,6 +36,13 @@ export const AREAS: Area[] = [
     ],
   },
 ];
+
+/** Exact match for the overview and each area's home ("/app/safety" is the suite overview,
+ * not every safety page); prefix match for the rest. */
+export function isActivePath(pathname: string, href: string): boolean {
+  const exact = href === OVERVIEW.href || AREAS.some((a) => a.home === href);
+  return exact ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
+}
 
 export function areaFor(pathname: string): Area | undefined {
   return AREAS.find((a) => pathname.startsWith(`/app/${a.key}`));
