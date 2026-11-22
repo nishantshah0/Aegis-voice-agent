@@ -9,14 +9,14 @@ describe("the code the caller read back", () => {
     ["745525.", "745525"],
     ["It's 7 4 5 5 2 5", "745525"],
     ["seven four five five two five", "745525"],
-    ["the code is 745-525 and I was born in 2007", "745525"],
+    ["the code is 745-525 and I was born in 1990", "745525"],
     ["oh one two three four five", "012345"],
   ])("%s → %s", (said, code) => {
     expect(spokenCode(said)?.code).toBe(code);
   });
 
   it("finds nothing when there aren't six digits together", () => {
-    expect(spokenCode("August 16th, 2007")).toBeUndefined();
+    expect(spokenCode("March 14th, 1990")).toBeUndefined();
     expect(spokenCode("I don't have a code")).toBeUndefined();
   });
 
