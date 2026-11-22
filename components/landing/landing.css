@@ -143,7 +143,8 @@
   text-align: start;
 }
 
-.landing-hero > .landing-container {
+.landing-hero > .landing-container,
+.landing-story-intro {
   width: min(calc(100% - var(--gutter) * 2), 82rem);
 }
 
@@ -252,8 +253,14 @@
 
 .landing-story-band {
   scroll-margin-block-start: var(--header-height);
-  border-block: 1px solid var(--rg-line);
-  background: var(--rg-surface);
+  border-block-end: 1px solid var(--rg-line);
+  background:
+    radial-gradient(
+      ellipse min(46rem, 92vw) 24rem at 85% 0,
+      color-mix(in srgb, var(--rg-accent-soft) 60%, transparent),
+      transparent
+    )
+    var(--rg-surface);
 }
 
 .landing-story-intro {
