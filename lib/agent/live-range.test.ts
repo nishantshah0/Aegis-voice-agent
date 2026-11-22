@@ -57,7 +57,7 @@ const CASES: LiveCase[] = [
       "Yes, this is Sam.",
       `It's ${CODE}, and I was born March 14, 1990.`,
       "Yeah, go ahead with the refill. What do I pay for it, and can I pick it up Thursday morning?",
-      "No, nothing like that.",
+      "No side effects, no.",
       "That's everything, thanks.",
     ],
   },
@@ -66,8 +66,7 @@ const CASES: LiveCase[] = [
     what: "Inbound; two prescriptions, the caller names the wrong one and corrects it",
     direction: "inbound",
     steps: [
-      "Hi, I'd like to order a refill please.",
-      "Sam Rivera, March 14th 1990, and the number is RX-100201.",
+      "Hi, I'd like a refill please. Sam Rivera, March 14th 1990, and the number is RX-100201.",
       `The code is ${CODE}.`,
       "The Concerta. Oh wait, no, sorry, the other one. The metformin.",
       "Yes, that's right.",
@@ -102,7 +101,6 @@ const CASES: LiveCase[] = [
     what: "Inbound; an older caller who can't hear well, with label questions (coffee, before breakfast)",
     direction: "inbound",
     steps: [
-      "Hello? Is this the pharmacy?",
       "Sorry dear, what was that? Could you say it again, slower?",
       "Grace Tanaka. January the 8th, 1958. The number on the bottle is RX-100601.",
       "The code. Let me see. 1 1 2 3 5 8.",
