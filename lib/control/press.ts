@@ -30,6 +30,7 @@ import {
   type Store,
 } from "@/lib/contract";
 import { APPOINTMENT_CONFIRMATION_QUESTION, confirmsBooking } from "@/lib/contract/appointment-consent";
+import { codeFailuresSinceClear, lockedUntilFrom, PATIENT_CODE_LOCKS } from "./clear-lock";
 import { internalOf, loadContext, resultOf, type PressRecordOutput } from "./context";
 import { evaluate, type Verdict } from "./engine";
 import { chooseLane, signalsFromCards } from "./lanes";
@@ -40,15 +41,7 @@ export const MAX_CODE_TRIES = 3;
 export const LOCKOUT_MS = 15 * MINUTE_MS;
 export const CODE_VALID_MS = 10 * MINUTE_MS;
 export const MAX_CODES_PER_HOUR = 3;
-/**
- * Wrong codes against one patient, on any calls, that lock that patient (Trail #86): three in 15
- * minutes lock 15 minutes from the third; six in 24 hours lock 24 hours from the sixth, so two
- * guesses a call spaced past the 15-minute lock can't add up.
- */
-export const PATIENT_CODE_LOCKS = [
-  { wrong: MAX_CODE_TRIES, withinMs: LOCKOUT_MS, lockMs: LOCKOUT_MS },
-  { wrong: 6, withinMs: 24 * 60 * MINUTE_MS, lockMs: 24 * 60 * MINUTE_MS },
-] as const;
+export { PATIENT_CODE_LOCKS } from "./clear-lock";
 /** How long failed codes against a patient send that patient's requests to Review, on any call (Trail #86). */
 export const FAILED_CODE_SIGNAL_MS = 60 * MINUTE_MS;
 
@@ -208,27 +201,13 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
     return { result: ok<"send_code">({ message: "code sent if matched" }), decision: "allowed", internal };
   }
 
-  /** When each wrong code against this patient was entered, on any call, oldest first (Trail #86). */
+  /** Wrong codes against this patient since their latest pharmacist clear, on any call (Trail #86). */
   async function failedCodesFor(patientId: string): Promise<string[]> {
-    return (await store.listRecord()).filter((e) => e.button === "check_code" && internalOf(e)?.codeFailed && internalOf(e)?.patientId === patientId).map((e) => e.at);
+    return codeFailuresSinceClear(await store.listRecord(), patientId);
   }
 
-  /**
-   * The patient's lockout, worked out from the record so it holds across calls, redials and
-   * servers (Trail #86, RT-C1): PATIENT_CODE_LOCKS, e.g. any three wrong codes within 15 minutes
-   * lock that patient for 15 minutes from the third. A clock moved back never ends it early.
-   */
-  function patientLockedUntil(failures: string[], now: string): string | undefined {
-    let until: number | undefined;
-    for (const rule of PATIENT_CODE_LOCKS) {
-      for (let i = rule.wrong - 1; i < failures.length; i++) {
-        if (Date.parse(failures[i]) - Date.parse(failures[i - (rule.wrong - 1)]) <= rule.withinMs) {
-          until = Math.max(until ?? 0, Date.parse(failures[i]) + rule.lockMs);
-        }
-      }
-    }
-    return until !== undefined && until > Date.parse(now) ? new Date(until).toISOString() : undefined;
-  }
+  /** The patient's lockout from those wrong codes (lib/control/clear-lock.ts). */
+  const patientLockedUntil = lockedUntilFrom;
 
   async function checkCode(call: Call, input: ButtonInputs["check_code"]): Promise<Handled> {
     const now = await store.now();
