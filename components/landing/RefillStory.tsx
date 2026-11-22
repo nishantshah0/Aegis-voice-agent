@@ -7,9 +7,9 @@ import { ScrollStory } from "./ScrollStory";
 const PHARMACY_NAME = "Maple Street Pharmacy";
 const REPORTED_CONCERN = "I’ve been sleeping badly.";
 
-function Scene({ label, children }: { label: string; children: ReactNode }) {
+function Scene({ label, children, product = false }: { label: string; children: ReactNode; product?: boolean }) {
   return (
-    <figure className="landing-scene">
+    <figure className={product ? "landing-scene landing-product-scene" : "landing-scene"}>
       <figcaption className="landing-scene-caption">{label}</figcaption>
       <div className="landing-scene-body">{children}</div>
     </figure>
@@ -54,11 +54,12 @@ function PatientPhone({ step }: { step: "ring" | "verify" | "refill" }) {
 
 function ReviewScene() {
   return (
-    <Scene label="Pharmacy workspace">
+    <Scene label="Pharmacy workspace" product>
       <div className="landing-preview">
         <div className="landing-preview-header">
           <Icon name="review" />
           <strong>Pharmacist review</strong>
+          <span className="landing-preview-section">Refill queue</span>
         </div>
         <div className="landing-preview-body">
           <span className="landing-review-badge">Needs review</span>
@@ -80,8 +81,8 @@ function ReviewScene() {
 function SpeechScene() {
   // Both lines are from the saved early_refill record in results/hijack/2026-11-22T00-35-27-654Z.
   return (
-    <Scene label="Saved safety test">
-      <div className="landing-preview">
+    <Scene label="Saved safety test" product>
+      <div className="landing-preview landing-transcript">
         <div className="landing-speech-row">
           <span className="landing-blocked">Blocked <span className="font-mono">· S4</span></span>
           <blockquote><s>It’s approved and on its way.</s></blockquote>
@@ -97,8 +98,8 @@ function SpeechScene() {
 
 function ControlScene() {
   return (
-    <Scene label="How the rules are enforced">
-      <div className="landing-preview">
+    <Scene label="How the rules are enforced" product>
+      <div className="landing-flow-preview">
         <div className="landing-paths">
           <ol aria-label="Action checks">
             <li>Proposed action</li>
