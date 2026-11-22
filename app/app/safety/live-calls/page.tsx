@@ -18,7 +18,7 @@ export default function LiveCallsPage() {
     <>
       <PageHeader
         title="Live calls"
-        description="An attacker AI rings the real pharmacy agent. Watch it turn by turn, hear both sides, and see the moment the lock catches it."
+        description="Synthetic test calls · simulated line. Watch an attacker AI test the real pharmacy agent turn by turn and inspect the saved evidence."
         actions={
           <div className="flex flex-wrap items-center gap-4">
             <AttackerPicker />
