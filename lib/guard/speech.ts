@@ -270,11 +270,10 @@ function lastCallerLine(record: RecordEntry[]): string {
 }
 
 // A bare agreement: every word is one of these ("Yes, that's fine.", "Right, that works.",
-// "Correct.", "Sure, go ahead."). A strong one agrees by itself; "Okay." only answers a question.
+// "Correct.", "Sure, go ahead.", "Okay."), and only as an answer to a question.
 const AGREE_WORDS = new Set(
   "yes yeah yep yup sure right correct exactly absolutely definitely of course indeed fine works work matches match true ok okay alright go ahead you can do that it is thats that s is safe totally sounds good great perfect thing will be".split(" "),
 );
-const STRONG_AGREEMENT = /\b(?:yes|yeah|yep|yup|sure|right|correct|exactly|absolutely|definitely|of course|go ahead|fine|works|matches|true|safe|you can|it is)\b/;
 const ASKS = /\?\s*$|\b(?:right|correct|isnt it|doesnt it|is it|wont it|can i|should i)\W*$/i;
 
 /** Whether the agent's line only agrees with the caller's last line. */
