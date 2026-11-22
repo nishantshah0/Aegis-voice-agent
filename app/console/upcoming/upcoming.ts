@@ -1,4 +1,5 @@
 import type { Call, CallId, Patient, Prescription, Store } from "@/lib/contract";
+import { patientCodeLock } from "@/lib/control";
 import { DUE_WITHIN_DAYS, daysLeft, outboundPreview, refillOnItsWay, refillPreview, type Preview } from "@/app/api/_lib/outbound";
 
 // 2.9a: what the pharmacist sees coming. Every prescription whose supply runs out within
@@ -22,6 +23,8 @@ export type UpcomingRow = {
   lastCall?: { callId: CallId; direction: Call["direction"]; state: Call["state"]; startedAt: string };
   /** "today", a YYYY-MM-DD date, "not opted in", or why the rules won't ring. */
   nextReminder: string;
+  /** Set while the patient's code lockout holds (lib/control's patientCodeLock, Trail #86). */
+  lockedUntil?: string;
 };
 
 export type Upcoming = { today: string; rows: UpcomingRow[]; days: { date: string; count: number }[] };
@@ -58,6 +61,11 @@ export async function upcoming(store: Store): Promise<Upcoming> {
   const today = now.slice(0, 10);
   const calls = await lastCalls(store);
   const rows: UpcomingRow[] = [];
+  const locks = new Map<string, string | undefined>();
+  const lockOf = async (patientId: string) => {
+    if (!locks.has(patientId)) locks.set(patientId, (await patientCodeLock(store, patientId)).lockedUntil);
+    return locks.get(patientId);
+  };
 
   for (const patient of await store.listPatients()) {
     for (const rx of await store.getPrescriptions(patient.id)) {
@@ -76,6 +84,7 @@ export async function upcoming(store: Store): Promise<Upcoming> {
         preview,
         lastCall: calls.get(patient.id),
         nextReminder: await nextReminder(store, patient, rx, preview, left, runOut),
+        ...(await lockOf(patient.id).then((until) => (until ? { lockedUntil: until } : {}))),
       });
     }
   }
