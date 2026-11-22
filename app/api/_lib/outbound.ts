@@ -29,6 +29,12 @@ export async function refillPreview(store: Store, patient: Patient, rx: Prescrip
   return { kind: "lane", lane: chooseLane(verdict, signals), ruleIds: verdict.matched.map((m) => m.id), signals };
 }
 
+/** Rule 7's verdict on ringing this patient now (opt-in, hours, one call per 3 days), from the rule cards. Never writes. */
+export async function outboundPreview(store: Store, patient: Patient, rx: Prescription): Promise<{ allowed: boolean; ruleIds: RuleId[] }> {
+  const verdict = evaluate(await store.listCards(), "outbound_check", await loadContext(store, patient, rx));
+  return { allowed: verdict.outcome === "allowed" || verdict.outcome === "flag", ruleIds: verdict.deciding };
+}
+
 /**
  * The daily check's test (SPEC "The call, outbound", step 1): why not to ring about this
  * prescription today, as rule ids, or null if it's due and its refill would pass. Reads

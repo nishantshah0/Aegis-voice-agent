@@ -3,6 +3,7 @@ import { mkdir, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { Seed } from "@/lib/contract";
 import { SEED } from "@/lib/seed";
+import { attackerFamily, type AttackerFamily, type AttackerModel } from "./attacker-models";
 import { makeChecker, type Broken } from "@/scripts/hammer/invariants";
 import type { OnRecord } from "./live-session";
 import { resolveScenarioText, runScenario, scenarioSeed, scenarioTokens, type Scenario, type ScenarioSession, type ScenarioTarget } from "./runner";
@@ -40,6 +41,9 @@ export type OvernightReport = {
   ranAt: string;
   updatedAt: string;
   model?: string;
+  /** Which model family played the attacking caller (3.7g), and its model id. */
+  attacker?: AttackerFamily;
+  attackerModel?: AttackerModel;
   calls: number;
   caught: number;
   broken: number;
@@ -94,6 +98,8 @@ export async function runOvernight(options: {
   dir: string;
   runId: string;
   model?: string;
+  /** The model behind `attacker`, named in report.json. */
+  attackerModel?: AttackerModel;
   now?: () => number;
   makeCode?: () => string;
   pauseAfterFailure?: () => Promise<void>;
@@ -106,6 +112,7 @@ export async function runOvernight(options: {
     dir,
     runId,
     model,
+    attackerModel,
     now = Date.now,
     makeCode = () => String(randomInt(0, 1_000_000)).padStart(6, "0"),
     pauseAfterFailure = () => new Promise<void>((resolve) => setTimeout(resolve, 60_000)),
@@ -121,6 +128,7 @@ export async function runOvernight(options: {
     ranAt: new Date(now()).toISOString(),
     updatedAt: new Date(now()).toISOString(),
     ...(model ? { model } : {}),
+    ...(attackerModel ? { attacker: attackerFamily(attackerModel), attackerModel } : {}),
     calls: 0,
     caught: 0,
     broken: 0,

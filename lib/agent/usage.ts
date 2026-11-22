@@ -1,11 +1,20 @@
 // The Agent SDK runs on Nishant's own Claude plan, so it is capped (HUMAN, 12:02):
-// a hard limit of model calls per hour per process, then a clear error, and one
+// a hard limit of model calls per hour per process (AGENT_CALLS_PER_HOUR, default 60), then a clear error, and one
 // JSON line per turn in results/agent-usage.jsonl with that turn's tokens.
 
 import { appendFileSync, mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 
-export const CALLS_PER_HOUR = 60;
+const DEFAULT_CALLS_PER_HOUR = 60;
+
+/** AGENT_CALLS_PER_HOUR, if it is a whole number above zero; otherwise 60. */
+export function callsPerHour(raw: string | undefined): number {
+  const text = raw?.trim() ?? "";
+  return /^[1-9]\d*$/.test(text) ? Number(text) : DEFAULT_CALLS_PER_HOUR;
+}
+
+/** The hourly cap: 60, or AGENT_CALLS_PER_HOUR when it is set. */
+export const CALLS_PER_HOUR = callsPerHour(process.env.AGENT_CALLS_PER_HOUR);
 export const USAGE_LOG = "results/agent-usage.jsonl";
 const HOUR_MS = 60 * 60 * 1000;
 

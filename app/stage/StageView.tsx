@@ -5,8 +5,9 @@ import type { StreamEvent } from "@/lib/contract";
 import { listenToEvents } from "@/lib/events/client";
 import { Logo, cn } from "@/components/ui";
 import { triedToSay } from "./attacks";
+import { QueuePanel, Transcript } from "./CallPanel";
 import { GATE_CSS, Gate, HijackControls } from "./HijackPanel";
-import { DECISION_WORDS, describePass, initialStage, latestHijack, stageReducer, stopped, type Pass, type StageState } from "./state";
+import { DECISION_WORDS, describePass, latestHijack, replayStage, stageReducer, stopped, type Pass, type StageState } from "./state";
 
 type Action = { event: StreamEvent; id: number };
 const reduce = (s: StageState, a: Action) => stageReducer(s, a.event, a.id);
@@ -74,8 +75,13 @@ function PassRow({ pass, fresh }: { pass: Pass; fresh: boolean }) {
  * The stage. On its own (/stage) it is the full-screen projector view. Inside the app,
  * `embedded` drops the page chrome and shows one part: the gate feed or the hijack.
  */
-export function StageView({ embedded }: { embedded?: "gate" | "attacks" } = {}) {
-  const [state, dispatch] = useReducer(reduce, undefined, initialStage);
+export function StageView({
+  embedded,
+  initial = [],
+  lastCallId = null,
+  signedIn = false,
+}: { embedded?: "gate" | "attacks"; initial?: StreamEvent[]; lastCallId?: string | null; signedIn?: boolean } = {}) {
+  const [state, dispatch] = useReducer(reduce, initial, (events) => replayStage(events, lastCallId));
   useEffect(() => listenToEvents((event, id) => dispatch({ event, id })), []);
 
   // Caught and Rules broken come only from a hijack batch's score events (Role 3), never
@@ -144,6 +150,15 @@ export function StageView({ embedded }: { embedded?: "gate" | "attacks" } = {}) 
         </p>
       )}
 
+      {embedded !== "attacks" && (
+        <section className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]" aria-label="The call">
+          <div aria-live="polite">
+            <Transcript call={state.call} signedIn={signedIn} />
+          </div>
+          <QueuePanel queue={state.queue} />
+        </section>
+      )}
+
       {embedded !== "gate" && (
         <section className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]" aria-label="The hijack">
           <HijackControls />
@@ -159,7 +174,7 @@ export function StageView({ embedded }: { embedded?: "gate" | "attacks" } = {}) 
             <h2 className="mb-4 text-xs font-medium uppercase tracking-[0.08em] text-ink-3">At the gate</h2>
             {state.passes.length === 0 ? (
               <div className="flex h-48 items-center justify-center rounded-card border border-dashed border-line-strong text-lg text-ink-3">
-                Waiting for the first press…
+                Waiting for the next call…
               </div>
             ) : (
               <ol className="space-y-2">
