@@ -1,11 +1,14 @@
+import { Suspense } from "react";
 import { PageHeader, buttonClass } from "@/components/ui";
+import { loadLatestCall } from "@/app/stage/latest";
 import { StageView } from "@/app/stage/StageView";
 import { SuiteGate } from "../SignedIn";
 
 export const metadata = { title: "Live gate · Safety suite · Aegis" };
 
-// The live gate: the stage view itself (app/stage), imported, not copied. Driven only by
-// /api/events, so every press and blocked line here is a real one.
+// The live gate: the stage view itself (app/stage), imported, not copied. It opens on the
+// latest call from the record (AUDIT #12), then follows /api/events, so every press and
+// blocked line here is a real one.
 export default function GatePage() {
   return (
     <SuiteGate>
@@ -19,8 +22,15 @@ export default function GatePage() {
         }
       />
       <div className="mt-8">
-        <StageView embedded="gate" />
+        <Suspense fallback={<StageView embedded="gate" />}>
+          <LatestGate />
+        </Suspense>
       </div>
     </SuiteGate>
   );
+}
+
+async function LatestGate() {
+  const { events, signedIn } = await loadLatestCall();
+  return <StageView embedded="gate" initial={events} signedIn={signedIn} />;
 }
