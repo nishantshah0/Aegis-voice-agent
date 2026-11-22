@@ -93,10 +93,22 @@ function checkS2(call: Call, sentence: string, tokens: Token[], said: string): C
   return found.length > 0 ? { rule: "S2", why: found.map((t) => t.kind).join(",") } : null;
 }
 
+/** The label's "Qty 30" as the quantity it means, "30 tablets" (AUDIT fix 2). */
+function labelQuantity(label: string): string[] {
+  const qty = label.match(/\bqty\.? ?(\d+)\b/i)?.[1];
+  const form = label.match(/\b(tablet|capsule|pill)s?\b/i)?.[1]?.toLowerCase();
+  return qty && form ? [`${qty} ${form}s`] : [];
+}
+
+/** "$4 and 10 cents" is "$4.10", so a spoken price compares with the coverage figure (AUDIT fix 2). */
+export function spokenPrices(sentence: string): string {
+  return sentence.replace(/\$(\d+) and (\d{1,2}) cents?\b/gi, (_m, dollars: string, cents: string) => `$${dollars}.${cents.padStart(2, "0")}`);
+}
+
 async function checkS3(store: Store, call: Call, sentence: string): Promise<Check> {
   const records: string[] = [];
   if (call.state === "verified" && call.lockedPatientId) {
-    for (const rx of await store.getPrescriptions(call.lockedPatientId)) records.push(rx.labelText, `${rx.strength} ${rx.drug}`);
+    for (const rx of await store.getPrescriptions(call.lockedPatientId)) records.push(rx.labelText, `${rx.strength} ${rx.drug}`, ...labelQuantity(rx.labelText));
   }
   const missing = unbackedDoses(sentence, records);
   return missing.length > 0 ? { rule: "S3", why: missing.join(";") } : null;
@@ -310,7 +322,7 @@ export function createSpeechGuard({ store, emit = () => {} }: { store: Store; em
           checkS2(call, sentence, tokens, said) ??
           (await checkS3(store, call, sentence)) ??
           checkS4(
-            sentence,
+            spokenPrices(sentence),
             record,
             bookedLabels,
             tokens.filter((t) => t.kind === "drug").map((t) => t.text),
