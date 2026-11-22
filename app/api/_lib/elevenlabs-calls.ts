@@ -55,3 +55,36 @@ export async function conversationStatus(conversationId: string, env: NodeJS.Pro
     return undefined;
   }
 }
+
+export type RegisteredCall = { ok: true; twiml: string } | { ok: false; status: number };
+
+/**
+ * Register a call Twilio placed for us (a trial's shared number can't be imported into
+ * ElevenLabs). ElevenLabs answers with the TwiML that streams the call to the agent. Same init
+ * data as the imported-number route: our call id for the custom LLM, and the guarded opener.
+ */
+export async function registerTwilioCall(callId: string, firstMessage: string, from: string, to: string, env: NodeJS.ProcessEnv = process.env): Promise<RegisteredCall> {
+  try {
+    const res = await fetch(`${API}/v1/convai/twilio/register-call`, {
+      method: "POST",
+      headers: { "xi-api-key": env.ELEVENLABS_API_KEY!, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        agent_id: env.ELEVENLABS_AGENT_ID,
+        from_number: from,
+        to_number: to,
+        direction: "outbound",
+        conversation_initiation_client_data: {
+          custom_llm_extra_body: { aegis_call_id: callId },
+          conversation_config_override: { agent: { first_message: firstMessage } },
+        },
+      }),
+    });
+    if (!res.ok) return { ok: false, status: res.status };
+    const text = (await res.text()).trim();
+    // Their reference shows the TwiML as a JSON string; the guide shows raw XML. Take either.
+    const twiml = text.startsWith('"') ? (JSON.parse(text) as string) : text;
+    return twiml.includes("<Response") ? { ok: true, twiml } : { ok: false, status: 502 };
+  } catch {
+    return { ok: false, status: 502 };
+  }
+}

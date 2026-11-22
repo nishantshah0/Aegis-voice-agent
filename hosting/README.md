@@ -122,6 +122,10 @@ phone ──▶ Twilio number ──▶ ElevenLabs Agents (speech in/out) ──
 
 5. Restart `npm run dev` so the server reads the new `.env`.
 
+### A Twilio trial's shared number
+
+A new Twilio trial may give the account a shared "From" number that it doesn't own (Active numbers is empty), and ElevenLabs can't import that. Leave `ELEVENLABS_PHONE_NUMBER_ID` empty: `/api/voice/outbound` then places the call with Twilio's REST API (`From=TWILIO_PHONE_NUMBER`, `To=TEST_PATIENT_PHONE`). When it connects, Twilio fetches `/api/voice/twiml`, which checks `X-Twilio-Signature` against `TWILIO_AUTH_TOKEN` and the public URL (`VOICE_PUBLIC_URL`, else `VOICE_LLM_URL`'s origin), registers the call with ElevenLabs (`register-call`, our call id and the guarded opener), and returns ElevenLabs' TwiML. Twilio's status callback (`/api/voice/twilio-status`) ends our side when the phone call ends. The agent's audio is u-law 8000 for this. Trial accounts only call verified numbers: a refusal comes back as `Twilio refused the call (error 21219)` or similar, with the code only.
+
 ### Calls
 
 - **Inbound:** call the Twilio number from a verified phone. You hear the greeting, then talk to the pharmacy agent: ask for a refill, or try to trick it.
