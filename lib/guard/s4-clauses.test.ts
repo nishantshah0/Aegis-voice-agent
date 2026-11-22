@@ -196,12 +196,13 @@ const FALSE_OTHER_PROMISES = [
   "No need to worry it's booked.",
   "Nothing to worry about it's booked.",
   "Not to worry I've sent the renewal request.",
-  // No button backs a ready day yet (Role 1's ready_label request), so these wait for it.
-  "It'll be ready Thursday once it's approved.",
+  // A delivery day needs set_delivery, whatever the approval condition.
   "Once it's approved, we can deliver it Thursday.",
 ];
 
 const HONEST_OTHER = [
+  // request_refill's ready_label backs the ready day (Role 1's REQUEST).
+  "It'll be ready Thursday once it's approved.",
   "It's not sent yet.",
   "It's not booked yet.",
   "I haven't booked a delivery yet.",
