@@ -11,8 +11,8 @@ Legend: ✅ works · ⚠️ works with a fallback · ❌ broken (owner fixing it
 | Step | Page |
 |---|---|
 | Sign in | `/` → Sign in → `/app` (the proxy sends signed-out requests to Auth0) |
-| Reset demo, pair Sam's phone, Run daily check | `/app/pharmacy/today` |
-| Sam answers | `/phone` (or **Open patient phone ↗** on Today) |
+| Reset demo, pair Sam's phone, Run daily check | **Demo** menu, top right of any `/app` page (Trail #72) |
+| Sam answers | `/phone` (or **Demo → Open patient phone**) |
 | Review and Approve, with a note | `/app/pharmacy/today` (keys: J/K move, N note, A approve, D decline) |
 | Hijack card and Run batch | `/app/safety/attacks` |
 | Live presses and replacements during the call | `/app/safety/gate` |
@@ -151,9 +151,9 @@ Landed since pass 1: Trail #32 (lock fails closed, codes off by default) on main
 ## Set-up order (as main works today)
 
 1. Start the server with `DEMO_CONTROLS=on` only on the demo laptop (`LIVE_AGENT=1 AGENT_SDK_MODEL=claude-haiku-5-5` for the live agent).
-2. `/app/pharmacy/today`: sign in, **Reset demo**, then **Pair a patient's phone** (Sam) and open the link on the phone within 10 minutes.
+2. `/app/pharmacy/today`: sign in, then in the **Demo** menu (top right): **Reset demo**, then **Pair the patient phone** (Sam) and open the link on the phone within 10 minutes.
 3. Phone: `/phone` on the paired phone. Big screen: `/app/safety/gate` (live presses) or `/app/safety/attacks` for step 3.
-4. `/app/pharmacy/today`: **Run daily check**. Sam's phone rings.
+4. `/app/pharmacy/today`: **Demo → Run daily check**. Sam's phone rings.
 
 ## Fallbacks in use
 
