@@ -7,7 +7,7 @@ import { generatePopulation, type Population } from "@/lib/seed/population";
 import { runSim } from "./run";
 import type { ForecastRow, SimDay, SimOptions, SimRun, SimSummary } from "./types";
 
-export const simDir = () => join(process.env.RESULTS_DIR ?? join(process.cwd(), "results"), "sim");
+export const simDir = () => join(process.env.RESULTS_DIR ?? join(/* turbopackIgnore: true */ process.cwd(), "results"), "sim");
 
 const RUN_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,80}$/;
 export const isRunId = (id: string) => RUN_ID.test(id);
@@ -25,8 +25,8 @@ export async function runAndSave(options: Partial<SimOptions> & { runId: string 
   const population = generatePopulation({ seed: options.populationSeed, size: options.populationSize });
   const run = await runSim(options, population);
   const path = join(dir, options.runId);
-  await mkdir(path, { recursive: true });
-  const write = (name: string, data: unknown) => writeFile(join(path, name), `${JSON.stringify(data)}\n`);
+  await mkdir(/* turbopackIgnore: true */ path, { recursive: true });
+  const write = (name: string, data: unknown) => writeFile(/* turbopackIgnore: true */ join(path, name), `${JSON.stringify(data)}\n`);
   await write("population.json", population);
   await write("days.json", run.days);
   await write("forecast.json", run.forecast);
@@ -38,14 +38,14 @@ export async function runAndSave(options: Partial<SimOptions> & { runId: string 
 export async function listRuns(dir = simDir()): Promise<SimSummary[]> {
   let names: string[];
   try {
-    names = await readdir(dir);
+    names = await readdir(/* turbopackIgnore: true */ dir);
   } catch {
     return [];
   }
   const out: SimSummary[] = [];
   for (const name of names.filter(isRunId)) {
     try {
-      const summary = JSON.parse(await readFile(join(dir, name, "summary.json"), "utf8")) as SimSummary;
+      const summary = JSON.parse(await readFile(/* turbopackIgnore: true */ join(dir, name, "summary.json"), "utf8")) as SimSummary;
       if (summary.simulated === true) out.push({ ...summary, runId: name });
     } catch {
       // Not a run folder.
@@ -58,7 +58,7 @@ export async function listRuns(dir = simDir()): Promise<SimSummary[]> {
 export async function readRun(runId: string, dir = simDir()): Promise<SavedRun | null> {
   if (!isRunId(runId)) return null;
   try {
-    const read = async <T>(name: string) => JSON.parse(await readFile(join(dir, runId, name), "utf8")) as T;
+    const read = async <T>(name: string) => JSON.parse(await readFile(/* turbopackIgnore: true */ join(dir, runId, name), "utf8")) as T;
     const [summary, days, forecast, population] = await Promise.all([read<SimSummary>("summary.json"), read<SimDay[]>("days.json"), read<ForecastRow[]>("forecast.json"), read<Population>("population.json")]);
     if (summary.simulated !== true || population.simulated !== true) return null;
     return { summary: { ...summary, runId }, days, forecast, population };
