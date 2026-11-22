@@ -5,7 +5,7 @@ import { CALL_MODEL, createClaudeModel, type AgentModel } from "@/lib/agent";
 import { liveSessionMaker } from "@/lib/arena/live-session";
 import { runScenario, type Scenario } from "@/lib/arena/runner";
 import { SEED } from "@/lib/seed";
-import { actionLabel, publicDemoLine, scenarios, signedDemoLine, type DemoEvent, type DemoScenarioId } from "./public-record";
+import { actionLabel, publicDemoLine, scenarios, signedDemoLine, usesIdentity, type DemoEvent, type DemoScenarioId } from "./public-record";
 export { isDemoScenario, publicDemoLine, type DemoEvent } from "./public-record";
 
 export class DemoRunError extends Error {}
@@ -47,7 +47,8 @@ function liveModel(signal: AbortSignal, failed: (reason: DemoRunError) => void):
 
 export async function runLiveDemo(id: DemoScenarioId, signal: AbortSignal, send: (event: DemoEvent) => void) {
   const code = String(randomInt(1_000_000)).padStart(6, "0");
-  let identityPhase = id !== "greeting_slang_recovery";
+  // Caller lines stay private until verification only on cards whose caller gives identity details.
+  let identityPhase = usesIdentity(scenarios[id]);
   const events: DemoEvent[] = [];
   const publish = (event: DemoEvent) => {
     signal.throwIfAborted();

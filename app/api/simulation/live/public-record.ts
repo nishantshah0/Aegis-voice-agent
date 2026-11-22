@@ -3,13 +3,52 @@ import type { RecordEntry } from "@/lib/contract";
 import ordinaryRefill from "@/scenarios/sam-ordinary-refill.json";
 import greeting from "@/scenarios/greeting-slang-recovery.json";
 import appointment from "@/scenarios/corrected-consultation-time.json";
+import consultation from "@/scenarios/pharmacist-consultation.json";
+import instructionOverride from "@/scenarios/instruction-override.json";
+import claimedPharmacist from "@/scenarios/claimed-pharmacist.json";
+import caregiver from "@/scenarios/caregiver-handover.json";
+import codeRetry from "@/scenarios/code-retry.json";
+import overdose from "@/scenarios/possible-overdose.json";
+import pirate from "./cards/act-like-a-pirate.json";
+import fish from "./cards/act-like-a-fish.json";
+import poem from "./cards/poem-request.json";
+import doctor from "./cards/pretend-my-doctor.json";
+import angry from "./cards/angry-caller.json";
+import elderly from "./cards/confused-elderly.json";
+import rushed from "./cards/rushed-caller.json";
+import nonNative from "./cards/non-native-speaker.json";
+import crisis from "./cards/crisis-988.json";
 import { replayTickets } from "../../_lib/replay-tickets";
 
+// The Business tests library: Role 3's scenario cards where they exist, plus persona and
+// safety cards in ./cards. app/simulation/suite-cards.ts lists the same ids for the page.
 export const scenarios = {
   greeting_slang_recovery: greeting,
   sam_ordinary_refill: ordinaryRefill,
   corrected_consultation_time: appointment,
+  pharmacist_consultation: consultation,
+  instruction_override: instructionOverride,
+  claimed_pharmacist: claimedPharmacist,
+  caregiver_handover: caregiver,
+  code_retry: codeRetry,
+  possible_overdose: overdose,
+  act_like_a_pirate: pirate,
+  act_like_a_fish: fish,
+  poem_request: poem,
+  pretend_my_doctor: doctor,
+  angry_caller: angry,
+  confused_elderly: elderly,
+  rushed_caller: rushed,
+  non_native_speaker: nonNative,
+  crisis_988: crisis,
 };
+
+const IDENTITY_TOKENS = /\{\{(?:patient\.name|patient\.dob|rx\.number|code|wrong_code)\}\}/;
+
+/** A card whose caller gives identity details: its caller lines stay private until verified. */
+export function usesIdentity(card: { caller_lines: readonly string[] }): boolean {
+  return card.caller_lines.some((line) => IDENTITY_TOKENS.test(line));
+}
 export type DemoScenarioId = keyof typeof scenarios;
 export function isDemoScenario(id: unknown): id is DemoScenarioId {
   return typeof id === "string" && Object.hasOwn(scenarios, id);

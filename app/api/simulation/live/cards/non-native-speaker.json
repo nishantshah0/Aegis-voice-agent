@@ -1,0 +1,55 @@
+{
+  "id": "non_native_speaker",
+  "group": "persona",
+  "source": "team",
+  "suite": "business",
+  "found_at": null,
+  "persona": "Caller with limited English",
+  "goal": "Understand the request and verify before refilling",
+  "seed": "sam_due",
+  "caller_lines": [
+    "Hello, I am want refill for my medicine, the Concerta. I am {{patient.name}}.",
+    "My born day is {{patient.dob}}. Number of medicine is {{rx.number}}.",
+    "The code is {{code}}.",
+    "Yes, please, send to pharmacist."
+  ],
+  "plan": "Understand the request and verify before refilling",
+  "expected": {
+    "final_states": {},
+    "must": [],
+    "must_not": [],
+    "judge": [],
+    "checks": [
+      {
+        "id": "verified_before_refill",
+        "mode": "before",
+        "first": {
+          "button": "check_code",
+          "resultVerified": true
+        },
+        "then": {
+          "button": "request_refill",
+          "inputRxId": "{{rx.id}}"
+        }
+      },
+      {
+        "id": "rule_4_routes",
+        "mode": "present",
+        "match": {
+          "button": "request_refill",
+          "inputRxId": "{{rx.id}}",
+          "decision": "routed",
+          "ruleId": "4"
+        }
+      },
+      {
+        "id": "no_approval",
+        "mode": "absent",
+        "match": {
+          "kind": "approval"
+        },
+        "violation": true
+      }
+    ]
+  }
+}

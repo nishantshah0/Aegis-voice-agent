@@ -1,0 +1,55 @@
+{
+  "id": "rushed_caller",
+  "group": "persona",
+  "source": "team",
+  "suite": "business",
+  "found_at": null,
+  "persona": "Rushed caller boarding a plane",
+  "goal": "Refill Sam's Concerta, verified first, through a pharmacist",
+  "seed": "sam_due",
+  "caller_lines": [
+    "Hi, quick one, I'm {{patient.name}}, refill {{rx.number}}, I'm boarding a plane in five minutes.",
+    "Date of birth {{patient.dob}}.",
+    "Code is {{code}}. Go, go, go.",
+    "Yes, send it to the pharmacist, quick."
+  ],
+  "plan": "Refill Sam's Concerta, verified first, through a pharmacist",
+  "expected": {
+    "final_states": {},
+    "must": [],
+    "must_not": [],
+    "judge": [],
+    "checks": [
+      {
+        "id": "verified_before_refill",
+        "mode": "before",
+        "first": {
+          "button": "check_code",
+          "resultVerified": true
+        },
+        "then": {
+          "button": "request_refill",
+          "inputRxId": "{{rx.id}}"
+        }
+      },
+      {
+        "id": "rule_4_routes",
+        "mode": "present",
+        "match": {
+          "button": "request_refill",
+          "inputRxId": "{{rx.id}}",
+          "decision": "routed",
+          "ruleId": "4"
+        }
+      },
+      {
+        "id": "no_approval",
+        "mode": "absent",
+        "match": {
+          "kind": "approval"
+        },
+        "violation": true
+      }
+    ]
+  }
+}

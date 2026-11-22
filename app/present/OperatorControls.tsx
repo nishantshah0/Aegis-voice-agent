@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Badge, Button, chipClass } from "@/components/ui";
 import { CallPlayback } from "../simulation/call-playback";
 import { clipsFor, clipsFromEvents } from "../simulation/live-clips";
+import { SUITE_CARDS, SUITE_CATEGORIES, type SuiteCategory } from "../simulation/suite-cards";
 import { readTestEvents, requestTest, type TestEvent } from "../simulation/live-events";
 import { AssistantLine, type Assistant, type DemoPatient } from "./assistant";
 
@@ -111,23 +112,17 @@ export function PhoneControl() {
   </section>;
 }
 
-const scenarios = [
-  { id: "greeting_slang_recovery", name: "Greetings and slang" },
-  { id: "sam_ordinary_refill", name: "Ordinary refill" },
-  { id: "corrected_consultation_time", name: "Corrected appointment time" },
-];
-
-type ScenarioState = {
-  phase: "Ready" | "Queued" | "Running" | "Passed" | "Failed" | "Interrupted";
-  events: TestEvent[];
-};
-const phaseTone = (phase: ScenarioState["phase"]): "neutral" | "quick" | "accent" | "stop" => {
+type Phase = "Ready" | "Queued" | "Running" | "Passed" | "Failed" | "Interrupted" | "Waiting";
+type ScenarioState = { phase: Phase; events: TestEvent[] };
+const phaseTone = (phase: Phase): "neutral" | "quick" | "accent" | "stop" => {
   if (phase === "Passed") return "accent";
   if (phase === "Failed" || phase === "Interrupted") return "stop";
   if (phase === "Queued" || phase === "Running") return "quick";
   return "neutral";
 };
-const makeRows = (phase: ScenarioState["phase"]): ScenarioState[] => scenarios.map(() => ({ phase, events: [] }));
+/** The first three cards were the original suite; they stay the default selection. */
+const DEFAULT_SELECTION = ["greeting_slang_recovery", "sam_ordinary_refill", "corrected_consultation_time"];
+const LIMIT = /past hour|already running/i;
 
 function EventLine({ event }: { event: TestEvent }) {
   if (event.type === "action") return <>Action · {event.label}</>;
@@ -154,9 +149,12 @@ function SuiteAudio({ player, live, setLive, muted, setMuted }: { player: CallPl
 }
 
 export function SuiteControl() {
-  const [rows, setRows] = useState<ScenarioState[]>(() => makeRows("Ready"));
+  const [selected, setSelected] = useState<Set<string>>(() => new Set(DEFAULT_SELECTION));
+  const [rows, setRows] = useState<Record<string, ScenarioState>>({});
+  const [order, setOrder] = useState<string[]>([]);
   const [running, setRunning] = useState(false);
   const [ended, setEnded] = useState(false);
+  const [notice, setNotice] = useState("");
   const [live, setLive] = useState(true);
   const [muted, setMutedState] = useState(false);
   const [player, setPlayer] = useState(() => new CallPlayback());
@@ -164,6 +162,12 @@ export function SuiteControl() {
   useEffect(() => () => request.current?.abort(), []);
   useEffect(() => () => player.dispose(), [player]);
   const setMuted = (on: boolean) => { setMutedState(on); player.mute(on); };
+  const toggle = (id: string) => setSelected(prev => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next; });
+  const setCategory = (category: SuiteCategory, on: boolean) => setSelected(prev => {
+    const next = new Set(prev);
+    for (const c of SUITE_CARDS) if (c.category === category) { if (on) next.add(c.id); else next.delete(c.id); }
+    return next;
+  });
 
   /** Replay one finished call with the same player. */
   function replay(events: TestEvent[]) {
@@ -175,35 +179,45 @@ export function SuiteControl() {
   }
 
   async function run() {
-    if (request.current) return;
+    if (request.current || selected.size === 0) return;
+    const ids = SUITE_CARDS.filter(c => selected.has(c.id)).map(c => c.id);
     const controller = new AbortController();
     request.current = controller;
-    setRows(makeRows("Queued"));
+    setOrder(ids);
+    setRows(Object.fromEntries(ids.map(id => [id, { phase: "Queued", events: [] }])));
     setRunning(true);
     setEnded(false);
+    setNotice("");
     player.stop();
     const playback = new CallPlayback();
     playback.mute(muted);
     setPlayer(playback);
     // The click is the user's gesture, so the browser allows sound from here on.
     if (live) playback.play();
+    const update = (id: string, phase: Phase, event?: TestEvent) =>
+      setRows(previous => ({ ...previous, [id]: { phase, events: event ? [...(previous[id]?.events ?? []), event] : previous[id]?.events ?? [] } }));
     try {
-      for (const [index, scenario] of scenarios.entries()) {
+      for (const [index, id] of ids.entries()) {
         if (controller.signal.aborted) break;
-        function update(phase: ScenarioState["phase"], event?: TestEvent) {
-          setRows(previous => previous.map((row, i) => index === i ? { phase, events: event ? [...row.events, event] : row.events } : row));
-        }
-        update("Running");
+        update(id, "Running");
         try {
-          const response = await requestTest("live", scenario.id, controller.signal);
+          const response = await requestTest("live", id, controller.signal);
           await readTestEvents(response, event => {
             if (controller.signal.aborted) return;
             for (const clip of clipsFor(event)) playback.append(clip);
             const phase = event.type === "verdict" ? (event.passed ? "Passed" : "Failed") : event.type === "error" ? "Interrupted" : "Running";
-            update(phase, event);
+            update(id, phase, event);
           });
         } catch (e) {
-          if (!controller.signal.aborted) update("Interrupted", { type: "error", message: describe(e) });
+          if (controller.signal.aborted) break;
+          const message = describe(e);
+          if (LIMIT.test(message)) {
+            // The server's live-call budget (6 an hour) is used up: the rest wait, they don't fail.
+            for (const rest of ids.slice(index)) update(rest, "Waiting");
+            setNotice(`${message} ${ids.length - index} test${ids.length - index === 1 ? "" : "s"} still to run: start them again when the hour frees up, or replay the saved calls.`);
+            break;
+          }
+          update(id, "Interrupted", { type: "error", message });
         }
       }
     } finally {
@@ -213,45 +227,61 @@ export function SuiteControl() {
     }
   }
 
+  const ran = order.map(id => rows[id]).filter((r): r is ScenarioState => Boolean(r));
+  const count = (phase: Phase) => ran.filter(r => r.phase === phase).length;
   return <section id="suite" className="presenter-card" aria-labelledby="suite-heading" aria-busy={running}>
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div>
         <h2 id="suite-heading">Scripted call suite</h2>
-        <p>Runs three synthetic patient calls in order through the pharmacy workflow.</p>
+        <p>Scripted callers (pirates, attackers, a crisis, ordinary refills) ring the real pharmacy agent through the real lock, one after another.</p>
       </div>
-      <Badge tone={running ? "quick" : ended ? (rows.some(row => row.phase === "Failed" || row.phase === "Interrupted") ? "stop" : "accent") : "neutral"} dot>
+      <Badge tone={running ? "quick" : ended ? (count("Failed") + count("Interrupted") ? "stop" : "accent") : "neutral"} dot>
         {running ? "Running" : ended ? "Finished" : "Ready"}
       </Badge>
     </div>
 
-    <div className="mt-4 rounded-card border border-line bg-sunken/40 p-4">
-      <p className="text-xs font-medium uppercase tracking-wide text-ink-3">Configured tests</p>
-      <ul className="mt-2 grid gap-2 text-sm sm:grid-cols-2">
-        {scenarios.map(({ id, name }) => <li key={id} className="flex flex-wrap items-baseline gap-x-2">
-          <span className="font-medium text-ink">{name}</span>
-          <code className="font-mono text-[11px] text-ink-3">{id}</code>
-        </li>)}
-      </ul>
-      <p className="mt-3 text-xs text-ink-3">Synthetic test data · three calls · results stream below and are not a saved release-gate run.</p>
+    <div className="mt-4 grid gap-3 rounded-card border border-line bg-sunken/40 p-4 sm:grid-cols-2">
+      {SUITE_CATEGORIES.map(category => {
+        const cards = SUITE_CARDS.filter(c => c.category === category.key);
+        const all = cards.every(c => selected.has(c.id));
+        return <fieldset key={category.key} disabled={running}>
+          <legend className="flex w-full items-center justify-between gap-2">
+            <span className="text-xs font-medium uppercase tracking-wide text-ink-3" title={category.hint}>{category.label}</span>
+            <button type="button" className="text-xs text-accent underline-offset-2 hover:underline" onClick={() => setCategory(category.key, !all)}>{all ? "Clear" : "Select all"}</button>
+          </legend>
+          <ul className="mt-2 grid gap-1 text-sm">
+            {cards.map(c => <li key={c.id}>
+              <label className="flex cursor-pointer items-center gap-2">
+                <input type="checkbox" checked={selected.has(c.id)} onChange={() => toggle(c.id)} className="accent-[var(--rg-accent)]" />
+                <span className="text-ink">{c.name}</span>
+              </label>
+            </li>)}
+          </ul>
+        </fieldset>;
+      })}
+      <p className="text-xs text-ink-3 sm:col-span-2">Synthetic patients only · {selected.size} selected · each is one live call, and this server runs up to 6 an hour. Results stream below and every call is saved for replay.</p>
     </div>
 
     <div className="mt-4 flex flex-wrap items-center gap-3">
-      <Button onClick={run} disabled={running} aria-busy={running}>
-        {running ? "Running suite…" : "Run scripted suite"}
+      <Button onClick={run} disabled={running || selected.size === 0} aria-busy={running}>
+        {running ? "Running suite…" : `Run ${selected.size} test${selected.size === 1 ? "" : "s"}`}
       </Button>
       <p className="text-sm text-ink-2" role="status" aria-live="polite">
-        {running ? "Each call runs in sequence; this control is disabled until the run finishes." : ended ? `Finished · ${rows.filter(r => r.phase === "Passed").length} passed · ${rows.filter(r => r.phase === "Failed").length} failed · ${rows.filter(r => r.phase === "Interrupted").length} interrupted` : "Ready to run the three configured calls."}
+        {running ? "Each call runs in sequence; this control is disabled until the run finishes." : ended ? `Finished · ${count("Passed")} passed · ${count("Failed")} failed · ${count("Interrupted")} interrupted${count("Waiting") ? ` · ${count("Waiting")} waiting for the hourly limit` : ""}` : "Pick tests, then run them."}
       </p>
     </div>
+    {notice && <p role="alert" className="presenter-error">{notice}</p>}
 
     <SuiteAudio player={player} live={live} setLive={setLive} muted={muted} setMuted={setMuted} />
 
     <h3 className="mt-6 text-sm font-semibold text-ink">Live results</h3>
-    <ol className="presenter-tests">{scenarios.map(({ id, name }, index) => {
-      const row = rows[index];
+    <ol className="presenter-tests">{order.map(id => {
+      const row = rows[id];
+      if (!row) return null;
+      const name = SUITE_CARDS.find(c => c.id === id)?.name ?? id;
       const last = row.events.at(-1);
       return <li key={id}>
-        <div className="presenter-test-name"><strong>{name}</strong><Badge tone={phaseTone(row.phase)}>{row.phase}</Badge>
+        <div className="presenter-test-name"><strong>{name}</strong><Badge tone={phaseTone(row.phase)}>{row.phase === "Waiting" ? "Waiting for budget" : row.phase}</Badge>
           {!running && row.events.some(e => e.type === "line") && <Button size="sm" variant="ghost" onClick={() => replay(row.events)}>Replay call</Button>}
         </div>
         {last && <p className="presenter-latest"><EventLine event={last} /></p>}

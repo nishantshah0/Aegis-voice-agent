@@ -4,8 +4,10 @@ import { fail, readObject } from "../../_lib/http";
 import { replaySpeech } from "../../_lib/replay-speech";
 import { verifiedReplayTicket } from "../../_lib/replay-tickets";
 import { simulationAccessRefused } from "../access";
+import { scenarios } from "../live/public-record";
 
-const publicScopes = new Set(["greeting_slang_recovery", "corrected_consultation_time", "sam_ordinary_refill"].map(scenario =>
+// Every Business test card can be voiced, and nothing else.
+const publicScopes = new Set(Object.keys(scenarios).map(scenario =>
   createHash("sha256").update("public-simulation/" + scenario).digest("hex"),
 ));
 
