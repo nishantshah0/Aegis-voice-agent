@@ -197,6 +197,7 @@ export interface Store {
 
   getPatient(id: PatientId): Promise<Patient | undefined>;
   listPatients(): Promise<Patient[]>;
+  listPrescriptions(): Promise<Prescription[]>;
   getPrescriptions(patientId: PatientId): Promise<Prescription[]>;
   getPrescription(rxId: RxId): Promise<Prescription | undefined>;
   listSlots(): Promise<DeliverySlot[]>;
@@ -214,6 +215,7 @@ export interface Store {
   addCard(card: RuleCard): Promise<RuleCard>;
   policy(): Promise<Seed["policy"]>;
 
+  getCalls(ids: readonly CallId[]): Promise<Call[]>;
   getCall(id: CallId): Promise<Call | undefined>;
   saveCall(call: Call): Promise<Call>;
 

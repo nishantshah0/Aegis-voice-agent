@@ -1,3 +1,4 @@
+import { cacheResult } from "../result-cache";
 import { execFile } from "node:child_process";
 import { readdir, readFile, stat } from "node:fs/promises";
 import { join } from "node:path";
@@ -66,7 +67,7 @@ function hammerTotals(file: unknown) {
 const run = promisify(execFile);
 
 /** Earlier hammer runs, from the file's history in git (only when results/ is the repo's own). */
-async function hammerHistory(dir: string): Promise<ReturnType<typeof hammerTotals>[]> {
+const hammerHistory = cacheResult(async function (dir: string): Promise<ReturnType<typeof hammerTotals>[]> {
   if (dir !== join(process.cwd(), "results")) return [];
   try {
     const { stdout } = await run("git", ["log", "-12", "--format=%H", "--", "results/hammer-latest.json"], { timeout: 3000 });
@@ -78,15 +79,14 @@ async function hammerHistory(dir: string): Promise<ReturnType<typeof hammerTotal
   } catch {
     return []; // No git here (a deployed copy): the latest run still shows.
   }
-}
+});
 
 async function readHammer(dir: string): Promise<Layer> {
   const path = join(dir, "hammer-latest.json");
   const file = await json(path);
   if (file === null) return empty("sequences per run");
   const latest = hammerTotals(file);
-  const past = (await hammerHistory(dir)).filter((h) => h.ranAt !== latest.ranAt);
-  const all = [...past, latest];
+  const all = [latest];
   return {
     runs: all.length,
     historyLabel: "sequences per run",
@@ -279,7 +279,7 @@ async function readLive(dir: string): Promise<Layer> {
 async function readCrossModel(dir: string): Promise<CrossModel | null> {
   const root = join(dir, "arena", "cross-model");
   const files = (await readdir(root).catch(() => [] as string[])).filter((f) => f.endsWith(".json"));
-  const dated = await Promise.all(files.map(async (f) => ({ f, at: batchTime(f, await mtime(join(root, f))) })));
+  const dated = await Promise.all(files.map(async (f) => ({ f, at: batchTime(f, 0) || await mtime(join(root, f)) })));
   const newest = dated.sort((a, b) => b.at - a.at)[0];
   if (!newest) return null;
   const file = obj(await json(join(root, newest.f)));
@@ -300,16 +300,28 @@ async function readCrossModel(dir: string): Promise<CrossModel | null> {
 
 // ---------- everything ----------
 
-export async function readEvals(dir: string = resultsDir()): Promise<Evals> {
-  const [hammer, hijack, scenarios, personas, overnight, live, crossModel] = await Promise.all([
+export async function readHammerChart(layer: Layer, dir = resultsDir()): Promise<Layer> {
+  const latest = layer.history[0];
+  if (!latest) return layer;
+  const past = (await hammerHistory(dir)).filter((h) => h.ranAt !== latest.at);
+  const history = [...past.map((h) => ({ at: h.ranAt, value: h.sequences })), latest];
+  return { ...layer, runs: history.length, history };
+}
+
+const readHistorical = cacheResult((dir) =>
+  Promise.all([
     readHammer(dir),
     readHijack(dir),
     readScenarios(dir),
     readPersonas(dir),
     readOvernight(dir),
-    readLive(dir),
     readCrossModel(dir),
-  ]);
+  ]),
+);
+
+export async function readEvals(dir: string = resultsDir()): Promise<Evals> {
+  const [[hammer, hijack, scenarios, personas, overnight, crossModel], live] =
+    await Promise.all([readHistorical(dir), readLive(dir)]);
   const layers = { hammer, hijack, scenarios, personas, overnight, live, phone: empty("calls") };
   const withRuns = Object.values(layers).filter((l) => l.latest !== null);
   return {

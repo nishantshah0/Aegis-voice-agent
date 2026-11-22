@@ -131,6 +131,9 @@ export function createFakeStore(seed: Seed = FAKE_SEED): Store {
     async listPatients() {
       return clone(data.patients);
     },
+    async listPrescriptions() {
+      return clone(data.prescriptions);
+    },
     async getPrescriptions(patientId) {
       return clone(data.prescriptions.filter((rx) => rx.patientId === patientId));
     },
@@ -166,6 +169,12 @@ export function createFakeStore(seed: Seed = FAKE_SEED): Store {
     },
     async policy() {
       return clone(data.policy);
+    },
+    async getCalls(ids) {
+      return clone([...new Set(ids)].flatMap((id) => {
+        const call = calls.get(id);
+        return call ? [call] : [];
+      }));
     },
     async getCall(id) {
       return clone(calls.get(id));

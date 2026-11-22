@@ -42,16 +42,15 @@ export async function listRuns(dir = simDir()): Promise<SimSummary[]> {
   } catch {
     return [];
   }
-  const out: SimSummary[] = [];
-  for (const name of names.filter(isRunId)) {
+  const summaries = await Promise.all(names.filter(isRunId).map(async (name): Promise<SimSummary | null> => {
     try {
       const summary = JSON.parse(await readFile(/* turbopackIgnore: true */ join(dir, name, "summary.json"), "utf8")) as SimSummary;
-      if (summary.simulated === true) out.push({ ...summary, runId: name });
+      return summary.simulated === true ? { ...summary, runId: name } : null;
     } catch {
-      // Not a run folder.
+      return null;
     }
-  }
-  return out.sort((a, b) => Date.parse(b.ranAt) - Date.parse(a.ranAt));
+  }));
+  return summaries.filter((summary) => summary !== null).sort((a, b) => Date.parse(b.ranAt) - Date.parse(a.ranAt));
 }
 
 /** One saved run, or null if it doesn't exist or isn't a simulation. */
@@ -62,6 +61,17 @@ export async function readRun(runId: string, dir = simDir()): Promise<SavedRun |
     const [summary, days, forecast, population] = await Promise.all([read<SimSummary>("summary.json"), read<SimDay[]>("days.json"), read<ForecastRow[]>("forecast.json"), read<Population>("population.json")]);
     if (summary.simulated !== true || population.simulated !== true) return null;
     return { summary: { ...summary, runId }, days, forecast, population };
+  } catch {
+    return null;
+  }
+}
+
+/** The saved day data used by the Home forecast. */
+export async function readRunDays(runId: string, dir = simDir()): Promise<SimDay[] | null> {
+  if (!isRunId(runId)) return null;
+  try {
+    const days: unknown = JSON.parse(await readFile(/* turbopackIgnore: true */ join(dir, runId, "days.json"), "utf8"));
+    return Array.isArray(days) ? days : null;
   } catch {
     return null;
   }
