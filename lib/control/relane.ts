@@ -22,12 +22,18 @@ export function signalOf(e: RecordEntry | RecordEntryInput): Signal | undefined 
 
 const RELANED_KINDS: ReadonlySet<QueueItem["kind"]> = new Set(["refill", "renewal", "delivery"]);
 
-/** Move the call's open requests to Review for this entry's signal. Returns the items it changed. */
+/**
+ * Move the call's open requests to Review for this entry's signal. Safety words on a verified
+ * call also move that patient's open requests from their other calls (Trail #86 review medium):
+ * a crisis is about the person, not the call. Returns the items it changed.
+ */
 export async function relaneForSignal(store: Store, entry: RecordEntry): Promise<QueueItem[]> {
   const signal = signalOf(entry);
   if (!signal || !entry.callId) return [];
+  const patientId = signal === "safety_words" ? (await store.getCall(entry.callId))?.lockedPatientId : undefined;
+  const mine = (q: QueueItem) => q.callId === entry.callId || (patientId !== undefined && q.patientId === patientId);
   const open = (await store.queue()).filter(
-    (q) => q.status === "open" && q.callId === entry.callId && RELANED_KINDS.has(q.kind) && (q.lane !== "review" || !q.signals.includes(signal)),
+    (q) => q.status === "open" && mine(q) && RELANED_KINDS.has(q.kind) && (q.lane !== "review" || !q.signals.includes(signal)),
   );
   if (open.length === 0) return [];
   const moved: QueueItem[] = [];
@@ -43,7 +49,13 @@ export async function relaneForSignal(store: Store, entry: RecordEntry): Promise
     callId: entry.callId,
     actor: "system",
     kind: "safety",
-    input: { check: "relane", signal, cause_seq: entry.seq, items: open.map((q) => ({ id: q.id, kind: q.kind, from: q.lane })) },
+    input: {
+      check: "relane",
+      signal,
+      cause_seq: entry.seq,
+      ...(patientId ? { patient_id: patientId } : {}),
+      items: open.map((q) => ({ id: q.id, kind: q.kind, from: q.lane, ...(q.callId !== entry.callId ? { call_id: q.callId } : {}) })),
+    },
     decision: "routed",
     lane: "review",
   });
