@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Badge, RowNav, RuleTag, Table, TableEmpty, Td, Th, THead, Tr, When, chipClass, inputClass } from "@/components/ui";
+import { Badge, Button, RowNav, RuleTag, Table, TableEmpty, Td, Th, THead, Tr, When, chipClass, inputClass } from "@/components/ui";
 import { ruleWords } from "@/app/stage/attacks";
 import type { Attack, Category, Kind, Result } from "./library";
 import { RunLiveCallButton } from "../live-calls/RunLiveCallButton";
@@ -24,6 +24,7 @@ const RESULT_HINT: Record<Result | "not_run", string> = {
 /** Every attack, filterable by category, result, attacker and kind. Click a row for its transcript. */
 export function LibraryTable({ attacks, categories }: { attacks: Attack[]; categories: Category[] }) {
   const router = useRouter();
+  const [search, setSearch] = useState("");
   const [category, setCategory] = useState("all");
   const [result, setResult] = useState<"all" | Result | "not_run">("all");
   const [attacker, setAttacker] = useState("all");
@@ -32,21 +33,39 @@ export function LibraryTable({ attacks, categories }: { attacks: Attack[]; categ
   const attackers = useMemo(() => [...new Set(attacks.map((a) => a.last?.attacker ?? a.attacker))].sort(), [attacks]);
   const resultOf = (a: Attack) => a.last?.result ?? "not_run";
 
-  const shown = attacks.filter(
-    (a) =>
+  const baseMatches = (a: Attack) =>
       (category === "all" || a.categories.includes(category as Attack["categories"][number])) &&
-      (result === "all" || resultOf(a) === result) &&
       (attacker === "all" || (a.last?.attacker ?? a.attacker) === attacker) &&
-      (kind === "all" || a.kind === kind),
-  );
-  const counts = (r: Result | "not_run") => attacks.filter((a) => resultOf(a) === r).length;
+      (kind === "all" || a.kind === kind) &&
+      (!search.trim() || [a.id, a.name, a.tactic, ...a.categories, ...a.targetRules, a.last?.attacker ?? a.attacker].join(" ").toLowerCase().includes(search.trim().toLowerCase()));
+  const priority: Record<Result | "not_run", number> = { broken: 0, caught: 1, held: 2, not_run: 3 };
+  const shown = attacks
+    .filter((a) => baseMatches(a) && (result === "all" || resultOf(a) === result))
+    .sort((a, b) => priority[resultOf(a)] - priority[resultOf(b)] || Date.parse(b.last?.at ?? "") - Date.parse(a.last?.at ?? ""));
+  const counts = (r: Result | "not_run") => attacks.filter((a) => baseMatches(a) && resultOf(a) === r).length;
+  const hasFilters = Boolean(search.trim()) || category !== "all" || result !== "all" || attacker !== "all" || kind !== "all";
+  const clearFilters = () => {
+    setSearch("");
+    setCategory("all");
+    setResult("all");
+    setAttacker("all");
+    setKind("all");
+  };
 
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2">
+        <input
+          type="search"
+          aria-label="Search attacks"
+          placeholder="Search attacks"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className={inputClass("w-full sm:w-52")}
+        />
         <div role="group" aria-label="Result" className="flex flex-wrap gap-1">
           <button type="button" aria-pressed={result === "all"} onClick={() => setResult("all")} className={chipClass(result === "all", "cursor-pointer")}>
-            All <span className="tabular-nums opacity-70">{attacks.length}</span>
+            All <span className="tabular-nums opacity-70">{attacks.filter(baseMatches).length}</span>
           </button>
           {(["caught", "held", "broken", "not_run"] as const).map((r) => (
             <button key={r} type="button" aria-pressed={result === r} onClick={() => setResult(r)} className={chipClass(result === r, "cursor-pointer")} title={RESULT_HINT[r]}>
@@ -78,13 +97,17 @@ export function LibraryTable({ attacks, categories }: { attacks: Attack[]; categ
             </option>
           ))}
         </select>
-        <span className="ml-auto text-xs text-ink-3">
-          {shown.length} of {attacks.length}
+        <span className="ml-auto flex items-center gap-2 text-xs text-ink-3" aria-live="polite">
+          <span>{shown.length} matching {shown.length === 1 ? "attack" : "attacks"}</span>
+          {hasFilters && <Button variant="ghost" size="sm" onClick={clearFilters}>Clear filters</Button>}
         </span>
       </div>
 
       {shown.length === 0 ? (
-        <TableEmpty>No attack matches these filters.</TableEmpty>
+        <TableEmpty>
+          <span>No attack matches these filters.</span>
+          {hasFilters && <Button variant="ghost" size="sm" onClick={clearFilters} className="ml-2">Clear filters</Button>}
+        </TableEmpty>
       ) : (
         <RowNav>
           <Table>
