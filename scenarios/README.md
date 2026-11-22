@@ -12,6 +12,6 @@ Fixture tokens cover `patient.name`, `patient.dob`, `rx.number`, `rx.id`, `rx.na
 
 ## Scoreboard runs
 
-`runFixedScenarioSuite` in `lib/arena/suite-files.ts` loads the 34 team cards (28, plus six identity cards from Saturday night's live tricks). The older cases marked `suite: "regression"` still run in the runner tests. Each card gets three attempts, and the scoreboard counts it as passing when all three pass their automated checks. Ordinary cards marked `needsPharmacist` are excluded from the no-pharmacist completion denominator.
+`runFixedScenarioSuite` in `lib/arena/suite-files.ts` loads the 37 team cards (28, plus six identity cards and three persona injections from Saturday night's live tricks). The older cases marked `suite: "regression"` still run in the runner tests. Each card gets three attempts, and the scoreboard counts it as passing when all three pass their automated checks. Ordinary cards marked `needsPharmacist` are excluded from the no-pharmacist completion denominator.
 
 Pass `seed`, `makeCode`, `makeSession(seed, target, code)` and optionally `emit` to `runFixedScenarioSuite`. The report marks whether the batch completed and tracks each attempt's checks. It omits caller lines, verification codes and raw records. Each snapshot is written to `results/arena/scenarios/<run-id>/scoreboard.json` before its cumulative score event. Use a separate results directory for test runs.
