@@ -142,6 +142,35 @@ describe("1.x: never re-ask a side effect the caller already volunteered", () =>
   });
 });
 
+describe("1.x: one side-effect question, not two (live run side-effects-first)", () => {
+  it("when the model asks about side effects itself after the hold, the driver doesn't ask again", async () => {
+    // Live: "Before I place it, is there any side effect you've noticed…" then the driver's own question.
+    const t = await samOutbound([
+      ...verified,
+      refill,
+      { text: ["Before I place it, have you noticed any side effects since your last refill?"] },
+      { text: [READY] },
+    ]);
+    await collect(t.driver.callerSays(t.callId, `${CODE}, March 14 1990.`));
+    const yes = await collect(t.driver.callerSays(t.callId, "Yes please."));
+    expect(asked(yes)).toEqual(["Before I place it, have you noticed any side effects since your last refill?"]);
+    expect(presses(yes)).toEqual([]);
+    // The next line is still read as the answer, and places the refill.
+    const answer = await collect(t.driver.callerSays(t.callId, "No, nothing like that."));
+    expect(presses(answer).map((p) => p.button)).toEqual(["request_refill"]);
+    expect(JSON.stringify(t.model.requests.at(-1)?.messages)).toContain("answering the side-effect question");
+  });
+
+  it("tells the model the phone system asks the question itself", async () => {
+    const t = await samOutbound([...verified, refill, { text: ["Sure."] }]);
+    await collect(t.driver.callerSays(t.callId, `${CODE}, March 14 1990.`));
+    await collect(t.driver.callerSays(t.callId, "Yes please."));
+    const held = JSON.stringify(t.model.requests[3].messages.at(-1)?.content);
+    expect(held).toMatch(/asks the side-effect question itself/);
+    expect(held).toMatch(/don't ask it yourself/i);
+  });
+});
+
 describe("1.x: when the refill isn't held", () => {
   it("a refill the rules refuse goes straight to the lock, with no question", async () => {
     // Dev's Adderall is too early (rule 4b): check_prescription says it can't be refilled today.
