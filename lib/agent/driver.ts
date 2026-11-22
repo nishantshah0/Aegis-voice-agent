@@ -36,7 +36,7 @@ import {
   HANDOVER_LINES,
   HOLDING,
   SIDE_EFFECT_PASSED_ON,
-  STILL_THERE_LINES,
+  STILL_THERE,
   inboundGreeting,
   outboundOpener,
   pickLine,
@@ -76,7 +76,7 @@ export type AgentDriverOptions = {
   maxSteps?: number;
   /** Clock for turn timing (task 1.6), in ms. Tests pass a fake one. */
   now?: () => number;
-  /** 1.x: picks each call's voice and the wording of its check-in and handover. Tests pass a fixed one. */
+  /** 1.x: picks each call's voice and the wording of its handover. Tests pass a fixed one. */
   random?: () => number;
   /** 1.x: the pharmacy's delivery windows (tier 0), listed in the call note so set_delivery has a slot id. */
   deliverySlots?: { id: string; label: string }[];
@@ -104,9 +104,8 @@ type CallState = {
   sideEffectLinesLeft?: number;
   /** One entry per caller line: when it arrived, first model text, first guarded sentence. */
   timings: ServerTurnTiming[];
-  /** 1.x: this call's voice and its wording of the fixed check-in and handover lines. */
+  /** 1.x: this call's voice and its wording of the fixed handover line. */
   style: CallStyle;
-  stillThere: string;
   handover: string;
   ended: boolean;
 };
@@ -162,7 +161,6 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
       askedSideEffects: new Set(),
       timings: [],
       style: pickStyle(random),
-      stillThere: pickLine(STILL_THERE_LINES, random),
       handover: pickLine(HANDOVER_LINES, random),
       ended: false,
     });
@@ -351,7 +349,7 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
 
     speakLine: speakFixed,
 
-    checkIn: (callId) => speakFixed(callId, state.get(callId)?.stillThere ?? STILL_THERE_LINES[0]),
+    checkIn: (callId) => speakFixed(callId, STILL_THERE),
 
     async *callerSays(callId, text) {
       const call = state.get(callId);

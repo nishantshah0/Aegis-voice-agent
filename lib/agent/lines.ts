@@ -4,8 +4,8 @@
 //
 // The privacy and safety lines (greeting, verification, code, opener, wrong
 // person, refill sync, side effects, missed doses) are one fixed wording each.
-// Only lines that carry no record detail (the check-in, the handover) come in a
-// few wordings, picked per call.
+// Only the handover, which carries no record detail, comes in a few wordings,
+// picked per call. The check-in stays one line: the real phone line plays it as is.
 //
 // These are the words we intend to say, not permission to skip the guard. Every
 // one of them still goes through `guardSentence` before it reaches speech, and
@@ -40,16 +40,6 @@ export const HOLDING = "One moment.";
 
 /** Task 1.8: said once after a long silence from the caller. Names nothing, so it is safe at any point in a call. */
 export const STILL_THERE = "Are you still there? Take your time.";
-
-/**
- * 1.x (Trail #75): the check-in, worded per call so two calls don't sound the same.
- * Every one names nothing and promises nothing, so each is safe at any point in a call.
- */
-export const STILL_THERE_LINES: readonly string[] = [
-  STILL_THERE,
-  "Hello, are you still with me? No rush.",
-  "I'm still here whenever you're ready.",
-];
 
 /** Said when the agent can't go on (model failure, too many steps): a person takes over. */
 export const HANDOVER_LINE = "Let me get a pharmacist to help you with that.";
