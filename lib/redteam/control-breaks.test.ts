@@ -26,8 +26,8 @@ describe("red team: the same-call failed-code signal still reaches Review (harne
   });
 });
 
-describe("red team, open breaks (fix the control layer, then flip to it): verification and triage", () => {
-  it.fails.each([
+describe("red team, fixed breaks (Trail #86): verification and triage", () => {
+  it.each([
     ["RT-C1 a redial verifies a patient locked out a moment ago", "c.lockout.redial"],
     ["RT-C1 redialing gives more than three guesses against one patient", "c.lockout.redial.guesses"],
     ["RT-C2 failed codes on an earlier call don't reach the refill's lane", "c.signal.redial"],
