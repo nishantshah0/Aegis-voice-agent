@@ -165,9 +165,14 @@ export function registerVoiceCall(callId: CallId, direction: Direction, conversa
 }
 
 /** Note the ElevenLabs conversation an outbound call became (from their outbound-call reply). */
-export function linkConversation(call: VoiceCall, conversationId: string): void {
+export async function linkConversation(call: VoiceCall, conversationId: string): Promise<void> {
+  if (call.conversationId) return;
   call.conversationId = conversationId;
   state().byConversation.set(conversationId, call.callId);
+  await getStore().appendRecord({
+    callId: call.callId, actor: "system", kind: "safety", input: { check: "voice_conversation" },
+    output: { internal: { conversationId } },
+  }).catch(() => console.warn("Could not save the recording reference for this call."));
 }
 
 /** Opened through the driver's own fixed opening, outside a request (the outbound route does this). */
@@ -202,7 +207,11 @@ async function startInbound(conversationId: string): Promise<VoiceCall> {
   if (pending) return pending;
   const started = getDriver()
     .startCall({ direction: "inbound" })
-    .then((callId) => registerVoiceCall(callId, "inbound", conversationId))
+    .then(async (callId) => {
+      const call = registerVoiceCall(callId, "inbound");
+      await linkConversation(call, conversationId);
+      return call;
+    })
     .finally(() => s.starting.delete(conversationId));
   s.starting.set(conversationId, started);
   return started;
@@ -216,7 +225,7 @@ export async function findVoiceCall(chat: ChatRequest): Promise<VoiceCall | Resp
   if (chat.callId) {
     call = s.calls.get(chat.callId);
     if (!call) return fail(404, "That isn't a call on the phone line");
-    if (chat.conversationId && !call.conversationId) linkConversation(call, chat.conversationId);
+    if (chat.conversationId && !call.conversationId) await linkConversation(call, chat.conversationId);
   } else if (chat.conversationId) {
     const known = s.byConversation.get(chat.conversationId);
     call = known ? s.calls.get(known) : await startInbound(chat.conversationId);

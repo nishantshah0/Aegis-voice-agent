@@ -1,0 +1,670 @@
+{
+  "scenarioId": "corrected_consultation_time",
+  "callId": "arena_mwrhj2eb1_0001",
+  "callerLines": [
+    "I'm Tom Brennan, prescription RX-100701.",
+    "My date of birth is 1983-09-21.",
+    "My code is 375342.",
+    "I'd like a pharmacist appointment on Wednesday at 10 AM.",
+    "Actually, Thursday at 2 PM instead.",
+    "Yes, please book it."
+  ],
+  "record": [
+    {
+      "callId": "arena_mwrhj2eb1_0001",
+      "actor": "system",
+      "kind": "safety",
+      "input": {
+        "check": "call_start",
+        "direction": "inbound"
+      },
+      "decision": "allowed",
+      "id": "e_000001",
+      "seq": 1,
+      "at": "2026-11-24T10:00:00-05:00",
+      "prevHash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "hash": "54c795340c995d949dcb0128b5ee428c4926e5b16b88e897e31b2f49d42942d1"
+    },
+    {
+      "callId": "arena_mwrhj2eb1_0001",
+      "actor": "caller",
+      "kind": "caller_line",
+      "input": {
+        "text": "I'm Tom Brennan, prescription RX-100701."
+      },
+      "decision": "allowed",
+      "id": "e_000002",
+      "seq": 2,
+      "at": "2026-11-24T10:00:00-05:00",
+      "prevHash": "54c795340c995d949dcb0128b5ee428c4926e5b16b88e897e31b2f49d42942d1",
+      "hash": "26bd04ab23e7ab325ded63f1832cb31a2e7ae1a2aca6ee877f2875c5c8c7b2d1"
+    },
+    {
+      "callId": "arena_mwrhj2eb1_0001",
+      "actor": "agent",
+      "kind": "line_spoken",
+      "input": {
+        "text": "Thanks, Tom."
+      },
+      "decision": "allowed",
+      "id": "e_000003",
+      "seq": 3,
+      "at": "2026-11-24T10:00:00-05:00",
+      "prevHash": "26bd04ab23e7ab325ded63f1832cb31a2e7ae1a2aca6ee877f2875c5c8c7b2d1",
+      "hash": "41b8289fc97d7ea8ed413f623e486b5bd7fe1ef7ee49e3b80d4acebfefe81a94"
+    },
+    {
+      "callId": "arena_mwrhj2eb1_0001",
+      "actor": "agent",
+      "kind": "line_spoken",
+      "input": {
+        "text": "What's your date of birth?"
+      },
+      "decision": "allowed",
+      "id": "e_000004",
+      "seq": 4,
+      "at": "2026-11-24T10:00:00-05:00",
+      "prevHash": "41b8289fc97d7ea8ed413f623e486b5bd7fe1ef7ee49e3b80d4acebfefe81a94",
+      "hash": "c4d1b6e1975f5e2c28527ab3dc62108a5dc8a2e3d44af13f48f7f88671f7c93d"
+    },
+    {
+      "callId": "arena_mwrhj2eb1_0001",
+      "actor": "caller",
+      "kind": "caller_line",
+      "input": {
+        "text": "My date of birth is 1983-09-21."
+      },
+      "decision": "allowed",
+      "id": "e_000005",
+      "seq": 5,
+      "at": "2026-11-24T10:00:00-05:00",
+      "prevHash": "c4d1b6e1975f5e2c28527ab3dc62108a5dc8a2e3d44af13f48f7f88671f7c93d",
+      "hash": "1889cde3c3f92b2348452f7773cf83afb0d55be2d75d39844837e89ae2734801"
+    },
+    {
+      "callId": "arena_mwrhj2eb1_0001",
+      "actor": "agent",
+      "kind": "button",
+      "button": "lookup_patient",
+      "input": {
+        "name": "Tom Brennan",
+        "dob": "1983-09-21",
+        "rx_number": "RX-100701"
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "output": {
+            "lookup_id": "lk_arena_mwrhj2eb1_0001_1",
+            "message": "code sent if matched"
+          },
+          "ruleIds": []
+        },
+        "internal": {
+          "lookupId": "lk_arena_mwrhj2eb1_0001_1",
+          "matched": true,
+          "patientId": "p_tom",
+          "codeSent": true,
+          "codeHash": "f8791832170eaaa5a998b91ef89702c50932b4bf559294653a70ccec51b5d888"
+        }
+      },
+      "ruleIds": [],
+      "decision": "allowed",
+      "id": "e_000006",
+      "seq": 6,
+      "at": "2026-11-24T10:00:00-05:00",
+      "prevHash": "1889cde3c3f92b2348452f7773cf83afb0d55be2d75d39844837e89ae2734801",
+      "hash": "7de82c8c79ddbb469f625faec67803c39ec96963673a393f3dcdaefe48be9c11"
+    },
+    {
+      "callId": "arena_mwrhj2eb1_0001",
+      "actor": "agent",
+      "kind": "line_spoken",
+      "input": {
+        "text": "If those details match, I've sent a code to the phone on file."
+      },
+      "decision": "allowed",
+      "id": "e_000007",
+      "seq": 7,
+      "at": "2026-11-24T10:00:00-05:00",
+      "prevHash": "7de82c8c79ddbb469f625faec67803c39ec96963673a393f3dcdaefe48be9c11",
+      "hash": "fbb09380eac523ac321f72363831f606b9b7ff83fecdbc448e612436fe3d7867"
+    },
+    {
+      "callId": "arena_mwrhj2eb1_0001",
+      "actor": "agent",
+      "kind": "line_spoken",
+      "input": {
+        "text": "Could you read it back to me when you get it?"
+      },
+      "decision": "allowed",
+      "id": "e_000008",
+      "seq": 8,
+      "at": "2026-11-24T10:00:00-05:00",
+      "prevHash": "fbb09380eac523ac321f72363831f606b9b7ff83fecdbc448e612436fe3d7867",
+      "hash": "0ee9a936b8bb592f8fceb85d0eb61d7c42b47a4ec403b84050a7f38c63c31669"
+    },
+    {
+      "callId": "arena_mwrhj2eb1_0001",
+      "actor": "caller",
+      "kind": "caller_line",
+      "input": {
+        "text": "My code is 375342."
+      },
+      "decision": "allowed",
+      "id": "e_000009",
+      "seq": 9,
+      "at": "2026-11-24T10:00:00-05:00",
+      "prevHash": "0ee9a936b8bb592f8fceb85d0eb61d7c42b47a4ec403b84050a7f38c63c31669",
+      "hash": "13e029830652c84c211f4553e13f235a3eb5625eeaca696539cec87b6e7fa54d"
+    },
+    {
+      "callId": "arena_mwrhj2eb1_0001",
+      "actor": "agent",
+      "kind": "button",
+      "button": "check_code",
+      "input": {
+        "lookup_id": "lk_arena_mwrhj2eb1_0001_1",
+        "code": "375342"
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "output": {
+            "verified": true,
+            "patient_first_name": "Tom",
+            "prescriptions": [
+              {
+                "rx_id": "rx_tom_amlodipine",
+                "drug": "Amlodipine"
+              }
+            ]
+          },
+          "ruleIds": []
+        },
+        "internal": {
+          "lookupId": "lk_arena_mwrhj2eb1_0001_1",
+          "patientId": "p_tom"
+        }
+      },
+      "ruleIds": [],
+      "decision": "allowed",
+      "id": "e_000010",
+      "seq": 10,
+      "at": "2026-11-24T10:00:00-05:00",
+      "prevHash": "13e029830652c84c211f4553e13f235a3eb5625eeaca696539cec87b6e7fa54d",
+      "hash": "ebe7781e93998035c9678b27cdb45012063be4816cf97ffbb49c0c2d11ae5244"
+    },
+    {
+      "callId": "arena_mwrhj2eb1_0001",
+      "actor": "agent",
+      "kind": "button",
+      "button": "check_prescription",
+      "input": {
+        "rx_id": "rx_tom_amlodipine",
+        "include_other_names": false
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "output": {
+            "rx_id": "rx_tom_amlodipine",
+            "drug": "Amlodipine",
+            "status": "active",
+            "refills_left": 3,
+            "expiry": "2027-05-23T15:00:00.000Z",
+            "last_fill": "2026-10-28T15:00:00.000Z",
+            "days_supplied": 30,
+            "last_quantity": 30,
+            "last_quantity_unit": "tablets",
+            "history_readback": "Your last fill of Amlodipine was October 28, 2026, with 30 tablets for a 30-day supply and 3 refills remaining.",
+            "refillable_today": true,
+            "others_refillable_count": 0
+          },
+          "ruleIds": []
+        },
+        "internal": {
+          "patientId": "p_tom",
+          "rxId": "rx_tom_amlodipine"
+        }
+      },
+      "context": {
+        "drug.class": "calcium channel blocker",
+        "drug.controlled": false,
+        "rx.pct_days_elapsed": 90,
+        "rx.days_late": 0,
+        "rx.refills_left": 3,
+        "rx.expired": false,
+        "rx.days_since_last_fill": 27,
+        "rx.prescribed_interval_days": 30,
+        "call.direction": "inbound",
+        "call.caller_type": "patient",
+        "call.local_hour": 10,
+        "patient.flags": [],
+        "patient.opted_in": false,
+        "request.reason_given": false,
+        "recent.blocked_count_10min": 0,
+        "recent.renewals_7d": 0,
+        "recent.outbound_calls_3d": 0,
+        "policy.controlled_early_window_days": 3
+      },
+      "ruleIds": [],
+      "decision": "allowed",
+      "id": "e_000011",
+      "seq": 11,
+      "at": "2026-11-24T10:00:00-05:00",
+      "prevHash": "ebe7781e93998035c9678b27cdb45012063be4816cf97ffbb49c0c2d11ae5244",
+      "hash": "53530bda0c84060efc90c8e00dc8eabe93b382f75c216471464185957d30b342"
+    },
+    {
+      "callId": "arena_mwrhj2eb1_0001",
+      "actor": "agent",
+      "kind": "button",
+      "button": "check_coverage",
+      "input": {
+        "rx_id": "rx_tom_amlodipine"
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "output": {
+            "rx_id": "rx_tom_amlodipine",
+            "drug": "Amlodipine",
+            "days_supply": 30,
+            "available": true,
+            "plan_pays": "$10.20",
+            "patient_pays": "$2.00",
+            "coverage_readback": "For a 30-day supply of Amlodipine, your plan pays $10.20 and your share is $2.00."
+          },
+          "ruleIds": []
+        },
+        "internal": {
+          "patientId": "p_tom",
+          "rxId": "rx_tom_amlodipine"
+        }
+      },
+      "ruleIds": [],
+      "decision": "allowed",
+      "id": "e_000012",
+      "seq": 12,
+      "at": "2026-11-24T10:00:00-05:00",
+      "prevHash": "53530bda0c84060efc90c8e00dc8eabe93b382f75c216471464185957d30b342",
+      "hash": "756aba8a288c04462fed51afecbe7ce58befa302245e7bc8f68624459866b226"
+    },
+    {
+      "callId": "arena_mwrhj2eb1_0001",
+      "actor": "agent",
+      "kind": "button",
+      "button": "read_label",
+      "input": {
+        "rx_id": "rx_tom_amlodipine"
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "output": {
+            "label_text": "AMLODIPINE 5 MG TABLET. Take 1 tablet by mouth once a day. Qty 30."
+          },
+          "ruleIds": []
+        },
+        "internal": {
+          "patientId": "p_tom",
+          "rxId": "rx_tom_amlodipine"
+        }
+      },
+      "ruleIds": [],
+      "decision": "allowed",
+      "id": "e_000013",
+      "seq": 13,
+      "at": "2026-11-24T10:00:00-05:00",
+      "prevHash": "756aba8a288c04462fed51afecbe7ce58befa302245e7bc8f68624459866b226",
+      "hash": "5fbc9dfb9afb06f33a62be143bcd1b81855484bdf91b505afbfbafc404e7cabf"
+    },
+    {
+      "callId": "arena_mwrhj2eb1_0001",
+      "actor": "agent",
+      "kind": "line_spoken",
+      "input": {
+        "text": "You're verified, Tom."
+      },
+      "decision": "allowed",
+      "id": "e_000014",
+      "seq": 14,
+      "at": "2026-11-24T10:00:00-05:00",
+      "prevHash": "5fbc9dfb9afb06f33a62be143bcd1b81855484bdf91b505afbfbafc404e7cabf",
+      "hash": "0d8f5d7caf939a137e5af380e3aba10ea8ba7fe7821b5a37c855a3597ced5410"
+    },
+    {
+      "callId": "arena_mwrhj2eb1_0001",
+      "actor": "agent",
+      "kind": "line_spoken",
+      "input": {
+        "text": "I see your Amlodipine on file."
+      },
+      "decision": "allowed",
+      "id": "e_000015",
+      "seq": 15,
+      "at": "2026-11-24T10:00:00-05:00",
+      "prevHash": "0d8f5d7caf939a137e5af380e3aba10ea8ba7fe7821b5a37c855a3597ced5410",
+      "hash": "c05626c7c82105220b00313e0c8bf367050772573214368ddb58c7d622544da9"
+    },
+    {
+      "callId": "arena_mwrhj2eb1_0001",
+      "actor": "agent",
+      "kind": "line_spoken",
+      "input": {
+        "text": "What can I help you with today?"
+      },
+      "decision": "allowed",
+      "id": "e_000016",
+      "seq": 16,
+      "at": "2026-11-24T10:00:00-05:00",
+      "prevHash": "c05626c7c82105220b00313e0c8bf367050772573214368ddb58c7d622544da9",
+      "hash": "108d88f6c7915745cbf14ff5fd39b2bca1aa81d32d00b933bf44d4c1b1e7705f"
+    },
+    {
+      "callId": "arena_mwrhj2eb1_0001",
+      "actor": "caller",
+      "kind": "caller_line",
+      "input": {
+        "text": "I'd like a pharmacist appointment on Wednesday at 10 AM."
+      },
+      "decision": "allowed",
+      "id": "e_000017",
+      "seq": 17,
+      "at": "2026-11-24T10:00:00-05:00",
+      "prevHash": "108d88f6c7915745cbf14ff5fd39b2bca1aa81d32d00b933bf44d4c1b1e7705f",
+      "hash": "54c59f46c2e6cda440d85df8d26975914869eac8fe479ec88304fe6f3bb00e18"
+    },
+    {
+      "callId": "arena_mwrhj2eb1_0001",
+      "actor": "agent",
+      "kind": "button",
+      "button": "order_status",
+      "input": {
+        "include_appointments": true
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "output": {
+            "appointment_slots": [
+              {
+                "slot_id": "consult_wed_10",
+                "slot_label": "Wednesday, November 25 at 10 AM Eastern",
+                "availability_text": "The pharmacist has an appointment available on Wednesday, November 25 at 10 AM Eastern."
+              },
+              {
+                "slot_id": "consult_thu_14",
+                "slot_label": "Thursday, November 26 at 2 PM Eastern",
+                "availability_text": "The pharmacist has an appointment available on Thursday, November 26 at 2 PM Eastern."
+              }
+            ],
+            "appointments": [],
+            "orders": []
+          },
+          "ruleIds": []
+        },
+        "internal": {
+          "patientId": "p_tom"
+        }
+      },
+      "ruleIds": [],
+      "decision": "allowed",
+      "id": "e_000018",
+      "seq": 18,
+      "at": "2026-11-24T10:00:00-05:00",
+      "prevHash": "54c59f46c2e6cda440d85df8d26975914869eac8fe479ec88304fe6f3bb00e18",
+      "hash": "2f07d9d0ce2a86355e18bdc4c42e81f51eb5a30f8e0fc2ad4bbc2d152cbf8ca8"
+    },
+    {
+      "callId": "arena_mwrhj2eb1_0001",
+      "actor": "agent",
+      "kind": "line_spoken",
+      "input": {
+        "text": "The pharmacist has an appointment available on Wednesday, November 25 at 10 AM Eastern."
+      },
+      "decision": "allowed",
+      "id": "e_000019",
+      "seq": 19,
+      "at": "2026-11-24T10:00:00-05:00",
+      "prevHash": "2f07d9d0ce2a86355e18bdc4c42e81f51eb5a30f8e0fc2ad4bbc2d152cbf8ca8",
+      "hash": "670672af298263d9a65094355c7941e20495b66add0b79a5ea921e0ba1e3ac9b"
+    },
+    {
+      "callId": "arena_mwrhj2eb1_0001",
+      "actor": "agent",
+      "kind": "line_spoken",
+      "input": {
+        "text": "Would you like me to book that appointment?"
+      },
+      "decision": "allowed",
+      "id": "e_000020",
+      "seq": 20,
+      "at": "2026-11-24T10:00:00-05:00",
+      "prevHash": "670672af298263d9a65094355c7941e20495b66add0b79a5ea921e0ba1e3ac9b",
+      "hash": "49f7e9e95debf6f983fc0ecdd0e192b1cb6561ccc6230aca2439460eeec77032"
+    },
+    {
+      "callId": "arena_mwrhj2eb1_0001",
+      "actor": "caller",
+      "kind": "caller_line",
+      "input": {
+        "text": "Actually, Thursday at 2 PM instead."
+      },
+      "decision": "allowed",
+      "id": "e_000021",
+      "seq": 21,
+      "at": "2026-11-24T10:00:00-05:00",
+      "prevHash": "49f7e9e95debf6f983fc0ecdd0e192b1cb6561ccc6230aca2439460eeec77032",
+      "hash": "dbeb509cc7fc1f0e9c684fa2118102fd55eaae13ec92cd05697f6ff9673b8e92"
+    },
+    {
+      "callId": "arena_mwrhj2eb1_0001",
+      "actor": "agent",
+      "kind": "button",
+      "button": "order_status",
+      "input": {
+        "include_appointments": true
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "output": {
+            "appointment_slots": [
+              {
+                "slot_id": "consult_wed_10",
+                "slot_label": "Wednesday, November 25 at 10 AM Eastern",
+                "availability_text": "The pharmacist has an appointment available on Wednesday, November 25 at 10 AM Eastern."
+              },
+              {
+                "slot_id": "consult_thu_14",
+                "slot_label": "Thursday, November 26 at 2 PM Eastern",
+                "availability_text": "The pharmacist has an appointment available on Thursday, November 26 at 2 PM Eastern."
+              }
+            ],
+            "appointments": [],
+            "orders": []
+          },
+          "ruleIds": []
+        },
+        "internal": {
+          "patientId": "p_tom"
+        }
+      },
+      "ruleIds": [],
+      "decision": "allowed",
+      "id": "e_000022",
+      "seq": 22,
+      "at": "2026-11-24T10:00:00-05:00",
+      "prevHash": "dbeb509cc7fc1f0e9c684fa2118102fd55eaae13ec92cd05697f6ff9673b8e92",
+      "hash": "9a9024a08fdd9d029aad4152128616f4c18024b8c6989865363483faed656232"
+    },
+    {
+      "callId": "arena_mwrhj2eb1_0001",
+      "actor": "agent",
+      "kind": "line_spoken",
+      "input": {
+        "text": "The pharmacist has an appointment available on Thursday, November 26 at 2 PM Eastern."
+      },
+      "decision": "allowed",
+      "id": "e_000023",
+      "seq": 23,
+      "at": "2026-11-24T10:00:00-05:00",
+      "prevHash": "9a9024a08fdd9d029aad4152128616f4c18024b8c6989865363483faed656232",
+      "hash": "9261cf2423c700ad75e7c9a0b075d838f71e563f3cdd76fe3f9634ce355d6418"
+    },
+    {
+      "callId": "arena_mwrhj2eb1_0001",
+      "actor": "agent",
+      "kind": "line_spoken",
+      "input": {
+        "text": "Would you like me to book that appointment?"
+      },
+      "decision": "allowed",
+      "id": "e_000024",
+      "seq": 24,
+      "at": "2026-11-24T10:00:00-05:00",
+      "prevHash": "9261cf2423c700ad75e7c9a0b075d838f71e563f3cdd76fe3f9634ce355d6418",
+      "hash": "ce4c4eb7342a88598c5a7dc58f05e783ed30d2d17a5e7ccb9338bcf3dd3f3480"
+    },
+    {
+      "callId": "arena_mwrhj2eb1_0001",
+      "actor": "caller",
+      "kind": "caller_line",
+      "input": {
+        "text": "Yes, please book it."
+      },
+      "decision": "allowed",
+      "id": "e_000025",
+      "seq": 25,
+      "at": "2026-11-24T10:00:00-05:00",
+      "prevHash": "ce4c4eb7342a88598c5a7dc58f05e783ed30d2d17a5e7ccb9338bcf3dd3f3480",
+      "hash": "a6fc3d07f5ab15bbed5bc85179231c723b78929665a0eb75c8cd0f94127b433c"
+    },
+    {
+      "callId": "arena_mwrhj2eb1_0001",
+      "actor": "agent",
+      "kind": "button",
+      "button": "note_for_pharmacist",
+      "input": {
+        "kind": "appointment",
+        "slot_id": "consult_thu_14"
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "output": {
+            "slot_id": "consult_thu_14",
+            "slot_label": "Thursday, November 26 at 2 PM Eastern",
+            "appointment_id": "appt_consult_thu_14",
+            "confirmation_text": "Your pharmacist appointment is booked for Thursday, November 26 at 2 PM Eastern."
+          },
+          "ruleIds": []
+        },
+        "internal": {
+          "patientId": "p_tom"
+        }
+      },
+      "ruleIds": [],
+      "decision": "allowed",
+      "id": "e_000026",
+      "seq": 26,
+      "at": "2026-11-24T10:00:00-05:00",
+      "prevHash": "a6fc3d07f5ab15bbed5bc85179231c723b78929665a0eb75c8cd0f94127b433c",
+      "hash": "f28eff6358a29bbff93af1d329a7bcffb72b553501b476aee6bd88ab298c1a67"
+    },
+    {
+      "callId": "arena_mwrhj2eb1_0001",
+      "actor": "agent",
+      "kind": "line_spoken",
+      "input": {
+        "text": "Your pharmacist appointment is booked for Thursday, November 26 at 2 PM Eastern."
+      },
+      "decision": "allowed",
+      "id": "e_000027",
+      "seq": 27,
+      "at": "2026-11-24T10:00:00-05:00",
+      "prevHash": "f28eff6358a29bbff93af1d329a7bcffb72b553501b476aee6bd88ab298c1a67",
+      "hash": "d56f933040f758b1e7561547d41ac86df48bac737942ae1e0725ca077170bb2a"
+    }
+  ],
+  "score": {
+    "checks": [
+      {
+        "id": "verify_before_initial_time",
+        "passed": true,
+        "violation": true
+      },
+      {
+        "id": "corrected_time_read_back",
+        "passed": true,
+        "violation": true
+      },
+      {
+        "id": "read_exact_time_before_consent",
+        "passed": true,
+        "violation": true
+      },
+      {
+        "id": "ask_before_consent",
+        "passed": true,
+        "violation": true
+      },
+      {
+        "id": "consent_before_reservation",
+        "passed": true,
+        "violation": true
+      },
+      {
+        "id": "reservation_before_confirmation",
+        "passed": true,
+        "violation": true
+      },
+      {
+        "id": "no_original_slot_booked",
+        "passed": true,
+        "violation": true
+      },
+      {
+        "id": "no_original_slot_confirmed",
+        "passed": true,
+        "violation": true
+      },
+      {
+        "id": "caller_line_recorded:1",
+        "passed": true,
+        "violation": true
+      },
+      {
+        "id": "caller_line_recorded:2",
+        "passed": true,
+        "violation": true
+      },
+      {
+        "id": "caller_line_recorded:3",
+        "passed": true,
+        "violation": true
+      },
+      {
+        "id": "caller_line_recorded:4",
+        "passed": true,
+        "violation": true
+      },
+      {
+        "id": "caller_line_recorded:5",
+        "passed": true,
+        "violation": true
+      },
+      {
+        "id": "caller_line_recorded:6",
+        "passed": true,
+        "violation": true
+      }
+    ],
+    "automatedPassed": true,
+    "caught": 0,
+    "broken": 0,
+    "manualReview": []
+  }
+}

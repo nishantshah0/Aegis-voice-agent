@@ -21,6 +21,7 @@ export default function PhonePage() {
           </span>
         </div>
         <Phone />
+        <Link href="/simulation" className="my-3 text-sm text-ink-2 underline">Browse synthetic patients and call simulations</Link>
       </div>
     </main>
   );

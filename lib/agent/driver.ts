@@ -1,3 +1,6 @@
+import { calendarIntent, chooseCalendarOffer } from "./appointments";
+import { collectIdentity, GREETING_ONLY, LIMITED_MENU, PHONE_MENU, readCode, type LocalIdentity } from "./limited-service";
+import { APPOINTMENT_CONFIRMATION_QUESTION, confirmsBooking } from "@/lib/contract/appointment-consent";
 // The real agent (tasks 1.2 and 1.3): an AgentDriver on Claude with the 12 buttons as tools.
 //
 // Each caller line:
@@ -44,6 +47,7 @@ import {
   sideEffectQuestionBeforeRefill,
 } from "./lines";
 import type { AgentModel, ModelTurn, PressForModel } from "./model";
+import { factQuestion, newFactContext } from "./fact-questions";
 import { STAY_ON_TASK_NOTE, asksForAPersona } from "./persona";
 import { pickStyle, systemPrompt, type CallStyle } from "./prompt";
 import { createSentenceSplitter } from "./sentences";
@@ -67,6 +71,7 @@ export type CallLifecycle = {
 };
 
 export type AgentDriverOptions = {
+  patientPhone?: boolean;
   calls: CallLifecycle;
   press: PressFn;
   guardSentence: GuardSentenceFn;
@@ -117,6 +122,12 @@ type CallState = {
    * and the driver places it, through the lock, when the caller answers.
    */
   heldRefill?: { rxId: RxId; input: unknown };
+  facts: ReturnType<typeof newFactContext>;
+  appointmentSlots: Map<string, string>;
+  choosingAppointment?: boolean;
+  checkedIn?: boolean;
+  limited?: LocalIdentity;
+  pendingAppointment?: { input: ButtonInputs["note_for_pharmacist"]; offer: string; asked: boolean };
   /** 1.x: what the caller heard from the agent on the current caller line. */
   turnSaid: string[];
   /** One entry per caller line: when it arrived, first model text, first guarded sentence. */
@@ -177,6 +188,8 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
       notes: [],
       askedSideEffects: new Set(),
       refillable: new Map(),
+      facts: newFactContext(),
+      appointmentSlots: new Map(),
       labels: new Map(),
       sideEffectNoted: new Set(),
       turnSaid: [],
@@ -282,9 +295,17 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
   /** What the driver learns from a press: which prescriptions can be refilled, their labels, side-effect notes. */
   function learn(call: CallState | undefined, name: string, input: unknown, result: ButtonResult) {
     if (!call || !result.ok) return;
-    if (name === "check_code" && (result.output as { verified?: boolean }).verified) call.verified = true;
+    if (name === "check_code" && "verified" in result.output && result.output.verified) {
+      call.verified = true;
+      call.facts.prescriptions = result.output.prescriptions;
+    }
     const rxId = (input as { rx_id?: unknown })?.rx_id;
     if (name === "check_prescription" && typeof rxId === "string") call.refillable.set(rxId, (result.output as { refillable_today: boolean }).refillable_today);
+    if (name === "order_status" && (input as ButtonInputs["order_status"]).include_appointments) {
+      const { appointment_slots } = result.output as { appointment_slots?: { slot_id: string; availability_text: string }[] };
+      call.appointmentSlots = new Map((appointment_slots ?? []).map((slot) => [slot.slot_id, slot.availability_text]));
+      call.choosingAppointment = !!appointment_slots?.length;
+    }
     if (name === "read_label" && typeof rxId === "string") call.labels.set(rxId, (result.output as { label_text: string }).label_text);
     if (name === "note_for_pharmacist" && (input as { kind?: unknown })?.kind === "side_effect") {
       call.sideEffectNoted.add(typeof rxId === "string" ? rxId : "*");
@@ -312,6 +333,13 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
   async function pressOne(callId: CallId, name: string, input: unknown, refilled: RxId[]): Promise<{ events: AgentEvent[]; content: string; isError: boolean }> {
     if (!isButtonName(name)) return { events: [], content: JSON.stringify({ error: "no such button" }), isError: true };
     const call = state.get(callId);
+    const note = input as ButtonInputs["note_for_pharmacist"] | null;
+    if (call?.verified && name === "note_for_pharmacist" && note?.kind === "appointment") {
+      const offer = call.appointmentSlots.get(note.slot_id ?? "");
+      if (!offer) return { events: [], content: "List available consultation times with order_status and ask the caller which works.", isError: true };
+      call.pendingAppointment = { input: note, offer, asked: false };
+      return { events: [], content: "Awaiting patient confirmation. The phone system will read back the time and ask for confirmation. End this turn now.", isError: false };
+    }
     if (shouldHold(call, name, input)) {
       call.heldRefill = { rxId: (input as { rx_id: RxId }).rx_id, input };
       return { events: [], content: JSON.stringify(HELD), isError: false };
@@ -371,7 +399,7 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
     if (!held || call.askedSideEffects.has(held.rxId)) return;
     if (noted(call, held.rxId)) {
       const result = yield* placeHeld(callId, call, refilled);
-      if (result) call.notes.push(`The refill you asked for is now placed: ${JSON.stringify(forModel(result))}. Confirm it in a few words.`);
+      if (result) call.notes.push(refillPlacedNote(result));
       return;
     }
     call.askedSideEffects.add(held.rxId);
@@ -415,6 +443,47 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
     yield* speak(callId, state.get(callId)?.handover ?? HANDOVER_LINE);
   }
 
+  async function* limitedReply(callId: CallId, call: CallState, text: string): AsyncIterable<AgentEvent> {
+    const identity = call.limited ??= {};
+    if (/^(?:please )?(?:(?:get|give|connect|transfer) me (?:to )?(?:a |the )?|(?:i (?:want|need) (?:to (?:speak|talk) to )?)(?:a |the )?)?(?:pharmacist|human|person)(?: please)?[!. ]*$/i.test(text)) {
+      yield* handOver(callId, "The caller asked for a pharmacist.");
+      return;
+    }
+    if (call.verified) {
+      yield* speakFixed(callId, LIMITED_MENU);
+      return;
+    }
+    const code = readCode(text);
+    if (identity.lookupId && code) {
+      const input = { lookup_id: identity.lookupId, code };
+      const r = yield* pressFixed(callId, "check_code", input);
+      learn(call, "check_code", input, r);
+      if (call.verified) {
+        yield* speakFixed(callId, "Thank you. What would you like to know about your fill history or insurance price?");
+      } else {
+        yield* speakFixed(callId, r.ok && "locked_until" in r.output ? "Verification is locked. Please call back later." : "I couldn't verify that code. Please check the message on your phone.");
+      }
+      return;
+    }
+    if ((call.direction === "inbound" && /\b(?:refill|record|history|price|cost|insurance|prescription|rx|sim)\b|\d{4}-\d{2}-\d{2}/i.test(text)) || identity.rx_number || identity.dob) {
+      const lookup = collectIdentity(identity, text);
+      if (lookup) {
+        const r = yield* pressFixed(callId, "lookup_patient", lookup);
+        if (r.ok) {
+          identity.lookupId = r.output.lookup_id;
+          delete identity.dob;
+          delete identity.name;
+          delete identity.rx_number;
+          yield* speakFixed(callId, "If those details match, I've sent a code to the phone on file.");
+          return;
+        }
+      }
+      yield* speakFixed(callId, "For a record lookup, give your full name, date of birth as year-month-day, and the prescription number on the bottle.");
+      return;
+    }
+    yield* speakFixed(callId, LIMITED_MENU);
+  }
+
   return {
     async startCall(opts) {
       const callId = await calls.startCall(opts);
@@ -451,7 +520,12 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
 
     speakLine: speakFixed,
 
-    checkIn: (callId) => speakFixed(callId, STILL_THERE),
+    async *checkIn(callId) {
+      const call = state.get(callId);
+      if (!call || call.ended || call.checkedIn) return;
+      call.checkedIn = true;
+      yield* speakFixed(callId, STILL_THERE);
+    },
 
     async *callerSays(callId, text) {
       const call = state.get(callId);
@@ -461,6 +535,7 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
       }
       emit({ type: "line", callId, who: "caller", text });
       call.turnSaid = [];
+      call.checkedIn = false;
       const timing: ServerTurnTiming = { receivedAt: now() };
       call.timings.push(timing);
 
@@ -470,6 +545,7 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
         // and the next line isn't either. A held refill isn't placed: a pharmacist looks at the call first.
         call.awaitingSideEffect = undefined;
         call.heldRefill = undefined;
+        call.pendingAppointment = undefined;
         yield { type: "safety", result: safety };
         pushUser(call, text);
         call.messages.push({ role: "assistant", content: safety.script });
@@ -477,7 +553,99 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
         return;
       }
 
+      if (options.patientPhone && call.direction === "inbound" && !call.awaitingSideEffect && !call.pendingAppointment && GREETING_ONLY.test(text.trim())) {
+        pushUser(call, text);
+        yield* speakFixed(callId, PHONE_MENU);
+        return;
+      }
+      const appointment = call.pendingAppointment;
+      if (appointment?.asked) {
+        call.pendingAppointment = undefined;
+        if (confirmsBooking(text)) {
+          pushUser(call, text);
+          const result = yield* pressFixed(callId, "note_for_pharmacist", appointment.input);
+          call.choosingAppointment = false;
+          const confirmation = result.ok && "confirmation_text" in result.output && typeof result.output.confirmation_text === "string"
+            ? result.output.confirmation_text : "I couldn't book that time.";
+          yield* speakFixed(callId, confirmation);
+          return;
+        }
+        call.notes.push("That appointment was not booked. Follow the caller's latest request. If they want to book, select an available slot and confirm again.");
+      }
+
+      if (call.verified && call.direction === "inbound" && !call.awaitingSideEffect && !call.heldRefill) {
+        const intent = calendarIntent(text, !!call.choosingAppointment || !!appointment);
+        call.choosingAppointment = false;
+        if (intent) {
+          pushUser(call, text);
+          if (intent === "decline" || intent === "other-person") {
+            yield* speakFixed(callId, intent === "decline" ? "Okay, I'll leave it there." : "I can only help with your own appointments.");
+            return;
+          }
+          const status = yield* pressFixed(callId, "order_status", { include_appointments: true });
+          if (!status.ok) {
+            yield* speakFixed(callId, "I couldn't retrieve the pharmacist's calendar.");
+            return;
+          }
+          const slots = status.output.appointment_slots ?? [];
+          const bookings = status.output.appointments ?? [];
+          if (intent === "status" || intent === "manage" || bookings.length) {
+            for (const booked of bookings) yield* speakFixed(callId, booked.confirmation_text);
+            if (!bookings.length) yield* speakFixed(callId, "I don't see an upcoming consultation on your record.");
+            if (intent === "manage") yield* speakFixed(callId, "A pharmacist can help change or cancel an existing time.");
+            return;
+          }
+          if (!slots.length) {
+            yield* speakFixed(callId, "I don't see any open consultation times.");
+            return;
+          }
+          call.choosingAppointment = true;
+          const selection = chooseCalendarOffer(text, slots);
+          if (!selection) {
+            for (const slot of slots) yield* speakFixed(callId, slot.availability_text);
+            yield* speakFixed(callId, "Which of those times would you like?");
+            return;
+          }
+          yield* speakFixed(callId, selection.availability_text);
+          if (call.turnSaid.at(-1) === selection.availability_text) {
+            yield* speakFixed(callId, APPOINTMENT_CONFIRMATION_QUESTION);
+            if (call.turnSaid.at(-1) === APPOINTMENT_CONFIRMATION_QUESTION) {
+              call.pendingAppointment = {
+                input: { kind: "appointment", slot_id: selection.slot_id },
+                offer: selection.availability_text,
+                asked: true,
+              };
+            }
+          }
+          return;
+        }
+      }
+      if (call.heldRefill && changesRefill(text)) {
+        call.heldRefill = undefined;
+        if (call.awaitingSideEffect) call.askedSideEffects.delete(call.awaitingSideEffect);
+        call.awaitingSideEffect = undefined;
+        call.notes.push("The pending refill was discarded. Confirm the caller's revised request, supply and matching quote before placing anything.");
+      }
       const refilled: RxId[] = [];
+      if (call.verified && !call.awaitingSideEffect && !call.heldRefill) {
+        const facts = factQuestion(call.facts, text, call.rxId);
+        if (facts) {
+          pushUser(call, text);
+          if (facts.line !== undefined) {
+            yield* speakFixed(callId, facts.line);
+          } else {
+            if (facts.history) {
+              const r = yield* pressFixed(callId, "check_prescription", { rx_id: facts.rxId, include_other_names: false });
+              yield* speakFixed(callId, r.ok ? r.output.history_readback : "I couldn't retrieve that fill history.");
+            }
+            if (facts.coverage) {
+              const r = yield* pressFixed(callId, "check_coverage", { rx_id: facts.rxId, ...(facts.days ? { days_supply: facts.days } : {}) });
+              yield* speakFixed(callId, r.ok ? r.output.coverage_readback : "I couldn't retrieve that insurance quote.");
+            }
+          }
+          return;
+        }
+      }
       if (call.awaitingSideEffect && (call.sideEffectLinesLeft ?? 0) > 0) {
         const followUp = call.sideEffectLinesLeft === 1;
         // The caller is answering the question asked before the refill: place it now, so a
@@ -491,6 +659,10 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
       // 1.x: a persona or off-task request gets a reminder on that line (it decides nothing).
       if (asksForAPersona(text)) call.notes.push(STAY_ON_TASK_NOTE);
       pushUser(call, text);
+      if (call.limited) {
+        yield* limitedReply(callId, call, text);
+        return;
+      }
       const system = systemFor(call);
 
       for (let step = 0; step < maxSteps; step++) {
@@ -498,7 +670,9 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
         let turn: ModelTurn | undefined;
         // Presses made by a model that runs its own tool steps (the Agent SDK), yielded in order.
         const pressed: AgentEvent[] = [];
+        let attemptedPress = false;
         const pressForModel: PressForModel = async (name, input) => {
+          attemptedPress = true;
           const r = await pressOne(callId, name, input, refilled);
           pressed.push(...r.events);
           return { content: r.content, isError: r.isError };
@@ -517,6 +691,11 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
           // The model is unavailable (usage cap, SDK error, network): say so through the guard and get a person.
           for (const sentence of splitter.flush()) yield* speak(callId, sentence);
           yield* pressed.splice(0);
+          if (options.patientPhone && call.direction === "inbound" && !call.heldRefill && !call.awaitingSideEffect && !call.pendingAppointment && !refilled.length && step === 0 && !attemptedPress && !call.turnSaid.length) {
+            model.endCall?.(callId);
+            yield* limitedReply(callId, call, text);
+            return;
+          }
           yield* handOver(callId, error instanceof UsageCapError ? "The assistant reached its usage limit." : "The assistant could not continue this call.");
           return;
         }
@@ -529,6 +708,15 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
         }
         call.messages.push({ role: "assistant", content: turn.content } as MessageParam);
         if (turn.stop_reason !== "tool_use") {
+          const pending = call.pendingAppointment;
+          if (pending && !pending.asked) {
+            yield* speakFixed(callId, pending.offer);
+            if (call.turnSaid.at(-1) === pending.offer) {
+              yield* speakFixed(callId, APPOINTMENT_CONFIRMATION_QUESTION);
+              pending.asked = call.turnSaid.at(-1) === APPOINTMENT_CONFIRMATION_QUESTION;
+            }
+            if (!pending.asked) call.pendingAppointment = undefined;
+          }
           yield* afterHeld(callId, call, refilled);
           yield* askSideEffects(callId, call, refilled);
           return;
@@ -560,6 +748,10 @@ export function createAgentDriver(options: AgentDriverOptions): ClaudeAgentDrive
   };
 }
 
+function changesRefill(text: string): boolean {
+  return /\b(cancel|hold off|wait|instead|not sure|maybe later|not yet|let me think|before (?:i|we) (?:decide|order)|how much|what.*cost|changed? my mind|never ?mind|different supply|(?:just|only|make it|switch to) (?:a |one |two |seven |fourteen |\d+[ -])?(?:days?|weeks?))\b|\b(?:don['’]t|do not) (?:order|refill|fill|place|want)\b/i.test(text);
+}
+
 /** What the model sees from a press: the button's own output, or its error, and the rule numbers. */
 function forModel(result: ButtonResult): Record<string, unknown> {
   if (result.ok) return { ...(result.output as object), rule_ids: result.ruleIds };
@@ -575,7 +767,8 @@ const HELD = {
 
 /** 1.x: the held refill went through the lock when the caller answered. */
 function refillPlacedNote(result: ButtonResult<"request_refill">): string {
-  return `The refill they said yes to is now placed: ${JSON.stringify(forModel(result))}. After the side effects, confirm the refill in a few words.`;
+  const outcome = result.ok && REFILL_GOING_AHEAD.has(result.output.state) ? "The refill request is now placed" : "Refill request result";
+  return `${outcome}: ${JSON.stringify(forModel(result))}. Describe only the recorded outcome. Quote supply_text if provided.`;
 }
 
 /** How the model should treat the caller's answer to the side-effect question. */

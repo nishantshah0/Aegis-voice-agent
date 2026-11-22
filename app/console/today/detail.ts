@@ -20,6 +20,7 @@ export type ItemDetail = {
   status: QueueItem["status"];
   patient: string;
   drug?: string;
+  requestedDaysSupply?: number;
   rules: { id: RuleId; wording: string }[];
   sideEffects: string[];
   questions: string[];
@@ -70,6 +71,7 @@ export async function itemDetail(store: Store, item: QueueItem): Promise<ItemDet
     kind: item.kind,
     status: item.status,
     patient: patient ? `${patient.firstName[0]}.${patient.lastName[0]}.` : "Unknown patient",
+    ...(item.requestedDaysSupply !== undefined ? { requestedDaysSupply: item.requestedDaysSupply } : {}),
     drug: rx ? `${rx.drug} ${rx.strength}` : undefined,
     rules: item.ruleIds.map((id) => ({ id, wording: wording(id) })),
     sideEffects: [...new Set(notes.filter((n) => n.kind === "side_effect").map((n) => n.text))],

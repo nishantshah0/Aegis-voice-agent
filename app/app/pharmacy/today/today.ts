@@ -8,12 +8,22 @@ const LANE_ORDER: Record<QueueItem["lane"], number> = { review: 0, quick_check: 
 const RECENT = 10;
 
 export type TodayItem = ItemDetail & { createdAt: string; decidedAt?: string };
-export type Today = { totals: LaneTotals; waiting: TodayItem[]; automatic: TodayItem[]; decided: TodayItem[] };
+export type Today = { appointments: { slotId: string; label: string; patient: string }[]; totals: LaneTotals; waiting: TodayItem[]; automatic: TodayItem[]; decided: TodayItem[] };
 
 const at = (i: QueueItem) => Date.parse(i.decidedAt ?? i.createdAt);
 
 export async function today(store: Store): Promise<Today> {
-  const [items, totals] = await Promise.all([store.queue(), laneTotals(store)]);
+  const [items, totals, bookings, policy, now] = await Promise.all([
+    store.queue(), laneTotals(store), store.listAppointments(), store.policy(), store.now(),
+  ]);
+  const upcoming = (policy.appointmentSlots ?? []).filter((slot) => Date.parse(slot.start) > Date.parse(now));
+  const appointments = [];
+  for (const slot of upcoming.sort((a, b) => Date.parse(a.start) - Date.parse(b.start))) {
+    const reservation = bookings.find((b) => b.slotId === slot.id);
+    if (!reservation) continue;
+    const patient = await store.getPatient(reservation.patientId);
+    appointments.push({ slotId: slot.id, label: slot.label, patient: patient ? `${patient.firstName[0]}.${patient.lastName[0]}.` : "Unknown patient" });
+  }
   const view = (item: QueueItem) =>
     itemDetail(store, item).then((d): TodayItem => ({ ...d, createdAt: item.createdAt, ...(item.decidedAt ? { decidedAt: item.decidedAt } : {}) }));
   const waiting = items
@@ -25,5 +35,5 @@ export async function today(store: Store): Promise<Today> {
     .sort((a, b) => at(b) - at(a))
     .slice(0, RECENT);
   const [w, a, d] = await Promise.all([Promise.all(waiting.map(view)), Promise.all(automatic.map(view)), Promise.all(decided.map(view))]);
-  return { totals, waiting: w, automatic: a, decided: d };
+  return { appointments, totals, waiting: w, automatic: a, decided: d };
 }

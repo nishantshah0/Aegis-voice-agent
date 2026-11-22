@@ -233,8 +233,11 @@ function makePrescription(r: Rand, patientId: string, idx: number, n: number, d:
     refillsTotal,
     expiry: at(asOfMs, expiresIn),
     labelText: `${d.drug.toUpperCase()} ${d.strength.toUpperCase()} ${d.unit}. Take 1 by mouth ${d.sig}. Qty ${qty}.`,
-    planPays: "simulated",
-    patientPays: "simulated",
+    lastDispensedQuantity: { count: qty, unit: d.unit === "CAPSULE" ? "capsules" : "tablets" },
+    // Seeded training prices. These are fictional plan quotes, independent of retail prices.
+    planPays: `$${(10 + (n + idx * 3) % 31).toFixed(2)}`,
+    patientPays: `$${((n + idx) % 5 * 1.25).toFixed(2)}`,
+    supplyQuotes: [{ days: 7, planPays: `$${(5 + n % 9).toFixed(2)}`, patientPays: `$${(n % 3 * 0.75).toFixed(2)}` }],
   };
 }
 

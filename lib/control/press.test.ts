@@ -159,7 +159,7 @@ describe("read-only buttons 4 to 7", () => {
 
   it("check_coverage returns the stored figures", async () => {
     const callId = await verified("sam");
-    expect(out(await control.press(callId, "check_coverage", { rx_id: IDS.samConcerta }))).toEqual({ plan_pays: "$41.20", patient_pays: "$4.10" });
+    expect(out(await control.press(callId, "check_coverage", { rx_id: IDS.samConcerta }))).toMatchObject({ available: true, plan_pays: "$41.20", patient_pays: "$4.10" });
   });
 
   it("order_status lists only this patient's orders", async () => {
@@ -438,5 +438,73 @@ describe("every press", () => {
     await control.press(callId, "request_refill", { rx_id: IDS.samConcerta });
     const entry = (await store.listRecord(callId)).at(-1);
     expect(entry?.context).toMatchObject({ "drug.controlled": true, "rx.days_since_last_fill": 27, "rx.pct_days_elapsed": 90, "call.local_hour": 10 });
+  });
+});
+
+describe("patient-selected services", () => {
+  const consult = { kind: "appointment", slot_id: "consult_wed_10" };
+  const list = { include_appointments: true };
+  it("lists actual openings after verification and reserves the chosen slot only once", async () => {
+    const unverified = await control.startInboundCall();
+    expect(await control.press(unverified, "order_status", list)).toMatchObject({ error: "not_verified" });
+    expect(await control.press(unverified, "note_for_pharmacist", consult)).toMatchObject({ error: "not_verified" });
+    const sam = await verified("sam");
+    const jordan = await verified("jordan");
+    expect(await control.press(sam, "note_for_pharmacist", consult)).toMatchObject({ error: "invalid_input" });
+    for (const c of [sam, jordan]) {
+      expect(out(await control.press(c, "order_status", list)).appointment_slots).toEqual(expect.arrayContaining([
+        expect.objectContaining({ slot_id: consult.slot_id, availability_text: expect.stringContaining("10 AM Eastern") }),
+      ]));
+    }
+    for (const c of [sam, jordan]) {
+      expect(await control.press(c, "note_for_pharmacist", consult)).toMatchObject({ ok: false });
+      await store.appendRecord({ callId: c, actor: "agent", kind: "line_spoken", input: { text: "The pharmacist has an appointment available on Wednesday, November 25 at 10 AM Eastern." } });
+      await store.appendRecord({ callId: c, actor: "agent", kind: "line_spoken", input: { text: "Would you like me to book that appointment?" } });
+      await store.appendRecord({ callId: c, actor: "caller", kind: "caller_line", input: { text: "Yes, please." } });
+      expect(await control.press(c, "note_for_pharmacist", { kind: "appointment", slot_id: "consult_thu_14" })).toMatchObject({ ok: false });
+    }
+    const [a, b] = await Promise.all([sam, jordan].map((c) => control.press(c, "note_for_pharmacist", consult)));
+    expect([a.ok, b.ok].sort()).toEqual([false, true]);
+    const [winner, other] = a.ok ? [sam, jordan] : [jordan, sam];
+    const booking = out(await control.press(winner, "note_for_pharmacist", { ...consult, text: "That time works." }));
+    expect(booking.confirmation_text).toContain("booked for Wednesday, November 25 at 10 AM Eastern");
+    expect(out(await control.press(winner, "order_status", list)).appointments).toEqual([booking]);
+    const otherView = out(await control.press(other, "order_status", list));
+    expect(otherView.appointments).toEqual([]);
+    expect(otherView.appointment_slots).not.toEqual(expect.arrayContaining([expect.objectContaining({ slot_id: consult.slot_id })]));
+    expect(await control.press(other, "note_for_pharmacist", { ...consult, patient_id: IDS.sam })).toMatchObject({ error: "invalid_input" });
+  });
+
+  it("refuses expired or fabricated slots even when availability was checked earlier", async () => {
+    const c = await verified("sam");
+    await control.press(c, "order_status", list);
+    expect(await control.press(c, "note_for_pharmacist", { ...consult, slot_id: "lunch" })).toMatchObject({ error: "invalid_input" });
+    await store.setNow("2026-11-27T10:00:00-05:00");
+    expect(await control.press(c, "note_for_pharmacist", consult)).toMatchObject({ ok: false });
+    expect(out(await control.press(c, "order_status", list))).toMatchObject({ appointment_slots: [], appointments: [] });
+  });
+
+  it("persists a requested seven-day supply for review while keeping the original prescription and interval", async () => {
+    const c = await verified("sam");
+    const before = await store.getPrescription(IDS.samConcerta);
+    const result = out(await control.press(c, "request_refill", { rx_id: IDS.samConcerta, days_supply: 7 }));
+    expect(result).toMatchObject({ days_supply: 7, state: "waiting_for_pharmacist", rule_ids: expect.arrayContaining(["4"]) });
+    expect(await store.listOrders(IDS.sam)).toMatchObject([{ daysSupply: 7 }]);
+    expect(await store.queue()).toMatchObject([{ requestedDaysSupply: 7 }]);
+    expect(await store.getPrescription(IDS.samConcerta)).toEqual(before);
+    expect(out(await control.press(c, "request_refill", { rx_id: IDS.samConcerta, days_supply: 14 }))).toMatchObject({
+      order_id: result.order_id, days_supply: 7, supply_text: "Your existing refill request is for a 7-day supply.",
+    });
+    expect(out(await control.press(c, "order_status", {})).orders).toMatchObject([{ days_supply: 7 }]);
+  });
+
+  it("rejects invalid quantities, another patient's Rx and early controlled refills", async () => {
+    const c = await verified("dev");
+    for (const days_supply of [0, 31, -1, 1.5, "7"]) {
+      expect(await control.press(c, "request_refill", { rx_id: IDS.p4Adderall, days_supply })).toMatchObject({ ok: false, error: "invalid_input" });
+    }
+    expect(await control.press(c, "request_refill", { rx_id: IDS.samConcerta, days_supply: 7 })).toMatchObject({ error: "not_yours" });
+    expect(out(await control.press(c, "request_refill", { rx_id: IDS.p4Adderall, days_supply: 7 }))).toMatchObject({ state: "refused" });
+    expect(await store.listOrders(IDS.p4)).toEqual([]);
   });
 });

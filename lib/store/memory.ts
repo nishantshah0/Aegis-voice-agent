@@ -3,7 +3,7 @@
 
 import { AsyncLocalStorage } from "node:async_hooks";
 import { createHash } from "node:crypto";
-import type { Call, QueueItem, RecordEntry, Seed, Store } from "@/lib/contract";
+import type { Appointment, Call, QueueItem, RecordEntry, Seed, Store } from "@/lib/contract";
 import { SEED } from "@/lib/seed";
 
 /** JSON with object keys sorted at every level, so the same entry always hashes the same. */
@@ -41,13 +41,14 @@ type State = {
   data: Seed;
   now: string;
   calls: Map<string, Call>;
+  appointments: Map<string, Appointment>;
   record: RecordEntry[];
   queue: QueueItem[];
   counters: Record<string, number>;
 };
 
 function freshState(seed: Seed): State {
-  return { data: clone(seed), now: seed.now, calls: new Map(), record: [], queue: [], counters: {} };
+  return { data: clone(seed), now: seed.now, calls: new Map(), appointments: new Map(), record: [], queue: [], counters: {} };
 }
 
 export function createMemoryStore(seed: Seed = SEED): Store {
@@ -97,6 +98,17 @@ export function createMemoryStore(seed: Seed = SEED): Store {
     },
     async listSlots() {
       return clone(s.data.slots);
+    },
+    async listAppointments() {
+      return clone([...s.appointments.values()]);
+    },
+    async reserveAppointment(appointment) {
+      return serial(async () => {
+        const existing = s.appointments.get(appointment.slotId);
+        if (existing) return existing.patientId === appointment.patientId;
+        s.appointments.set(appointment.slotId, clone(appointment));
+        return true;
+      });
     },
     async listOrders(patientId) {
       return clone(s.data.orders.filter((o) => patientId === undefined || o.patientId === patientId));

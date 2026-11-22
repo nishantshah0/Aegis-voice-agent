@@ -7,7 +7,7 @@ const LOGIN = `${AUTH_ROUTES.login}?returnTo=${encodeURIComponent("/app/safety")
 
 /** Is a pharmacist or reviewer signed in? Check this before reading saved results. */
 export async function signedIn(): Promise<boolean> {
-  return auth0Configured() ? (await getApprover()) !== null : false;
+  return (await getApprover()) !== null;
 }
 
 /** Every suite page needs a signed-in pharmacist or reviewer. Nobody else sees saved results. */

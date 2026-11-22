@@ -1,8 +1,10 @@
+import { replayTickets } from "@/app/api/_lib/replay-tickets";
 import { relative } from "node:path";
 import type { ReactNode } from "react";
 import { connection } from "next/server";
 import { AUTH_ROUTES } from "@/lib/auth/auth0";
 import { getApprover } from "@/lib/auth/session";
+import { CallReplay } from "@/components/CallReplay";
 import { Badge, Card, Eyebrow, StatTile } from "@/components/ui";
 import { readOvernight, type Gap, type Source } from "./results";
 import { Replay } from "./Replay";
@@ -198,6 +200,7 @@ export async function Overnight() {
                   <p className="mb-3 text-xs text-ink-3">
                     From <FilePath path={view.replay.path} />. Run it again with <code className="font-mono">{view.replay.command}</code>.
                   </p>
+                  {view.replay.call && <CallReplay key={view.replay.path} entries={view.replay.call.entries} tickets={replayTickets(view.replay.path, view.replay.call.entries)} verdict={view.replay.call.verdict} />}
                   <Replay steps={view.replay.steps} />
                 </>
               ) : (

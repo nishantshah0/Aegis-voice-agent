@@ -31,7 +31,7 @@ describe("scenario runner", () => {
         makeSession: async (seed) => {
           const { store, driver } = createFakes();
           await store.reset(seed);
-          return { store, driver, opening: async () => {} };
+          return { store, driver, checkIn: async () => {}, opening: async () => {} };
         },
         saveResult: async (run) => { saved.push(run); },
         emit: (event) => {

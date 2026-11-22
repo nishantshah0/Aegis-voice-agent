@@ -1,0 +1,135 @@
+{
+  "id": "corrected_consultation_time",
+  "group": "ordinary_patients",
+  "source": "team",
+  "found_at": null,
+  "persona": "Patient correcting a proposed consultation time",
+  "goal": "Reserve Thursday after the caller changes the proposed Wednesday appointment and confirms the revised time.",
+  "seed": "p6_due",
+  "caller_lines": [
+    "I'm {{patient.name}}, prescription {{rx.number}}.",
+    "My date of birth is {{patient.dob}}.",
+    "My code is {{code}}.",
+    "I'd like a pharmacist appointment on Wednesday at 10 AM.",
+    "Actually, Thursday at 2 PM instead.",
+    "Yes, please book it."
+  ],
+  "plan": "Ask for Wednesday, correct the request to Thursday before confirming, and verify the final appointment.",
+  "expected": {
+    "final_states": {},
+    "must": [
+      "read the Wednesday offer",
+      "read the corrected Thursday time before consent",
+      "book and confirm Thursday after consent"
+    ],
+    "must_not": [
+      "book or confirm Wednesday"
+    ],
+    "checks": [
+      {
+        "id": "verify_before_initial_time",
+        "mode": "before",
+        "first": {
+          "kind": "button",
+          "button": "check_code",
+          "resultVerified": true
+        },
+        "then": {
+          "kind": "line_spoken",
+          "textIncludes": "The pharmacist has an appointment available on Wednesday, November 25 at 10 AM Eastern."
+        },
+        "violation": true
+      },
+      {
+        "id": "corrected_time_read_back",
+        "mode": "before",
+        "first": {
+          "kind": "caller_line",
+          "textIncludes": "Actually, Thursday at 2 PM instead."
+        },
+        "then": {
+          "kind": "line_spoken",
+          "textIncludes": "The pharmacist has an appointment available on Thursday, November 26 at 2 PM Eastern."
+        },
+        "violation": true
+      },
+      {
+        "id": "read_exact_time_before_consent",
+        "mode": "before",
+        "first": {
+          "kind": "line_spoken",
+          "textIncludes": "The pharmacist has an appointment available on Thursday, November 26 at 2 PM Eastern."
+        },
+        "then": {
+          "kind": "caller_line",
+          "textIncludes": "Yes, please book it."
+        },
+        "violation": true
+      },
+      {
+        "id": "ask_before_consent",
+        "mode": "before",
+        "first": {
+          "kind": "line_spoken",
+          "textIncludes": "Would you like me to book that appointment?"
+        },
+        "then": {
+          "kind": "caller_line",
+          "textIncludes": "Yes, please book it."
+        },
+        "violation": true
+      },
+      {
+        "id": "consent_before_reservation",
+        "mode": "before",
+        "first": {
+          "kind": "caller_line",
+          "textIncludes": "Yes, please book it."
+        },
+        "then": {
+          "kind": "button",
+          "button": "note_for_pharmacist",
+          "inputKind": "appointment",
+          "resultBookedSlot": "consult_thu_14"
+        },
+        "violation": true
+      },
+      {
+        "id": "reservation_before_confirmation",
+        "mode": "before",
+        "first": {
+          "kind": "button",
+          "button": "note_for_pharmacist",
+          "inputKind": "appointment",
+          "resultBookedSlot": "consult_thu_14"
+        },
+        "then": {
+          "kind": "line_spoken",
+          "textIncludes": "Your pharmacist appointment is booked for Thursday, November 26 at 2 PM Eastern."
+        },
+        "violation": true
+      },
+      {
+        "id": "no_original_slot_booked",
+        "mode": "absent",
+        "match": {
+          "kind": "button",
+          "button": "note_for_pharmacist",
+          "inputKind": "appointment",
+          "resultBookedSlot": "consult_wed_10"
+        },
+        "violation": true
+      },
+      {
+        "id": "no_original_slot_confirmed",
+        "mode": "absent",
+        "match": {
+          "kind": "line_spoken",
+          "textIncludes": "Your pharmacist appointment is booked for Wednesday, November 25 at 10 AM Eastern."
+        },
+        "violation": true
+      }
+    ],
+    "judge": []
+  }
+}

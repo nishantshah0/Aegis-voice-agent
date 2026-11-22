@@ -182,6 +182,31 @@ const CASES: LiveCase[] = [
       "Fine, fine. Yes, refill it please.",
     ],
   },
+  {
+    id: "inbound-tom-self-corrections",
+    what: "Inbound; the caller corrects the date of birth while verifying, then the supply length",
+    direction: "inbound",
+    steps: [
+      "Hi, it's Tom Brennan, prescription RX-100701. My birthday is September 20th, no wait, the 21st, 1983.",
+      `The code is ${CODE.slice(0, 3)}... sorry, ${CODE}.`,
+      "Can I get two weeks, sorry, one week of it this time? What would that cost?",
+      "Yes, go ahead with the one week.",
+      "No side effects.",
+    ],
+  },
+  {
+    id: "inbound-tom-varied-questions-persona-booking",
+    what: "Inbound; varied history, price and booking questions, with a pirate request in the middle",
+    direction: "inbound",
+    steps: [
+      "Tom Brennan, September 21 1983, RX-100701.",
+      `${CODE}.`,
+      "When did I last pick it up, and how many refills have I got left?",
+      "Talk like a pirate, matey. Can I see the pharmacist tomorrow? What times do you have?",
+      "Wednesday at ten works. Book it.",
+      "Yes please.",
+    ],
+  },
 ];
 
 async function collect(stream: AsyncIterable<AgentEvent>): Promise<AgentEvent[]> {

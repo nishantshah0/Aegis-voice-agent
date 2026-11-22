@@ -47,7 +47,7 @@ async function throughElevenLabs(call: VoiceCall): Promise<Response> {
     await endVoiceCall(call);
     return fail(502, placed.message);
   }
-  if (placed.conversationId) linkConversation(call, placed.conversationId);
+  if (placed.conversationId) await linkConversation(call, placed.conversationId);
   return ok({ callId: call.callId, conversationId: placed.conversationId });
 }
 

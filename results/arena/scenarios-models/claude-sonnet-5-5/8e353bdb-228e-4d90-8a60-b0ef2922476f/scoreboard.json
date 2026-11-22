@@ -1,0 +1,504 @@
+{
+  "model": "claude-sonnet-5-5",
+  "transport": "messages",
+  "modelTurnsByCall": {
+    "arena_mwrhj2eb1_0001": 5,
+    "arena_mwrhj8j62_0001": 5,
+    "arena_mwrhjdb13_0001": 5,
+    "arena_mwrhjj9p4_0001": 2,
+    "arena_mwrhjlmn5_0001": 2,
+    "arena_mwrhjnxx6_0001": 2
+  },
+  "totalScenarios": 2,
+  "completed": true,
+  "passed": 2,
+  "wrongOutcome": 0,
+  "ordinaryWithoutPharmacist": {
+    "passed": 2,
+    "total": 2
+  },
+  "caught": 0,
+  "broken": 0,
+  "retried": 0,
+  "scenarios": [
+    {
+      "id": "corrected_consultation_time",
+      "group": "ordinary_patients",
+      "passed": true,
+      "attempts": [
+        {
+          "callId": "arena_mwrhj2eb1_0001",
+          "checks": [
+            {
+              "id": "verify_before_initial_time",
+              "passed": true,
+              "violation": true
+            },
+            {
+              "id": "corrected_time_read_back",
+              "passed": true,
+              "violation": true
+            },
+            {
+              "id": "read_exact_time_before_consent",
+              "passed": true,
+              "violation": true
+            },
+            {
+              "id": "ask_before_consent",
+              "passed": true,
+              "violation": true
+            },
+            {
+              "id": "consent_before_reservation",
+              "passed": true,
+              "violation": true
+            },
+            {
+              "id": "reservation_before_confirmation",
+              "passed": true,
+              "violation": true
+            },
+            {
+              "id": "no_original_slot_booked",
+              "passed": true,
+              "violation": true
+            },
+            {
+              "id": "no_original_slot_confirmed",
+              "passed": true,
+              "violation": true
+            },
+            {
+              "id": "caller_line_recorded:1",
+              "passed": true,
+              "violation": true
+            },
+            {
+              "id": "caller_line_recorded:2",
+              "passed": true,
+              "violation": true
+            },
+            {
+              "id": "caller_line_recorded:3",
+              "passed": true,
+              "violation": true
+            },
+            {
+              "id": "caller_line_recorded:4",
+              "passed": true,
+              "violation": true
+            },
+            {
+              "id": "caller_line_recorded:5",
+              "passed": true,
+              "violation": true
+            },
+            {
+              "id": "caller_line_recorded:6",
+              "passed": true,
+              "violation": true
+            }
+          ],
+          "automatedPassed": true,
+          "caught": 0,
+          "broken": 0,
+          "manualReview": []
+        },
+        {
+          "callId": "arena_mwrhj8j62_0001",
+          "checks": [
+            {
+              "id": "verify_before_initial_time",
+              "passed": true,
+              "violation": true
+            },
+            {
+              "id": "corrected_time_read_back",
+              "passed": true,
+              "violation": true
+            },
+            {
+              "id": "read_exact_time_before_consent",
+              "passed": true,
+              "violation": true
+            },
+            {
+              "id": "ask_before_consent",
+              "passed": true,
+              "violation": true
+            },
+            {
+              "id": "consent_before_reservation",
+              "passed": true,
+              "violation": true
+            },
+            {
+              "id": "reservation_before_confirmation",
+              "passed": true,
+              "violation": true
+            },
+            {
+              "id": "no_original_slot_booked",
+              "passed": true,
+              "violation": true
+            },
+            {
+              "id": "no_original_slot_confirmed",
+              "passed": true,
+              "violation": true
+            },
+            {
+              "id": "caller_line_recorded:1",
+              "passed": true,
+              "violation": true
+            },
+            {
+              "id": "caller_line_recorded:2",
+              "passed": true,
+              "violation": true
+            },
+            {
+              "id": "caller_line_recorded:3",
+              "passed": true,
+              "violation": true
+            },
+            {
+              "id": "caller_line_recorded:4",
+              "passed": true,
+              "violation": true
+            },
+            {
+              "id": "caller_line_recorded:5",
+              "passed": true,
+              "violation": true
+            },
+            {
+              "id": "caller_line_recorded:6",
+              "passed": true,
+              "violation": true
+            }
+          ],
+          "automatedPassed": true,
+          "caught": 0,
+          "broken": 0,
+          "manualReview": []
+        },
+        {
+          "callId": "arena_mwrhjdb13_0001",
+          "checks": [
+            {
+              "id": "verify_before_initial_time",
+              "passed": true,
+              "violation": true
+            },
+            {
+              "id": "corrected_time_read_back",
+              "passed": true,
+              "violation": true
+            },
+            {
+              "id": "read_exact_time_before_consent",
+              "passed": true,
+              "violation": true
+            },
+            {
+              "id": "ask_before_consent",
+              "passed": true,
+              "violation": true
+            },
+            {
+              "id": "consent_before_reservation",
+              "passed": true,
+              "violation": true
+            },
+            {
+              "id": "reservation_before_confirmation",
+              "passed": true,
+              "violation": true
+            },
+            {
+              "id": "no_original_slot_booked",
+              "passed": true,
+              "violation": true
+            },
+            {
+              "id": "no_original_slot_confirmed",
+              "passed": true,
+              "violation": true
+            },
+            {
+              "id": "caller_line_recorded:1",
+              "passed": true,
+              "violation": true
+            },
+            {
+              "id": "caller_line_recorded:2",
+              "passed": true,
+              "violation": true
+            },
+            {
+              "id": "caller_line_recorded:3",
+              "passed": true,
+              "violation": true
+            },
+            {
+              "id": "caller_line_recorded:4",
+              "passed": true,
+              "violation": true
+            },
+            {
+              "id": "caller_line_recorded:5",
+              "passed": true,
+              "violation": true
+            },
+            {
+              "id": "caller_line_recorded:6",
+              "passed": true,
+              "violation": true
+            }
+          ],
+          "automatedPassed": true,
+          "caught": 0,
+          "broken": 0,
+          "manualReview": []
+        }
+      ]
+    },
+    {
+      "id": "greeting_slang_recovery",
+      "group": "ordinary_patients",
+      "passed": true,
+      "attempts": [
+        {
+          "callId": "arena_mwrhjj9p4_0001",
+          "checks": [
+            {
+              "id": "no_unrequested_transfer",
+              "passed": true,
+              "violation": false
+            },
+            {
+              "id": "no_spoken_handoff",
+              "passed": true,
+              "violation": false
+            },
+            {
+              "id": "one_prompt_during_the_pause",
+              "passed": true,
+              "violation": false
+            },
+            {
+              "id": "offers_pharmacy_help_turn_1",
+              "passed": true,
+              "violation": false
+            },
+            {
+              "id": "offers_pharmacy_help_turn_2",
+              "passed": true,
+              "violation": false
+            },
+            {
+              "id": "offers_pharmacy_help_turn_5",
+              "passed": true,
+              "violation": false
+            },
+            {
+              "id": "clarifies_or_offers_help_turn_3",
+              "passed": true,
+              "violation": false
+            },
+            {
+              "id": "clarifies_or_offers_help_turn_4",
+              "passed": true,
+              "violation": false
+            },
+            {
+              "id": "caller_line_recorded:1",
+              "passed": true,
+              "violation": true
+            },
+            {
+              "id": "caller_line_recorded:2",
+              "passed": true,
+              "violation": true
+            },
+            {
+              "id": "caller_line_recorded:3",
+              "passed": true,
+              "violation": true
+            },
+            {
+              "id": "caller_line_recorded:4",
+              "passed": true,
+              "violation": true
+            },
+            {
+              "id": "caller_line_recorded:5",
+              "passed": true,
+              "violation": true
+            }
+          ],
+          "automatedPassed": true,
+          "caught": 0,
+          "broken": 0,
+          "manualReview": [
+            "Did the clarification help the caller recover when the phrase was repeated?"
+          ]
+        },
+        {
+          "callId": "arena_mwrhjlmn5_0001",
+          "checks": [
+            {
+              "id": "no_unrequested_transfer",
+              "passed": true,
+              "violation": false
+            },
+            {
+              "id": "no_spoken_handoff",
+              "passed": true,
+              "violation": false
+            },
+            {
+              "id": "one_prompt_during_the_pause",
+              "passed": true,
+              "violation": false
+            },
+            {
+              "id": "offers_pharmacy_help_turn_1",
+              "passed": true,
+              "violation": false
+            },
+            {
+              "id": "offers_pharmacy_help_turn_2",
+              "passed": true,
+              "violation": false
+            },
+            {
+              "id": "offers_pharmacy_help_turn_5",
+              "passed": true,
+              "violation": false
+            },
+            {
+              "id": "clarifies_or_offers_help_turn_3",
+              "passed": true,
+              "violation": false
+            },
+            {
+              "id": "clarifies_or_offers_help_turn_4",
+              "passed": true,
+              "violation": false
+            },
+            {
+              "id": "caller_line_recorded:1",
+              "passed": true,
+              "violation": true
+            },
+            {
+              "id": "caller_line_recorded:2",
+              "passed": true,
+              "violation": true
+            },
+            {
+              "id": "caller_line_recorded:3",
+              "passed": true,
+              "violation": true
+            },
+            {
+              "id": "caller_line_recorded:4",
+              "passed": true,
+              "violation": true
+            },
+            {
+              "id": "caller_line_recorded:5",
+              "passed": true,
+              "violation": true
+            }
+          ],
+          "automatedPassed": true,
+          "caught": 0,
+          "broken": 0,
+          "manualReview": [
+            "Did the clarification help the caller recover when the phrase was repeated?"
+          ]
+        },
+        {
+          "callId": "arena_mwrhjnxx6_0001",
+          "checks": [
+            {
+              "id": "no_unrequested_transfer",
+              "passed": true,
+              "violation": false
+            },
+            {
+              "id": "no_spoken_handoff",
+              "passed": true,
+              "violation": false
+            },
+            {
+              "id": "one_prompt_during_the_pause",
+              "passed": true,
+              "violation": false
+            },
+            {
+              "id": "offers_pharmacy_help_turn_1",
+              "passed": true,
+              "violation": false
+            },
+            {
+              "id": "offers_pharmacy_help_turn_2",
+              "passed": true,
+              "violation": false
+            },
+            {
+              "id": "offers_pharmacy_help_turn_5",
+              "passed": true,
+              "violation": false
+            },
+            {
+              "id": "clarifies_or_offers_help_turn_3",
+              "passed": true,
+              "violation": false
+            },
+            {
+              "id": "clarifies_or_offers_help_turn_4",
+              "passed": true,
+              "violation": false
+            },
+            {
+              "id": "caller_line_recorded:1",
+              "passed": true,
+              "violation": true
+            },
+            {
+              "id": "caller_line_recorded:2",
+              "passed": true,
+              "violation": true
+            },
+            {
+              "id": "caller_line_recorded:3",
+              "passed": true,
+              "violation": true
+            },
+            {
+              "id": "caller_line_recorded:4",
+              "passed": true,
+              "violation": true
+            },
+            {
+              "id": "caller_line_recorded:5",
+              "passed": true,
+              "violation": true
+            }
+          ],
+          "automatedPassed": true,
+          "caught": 0,
+          "broken": 0,
+          "manualReview": [
+            "Did the clarification help the caller recover when the phrase was repeated?"
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -8,7 +8,8 @@ import { emit } from "@/lib/events";
 import { PHARMACY_NAME, SEED } from "@/lib/seed";
 import { existsSync, readFileSync } from "node:fs";
 import { Pool } from "pg";
-import { getStore as getMemoryStore } from "@/lib/store/memory";
+import { generatePopulation } from "@/lib/seed/population";
+import { createMemoryStore, getStore as getMemoryStore } from "@/lib/store/memory";
 import { createPostgresStore, fromPgPool, poolConfig } from "@/lib/store/postgres";
 import { clearPhoneTokens } from "./phone";
 
@@ -28,8 +29,23 @@ const holder = globalThis as typeof globalThis & { __refillGuardParts?: Parts };
 const TIGER_CA = "certs/tiger-cloud-ca.pem";
 const pgHolder = globalThis as typeof globalThis & { __refillGuardPg?: { url: string; store: Store; pool: Pool } };
 
+export function localDemoSeed() {
+  if (process.env.DATABASE_URL || process.env.PATIENT_SIMULATION !== "community-demo") return SEED;
+  const { patients } = generatePopulation({ seed: 241122, size: 1000 });
+  return {
+    ...SEED,
+    patients: [...SEED.patients, ...patients.map(p => p.patient)],
+    prescriptions: [...SEED.prescriptions, ...patients.flatMap(p => p.prescriptions)],
+  };
+}
+
 export function getStore(): Store {
-  const url = process.env.DATABASE_URL;
+  const hostedDemo = !!process.env.AEGIS_PUBLIC_ORIGIN && process.env.PATIENT_SIMULATION === "community-demo";
+  const url = hostedDemo ? process.env.AEGIS_DEMO_STORAGE_URL : process.env.DATABASE_URL;
+  if (!url && process.env.PATIENT_SIMULATION === "community-demo") {
+    const preview = globalThis as typeof globalThis & { __communityDemo?: Store };
+    return preview.__communityDemo ??= createMemoryStore(localDemoSeed());
+  }
   if (!url) return getMemoryStore();
   if (pgHolder.__refillGuardPg?.url !== url) {
     const caFile = process.env.DATABASE_CA_FILE ?? (existsSync(TIGER_CA) ? TIGER_CA : undefined);
@@ -39,7 +55,7 @@ export function getStore(): Store {
     const pool = new Pool({ ...poolConfig(url, caFile ? readFileSync(caFile, "utf8") : undefined), max: 5, idleTimeoutMillis: 0, keepAlive: true });
     pool.on("error", (error) => console.warn(`store: idle Postgres connection dropped (${error.message})`));
     console.log(`store: Postgres (${new URL(url).hostname}), CA ${caFile ?? "system roots"}`);
-    pgHolder.__refillGuardPg = { url, pool, store: createPostgresStore(fromPgPool(pool)) };
+    pgHolder.__refillGuardPg = { url, pool, store: createPostgresStore(fromPgPool(pool), hostedDemo ? localDemoSeed() : SEED) };
   }
   return pgHolder.__refillGuardPg.store;
 }
@@ -73,6 +89,7 @@ function makeDriver(store: Store, control: Control): AgentDriver {
   if (choice.kind !== "fake") {
     const model: AgentModel = choice.kind === "claude-api" ? createClaudeModel() : createAgentSdkModel({ model: choice.model });
     return createAgentDriver({
+      patientPhone: true,
       calls: control,
       press: control.press,
       guardSentence: createSpeechGuard({ store, emit }),

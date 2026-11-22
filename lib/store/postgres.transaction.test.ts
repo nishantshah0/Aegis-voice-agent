@@ -217,3 +217,34 @@ describe("Postgres store on a pg Pool: transaction(fn) uses one client", () => {
     expect(await store.getCall("c_pool_bad")).toBeUndefined();
   });
 });
+
+it("keeps one pharmacist appointment per slot across stores and rolls a missed audit write back", async () => {
+  const first = createPostgresStore(fromPGlite(pg), SEED);
+  await first.reset(SEED);
+  const second = createPostgresStore(fromPGlite(pg), SEED);
+  const sam = { slotId: "consult_wed_10", patientId: IDS.sam, bookedAt: SEED.now };
+  const jordan = { ...sam, patientId: IDS.p2 };
+  expect(await first.reserveAppointment(sam)).toBe(true);
+  expect(await second.reserveAppointment(jordan)).toBe(false);
+  expect(await second.reserveAppointment({ ...sam, bookedAt: "2026-11-24T17:00:00Z" })).toBe(true);
+  expect(await second.listAppointments()).toEqual([sam]);
+  await expect(first.transaction(async () => {
+    await first.reserveAppointment({ ...sam, slotId: "consult_thu_14" });
+    throw boom;
+  })).rejects.toThrow("record write failed");
+  expect(await second.listAppointments()).toEqual([sam]);
+  await first.reset(SEED);
+  expect(await second.listAppointments()).toEqual([]);
+});
+
+it("adds the consultation calendar to an existing demo database without resetting its orders or audit trail", async () => {
+  const legacy = createPostgresStore(fromPGlite(pg), SEED);
+  await legacy.reset({ ...SEED, policy: { controlledEarlyWindowDays: 3 } });
+  await legacy.appendRecord({ actor: "system", kind: "safety", input: { check: "before-calendar" } });
+  await pg.query("drop table rg_appointments");
+  const upgraded = createPostgresStore(fromPGlite(pg), SEED);
+  expect(await upgraded.listAppointments()).toEqual([]);
+  expect((await upgraded.policy()).appointmentSlots).toEqual(SEED.policy.appointmentSlots);
+  expect(await upgraded.listOrders()).toEqual(SEED.orders);
+  expect(await upgraded.listRecord()).toHaveLength(1);
+});

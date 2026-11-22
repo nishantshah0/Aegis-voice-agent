@@ -97,7 +97,7 @@ export async function runScenarioSuite(options: {
             scenario,
             seed,
             code,
-            makeSession: (fixture, target) => makeSession(fixture, target, code),
+            makeSession: (fixture, target) => makeSession(fixture, { ...target, patientPhone: true }, code),
             saveResult: async (result) => {
               await saveAttempt?.(scenario.id, attempt + 1, result);
               attempts.push({ callId: result.callId, ...result.score });

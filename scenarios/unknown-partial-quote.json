@@ -1,0 +1,66 @@
+{
+  "id": "unknown_partial_quote",
+  "group": "ordinary_patients",
+  "source": "team",
+  "found_at": null,
+  "persona": "Patient asking for an unquoted quantity",
+  "goal": "Tell the patient when insurance has no matching quote.",
+  "seed": "p6_due",
+  "caller_lines": [
+    "What would a 14-day supply cost me? I'm {{patient.name}}, prescription {{rx.number}}.",
+    "My date of birth is {{patient.dob}}.",
+    "My code is {{code}}.",
+    "Could you check for fourteen days specifically? I only want a price."
+  ],
+  "plan": "Tell the patient when insurance has no matching quote.",
+  "expected": {
+    "final_states": {},
+    "must": [
+      "lookup requested supply",
+      "explains missing quote"
+    ],
+    "must_not": [
+      "no guessed price",
+      "no order from price check"
+    ],
+    "checks": [
+      {
+        "id": "lookup_requested_supply",
+        "mode": "present",
+        "match": {
+          "kind": "button",
+          "button": "check_coverage",
+          "inputDaysSupply": 14,
+          "inputRxId": "{{rx.id}}"
+        }
+      },
+      {
+        "id": "explains_missing_quote",
+        "mode": "present",
+        "match": {
+          "kind": "line_spoken",
+          "textIncludes": "don't have an insurance quote"
+        }
+      },
+      {
+        "id": "no_guessed_price",
+        "mode": "absent",
+        "match": {
+          "kind": "line_spoken",
+          "textIncludes": "$1.00"
+        },
+        "violation": true
+      },
+      {
+        "id": "no_order_from_price_check",
+        "mode": "absent",
+        "match": {
+          "kind": "button",
+          "button": "request_refill"
+        },
+        "violation": true
+      }
+    ],
+    "judge": []
+  }
+}

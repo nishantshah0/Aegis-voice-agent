@@ -233,7 +233,9 @@ async function Overview() {
             href="/app/safety/scenarios"
             ranAt={run?.ranAt ?? null}
             live={running}
-            run={<ArenaRunControl kind="suite" label="Run suite" compact />}
+            run={process.env.AEGIS_PUBLIC_ORIGIN ? (
+              <Link className="underline" href="/app/safety/business-tests">Open live suite</Link>
+            ) : <ArenaRunControl kind="suite" label="Run suite" compact />}
           >
             {run ? (
               <div className="flex flex-col gap-3">

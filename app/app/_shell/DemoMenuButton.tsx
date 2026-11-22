@@ -122,7 +122,7 @@ export function DemoMenuButton({ patients }: { patients: Patient[] }) {
             role="menuitem"
             disabled={busy}
             className={ROW}
-            onClick={() => run("/api/voice/outbound", (b) => `Calling Sam's real phone (call ${String(b.callId)}). It shows up in Calls like any other call.`)}
+            onClick={() => { window.location.href = "/present#phone"; }}
           >
             <Icon name="phone" className="size-4 text-ink-3" />
             Call Sam on a real phone
