@@ -13,7 +13,8 @@
 
 <p align="center"><strong>Synthetic demo data only · Not for clinical use</strong></p>
 
-<p align="center"><img src="docs/images/landing.png" alt="Aegis public home page" width="900"></p>
+<p align="center"><a href="public/brand/hero-flowers-dithered-4x4.mp4"><img src="docs/images/flowers-loop.gif" alt="Looping preview of the Aegis landing-page flowers" width="900"></a></p>
+<p align="center"><sub><a href="public/brand/hero-flowers-dithered-4x4.mp4">Watch the full flower video</a></sub></p>
 
 ## How it works
 
