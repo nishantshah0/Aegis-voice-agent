@@ -9,7 +9,8 @@ import { twilioSignature } from "../../_lib/twilio";
 import { demoCode } from "../phone/config";
 import { start as phoneStart, status, twiml } from "../phone/handlers";
 import { start as browserStart, turn as browserTurn } from "../browser/handlers";
-import { CODE_ON_SCREEN, setAgentModelForTests } from "./agent";
+import { SEED } from "@/lib/seed";
+import { CODE_ON_SCREEN, agentStoreForTests, setAgentModelForTests } from "./agent";
 import { FALLBACK_LINE } from "./turn";
 
 // Trail #70: the presenter's real phone call (Twilio Gather/Play) and the browser call send the
@@ -57,9 +58,13 @@ beforeEach(async () => {
     ELEVENLABS_VOICE_ID: "mock",
   }))
     vi.stubEnv(key, val);
+  // Empty every table between tests. Never drop them: the storage modules create them once per process.
   local.database ??= new PGlite();
-  await local.database.exec("DROP SCHEMA IF EXISTS aegis_presenter_agent CASCADE; CREATE SCHEMA aegis_presenter_agent; SET search_path TO aegis_presenter_agent, public");
-  await local.database.exec("DROP TABLE IF EXISTS public.aegis_presenter_requests, public.aegis_presenter_audio, public.aegis_presenter_calls, public.aegis_presenter_browser_turns CASCADE");
+  const db = local.database;
+  await db.exec("CREATE SCHEMA IF NOT EXISTS aegis_presenter_agent; SET search_path TO aegis_presenter_agent, public");
+  const { rows } = await db.query<{ t: string }>("SELECT table_name AS t FROM information_schema.tables WHERE table_schema = 'aegis_presenter_agent' AND table_name LIKE 'aegis_%'");
+  for (const { t } of rows) await db.exec(`TRUNCATE aegis_presenter_agent.${t} CASCADE`);
+  await (await agentStoreForTests()).reset(SEED);
   script.steps = [];
   script.fail = false;
   voiced = [];
