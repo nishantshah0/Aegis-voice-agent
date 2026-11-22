@@ -26,6 +26,10 @@ const NOT_A_PROMISE = new RegExp(
   [
     "\\b(?:you|youre|you are|are you|were|we are|im|i am|whenever youre|when youre) ready\\b",
     "\\blast filled\\b",
+    // The agent refusing to mark it: "I can't mark a refill as approved." (live suite, claimed_pharmacist)
+    "\\b(?:cant|cannot|can not|not able to|unable to|wont|dont|do not|not allowed to)(?: \\w+){0,2} (?:mark|set|make|call|confirm|declare|record|flag)(?: \\w+){0,3} (?:approved|ready|done|confirmed|complete|completed|filled)\\b",
+    // How approvals work, said in general: "approvals are done by the pharmacist".
+    "\\bapprovals? (?:are|is) (?:done|handled|made|given|decided) by\\b",
     // The agent's own work: "I'm finished with the questions."
     "\\b(?:im|i am|were|we are|ive|i ve|weve|we ve) (?:all )?finished\\b",
     // The agent's own reading, not the order: "I went through your record."
@@ -375,7 +379,28 @@ export function unexcusedCompletion(sentence: string, drugNames: string[] = []):
   });
 }
 
-function checkS4(sentence: string, record: RecordEntry[], bookedLabels: string[], drugNames: string[] = [], approvableItems?: Set<string>): Check {
+// An open slot offered as a question or an option (live suite, change_delivery_time): "Would you
+// like to pick it up Thursday 9 to 12 instead?", "I can switch it to pickup on Thursday 9 to 12".
+const OFFER =
+  /\b(?:would you like|do you want|want me to|should i|shall i|i can (?:switch|change|move|put|set)|we can (?:switch|change|move|do)|how about|what about|instead|(?:is|are) (?:open|available|free)|could (?:also )?do|does that work|would that work)\b/;
+
+/** A day in this clause is offered, not promised: a question or an offer naming a real open slot's whole label. */
+function offeredSlot(sentence: string, cw: string, day: string, slotLabels: string[]): boolean {
+  if (!sentence.trim().endsWith("?") && !OFFER.test(words(sentence))) return false;
+  return slotLabels.some((l) => {
+    const label = words(l);
+    return label.includes(` ${day} `) && cw.includes(label);
+  });
+}
+
+function checkS4(
+  sentence: string,
+  record: RecordEntry[],
+  bookedLabels: string[],
+  drugNames: string[] = [],
+  approvableItems?: Set<string>,
+  slotLabels: string[] = [],
+): Check {
   const results = record.filter((e) => e.kind === "button").map((e) => ({ e, r: resultOf(e) }));
   // Only an approval of a refill or renewal (AUDIT fix 4a): approving a plain note or question
   // never makes "your refill is approved" true.
@@ -423,7 +448,8 @@ function checkS4(sentence: string, record: RecordEntry[], bookedLabels: string[]
     const wide = cw.match(BOOKING_WIDE);
     if (wide && DELIVERY_CONTEXT.test(cw) && !negatedNear(cw, wide.index ?? 0) && !booked) return { rule: "S4", why: "booking without set_delivery" };
     const when = cw.match(WHEN);
-    if (when && (HANDOVER.test(cw) || HANDOVER_WIDE.test(cw)) && !negatedNear(cw, when.index ?? 0, true) && !booked) {
+    const slotOffered = (sentence.trim().endsWith("?") || OFFER.test(words(sentence))) && slotLabels.some((l) => cw.includes(words(l)));
+    if (when && !slotOffered && (HANDOVER.test(cw) || HANDOVER_WIDE.test(cw)) && !negatedNear(cw, when.index ?? 0, true) && !booked) {
       return { rule: "S4", why: `delivery time ${when[0].trim()} without set_delivery` };
     }
 
@@ -431,6 +457,7 @@ function checkS4(sentence: string, record: RecordEntry[], bookedLabels: string[]
       if (negatedNear(cw, d.index, true)) continue;
       // ready_label backs the day only in a "ready <day>" clause about the refill, never a delivery.
       if (READY_CLAUSE.test(cw) && !HANDOVER.test(cw) && readyLabels.includes(d[0])) continue;
+      if (offeredSlot(sentence, cw, d[0], slotLabels)) continue;
       if (!bookedLabels.some((l) => l.toLowerCase().includes(d[0]))) return { rule: "S4", why: `day ${d[0]} not booked or a run-out day` };
     }
 
@@ -505,7 +532,7 @@ export function createSpeechGuard({ store, emit = () => {} }: { store: Store; em
             found =
               (why ? { rule: "S4", why, replacement: "I can't confirm that from your record." } : null) ??
               (await checkS3(store, call, heard, record)) ??
-              checkS4(line, record, bookedLabels, drugs, approvable);
+              checkS4(line, record, bookedLabels, drugs, approvable, slots.map((sl) => sl.label));
           }
           if (found) break;
         }
