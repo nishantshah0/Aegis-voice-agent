@@ -102,11 +102,16 @@ describe("S3: a dosing instruction is spoken only off the label", () => {
   it.each([
     [["Take them.", "All at once."]],
     [["Your refill is 30 tablets.", "Take them all at once."]],
-    [["Thirty at once.", "Take them."]],
     [["You can take them.", "All of them, tonight."]],
   ])("blocks the second of two sentences that dose together: %j", async (lines) => {
     const callId = await verifiedSam();
     expect(await say(callId, lines)).toEqual([null, "S3"]);
+  });
+
+  // Since RT-MT-3, an amount beside a dose cue is a dose on its own; the caller then hears the replacement.
+  it("blocks 'Thirty at once.' itself, so 'Take them.' after its replacement has nothing to dose", async () => {
+    const callId = await verifiedSam();
+    expect(await say(callId, ["Thirty at once.", "Take them."])).toEqual(["S3", null]);
   });
 
   it("a caller's question in between doesn't reset the window", async () => {
