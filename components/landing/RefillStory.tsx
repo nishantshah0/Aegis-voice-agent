@@ -154,7 +154,7 @@ export function RefillStory({ safetyHref }: { safetyHref: string }) {
           <span>A clear next step for pharmacists.</span>
         </h2>
       </header>
-      <ScrollStory visuals={[ring, verify, refill, review, speech, control]}>
+      <ScrollStory>
         <section aria-labelledby="call-title">
           <Beat step={1} heading={<h3 id="call-title">A call before you run out.</h3>} visual={ring}>
             <p>The pharmacy calls when it’s time to check in about a refill.</p>
