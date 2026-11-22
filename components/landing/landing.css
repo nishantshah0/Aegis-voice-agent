@@ -355,10 +355,6 @@
   padding-bottom: 0;
 }
 
-.landing-beat:is([data-story-position="passed"], [data-story-position="ahead"]) .landing-inline-visual {
-  opacity: 0;
-}
-
 .landing-step-label {
   display: block;
   margin-bottom: 0.55rem;
@@ -416,6 +412,10 @@
 .landing-anchor {
   position: absolute;
   top: 0;
+}
+
+.landing-sticky {
+  display: none;
 }
 
 .landing-scene {
@@ -781,24 +781,60 @@
   font-size: 0.8125rem;
 }
 
-@media (min-width: 1024px) {
-  .landing-beat {
-    --rail-offset: 0.4375rem;
-    --marker-top: 3.0625rem;
+@media (min-width: 1024px) and (min-height: 700px) and (prefers-reduced-motion: no-preference) {
+  .landing-story[data-sticky-ready] {
+    --beat-height: clamp(21rem, 48svh, 31rem);
+    --panel-height: clamp(27rem, 58svh, 33rem);
 
+    display: grid;
     grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
-    align-items: start;
-    column-gap: clamp(2.5rem, 6vw, 6rem);
+    gap: clamp(2.5rem, 6vw, 6rem);
+    padding-block-end: 0;
+  }
+
+  .landing-story[data-sticky-ready] .landing-steps {
+    /* Keep the panel pinned beyond the last beat's midpoint before it exits. */
+    padding-block-end: calc(var(--panel-height) - var(--beat-height) + 4rem);
+  }
+
+  .landing-story[data-sticky-ready] .landing-beat {
+    --rail-offset: 0.4375rem;
+    --marker-top: 50%;
+    --beat-padding: 2.125rem;
+
+    min-height: var(--beat-height);
     padding-block: 2.5rem;
-    padding-inline-start: 0;
+    align-items: start;
   }
 
-  .landing-beat-copy {
-    padding-inline-start: 2.125rem;
+  .landing-story[data-sticky-ready] .landing-inline-visual {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
 
-  .landing-inline-visual {
-    margin-block-start: clamp(1.5rem, 3vw, 3rem);
+  .landing-story[data-sticky-ready] .landing-sticky {
+    position: sticky;
+    top: calc((100svh - var(--beat-height)) / 2);
+    display: grid;
+    align-self: start;
+    height: var(--panel-height);
+  }
+
+  .landing-slide {
+    grid-area: 1 / 1;
+    min-width: 0;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 180ms ease;
+  }
+
+  .landing-slide[data-active="true"] {
+    z-index: 1;
+    opacity: 1;
   }
 }
 
