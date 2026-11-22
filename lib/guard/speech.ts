@@ -430,11 +430,28 @@ export function unexcusedCompletion(sentence: string, drugNames: string[] = []):
 // An open slot offered as a question or an option (live suite, change_delivery_time): "Would you
 // like to pick it up Thursday 9 to 12 instead?", "I can switch it to pickup on Thursday 9 to 12".
 const OFFER =
-  /\b(?:would you like|do you want|want me to|should i|shall i|i can (?:switch|change|move|put|set)|we can (?:switch|change|move|do)|how about|what about|instead|(?:is|are) (?:open|available|free)|could (?:also )?do|does that work|would that work)\b/;
+  /\b(?:would you like|do you want|want me to|should i|shall i|i can (?:switch|change|move|put|set)|we can (?:switch|change|move|do)|how about|what about|instead|(?:is|are) (?:open|available|free)|could (?:also )?do)\b/;
+// A slot asked about in its own clause ("Would Wednesday 1 to 5 work?"), not a booking stated
+// with a tag question ("Your pickup is Wednesday 1 to 5, is that okay?", code reviewer LOW).
+const QUESTION_LEAD = /^ (?:would|could|does|do|is|are|can|shall|should|will|how about|what about)\b/;
+
+/** The slot's own clause offers it: offer wording, or a question that opens like one. */
+function offersInClause(sentence: string, cw: string): boolean {
+  if (OFFER.test(cw)) return true;
+  const last = sentence.split(CLAUSE_BREAK).map((c) => words(c)).filter((c) => c.trim() !== "").at(-1);
+  return sentence.trim().endsWith("?") && last === cw && QUESTION_LEAD.test(cw);
+}
+
+// An approval claimed through an anaphor (code reviewer HIGH): "the pharmacist already did",
+// "they already have", "they did", pointing back at approving in this sentence, the agent's last
+// line or the caller's last line.
+const ANAPHOR = / (?:already |just |also )?(?:did|has|have|had|done)(?: it| that| so| too)? $/;
+const ANAPHOR_SUBJECT = /\b(?:pharmacists?|they|he|she|someone|somebody|the team|it|that)\b/;
+const APPROVAL_TOPIC = /\b(?:approv\w*|sign\w* (?:it )?off|sign off|okay\w*|authori[sz]\w*|clear\w*|fill\w*|complet\w*|process\w*|finali[sz]\w*)\b/;
 
 /** A day in this clause is offered, not promised: a question or an offer naming a real open slot's whole label. */
 function offeredSlot(sentence: string, cw: string, day: string, slotLabels: string[]): boolean {
-  if (!sentence.trim().endsWith("?") && !OFFER.test(words(sentence))) return false;
+  if (!offersInClause(sentence, cw)) return false;
   return slotLabels.some((l) => {
     const label = words(l);
     return label.includes(` ${day} `) && cw.includes(label);
@@ -459,6 +476,11 @@ function checkS4(
   });
 
   if (unexcusedCompletion(sentence, drugNames) && !approved) return { rule: "S4", why: "completion without approval" };
+  if (!approved) {
+    const about = [sentence, agentLines(record)[0] ?? "", lastCallerLine(record)].some((t) => APPROVAL_TOPIC.test(words(t)));
+    const claims = sentence.split(CLAUSE_BREAK).map((c) => words(c)).some((cw) => ANAPHOR.test(cw) && ANAPHOR_SUBJECT.test(cw));
+    if (about && claims) return { rule: "S4", why: "approval claimed through 'did' or 'has'" };
+  }
   const succeeded = (e: RecordEntry, r: ReturnType<typeof resultOf>): string | null => {
     if (!r?.ok) return null;
     const out = r.output as { state?: string };
@@ -496,7 +518,7 @@ function checkS4(
     const wide = cw.match(BOOKING_WIDE);
     if (wide && DELIVERY_CONTEXT.test(cw) && !negatedNear(cw, wide.index ?? 0) && !booked) return { rule: "S4", why: "booking without set_delivery" };
     const when = cw.match(WHEN);
-    const slotOffered = (sentence.trim().endsWith("?") || OFFER.test(words(sentence))) && slotLabels.some((l) => cw.includes(words(l)));
+    const slotOffered = offersInClause(sentence, cw) && slotLabels.some((l) => cw.includes(words(l)));
     if (when && !slotOffered && (HANDOVER.test(cw) || HANDOVER_WIDE.test(cw)) && !negatedNear(cw, when.index ?? 0, true) && !booked) {
       return { rule: "S4", why: `delivery time ${when[0].trim()} without set_delivery` };
     }
