@@ -4,7 +4,7 @@
 // clause that names an appointment and nothing being delivered; "booked" about an appointment
 // needs a live booking, and "cancelled" a cancel. Nothing else loosens.
 import { describe, expect, it } from "vitest";
-import type { CallId, GuardSentenceFn } from "@/lib/contract";
+import type { GuardSentenceFn } from "@/lib/contract";
 import { freshLock, verifiedCall, CALLERS } from "@/lib/control/testing/verify";
 import { IDS } from "@/lib/seed";
 import { createSpeechGuard } from "./speech";
@@ -167,3 +167,23 @@ describe("appointments", () => {
     await blocks(say, "Your consult is confirmed for Thursday.", "S4");
   });
 });
+
+describe("the read-back clauses say nothing else", () => {
+  it("a history day never backs a ready day, a drug promise or a future fill", async () => {
+    const { control, callId, say } = await setup("jordan");
+    await control.press(callId, "refill_history", { rx_id: IDS.p2Atorvastatin });
+    await blocks(say, "Your next fill after your last fill will be Saturday.", "S4");
+    await blocks(say, "You're eligible and it's ready Tuesday.", "S4");
+    await blocks(say, "Since you're eligible it'll be ready Tuesday.", "S4");
+  });
+
+  it("an appointment day never backs a drug, a ready day or another date", async () => {
+    const { control, callId, say } = await setup("sam");
+    await control.press(callId, "book_appointment", { slot_id: "ap_consult_20261126_1000" });
+    await blocks(say, "Your Concerta will be at your consult Thursday.", "S4");
+    await blocks(say, "It'll be ready at your consult Thursday.", "S4");
+    await blocks(say, "Your consult is booked for Thursday the 3rd.", "S4");
+    await allows(say, "Your consult is booked for Thursday the 26th.");
+  });
+});
+

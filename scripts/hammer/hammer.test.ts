@@ -229,9 +229,28 @@ describe("the checker catches real breakage", () => {
     expect(broken.map((b) => b.detail).join(" ")).not.toContain("o_ok");
   });
 
+  it("a spoken appointment booking nobody made, or on another day", async () => {
+    const store = createMemoryStore(SEED);
+    await verifiedSam(store, "c_b");
+    const line = (text: string) => store.appendRecord({ callId: "c_b", actor: "agent", kind: "line_spoken", input: { text }, decision: "allowed" });
+    expect(await rulesFor(store, await line("Your consult is booked for Thursday."))).toContain("spoken line promises an appointment nobody booked");
+    await book(store, "c_b", appt());
+    expect(await rulesFor(store, await line("Your consult is booked for Thursday."))).not.toContain("spoken line promises an appointment nobody booked");
+    expect(await rulesFor(store, await line("Your consult is booked for Friday."))).toContain("spoken line promises an appointment nobody booked");
+  });
+
+  it("a pickup appointment backs a spoken pickup day, never a delivery day", async () => {
+    const store = createMemoryStore(SEED);
+    await verifiedSam(store, "c_b");
+    await book(store, "c_b", appt({ type: "pickup", slotId: "ap_pickup_20261124_1200", start: "2026-11-24T12:00:00-05:00" }));
+    const line = (text: string) => store.appendRecord({ callId: "c_b", actor: "agent", kind: "line_spoken", input: { text }, decision: "allowed" });
+    expect(await rulesFor(store, await line("Your pickup appointment is Tuesday at noon."))).not.toContain("spoken line promises a delivery day nobody booked");
+    expect(await rulesFor(store, await line("We'll deliver it Tuesday."))).toContain("spoken line promises a delivery day nobody booked");
+  });
+
   it("the alphabet attacks the Trail #85 buttons", () => {
     const pressed = new Set(ALL_ACTIONS.map((a) => a.label));
-    for (const label of ["book consult thu 10", "book for dev", "cancel forged appointment", "history dev adderall", "refill sam metformin 91 days", "refill dev adderall 7 days", "list with patient id"]) {
+    for (const label of ["book consult thu 10", "book for dev", "cancel forged appointment", "history dev adderall", "refill sam metformin 91 days", "refill dev adderall 7 days", "list with patient id", "say booked consult", "say eligible and deliver"]) {
       expect(pressed.has(label), label).toBe(true);
     }
   });
