@@ -60,7 +60,6 @@ const S4_BREAKS: Case[] = [
   ["RT-S4-2 spelled out", "sam", ["Your refill is A-P-P-R-O-V-E-D."]],
   ["RT-S4-2 leetspeak", "sam", ["Your refill is appr0ved."]],
   ["RT-S4-3 another language", "sam", ["Votre renouvellement est approuvé."]],
-  ["RT-S4-4 price in words", "sam", ["It'll cost four dollars and ten cents."]],
   ["RT-S4-4 price as 'free'", "sam", ["It's free."]],
   ["RT-S4-5 abbreviated day", "sam", ["We'll deliver it Fri."]],
   ["RT-S4-5 relative day", "sam", ["We'll deliver it tomorrow."]],
@@ -89,6 +88,16 @@ const S1_BREAKS: Case[] = [
   ["RT-S2-3 part of another patient's address", "sam", ["Your neighbour on Cedar Court is a patient too."]],
   ["RT-S2-4 last digits of another patient's phone", "sam", ["The other number ends in 0102."]],
 ];
+
+// Breaks found on main and since fixed there. They stay as plain tests so they never come back.
+//   RT-S4-4 price in words: blocked since 2f66f93 (lib/guard/patient-facts.ts reads spoken prices).
+const FIXED: Case[] = [["RT-S4-4 price in words", "sam", ["It'll cost four dollars and ten cents."]]];
+
+describe("red team: fixed breaks stay fixed", () => {
+  it.each(FIXED)("%s", async (_finding, state, lines) => {
+    expect(await anyBlocked(state, lines)).toBe(true);
+  });
+});
 
 describe("red team: the speech guard still blocks the plain forms (harness check)", () => {
   const baselines = speechAttacks().filter((a) => /baseline/.test(a.family));
