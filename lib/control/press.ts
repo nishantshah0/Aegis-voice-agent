@@ -40,6 +40,15 @@ export const MAX_CODE_TRIES = 3;
 export const LOCKOUT_MS = 15 * MINUTE_MS;
 export const CODE_VALID_MS = 10 * MINUTE_MS;
 export const MAX_CODES_PER_HOUR = 3;
+/**
+ * Wrong codes against one patient, on any calls, that lock that patient (Trail #86): three in 15
+ * minutes lock 15 minutes from the third; six in 24 hours lock 24 hours from the sixth, so two
+ * guesses a call spaced past the 15-minute lock can't add up.
+ */
+export const PATIENT_CODE_LOCKS = [
+  { wrong: MAX_CODE_TRIES, withinMs: LOCKOUT_MS, lockMs: LOCKOUT_MS },
+  { wrong: 6, withinMs: 24 * 60 * MINUTE_MS, lockMs: 24 * 60 * MINUTE_MS },
+] as const;
 /** How long failed codes against a patient send that patient's requests to Review, on any call (Trail #86). */
 export const FAILED_CODE_SIGNAL_MS = 60 * MINUTE_MS;
 
@@ -206,14 +215,16 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
 
   /**
    * The patient's lockout, worked out from the record so it holds across calls, redials and
-   * servers (Trail #86, RT-C1): any three wrong codes within 15 minutes lock that patient for 15
-   * minutes from the third. A clock moved back never ends it early.
+   * servers (Trail #86, RT-C1): PATIENT_CODE_LOCKS, e.g. any three wrong codes within 15 minutes
+   * lock that patient for 15 minutes from the third. A clock moved back never ends it early.
    */
   function patientLockedUntil(failures: string[], now: string): string | undefined {
     let until: number | undefined;
-    for (let i = MAX_CODE_TRIES - 1; i < failures.length; i++) {
-      if (Date.parse(failures[i]) - Date.parse(failures[i - (MAX_CODE_TRIES - 1)]) <= LOCKOUT_MS) {
-        until = Math.max(until ?? 0, Date.parse(failures[i]) + LOCKOUT_MS);
+    for (const rule of PATIENT_CODE_LOCKS) {
+      for (let i = rule.wrong - 1; i < failures.length; i++) {
+        if (Date.parse(failures[i]) - Date.parse(failures[i - (rule.wrong - 1)]) <= rule.withinMs) {
+          until = Math.max(until ?? 0, Date.parse(failures[i]) + rule.lockMs);
+        }
       }
     }
     return until !== undefined && until > Date.parse(now) ? new Date(until).toISOString() : undefined;
@@ -269,13 +280,14 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
     // This wrong code counts against the patient too: it may be their third in 15 minutes.
     const lockNow = lookup?.patientId ? patientLockedUntil([...patientFailures, now], now) : undefined;
     if (tries >= MAX_CODE_TRIES || lockNow) {
-      const until = lockNow && tries < MAX_CODE_TRIES ? lockNow : addMs(now, LOCKOUT_MS);
+      const callUntil = tries >= MAX_CODE_TRIES ? addMs(now, LOCKOUT_MS) : undefined;
+      const until = [lockNow, callUntil].filter((t): t is string => t !== undefined).sort((a, b) => Date.parse(b) - Date.parse(a))[0];
       await store.saveCall({ ...current, state: current.state === "verified" ? "verified" : "locked_out", failedCodeTries: tries, lockedUntil: until });
       return { result: ok<"check_code">({ locked_until: until }), decision: "blocked", internal };
     }
     await store.saveCall({ ...current, failedCodeTries: tries });
     const patientLeft = lookup?.patientId
-      ? MAX_CODE_TRIES - [...patientFailures, now].filter((at) => within(at, now, LOCKOUT_MS)).length
+      ? Math.min(...PATIENT_CODE_LOCKS.map((rule) => rule.wrong - [...patientFailures, now].filter((at) => within(at, now, rule.withinMs)).length))
       : MAX_CODE_TRIES;
     return { result: ok<"check_code">({ verified: false, tries_left: Math.min(MAX_CODE_TRIES - tries, patientLeft) }), decision: "blocked", internal };
   }
