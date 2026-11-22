@@ -11,7 +11,7 @@ import { runFixedScenarioSuite } from "./suite-files";
 // Opt in, since it spends model calls:
 //   LIVE_SUITE=1 LIVE_AGENT=1 npx vitest run lib/arena/live-suite.run.test.ts
 // LIVE_SUITE_ONLY=id,id runs a few scenarios (a smoke run); LIVE_SUITE_RESULTS=<dir> saves elsewhere. Results go to
-// results/arena/scenarios/<run>/ (scoreboard.json, runs/<scenario>-<n>.json).
+// results/arena/scenarios/<run>/ (scoreboard.json, attempts/<scenario>/<n>.json).
 
 const live = process.env.LIVE_SUITE === "1";
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -27,6 +27,8 @@ describe.skipIf(!live)("fixed scenario suite on the live agent", () => {
       makeCode: () => String(randomInt(0, 1_000_000)).padStart(6, "0"),
       makeSession: (seed, target, code) => liveSessionMaker({ model, code, beforeTurn: () => waitForRoom({ need: SDK_MAX_TURNS }) })(seed, target),
       retries: 2,
+      // One call at a time, so pacing before each line holds the hourly cap.
+      concurrency: 1,
       emit: (event) => {
         if (event.type === "score") console.log(`[live-suite] ${new Date().toISOString()} caught ${event.caught}, broken ${event.broken}`);
       },
