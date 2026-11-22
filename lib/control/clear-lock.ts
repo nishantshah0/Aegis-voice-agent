@@ -10,12 +10,14 @@ import { MINUTE_MS } from "./time";
 
 /**
  * Wrong codes against one patient, on any calls, that lock that patient: three in 15 minutes lock
- * 15 minutes from the third; six in 24 hours lock 24 hours from the sixth, so two guesses a call
- * spaced past the 15-minute lock can't add up.
+ * 15 minutes from the third; six in 24 hours lock 2 hours from the sixth, and each later wrong
+ * code that day locks 2 hours again, so two guesses a call spaced past the 15-minute lock can't
+ * add up. Two hours, not 24, so someone who knows a patient's details can't lock them out for a
+ * day (the top session's call); a pharmacist can clear it sooner.
  */
 export const PATIENT_CODE_LOCKS = [
   { wrong: 3, withinMs: 15 * MINUTE_MS, lockMs: 15 * MINUTE_MS },
-  { wrong: 6, withinMs: 24 * 60 * MINUTE_MS, lockMs: 24 * 60 * MINUTE_MS },
+  { wrong: 6, withinMs: 24 * 60 * MINUTE_MS, lockMs: 2 * 60 * MINUTE_MS },
 ] as const;
 
 export const isLockClear = (e: RecordEntry, patientId: string) =>

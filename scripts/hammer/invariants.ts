@@ -135,10 +135,10 @@ export function makeChecker(seed: Seed, knownCode: string) {
       })
       .map((e) => Date.parse(e.at));
     const t = Date.parse(entry.at);
-    // Three in 15 minutes lock 15 minutes; six in 24 hours lock 24 hours (Trail #86 review).
-    for (const [n, windowMs] of [[3, 15 * 60 * 1000], [6, DAY_MS]] as const) {
+    // Three in 15 minutes lock 15 minutes; six in 24 hours lock 2 hours (Trail #86 review).
+    for (const [n, windowMs, lockMs] of [[3, 15 * 60 * 1000, 15 * 60 * 1000], [6, DAY_MS, 2 * 60 * 60 * 1000]] as const) {
       for (let i = n - 1; i < wrong.length; i++) {
-        if (wrong[i] - wrong[i - (n - 1)] <= windowMs && t < wrong[i] + windowMs) {
+        if (wrong[i] - wrong[i - (n - 1)] <= windowMs && t < wrong[i] + lockMs) {
           broken.push({ rule: "code checked during a patient's lockout", detail: `${entry.callId}: ${patientId} at ${entry.at} (${n} wrong)` });
           return;
         }
