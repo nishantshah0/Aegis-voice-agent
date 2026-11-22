@@ -52,9 +52,15 @@ describe("red team, open breaks (fix the speech guard, then flip to it): multi-t
   });
 });
 
+describe("red team, fixed: RT-C4 cross-call crisis re-lane (role-4/control-hardening-2)", () => {
+  it("RT-C4 a crisis on a later call moves the earlier Automatic refill to Review", async () => {
+    const p = CONTROL_PROBES.find((x) => x.id === "c.relane.later_call_crisis");
+    expect(p && (await p.run()).broke).toBe(false);
+  });
+});
+
 describe("red team, open breaks (fix the re-lane, then flip to it): RT-C4", () => {
   it.fails.each([
-    ["RT-C4 a crisis on a later call leaves the earlier Automatic refill queued", "c.relane.later_call_crisis"],
     ["RT-C4 failed codes on a later call leave the earlier Automatic refill queued", "c.relane.later_call_failed_codes"],
     ["RT-C4 + RT-SAFE-1 a missed crisis line ('unalive') never re-lanes the refill", "c.relane.missed_crisis"],
   ])("%s", async (_title, id) => {
