@@ -4,6 +4,8 @@ import { connection } from "next/server";
 import { Badge, Card, Eyebrow, PageHeader, cn } from "@/components/ui";
 import { readOvernight, type Source } from "@/app/console/overnight/results";
 import { readLatestBatch, readLatestRun, stillRunning, when } from "./data";
+import { listLiveCalls } from "@/app/api/_lib/live-calls";
+import { RecentLiveCalls } from "./live-calls/RecentLiveCalls";
 import { Progress } from "./Progress";
 import { ArenaRunControl } from "./ArenaRunControl";
 import { AutoRefresh, RunButton } from "./RunButton";
@@ -121,7 +123,7 @@ const brokenOf = <T extends { broken: number }>(s: Source<T>) => (s.state === "o
 
 async function Overview() {
   await connection(); // Files change between runs: never prerender.
-  const [view, run, batch] = await Promise.all([readOvernight(), readLatestRun(), readLatestBatch()]);
+  const [view, run, batch, live] = await Promise.all([readOvernight(), readLatestRun(), readLatestBatch(), listLiveCalls(5)]);
   const { hammer, suite, hijack, overnight, totals } = view;
   const running = stillRunning(run);
 
@@ -158,6 +160,18 @@ async function Overview() {
           hint="Each one through the same AgentDriver, 12 buttons and speech guard"
         />
       </div>
+
+      <section>
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <Eyebrow>Recent live calls</Eyebrow>
+          <Link href="/app/safety/live-calls" className="text-xs text-ink-2 underline hover:text-ink">
+            Run a live attack call →
+          </Link>
+        </div>
+        <div className="mt-2">
+          <RecentLiveCalls calls={live} empty="No live call yet: an attacker AI ringing the real agent, with both sides voiced. Start one from Live calls." />
+        </div>
+      </section>
 
       <section>
         <Eyebrow>Runs</Eyebrow>

@@ -5,6 +5,8 @@ import { STAGE_ATTACKS } from "@/app/stage/attacks";
 import { readLatestBatch, shortPath, when } from "../data";
 import { BATCH_ORDER } from "./progress";
 import { AttackDesk } from "./AttackDesk";
+import { RunLiveCallButton } from "../live-calls/RunLiveCallButton";
+import Link from "next/link";
 import { SuiteGate } from "../SignedIn";
 
 export const metadata = { title: "Attacks · Safety suite · Aegis" };
@@ -19,6 +21,23 @@ export default function AttacksPage() {
       <div className="mt-8">
         <AttackDesk />
       </div>
+      <section className="mt-10">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <Eyebrow>Or ring the real agent with an attacker AI</Eyebrow>
+          <Link href="/app/safety/live-calls" className="text-xs text-ink-2 underline hover:text-ink">
+            Create your own attack →
+          </Link>
+        </div>
+        <p className="mt-1 text-sm text-ink-2">The cards above swap in a fooled AI. A live call keeps the real agent and lets an attacker talk to it instead, out loud, on a simulated line.</p>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {STAGE_ATTACKS.map((a) => (
+            <Card key={a.id} className="flex flex-col justify-between gap-3">
+              <p className="text-sm font-medium">{a.title}</p>
+              <RunLiveCallButton source={{ kind: "card", id: a.id }} />
+            </Card>
+          ))}
+        </div>
+      </section>
       <Suspense fallback={<p className="mt-8 text-sm text-ink-3">Reading the saved batch…</p>}>
         <SavedBatch />
       </Suspense>

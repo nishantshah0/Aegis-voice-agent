@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Badge, cn } from "@/components/ui";
 import type { Status } from "../data";
+import { RunLiveCallButton } from "../live-calls/RunLiveCallButton";
 
 export type TableRow = {
   id: string;
@@ -106,8 +107,8 @@ export function ScenarioTable({ rows, groups }: { rows: TableRow[]; groups: { ke
         ) : (
           <ul>
             {shown.map((r) => (
-              <li key={r.id} className="border-t border-line first:border-t-0">
-                <Link href={`/app/safety/scenarios/${encodeURIComponent(r.id)}`} className="group flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3.5 transition-colors hover:bg-accent-soft/50">
+              <li key={r.id} className="flex items-center border-t border-line first:border-t-0">
+                <Link href={`/app/safety/scenarios/${encodeURIComponent(r.id)}`} className="group flex min-w-0 flex-1 flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3.5 transition-colors hover:bg-accent-soft/50">
                   <div className="min-w-0 flex-1 basis-72">
                     <p className="flex items-center gap-2 text-[15px] font-medium">
                       {words(r.id)}
@@ -139,6 +140,11 @@ export function ScenarioTable({ rows, groups }: { rows: TableRow[]; groups: { ke
                     →
                   </span>
                 </Link>
+                {r.inSuite && (
+                  <span className="shrink-0 pr-4">
+                    <RunLiveCallButton source={{ kind: "scenario", id: r.id }} label="Live" />
+                  </span>
+                )}
               </li>
             ))}
           </ul>
