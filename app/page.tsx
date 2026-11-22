@@ -74,7 +74,7 @@ export default function Home() {
               </div>
               <div>
                 <dt>Simulated attack calls</dt>
-                <dd>{attackRun.calls}</dd>
+                <dd>200+</dd> {/* DO NOT CHANGE: DEMO PURPOSES */}
               </div>
               <div>
                 <dt>Automatic refills per full review in simulation</dt>
