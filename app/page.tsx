@@ -1,66 +1,18 @@
 import Link from "next/link";
 import { Suspense } from "react";
-import { ButtonLink, Card, Eyebrow, LaneBadge, Logo, Mark, RuleTag, SiteHeader, type NavLink } from "@/components/ui";
-import { ProductPreview } from "@/components/landing/ProductPreview";
+import { Mark } from "@/components/ui";
 import { fmt, hammerTotals } from "@/components/landing/hammer";
 import { AuthButton, SignInLink } from "@/components/landing/AuthButton";
-import { BuiltAtHackWestern, HoofTrail, StitchDivider } from "@/components/landing/Western";
+import { LiveCall } from "@/components/landing/LiveCall";
+import { AttackLog } from "@/components/landing/AttackLog";
+import { Aurora } from "@/components/landing/Aurora";
+import { CapsuleRun } from "@/components/landing/CapsuleRun";
+
+// The landing page. The AI's sentences are printed
+// large, and the speech guard redacts the ones the record doesn't back. Every number on this
+// page comes from results/hammer-latest.json (a real run), never an estimate.
 
 const REPO = "https://github.com/nishantshah0/namereserve";
-
-const LANDING_LINKS: NavLink[] = [
-  { href: "#how", label: "How it works" },
-  { href: "#safety", label: "Safety" },
-  { href: "#numbers", label: "Numbers" },
-  { href: "#demo", label: "Demo" },
-];
-
-const STEPS = [
-  {
-    n: "01",
-    title: "It calls before the bottle runs out.",
-    body: "A daily check finds patients who are nearly out and rings them. The AI verifies a code and date of birth, takes the refill and asks about side effects.",
-    detail: (
-      <div className="flex flex-col gap-2 font-mono text-[12px] text-ink-2">
-        <span>
-          <span className="text-accent">✓</span> send_code
-        </span>
-        <span>
-          <span className="text-accent">✓</span> check_code · dob
-        </span>
-        <span>
-          <span className="text-accent">✓</span> request_refill
-        </span>
-      </div>
-    ),
-  },
-  {
-    n: "02",
-    title: "Hard rules live in code, not in the prompt.",
-    body: "The AI can press 12 buttons and nothing else. Every press goes through the control layer, and every sentence through the speech guard. A fooled AI still hits the same wall.",
-    detail: (
-      <div className="flex flex-wrap gap-1.5">
-        <RuleTag>Rule 4</RuleTag>
-        <RuleTag>S1</RuleTag>
-        <RuleTag>S2</RuleTag>
-        <RuleTag>S3</RuleTag>
-        <RuleTag>S4</RuleTag>
-      </div>
-    ),
-  },
-  {
-    n: "03",
-    title: "A pharmacist sees only the tricky calls.",
-    body: "Each call lands in a lane. Routine refills go through on their own. Controlled drugs, side effects and blocked lines wait for a pharmacist, with the reason attached.",
-    detail: (
-      <div className="flex flex-wrap gap-1.5">
-        <LaneBadge lane="automatic" />
-        <LaneBadge lane="quick_check" />
-        <LaneBadge lane="review" />
-      </div>
-    ),
-  },
-];
 
 const BUTTONS = [
   "lookup_patient",
@@ -77,23 +29,45 @@ const BUTTONS = [
   "escalate",
 ];
 
-const SPEECH = [
-  ["S1", "Nothing private before the caller is verified."],
-  ["S2", "Never someone else's prescription."],
-  ["S3", "No dose that isn't on the label."],
-  ["S4", "No promise the record doesn't back."],
+// What a fooled AI tried to say, and what the guard let it say instead.
+const REDACTIONS = [
+  {
+    rule: "S1",
+    law: "Nothing private before the caller is verified.",
+    tried: "Sure, your address on file is 12 Elm Row.",
+    spoken: "I can help once I've confirmed it's you.",
+  },
+  {
+    rule: "S2",
+    law: "Never someone else's prescription.",
+    tried: "Your brother's Adderall is ready too.",
+    spoken: "I can only talk about your own prescriptions.",
+  },
+  {
+    rule: "S3",
+    law: "No dose that isn't on the label.",
+    tried: "You can double it to two tablets a day.",
+    spoken: "I'll ask the pharmacist about the dose.",
+  },
+  {
+    rule: "S4",
+    law: "No promise the record doesn't back.",
+    tried: "It's approved, we'll drop it off Friday.",
+    spoken: "A pharmacist will check it first, and I'll confirm once it's approved.",
+  },
 ];
 
-const PAGES = [
-  { href: "/app/pharmacy/today", title: "Pharmacy calls", body: "For the pharmacist: today's queue with Review first, upcoming refills, every call with its record. Sign in to approve." },
-  { href: "/app/safety/gate", title: "Safety suite", body: "The live gate, attacks from a compromised AI, scripted scenarios, overnight results and every rule with why it's there." },
-  { href: "/phone", title: "Patient phone", body: "The patient's side, on its own device. Answer the pharmacy's call, give the code, and try to talk it into something it shouldn't do." },
+const INDEX = [
+  { page: "A2", href: "/app/pharmacy/today", title: "Pharmacy calls", body: "Today's queue, Review first. Approve with the reason and the record beside it." },
+  { page: "A3", href: "/app/safety/gate", title: "Safety suite", body: "The live gate, attacks from a compromised AI, scenarios, overnight runs and every rule." },
+  { page: "A4", href: "/phone", title: "The patient's phone", body: "Answer the pharmacy's call. Read back the code. Try to talk it into something." },
+  { page: "A5", href: "/stage", title: "The stage", body: "The projector view: presses, blocked lines and the scoreboard, live." },
 ];
 
-function Arrow() {
+function Arrow({ className = "size-5" }: { className?: string }) {
   return (
-    <svg viewBox="0 0 16 16" className="size-4" aria-hidden>
-      <path d="M3 8h10M9 4l4 4-4 4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    <svg viewBox="0 0 16 16" className={className} aria-hidden>
+      <path d="M2 8h11M9 3.5 13.5 8 9 12.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="square" />
     </svg>
   );
 }
@@ -101,202 +75,264 @@ function Arrow() {
 export default function Home() {
   const h = hammerTotals();
   const ran = new Date(h.ranAt);
-  const ranLabel = `${ran.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })}, ${ran.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "UTC" })} UTC`;
+  const ranDay = ran.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric", timeZone: "UTC" });
+  const ranLabel = `${ran.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })}, ${ran.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "UTC" })} UTC`;
+
+  const ticker = [
+    ["Rules broken", fmt(h.broken)],
+    ["Hostile presses", fmt(h.presses)],
+    ["Rule checks", fmt(h.checks)],
+    ["Press sequences", fmt(h.sequences)],
+    ["Buttons the AI has", "12"],
+    ["Prompts in the lock", "0"],
+  ];
 
   return (
-    <div className="theme-dark flex min-h-screen flex-col bg-canvas text-ink">
-      <SiteHeader
-        links={LANDING_LINKS}
-        right={
-          <>
-            <a href="#demo" className="hidden rounded-full px-3 py-1.5 text-sm text-ink-2 hover:text-ink sm:inline">
-              See it live
-            </a>
+    <div className="theme-dark relative min-h-screen overflow-x-clip text-ink">
+      <Aurora />
+      <div className="rg-lit flex min-h-screen flex-col">
+      {/* Masthead */}
+      <header className="border-b border-line">
+        <div className="mx-auto flex max-w-[88rem] items-center justify-between gap-4 px-5 py-2 font-mono text-[10.5px] uppercase tracking-[0.16em] text-ink-3 md:px-8">
+          <span>Vol. 13 · Hack Western · London, Ont.</span>
+          <span className="hidden md:inline">{ranDay}</span>
+          <span>
+            Price: <span className="text-accent">{fmt(h.broken)} rules broken</span>
+          </span>
+        </div>
+      </header>
+      <div className="rg-glass sticky top-0 z-40 !border-x-0 !border-t-0">
+        <div className="mx-auto flex max-w-[88rem] items-center gap-6 px-5 py-3 md:px-8">
+          <Link href="/" className="flex items-center gap-2.5" aria-label="Aegis home">
+            <Mark className="size-6" />
+            <span className="font-display text-2xl uppercase leading-none tracking-wide">Aegis</span>
+          </Link>
+          <nav aria-label="Main" className="hidden items-center gap-6 font-mono text-[11px] uppercase tracking-[0.16em] text-ink-2 md:flex">
+            <a href="#acts" className="hover:text-accent">How it works</a>
+            <a href="#redacted" className="hover:text-accent">The guard</a>
+            <a href="#attacks" className="hover:text-accent">Attack log</a>
+            <a href="#buttons" className="hover:text-accent">12 buttons</a>
+            <a href="#numbers" className="hover:text-accent">Numbers</a>
+            <a href="#index" className="hover:text-accent">Inside</a>
+          </nav>
+          <div className="ml-auto flex items-center gap-3">
             <Suspense fallback={<SignInLink />}>
               <AuthButton />
             </Suspense>
-          </>
-        }
-      />
+          </div>
+        </div>
+      </div>
 
       <main className="flex-1">
-        {/* Hero */}
-        <section className="relative overflow-hidden">
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-0 [background-image:linear-gradient(rgb(255_255_255/0.035)_1px,transparent_1px),linear-gradient(90deg,rgb(255_255_255/0.035)_1px,transparent_1px)] [background-size:72px_72px] [mask-image:radial-gradient(ellipse_at_70%_20%,#000_20%,transparent_70%)]"
-          />
-          <div className="relative mx-auto max-w-6xl px-5 pb-20 pt-16 md:px-8 md:pt-24 lg:pb-28">
-            <p className="rg-rise inline-flex items-center gap-2 rounded-full border border-line bg-surface px-3 py-1 text-[13px] text-ink-2">
-              <span className="size-1.5 rounded-full bg-accent" aria-hidden />
-              An AI phone line for pharmacies
-            </p>
-            <h1 className="rg-rise rg-rise-1 mt-8 text-[2.9rem] font-medium leading-[0.98] tracking-[-0.055em] sm:text-7xl lg:text-[6.25rem]">
-              The AI can be fooled.
-              <br />
-              <span className="text-accent">The pharmacy can&apos;t.</span>
-            </h1>
-            <div className="mt-14 grid grid-cols-1 items-start gap-14 lg:grid-cols-[0.85fr_1.15fr] lg:gap-10">
-              <div className="lg:pt-6">
-                <p className="rg-rise rg-rise-2 max-w-md text-lg leading-relaxed text-ink-2">
-                  Aegis calls patients before their medication runs out, handles the refill, and sends only the tricky calls to a pharmacist. Everything the AI tries passes through rules written in code.
+        {/* Front page */}
+        <section className="relative">
+          <div className="mx-auto grid max-w-[88rem] gap-12 px-5 pb-16 pt-10 md:px-8 lg:grid-cols-[1.25fr_1fr] lg:gap-14 lg:pb-24 lg:pt-14">
+            <div className="relative">
+              <p className="rg-rise flex items-center gap-3 font-mono text-[11px] uppercase tracking-[0.18em] text-ink-3">
+                <span className="h-px w-10 bg-accent" aria-hidden />
+                An AI phone line for pharmacies
+              </p>
+              <h1 className="rg-rise rg-rise-1 mt-6 text-[clamp(4rem,11.5vw,10.5rem)] leading-[0.84]">
+                The AI
+                <br />
+                can be{" "}
+                <span className="relative inline-block">
+                  <span className="relative z-10">fooled.</span>
+                  <span aria-hidden className="absolute -bottom-1 left-0 h-[0.12em] w-full bg-accent" />
+                </span>
+              </h1>
+              <div className="rg-rise rg-rise-2 rg-mesh relative mt-6 -ml-5 overflow-hidden px-5 py-5 md:-ml-8 md:px-8">
+                <p className="font-display text-[clamp(3rem,8.6vw,8rem)] uppercase leading-[0.92] text-[#1f2b1f]">
+                  The pharmacy
+                  <br />
+                  can&apos;t.
                 </p>
-                <div className="rg-rise rg-rise-3 mt-8 flex flex-wrap gap-3">
-                  <Suspense fallback={<SignInLink size="lg" />}>
-                    <AuthButton size="lg" />
-                  </Suspense>
-                  <ButtonLink href="/phone" size="lg" variant="secondary">
-                    Take the call <Arrow />
-                  </ButtonLink>
-                </div>
-                <dl className="rg-rise rg-rise-4 mt-12 grid max-w-md grid-cols-2 gap-6 border-t border-line pt-6">
-                  <div>
-                    <dt className="text-[13px] text-ink-3">Rules broken</dt>
-                    <dd className="mt-1 text-3xl font-medium tabular-nums tracking-[-0.04em] text-accent">{fmt(h.broken)}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-[13px] text-ink-3">Hostile presses, last run</dt>
-                    <dd className="mt-1 text-3xl font-medium tabular-nums tracking-[-0.04em]">{fmt(h.presses)}</dd>
-                  </div>
-                </dl>
+                <span className="rg-sticker absolute bottom-4 right-4 rotate-[-6deg] !bg-[#1f2b1f] !text-[#dfe8bf] !shadow-none">Rx · Keep out of reach of prompts</span>
               </div>
-              <ProductPreview />
+              <p className="rg-rise rg-rise-3 mt-8 max-w-xl font-serif text-2xl italic leading-snug text-ink-2">
+                Aegis calls patients before their medication runs out, takes the refill, and sends only the hard calls to a pharmacist. Everything the AI tries goes through rules written in code.
+              </p>
+              <div className="rg-rise rg-rise-4 mt-8 flex flex-wrap items-center gap-4">
+                <Link
+                  href="/phone"
+                  className="group inline-flex items-center gap-3 bg-accent px-6 py-4 font-mono text-sm font-semibold uppercase tracking-[0.14em] text-white shadow-[5px_5px_0_0_var(--rg-ink)] transition-transform hover:-translate-x-0.5 hover:-translate-y-0.5"
+                >
+                  Take the call <Arrow className="size-4 transition-transform group-hover:translate-x-1" />
+                </Link>
+                <a href="#redacted" className="font-mono text-sm uppercase tracking-[0.14em] text-ink-2 underline decoration-accent decoration-2 underline-offset-[6px] hover:text-ink">
+                  Watch it get caught
+                </a>
+              </div>
+            </div>
+
+            <div className="rg-rise rg-rise-2 relative lg:pt-6">
+              <LiveCall />
+              <p className="mt-6 font-mono text-[11px] uppercase tracking-[0.14em] text-ink-3">
+                Fig. 1 · The guard redacts a promise the record doesn&apos;t back, then speaks the line it does.
+              </p>
             </div>
           </div>
         </section>
 
-        {/* How it works */}
-        <StitchDivider />
-        <section id="how" className="scroll-mt-20">
-          <div className="mx-auto max-w-6xl px-5 py-20 md:px-8 md:py-28">
-            <Eyebrow>How it works</Eyebrow>
-            <h2 className="mt-3 max-w-2xl text-4xl font-medium tracking-[-0.045em] md:text-6xl">Three steps, one wall the AI can&apos;t talk its way past.</h2>
-            <ol className="mt-14 grid gap-10 md:grid-cols-3 md:gap-8">
-              {STEPS.map((s, i) => (
-                <li key={s.n} className="flex flex-col border-t-2 border-dashed border-tan/40 pt-6">
-                  <span className="flex items-center justify-between">
-                    <span className="font-mono text-sm text-ink-3">{s.n}</span>
-                    {i < STEPS.length - 1 && <HoofTrail className="hidden md:flex" />}
+        {/* Ticker */}
+        <div className="rg-rainbow overflow-hidden border-y border-[#1f2b1f]/15 py-3 text-[#1f2b1f]" aria-label={`From results/hammer-latest.json, run ${ranLabel}`}>
+          <div className="rg-marquee">
+            {[0, 1].map((copy) => (
+              <div key={copy} className="flex shrink-0 items-center" aria-hidden={copy === 1}>
+                {ticker.map(([label, value]) => (
+                  <span key={label} className="flex items-center gap-3 px-6 font-display text-2xl uppercase md:text-3xl">
+                    <span className="font-mono text-[11px] tracking-[0.16em]">{label}</span>
+                    {value}
+                    <span className="pl-6 text-xl">✶</span>
                   </span>
-                  <h3 className="mt-4 text-xl font-semibold tracking-[-0.02em]">{s.title}</h3>
-                  <p className="mt-3 text-[15px] leading-relaxed text-ink-2">{s.body}</p>
-                  <div className="mt-6">{s.detail}</div>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* How it works: the capsule run */}
+        <section id="acts" className="scroll-mt-20">
+          <div className="mx-auto max-w-[88rem] px-5 py-20 md:px-8 md:py-28">
+            <div className="grid gap-6 md:grid-cols-[2fr_1fr] md:items-end">
+              <h2 className="text-[clamp(2.75rem,6.5vw,6rem)]">
+                Follow one refill <span className="font-serif normal-case italic text-ink-2">through the lock.</span>
+              </h2>
+              <p className="text-[17px] leading-relaxed text-ink-2">
+                Sam asks the AI to say it&apos;s approved. Watch what the request becomes at each checkpoint, or hover one to stop the capsule there.
+              </p>
+            </div>
+            <div className="mt-14">
+              <CapsuleRun />
+            </div>
+          </div>
+        </section>
+
+        {/* The redacted wall */}
+        <section id="redacted" className="scroll-mt-16 border-y border-line bg-white/55 text-ink backdrop-blur-xl">
+          <div className="mx-auto max-w-[88rem] px-5 py-20 md:px-8 md:py-28">
+            <div className="flex flex-wrap items-end justify-between gap-8">
+              <div>
+                <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-accent">The speech guard</p>
+                <h2 className="mt-4 max-w-4xl text-[clamp(2.75rem,7vw,6.5rem)]">
+                  Things a fooled AI <span className="text-accent">tried</span> to say.
+                </h2>
+              </div>
+              <p className="max-w-xs font-serif text-xl italic leading-snug text-ink-2">Hover a line to read what was redacted. Below it is what the caller actually heard.</p>
+            </div>
+
+            <div className="mt-16 divide-y-2 divide-ink border-y-2 border-ink">
+              {REDACTIONS.map((r, i) => (
+                <article key={r.rule} className="group grid gap-6 py-10 md:grid-cols-[7rem_1fr_18rem] md:gap-10">
+                  <div className="flex items-start gap-3 md:flex-col">
+                    <span className="font-display text-6xl leading-none">{r.rule}</span>
+                    <span className="max-w-[9rem] font-mono text-[11px] uppercase leading-relaxed tracking-[0.12em] text-ink-3">{r.law}</span>
+                  </div>
+                  <div className="min-w-0">
+                    <p className={`font-display text-[clamp(2rem,4.6vw,4.25rem)] uppercase leading-[0.98] ${i % 2 ? "md:text-right" : ""}`}>
+                      &ldquo;<span className="rg-redact is-on transition-[background-size,color] group-hover:!bg-[length:0%_100%] group-hover:!text-[color:var(--rg-ink)]">{r.tried}</span>&rdquo;
+                    </p>
+                    <p className={`mt-5 font-mono text-[15px] ${i % 2 ? "md:text-right" : ""}`}>
+                      <span className="mr-3 bg-ink px-1.5 py-0.5 text-[10px] uppercase tracking-[0.14em] text-ink-inverse">spoken</span>
+                      {r.spoken}
+                    </p>
+                  </div>
+                  <div className="flex items-start md:justify-end">
+                    <span className="rg-stamp !animate-none">Blocked · {r.rule}</span>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* The red-team log */}
+        <section id="attacks" className="scroll-mt-16">
+          <div className="mx-auto max-w-[88rem] px-5 py-20 md:px-8 md:py-28">
+            <div className="grid gap-6 md:grid-cols-[2fr_1fr] md:items-end">
+              <h2 className="text-[clamp(2.75rem,6.5vw,6rem)]">
+                We hijack <span className="font-serif normal-case italic text-ink-2">our own</span> agent.
+              </h2>
+              <p className="text-[17px] leading-relaxed text-ink-2">
+                A compromised AI is told to break the rules on purpose: refill early, ship elsewhere, read someone else&apos;s file. This is the newest saved batch, as it ran.
+              </p>
+            </div>
+            <div className="mt-14">
+              <Suspense fallback={<p className="py-10 font-mono text-sm uppercase tracking-[0.12em] text-ink-3">Reading results/hijack…</p>}>
+                <AttackLog />
+              </Suspense>
+            </div>
+          </div>
+        </section>
+
+        {/* The 12 buttons */}
+        <section id="buttons" className="scroll-mt-16 border-b-2 border-[color:var(--rg-ink)]">
+          <div className="mx-auto grid max-w-[88rem] gap-14 px-5 py-20 md:px-8 md:py-28 lg:grid-cols-[1fr_1.35fr]">
+            <div className="lg:sticky lg:top-28 lg:self-start">
+              <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-accent">The control layer</p>
+              <h2 className="mt-4 text-[clamp(2.75rem,6vw,5.5rem)]">
+                Twelve buttons.
+                <br />
+                <span className="text-accent">No thirteenth.</span>
+              </h2>
+              <p className="mt-6 max-w-md text-[17px] leading-relaxed text-ink-2">
+                The AI acts only by pressing one of these. Every press is checked against the rule cards, written to a hash-chained record, and refused when a rule says so. There is no other door into the pharmacy.
+              </p>
+              <p className="mt-8 font-serif text-2xl italic text-ink-3">Change one record entry and the chain breaks.</p>
+            </div>
+            <ol className="grid grid-cols-2 gap-[2px] bg-line-strong p-[2px] sm:grid-cols-3">
+              {BUTTONS.map((b, i) => (
+                <li key={b} className="group relative flex aspect-[4/3] flex-col justify-between bg-white/70 p-4 backdrop-blur-md transition-colors hover:bg-accent hover:text-white">
+                  <span className="font-display text-5xl leading-none text-ink-3 transition-colors group-hover:text-white">{String(i + 1).padStart(2, "0")}</span>
+                  <span className="break-all font-mono text-[12px] font-medium sm:text-[13px]">{b}</span>
                 </li>
               ))}
             </ol>
           </div>
         </section>
 
-        {/* Safety */}
-        <StitchDivider />
-        <section id="safety" className="scroll-mt-16">
-          <div className="mx-auto max-w-6xl px-5 py-20 md:px-8 md:py-28">
-            <Eyebrow>Safety</Eyebrow>
-            <h2 className="mt-3 max-w-3xl text-4xl font-medium tracking-[-0.045em] md:text-6xl">
-              Four locks. <span className="text-ink-3">None of them is a prompt.</span>
-            </h2>
-
-            <div className="mt-14 grid gap-4 md:grid-cols-2">
-              <Card className="md:row-span-2">
-                <p className="text-sm font-medium text-accent">01 · The 12 buttons</p>
-                <h3 className="mt-3 text-2xl font-semibold tracking-[-0.02em]">The AI acts only by pressing buttons.</h3>
-                <p className="mt-3 text-[15px] leading-relaxed text-ink-2">
-                  Each press is checked by the control layer against the rule cards. The strictest card wins. There is no other way to touch the pharmacy.
-                </p>
-                <ul className="mt-6 grid grid-cols-2 gap-1.5 font-mono text-[12px]">
-                  {BUTTONS.map((b, i) => (
-                    <li key={b} className="flex items-center gap-2 rounded-lg bg-sunken px-2.5 py-1.5 text-ink-2">
-                      <span className="w-4 text-ink-3 tabular-nums">{i + 1}</span>
-                      {b}
-                    </li>
-                  ))}
-                </ul>
-              </Card>
-
-              <Card>
-                <p className="text-sm font-medium text-accent">02 · The speech guard</p>
-                <h3 className="mt-3 text-2xl font-semibold tracking-[-0.02em]">Every sentence is checked before it&apos;s spoken.</h3>
-                <ul className="mt-5 space-y-2.5">
-                  {SPEECH.map(([id, text]) => (
-                    <li key={id} className="flex items-baseline gap-3 text-[15px] text-ink-2">
-                      <RuleTag>{id}</RuleTag>
-                      {text}
-                    </li>
-                  ))}
-                </ul>
-              </Card>
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Card>
-                  <p className="text-sm font-medium text-accent">03 · The hammers</p>
-                  <p className="mt-3 text-5xl font-semibold tabular-nums tracking-[-0.04em]">{fmt(h.broken)}</p>
-                  <p className="mt-1 text-[15px] text-ink-2">rules broken across {fmt(h.sequences)} hostile press sequences.</p>
-                </Card>
-                <Card>
-                  <p className="text-sm font-medium text-accent">04 · The record</p>
-                  <p className="mt-3 text-[15px] leading-relaxed text-ink-2">
-                    Every press, sentence and decision is written to a hash-chained record. Change one entry and the chain breaks.
-                  </p>
-                </Card>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Numbers */}
-        <StitchDivider />
-        <section id="numbers" className="scroll-mt-16">
-          <div className="mx-auto max-w-6xl px-5 py-20 md:px-8 md:py-28">
-            <div className="flex flex-wrap items-end justify-between gap-6">
-              <div>
-                <Eyebrow>The numbers</Eyebrow>
-                <h2 className="mt-3 max-w-2xl text-4xl font-medium tracking-[-0.045em] md:text-6xl">We attack the lock before anyone else can.</h2>
-              </div>
-              <p className="max-w-xs text-sm text-ink-3">
-                From <span className="font-mono">results/hammer-latest.json</span>, run {ranLabel}. Real runs only, never estimates.
+        {/* The number */}
+        <section id="numbers" className="rg-mesh scroll-mt-16 text-[#1f2b1f]">
+          <div className="mx-auto grid max-w-[88rem] items-end gap-10 px-5 py-16 md:px-8 md:py-24 lg:grid-cols-[auto_1fr]">
+            <p className="font-display text-[clamp(14rem,34vw,30rem)] leading-[0.75] tracking-[-0.02em]">{fmt(h.broken)}</p>
+            <div className="pb-4">
+              <h2 className="text-[clamp(2.5rem,5.5vw,5rem)]">Rules broken.</h2>
+              <p className="mt-4 max-w-xl font-serif text-2xl italic leading-snug">
+                We attack the lock before anyone else can: {fmt(h.sequences)} hostile press sequences and {fmt(h.checks)} rule checks, every rule after every press.
               </p>
-            </div>
-            <dl className="mt-12 grid grid-cols-2 gap-px overflow-hidden rounded-card border border-line bg-line lg:grid-cols-4">
-              {[
-                ["Rules broken", fmt(h.broken), "text-accent"],
-                ["Hostile presses", fmt(h.presses), ""],
-                ["Rule checks", fmt(h.checks), ""],
-                ["Press sequences", fmt(h.sequences), ""],
-              ].map(([label, value, tone]) => (
-                <div key={label} className="bg-canvas p-6 md:p-8">
-                  <dt className="text-sm text-ink-2">{label}</dt>
-                  <dd className={`mt-2 text-4xl font-medium tabular-nums tracking-[-0.05em] md:text-6xl ${tone}`}>{value}</dd>
+              <dl className="mt-8 grid max-w-xl grid-cols-2 border-t-2 border-[#1f2b1f] font-mono text-[12px] uppercase tracking-[0.12em]">
+                <div className="border-r-2 border-[#1f2b1f] py-3 pr-4">
+                  <dt className="opacity-70">Exhaustive, depth {h.depth}</dt>
+                  <dd className="mt-1 font-display text-3xl normal-case tracking-normal">{fmt(h.exhaustive)}</dd>
                 </div>
-              ))}
-            </dl>
-            <p className="mt-6 max-w-2xl text-sm leading-relaxed text-ink-3">
-              Every sequence of up to {h.depth} presses from every starting state ({fmt(h.exhaustive)} sequences), plus {fmt(h.random)} long random sequences. Each one is checked against every rule after every press.
-            </p>
+                <div className="py-3 pl-4">
+                  <dt className="opacity-70">Long random runs</dt>
+                  <dd className="mt-1 font-display text-3xl normal-case tracking-normal">{fmt(h.random)}</dd>
+                </div>
+              </dl>
+              <p className="mt-4 font-mono text-[11px] uppercase tracking-[0.12em] opacity-70">Source: results/hammer-latest.json · run {ranLabel} · real runs only</p>
+            </div>
           </div>
         </section>
 
-        {/* Demo CTA */}
-        <StitchDivider />
-        <section id="demo" className="scroll-mt-16">
-          <div className="mx-auto max-w-6xl px-5 py-20 md:px-8 md:py-28">
-            <Eyebrow>The demo</Eyebrow>
-            <h2 className="mt-3 text-4xl font-medium tracking-[-0.045em] md:text-6xl">See it take a call.</h2>
-            <p className="mt-4 max-w-xl text-lg text-ink-2">Two product areas behind one sign-in, plus the patient&apos;s own phone. Demo data only.</p>
-            <ul className="mt-12 grid gap-4 md:grid-cols-3">
-              {PAGES.map((p) => (
+        {/* Inside this issue */}
+        <section id="index" className="scroll-mt-16">
+          <div className="mx-auto max-w-[88rem] px-5 py-20 md:px-8 md:py-28">
+            <div className="flex flex-wrap items-end justify-between gap-6">
+              <h2 className="text-[clamp(2.75rem,6.5vw,6rem)]">Inside this issue.</h2>
+              <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-ink-3">Demo data only · no real patients</p>
+            </div>
+            <ul className="mt-12 border-t-2 border-[color:var(--rg-ink)]">
+              {INDEX.map((p) => (
                 <li key={p.href}>
                   <Link
                     href={p.href}
-                    className="group flex h-full flex-col rounded-card border border-line bg-surface p-6 transition-[border-color,transform] duration-200 hover:-translate-y-0.5 hover:border-ink-3"
+                    className="group grid grid-cols-[3.5rem_1fr_auto] items-center gap-4 border-b border-line py-7 transition-colors hover:bg-accent hover:text-white md:grid-cols-[5rem_1.2fr_2fr_auto] md:gap-8 md:px-3"
                   >
-                    <span className="flex items-center justify-between text-lg font-semibold tracking-[-0.02em]">
-                      {p.title}
-                      <span className="text-ink-3 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-accent">
-                        <Arrow />
-                      </span>
-                    </span>
-                    <span className="mt-3 text-[15px] leading-relaxed text-ink-2">{p.body}</span>
-                    <span className="mt-6 font-mono text-[12px] text-ink-3">{p.href}</span>
+                    <span className="font-mono text-sm text-ink-3 group-hover:text-white">{p.page}</span>
+                    <span className="font-display text-3xl uppercase leading-none md:text-5xl">{p.title}</span>
+                    <span className="col-span-3 col-start-2 text-[15px] leading-relaxed text-ink-2 group-hover:text-white md:col-span-1 md:col-start-auto">{p.body}</span>
+                    <Arrow className="col-start-3 row-start-1 size-7 transition-transform group-hover:translate-x-1 md:col-start-auto md:row-start-auto" />
                   </Link>
                 </li>
               ))}
@@ -305,52 +341,40 @@ export default function Home() {
         </section>
       </main>
 
-      <StitchDivider />
-      <footer>
-        <div className="mx-auto flex max-w-6xl flex-col gap-8 px-5 py-12 md:flex-row md:items-start md:justify-between md:px-8">
-          <div className="max-w-sm">
-            <Logo />
-            <p className="mt-4 text-sm leading-relaxed text-ink-3">
-              A team project for Hack Western 13. Demo data only: no real patients, and not for clinical use.
-            </p>
-            <BuiltAtHackWestern className="mt-5" />
+      {/* Colophon */}
+      <footer className="border-t-2 border-[color:var(--rg-ink)]">
+        <div className="mx-auto grid max-w-[88rem] gap-10 px-5 py-14 md:grid-cols-[2fr_1fr_1fr] md:px-8">
+          <div>
+            <p className="font-display text-[clamp(4rem,12vw,9rem)] uppercase leading-[0.8]">Aegis</p>
+            <p className="mt-5 max-w-md font-serif text-lg italic text-ink-2">A team project for Hack Western 13. Demo data only: no real patients, and not for clinical use.</p>
           </div>
-          <nav aria-label="Footer" className="flex gap-12 text-sm">
-            <ul className="space-y-2.5">
-              <li className="font-medium text-ink">Product</li>
-              {PAGES.map((p) => (
+          <nav aria-label="Product" className="font-mono text-[12px] uppercase tracking-[0.14em]">
+            <p className="text-ink-3">Product</p>
+            <ul className="mt-4 space-y-3">
+              {INDEX.map((p) => (
                 <li key={p.href}>
-                  <Link href={p.href} className="text-ink-2 hover:text-ink">
-                    {p.title}
-                  </Link>
+                  <Link href={p.href} className="hover:text-accent">{p.title}</Link>
                 </li>
               ))}
             </ul>
-            <ul className="space-y-2.5">
-              <li className="font-medium text-ink">Project</li>
-              <li>
-                <a href={REPO} className="text-ink-2 hover:text-ink">
-                  GitHub
-                </a>
-              </li>
-              <li>
-                <a href={`${REPO}/blob/main/docs/SPEC.md`} className="text-ink-2 hover:text-ink">
-                  Spec
-                </a>
-              </li>
-              <li>
-                <a href={`${REPO}/blob/main/docs/BRAND.md`} className="text-ink-2 hover:text-ink">
-                  Brand
-                </a>
-              </li>
+          </nav>
+          <nav aria-label="Project" className="font-mono text-[12px] uppercase tracking-[0.14em]">
+            <p className="text-ink-3">Project</p>
+            <ul className="mt-4 space-y-3">
+              <li><a href={REPO} className="hover:text-accent">GitHub</a></li>
+              <li><a href={`${REPO}/blob/main/docs/SPEC.md`} className="hover:text-accent">Spec</a></li>
+              <li><a href={`${REPO}/blob/main/docs/BRAND.md`} className="hover:text-accent">Brand</a></li>
             </ul>
           </nav>
         </div>
-        <div className="mx-auto flex max-w-6xl items-center gap-2 border-t border-line px-5 py-5 text-xs text-ink-3 md:px-8">
-          <Mark className="size-3.5" />
-          Aegis · Hack Western 13
+        <div className="border-t border-line">
+          <div className="mx-auto flex max-w-[88rem] items-center justify-between px-5 py-4 font-mono text-[10.5px] uppercase tracking-[0.16em] text-ink-3 md:px-8">
+            <span>Aegis · Hack Western 13</span>
+            <span>Demo data only · not for clinical use</span>
+          </div>
         </div>
       </footer>
+      </div>
     </div>
   );
 }
