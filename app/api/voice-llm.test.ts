@@ -102,16 +102,37 @@ describe("POST /api/voice/llm: one call per ElevenLabs conversation", () => {
     expect((await runtime.getStore().getCall(callId!))?.direction).toBe("inbound");
   });
 
-  it("sends each caller line to the driver once: a repeated request replays the same turn", async () => {
+  it("sends each caller line to the driver once: a dropped answer is replayed, never re-run", async () => {
     const said: string[] = [];
     const real = runtime.getDriver();
     swap.driver = { ...real, callerSays: (id, text) => (said.push(text), real.callerSays(id, text)) };
     const first = [system(), { role: "assistant" as const, content: "Hi." }, { role: "user" as const, content: "Is my refill ready?" }];
-    expect((await readStream(await llm(chat(first)))).content).toBe("One moment.");
+    // ElevenLabs drops the first connection before reading the answer, then asks again.
+    await (await llm(chat(first))).body?.cancel();
     expect((await readStream(await llm(chat(first)))).content).toBe("One moment.");
     const second = [...first, { role: "assistant" as const, content: "One moment." }, { role: "user" as const, content: "Thanks." }];
     expect((await readStream(await llm(chat(second)))).content).toBe("One moment.");
     expect(said).toEqual(["Is my refill ready?", "Thanks."]);
+  });
+
+  it("answers a silence (asked again with nothing new) with the driver's check-in, once", async () => {
+    const real = runtime.getDriver();
+    const guard = createSpeechGuard({ store: runtime.getStore(), emit });
+    swap.driver = {
+      ...real,
+      async *checkIn(id: string) {
+        yield { type: "line", text: (await guard(id, "Are you still there? Take your time.")).speak };
+      },
+    } as AgentDriver;
+    const turn = [system(), { role: "user" as const, content: "Is my refill ready?" }];
+    expect((await readStream(await llm(chat(turn)))).content).toBe("One moment.");
+    const quiet = [...turn, { role: "assistant" as const, content: "One moment." }];
+    expect((await readStream(await llm(chat(quiet)))).content).toBe("Are you still there? Take your time.");
+    expect((await readStream(await llm(chat(quiet)))).content).toBe("");
+    // They speak again: a normal turn, and the next silence gets a check-in again.
+    const back = [...quiet, { role: "assistant" as const, content: "Are you still there? Take your time." }, { role: "user" as const, content: "Yes, sorry." }];
+    expect((await readStream(await llm(chat(back)))).content).toBe("One moment.");
+    expect((await readStream(await llm(chat([...back, { role: "assistant", content: "One moment." }])))).content).toBe("Are you still there? Take your time.");
   });
 
   it("keeps two conversations apart", async () => {
