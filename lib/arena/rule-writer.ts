@@ -134,6 +134,13 @@ const FIELD_HELP: Record<(typeof CARD_FIELDS)[number], string> = {
   "recent.renewals_7d": "number",
   "recent.outbound_calls_3d": "number",
   "policy.controlled_early_window_days": "number",
+  "request.days_supply": "number, days supply asked for (the prescribed days if none)",
+  "rx.days_supplied": "number, days the prescription supplies",
+  "rx.days_until_due": "number, days supplied minus days since the last fill (negative when late)",
+  "appointment.slot_free": "true or false (book_appointment)",
+  "appointment.local_hour": "number 0 to 23, the slot's start, pharmacy time (book_appointment)",
+  "appointment.same_type_same_day": "number, the caller's other bookings of that type that day (book_appointment)",
+  "appointment.patient_is_caller": "true or false (book_appointment)",
 };
 
 const ProposalSchema = z.object({

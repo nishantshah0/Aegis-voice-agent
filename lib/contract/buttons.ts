@@ -1,9 +1,12 @@
-// The 12 buttons (SPEC Part 3, "The twelve buttons"). The AI acts only through these.
+// The buttons (SPEC Part 3, "The twelve buttons", plus the four added in Trail #85: refill
+// history and appointments). The AI acts only through these.
 // Button inputs and outputs use snake_case because they are the JSON the model sees
 // as tool schemas. Everything else in the contract is camelCase.
 
 import type {
   AddressId,
+  AppointmentId,
+  AppointmentSlotId,
   CallId,
   FlagId,
   IsoTime,
@@ -29,6 +32,10 @@ export const BUTTON_NAMES = [
   "set_delivery",
   "note_for_pharmacist",
   "escalate",
+  "refill_history",
+  "list_appointment_slots",
+  "book_appointment",
+  "cancel_appointment",
 ] as const;
 
 export type ButtonName = (typeof BUTTON_NAMES)[number];
@@ -47,9 +54,13 @@ export const BUTTON_TIERS: Record<ButtonName, 0 | 1 | 2> = {
   set_delivery: 2,
   note_for_pharmacist: 2,
   escalate: 0,
+  refill_history: 1,
+  list_appointment_slots: 1,
+  book_appointment: 2,
+  cancel_appointment: 2,
 };
 
-/** Buttons 4 to 11 need a verified call. */
+/** Buttons 4 to 11, and the four Trail #85 buttons, need a verified call. */
 export const NEEDS_VERIFIED: readonly ButtonName[] = [
   "check_prescription",
   "read_label",
@@ -59,7 +70,15 @@ export const NEEDS_VERIFIED: readonly ButtonName[] = [
   "request_renewal",
   "set_delivery",
   "note_for_pharmacist",
+  "refill_history",
+  "list_appointment_slots",
+  "book_appointment",
+  "cancel_appointment",
 ];
+
+/** What an appointment is for: a pharmacist consult, a vaccine, a medication review, or a pickup time. */
+export const APPOINTMENT_TYPES = ["consult", "vaccine", "med_review", "pickup"] as const;
+export type AppointmentType = (typeof APPOINTMENT_TYPES)[number];
 
 export type RefillState = "queued" | "waiting_for_pharmacist" | "refused" | "approved" | "denied";
 
@@ -72,11 +91,20 @@ export type ButtonInputs = {
   read_label: { rx_id: RxId };
   check_coverage: { rx_id: RxId };
   order_status: Record<string, never>;
-  request_refill: { rx_id: RxId; reason?: string };
+  /**
+   * days_supply: a shorter supply than prescribed (a partial fill), e.g. 7 or 14 of 30. Never
+   * longer. The quantity is worked out in code from the label, never taken from the model.
+   */
+  request_refill: { rx_id: RxId; reason?: string; days_supply?: number };
   request_renewal: { rx_id: RxId };
   set_delivery: { order_id: OrderId; slot_id: SlotId; address_id: AddressId | "pickup" };
   note_for_pharmacist: { rx_id?: RxId; text: string; kind: "side_effect" | "question" };
   escalate: { reason: string };
+  refill_history: { rx_id: RxId };
+  list_appointment_slots: { type: AppointmentType };
+  /** Always for the verified caller: there is no patient input. */
+  book_appointment: { slot_id: AppointmentSlotId };
+  cancel_appointment: { appointment_id: AppointmentId };
 };
 
 export type ButtonOutputs = {
@@ -111,11 +139,49 @@ export type ButtonOutputs = {
     orders: { order_id: OrderId; rx_id: RxId; status: RefillState; slot_id?: SlotId; slot_label?: string; ready_label?: string }[];
   };
   /** ready_label: the weekday the refill is expected ready once approved, e.g. "Thursday" (waiting, queued or approved only). */
-  request_refill: { state: RefillState; rule_ids: RuleId[]; message: string; order_id?: OrderId; ready_label?: string };
+  request_refill: {
+    state: RefillState;
+    rule_ids: RuleId[];
+    message: string;
+    order_id?: OrderId;
+    ready_label?: string;
+    /** The days supply asked for (a partial fill when under the prescribed days). */
+    days_supply?: number;
+    /** Units for that supply, computed in code from the label. */
+    quantity?: number;
+  };
   request_renewal: { state: "requested" | "waiting_for_pharmacist" | "refused"; rule_ids: RuleId[] };
   set_delivery: { ok: boolean; rule_ids: RuleId[] };
   note_for_pharmacist: { note_id: NoteId };
   escalate: { flag_id: FlagId };
+  /** The verified patient's own last fill, read back from the record. */
+  refill_history: {
+    rx_id: RxId;
+    drug: string;
+    last_fill: IsoTime;
+    /** Weekday of the last fill, pharmacy time, e.g. "Friday". */
+    last_fill_day: string;
+    last_fill_quantity: number;
+    /** "tablet" or "capsule", from the label. */
+    last_fill_unit: string;
+    last_fill_days_supply: number;
+    last_fill_method?: "pickup" | "delivery";
+    refills_left: number;
+    days_supply_prescribed: number;
+    /** The first day no card refuses it and it isn't early (card 3). null if it can't be refilled (expired, none left). */
+    next_eligible: IsoTime | null;
+    next_eligible_day?: string;
+    prescriber?: string;
+  };
+  list_appointment_slots: {
+    type: AppointmentType;
+    /** Open slots of that type in the next 14 days, earliest first, at most 10. */
+    slots: { slot_id: AppointmentSlotId; label: string; start: IsoTime; end: IsoTime }[];
+    /** The verified caller's own live bookings, of every type. */
+    booked: { appointment_id: AppointmentId; type: AppointmentType; label: string; start: IsoTime }[];
+  };
+  book_appointment: { ok: boolean; rule_ids: RuleId[]; appointment_id?: AppointmentId; type?: AppointmentType; label?: string; start?: IsoTime };
+  cancel_appointment: { ok: boolean; rule_ids: RuleId[] };
 };
 
 /** Errors a button can return. Never thrown to the agent. */

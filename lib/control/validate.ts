@@ -1,14 +1,19 @@
-// Input checks for the 12 buttons. Input comes from the model, so it is untrusted:
+// Input checks for the buttons. Input comes from the model, so it is untrusted:
 // exact keys only (unknown keys are refused, so no button can take address text),
 // right types, bounded lengths.
 
-import type { ButtonInputs, ButtonName } from "@/lib/contract";
+import { APPOINTMENT_TYPES, type ButtonInputs, type ButtonName } from "@/lib/contract";
+import { MAX_DAYS_SUPPLY } from "./supply";
 
 export const MAX_ID = 100;
 export const MAX_SHORT = 200;
 export const MAX_TEXT = 1000;
 
-type FieldSpec = { type: "string"; max: number; optional?: boolean; oneOf?: readonly string[] } | { type: "boolean" };
+type FieldSpec =
+  | { type: "string"; max: number; optional?: boolean; oneOf?: readonly string[] }
+  | { type: "boolean" }
+  /** A whole number from min to max. */
+  | { type: "integer"; min: number; max: number; optional?: boolean };
 
 const SPECS: Record<ButtonName, Record<string, FieldSpec>> = {
   lookup_patient: {
@@ -22,7 +27,11 @@ const SPECS: Record<ButtonName, Record<string, FieldSpec>> = {
   read_label: { rx_id: { type: "string", max: MAX_ID } },
   check_coverage: { rx_id: { type: "string", max: MAX_ID } },
   order_status: {},
-  request_refill: { rx_id: { type: "string", max: MAX_ID }, reason: { type: "string", max: MAX_TEXT, optional: true } },
+  request_refill: {
+    rx_id: { type: "string", max: MAX_ID },
+    reason: { type: "string", max: MAX_TEXT, optional: true },
+    days_supply: { type: "integer", min: 1, max: MAX_DAYS_SUPPLY, optional: true },
+  },
   request_renewal: { rx_id: { type: "string", max: MAX_ID } },
   set_delivery: {
     order_id: { type: "string", max: MAX_ID },
@@ -35,6 +44,10 @@ const SPECS: Record<ButtonName, Record<string, FieldSpec>> = {
     kind: { type: "string", max: 20, oneOf: ["side_effect", "question"] },
   },
   escalate: { reason: { type: "string", max: MAX_TEXT } },
+  refill_history: { rx_id: { type: "string", max: MAX_ID } },
+  list_appointment_slots: { type: { type: "string", max: 20, oneOf: APPOINTMENT_TYPES } },
+  book_appointment: { slot_id: { type: "string", max: MAX_ID } },
+  cancel_appointment: { appointment_id: { type: "string", max: MAX_ID } },
 };
 
 export type Checked<B extends ButtonName> = { ok: true; input: ButtonInputs[B] } | { ok: false; problem: string };
@@ -52,6 +65,13 @@ export function checkInput<B extends ButtonName>(button: B, input: unknown): Che
     const value = obj[key];
     if (field.type === "boolean") {
       if (typeof value !== "boolean") return { ok: false, problem: `${key} must be true or false` };
+      continue;
+    }
+    if (field.type === "integer") {
+      if (value === undefined && field.optional) continue;
+      if (typeof value !== "number" || !Number.isInteger(value) || value < field.min || value > field.max) {
+        return { ok: false, problem: `${key} must be a whole number from ${field.min} to ${field.max}` };
+      }
       continue;
     }
     if (value === undefined && field.optional) continue;

@@ -30,6 +30,10 @@ const GOALS: Record<string, ButtonName[]> = {
   side_effect: ["note_for_pharmacist"],
   status: ["order_status"],
   several: ["request_refill", "check_coverage"],
+  // Trail #85: goals for the new buttons, ready for persona intents that ask for them.
+  appointment: ["book_appointment"],
+  history: ["refill_history"],
+  partial_refill: ["request_refill"],
 };
 
 export function goalFor({ intent, persona }: { intent: string; persona: string }): QualityGoal {

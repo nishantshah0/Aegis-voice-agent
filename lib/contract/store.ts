@@ -1,9 +1,11 @@
 // Store (DESIGN 3.5) and the data it holds. Every method is async so the in-memory
 // store (Role 4) and the Postgres store (Role 2) are a one-line swap.
 
-import type { ButtonName, RefillState } from "./buttons";
+import type { AppointmentType, ButtonName, RefillState } from "./buttons";
 import type {
   AddressId,
+  AppointmentId,
+  AppointmentSlotId,
   Approver,
   CallId,
   Direction,
@@ -59,6 +61,12 @@ export type Prescription = {
   labelText: string;
   planPays: string;
   patientPays: string;
+  /** Made-up prescriber, read back by refill_history. */
+  prescriber?: string;
+  /** The last fill, when it differs from the label's Qty and daysSupplied (a partial fill). */
+  lastFillQuantity?: number;
+  lastFillDaysSupply?: number;
+  lastFillMethod?: "pickup" | "delivery";
 };
 
 export type DeliverySlot = { id: SlotId; label: string; start: IsoTime; end: IsoTime };
@@ -71,6 +79,35 @@ export type Order = {
   slotId?: SlotId;
   addressId?: AddressId | "pickup";
   createdAt: IsoTime;
+  /** Set when request_refill asked for a days supply (a partial fill when under the prescribed days). */
+  daysSupply?: number;
+  /** Units for daysSupply, computed in code from the label. */
+  quantity?: number;
+};
+
+/**
+ * One weekly appointment time (made up). lib/control turns the policy's schedule into the open
+ * slots for the next 14 days, from the store's clock. weekdays: 0 is Sunday. times: "HH:MM", pharmacy time.
+ */
+export type AppointmentTemplate = { type: AppointmentType; weekdays: number[]; times: string[]; minutes: number };
+
+export type AppointmentSlot = { id: AppointmentSlotId; type: AppointmentType; label: string; start: IsoTime; end: IsoTime };
+
+/** A booking. Kept only in the record: a book_appointment entry, live until a cancel_appointment entry names it. */
+export type Appointment = AppointmentSlot & { appointmentId: AppointmentId; slotId: AppointmentSlotId; patientId: PatientId; callId: CallId };
+
+/** The schedule a store uses when its policy predates appointments (e.g. an older Postgres seed). */
+export const DEFAULT_APPOINTMENT_SCHEDULE: AppointmentTemplate[] = [
+  { type: "consult", weekdays: [1, 2, 3, 4, 5, 6], times: ["10:00", "14:00", "16:30"], minutes: 30 },
+  { type: "vaccine", weekdays: [1, 2, 3, 4, 5, 6], times: ["09:30", "11:00", "13:00", "15:00"], minutes: 15 },
+  { type: "med_review", weekdays: [2, 4], times: ["11:30", "15:30"], minutes: 30 },
+  { type: "pickup", weekdays: [1, 2, 3, 4, 5, 6], times: ["09:00", "12:00", "17:00"], minutes: 30 },
+];
+
+export type Policy = {
+  controlledEarlyWindowDays: number;
+  /** Weekly appointment times. Missing: DEFAULT_APPOINTMENT_SCHEDULE. */
+  appointmentSchedule?: AppointmentTemplate[];
 };
 
 export type Seed = {
@@ -82,7 +119,7 @@ export type Seed = {
   slots: DeliverySlot[];
   orders: Order[];
   cards: RuleCard[];
-  policy: { controlledEarlyWindowDays: number };
+  policy: Policy;
 };
 
 // ---------- Calls ----------
@@ -172,6 +209,8 @@ export type QueueItem = {
   notes: { id: NoteId; kind: "side_effect" | "question"; text: string }[];
   /** The AI's own view, shown labelled, never used for decisions. */
   aiView?: string;
+  /** A refill for fewer days than prescribed: what was asked for, and the units worked out from the label. */
+  partialFill?: { daysSupply: number; quantity: number };
   status: "open" | "approved" | "denied";
   decidedBy?: Approver;
   decidedAt?: IsoTime;
