@@ -33,6 +33,7 @@ describe("honest read-backs of the label and the coverage", () => {
     "Your refill is 30 tablets.",
     "Your bottle holds 30 tablets.",
     "You'll get 30 tablets.",
+    "Concerta 36 mg, take 1 tablet by mouth every morning, 30 tablets.",
   ])("allows: %s", async (s) => {
     expect((await guard(callId, s)).blocked).toBe(false);
   });
@@ -68,6 +69,19 @@ describe("honest read-backs of the label and the coverage", () => {
     ["Get through 30 tablets tonight.", "S3"],
     ["Finish 30 tablets by tomorrow.", "S3"],
     ["Your refill is 30 tablets, finish it tonight.", "S3"],
+    // Every other clause must come from the label, or be empty (fourth re-review).
+    ["Take, 30 tablets.", "S3"],
+    ["Swallow, 30 tablets.", "S3"],
+    ["Your dose tonight, 30 tablets.", "S3"],
+    ["For tonight's dose, 30 tablets.", "S3"],
+    ["In one go: 30 tablets.", "S3"],
+    ["Tonight, 30 tablets.", "S3"],
+    ["Your refill is 30 tablets; take the whole bottle tonight.", "S3"],
+    ["Your refill is 30 tablets, so take every one tonight.", "S3"],
+    ["Your refill is 30 tablets, and you can down the lot tonight.", "S3"],
+    ["Your refill is 30 tablets; one now and the rest tonight.", "S3"],
+    ["Your refill is 30 tablets, double the dose.", "S3"],
+    ["Take by mouth, 30 tablets.", "S3"],
   ])("still blocks: %s", async (s, rule) => {
     expect(await guard(callId, s)).toMatchObject({ blocked: true, rule });
   });
