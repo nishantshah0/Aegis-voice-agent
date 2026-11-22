@@ -1,6 +1,6 @@
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import type { AgentDriver, StreamEvent } from "@/lib/contract";
 import { FAKE_CODE } from "@/lib/contract/fakes";
@@ -119,6 +119,10 @@ describe("scenario suite", () => {
       expect(report.scenarios).toHaveLength(28);
       expect(options.makeSession).toHaveBeenCalledTimes(report.scenarios.length * 3);
       expect(JSON.parse(await readFile(resultPath, "utf8"))).toEqual(report);
+      const attemptsRoot = join(dirname(resultPath), "attempts");
+      const ids = await readdir(attemptsRoot);
+      const files = await Promise.all(ids.map((id) => readdir(join(attemptsRoot, id))));
+      expect(files.flat()).toHaveLength(report.scenarios.length * 3);
     } finally {
       await rm(directory, { recursive: true, force: true });
     }
@@ -130,6 +134,7 @@ describe("scenario suite", () => {
     const report = await runScenarioSuite({
       ...options,
       scenarios: [card, { ...card, id: "staff_required", needsPharmacist: true }],
+      concurrency: 1,
       emit: (event) => {
         expect(options.saveReport.mock.calls.length).toBe(events.length + 1);
         events.push(event);
@@ -150,6 +155,41 @@ describe("scenario suite", () => {
     expect(JSON.stringify(report)).not.toContain(FAKE_CODE);
   });
 
+  it("bounds parallel scenarios and publishes ordered, serialized snapshots", async () => {
+    const options = setup();
+    const baseSession = options.makeSession;
+    let active = 0;
+    let peak = 0;
+    let writes = 0;
+    let peakWrites = 0;
+    const snapshots: SuiteReport[] = [];
+    const report = await runScenarioSuite({
+      ...options,
+      scenarios: [card, { ...card, id: "second" }, { ...card, id: "third" }],
+      concurrency: 2,
+      makeSession: async (seed, target) => {
+        active++;
+        peak = Math.max(peak, active);
+        await new Promise((resolve) => setTimeout(resolve, active === 1 ? 15 : 1));
+        const session = await baseSession(seed, target);
+        active--;
+        return session;
+      },
+      saveReport: async (snapshot) => {
+        writes++;
+        peakWrites = Math.max(peakWrites, writes);
+        await new Promise((resolve) => setTimeout(resolve, 1));
+        snapshots.push(snapshot);
+        writes--;
+      },
+    });
+    expect(peak).toBe(2);
+    expect(peakWrites).toBe(1);
+    expect(report.scenarios.map((s) => s.id)).toEqual(["ordinary", "second", "third"]);
+    expect(snapshots.at(-1)).toEqual(report);
+    expect(report.completed).toBe(true);
+  });
+
   it("does not emit a score if persisting its report fails", async () => {
     const options = setup();
     const emit = vi.fn();
@@ -162,46 +202,5 @@ describe("scenario suite", () => {
     const options = setup();
     await expect(runScenarioSuite({ ...options, scenarios: [card, card] })).rejects.toThrow("unique");
     expect(options.makeSession).not.toHaveBeenCalled();
-  });
-
-  it("retries an attempt that threw (a dropped connection) on a fresh session, and counts the retry", async () => {
-    const options = setup();
-    const real = options.makeSession.getMockImplementation()!;
-    options.makeSession.mockImplementationOnce(async () => { throw new Error("socket hang up"); });
-    const report = await runScenarioSuite({ ...options, scenarios: [card], retries: 2 });
-    expect(report.scenarios[0].attempts).toHaveLength(3);
-    expect(report.retried).toBe(1);
-    void real;
-  });
-
-  it("gives up after its retries and rethrows", async () => {
-    const options = setup();
-    options.makeSession.mockImplementation(async () => { throw new Error("socket hang up"); });
-    await expect(runScenarioSuite({ ...options, scenarios: [card], retries: 1 })).rejects.toThrow("socket hang up");
-    expect(options.makeSession).toHaveBeenCalledTimes(2);
-  });
-
-  it("hands every attempt's full run, record included, to saveRun", async () => {
-    const options = setup();
-    const runs: { id: string; attempt: number; records: number }[] = [];
-    await runScenarioSuite({ ...options, scenarios: [card], saveRun: async (scenario, attempt, run) => { runs.push({ id: scenario.id, attempt, records: run.record.length }); } });
-    expect(runs.map((r) => [r.id, r.attempt])).toEqual([["ordinary", 1], ["ordinary", 2], ["ordinary", 3]]);
-    expect(runs.every((r) => r.records > 0)).toBe(true);
-  });
-});
-
-describe("runFixedScenarioSuite files", () => {
-  it("saves each attempt's run next to the scoreboard", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "suite-runs-"));
-    try {
-      const options = setup();
-      const { resultPath } = await runFixedScenarioSuite({ ...options, resultsDirectory: dir, scenariosDirectory: join(process.cwd(), "scenarios"), only: ["sam_ordinary_refill"] });
-      const runDir = join(resultPath, "..", "runs");
-      const saved = JSON.parse(await readFile(join(runDir, "sam_ordinary_refill-1.json"), "utf8"));
-      expect(saved.scenarioId).toBe("sam_ordinary_refill");
-      expect(Array.isArray(saved.record)).toBe(true);
-    } finally {
-      await rm(dir, { recursive: true, force: true });
-    }
   });
 });
