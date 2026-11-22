@@ -2,8 +2,8 @@
 // the press answers "refused" and every write the button made is rolled back (Store.transaction),
 // and nothing it would have announced on the stream goes out.
 import { describe, expect, it } from "vitest";
-import type { StreamEvent, Store } from "@/lib/contract";
-import { createControl } from "@/lib/control";
+import type { RuleCard, StreamEvent, Store } from "@/lib/contract";
+import { applyApprovedCard, createControl } from "@/lib/control";
 import { IDS, SEED } from "@/lib/seed";
 import { createSpeechGuard } from "@/lib/guard";
 import { createMemoryStore, findBrokenLink } from "@/lib/store/memory";
@@ -106,5 +106,44 @@ describe("a rollback undoes only the failing press (Trail #83 review)", () => {
     expect(await store.getCall(c)).toBeDefined();
     expect(await control.press(c, "order_status", {})).not.toMatchObject({ ok: false, error: "not_found" });
     expect(findBrokenLink(await store.listRecord())).toBeNull();
+  });
+});
+
+describe("a rollback keeps a rule card put live meanwhile (Trail #83 review, Trail #78)", () => {
+  it("applyApprovedCard during a failing press keeps the card and its rule_change entry together", async () => {
+    const store: Store = createMemoryStore(SEED);
+    const control = createControl({ store, makeCode: () => "112358" });
+    const b = await control.startInboundCall();
+    const lookB = await control.press(b, "lookup_patient", { name: "Jordan Leclair", dob: "1975-07-02", rx_number: "RX-100301" });
+    const idB = lookB.ok ? (lookB.output as { lookup_id: string }).lookup_id : "";
+    const append = store.appendRecord.bind(store);
+    store.appendRecord = async (entry) => {
+      if (entry.callId === b && entry.button === "send_code") {
+        await new Promise((r) => setTimeout(r, 30));
+        throw new Error("disk full");
+      }
+      return append(entry);
+    };
+    const card: RuleCard = {
+      id: "w1",
+      wording: "Any antibiotic refill needs a pharmacist.",
+      when: [{ field: "drug.class", op: "=", value: "antibiotic" }],
+      then: "route",
+      appliesTo: ["request_refill"],
+      risk: "Antibiotic stewardship",
+      author: "test",
+      approvedBy: "",
+      approvedAt: "",
+      tests: ["should catch", "shouldn't catch", "edge"],
+      live: false,
+    };
+    const failing = control.press(b, "send_code", { lookup_id: idB });
+    await new Promise((r) => setTimeout(r, 5));
+    const applied = applyApprovedCard(store, card, { id: "u_p", name: "Test Pharmacist", role: "pharmacist" });
+    const [rb, ra] = await Promise.all([failing, applied]);
+    expect(rb).toMatchObject({ ok: false, error: "refused" });
+    expect(ra).toMatchObject({ ok: true });
+    expect((await store.listCards()).map((c) => c.id)).toContain("w1");
+    expect((await store.listRecord()).filter((e) => e.kind === "rule_change")).toHaveLength(1);
   });
 });
