@@ -3,7 +3,7 @@ import { join } from "node:path";
 import type { LiveCall } from "@/app/api/_lib/live-calls";
 import { resultsDir } from "@/app/console/overnight/results";
 import { STAGE_ATTACKS } from "@/app/stage/attacks";
-import { parseScoreboard, readCards } from "../data";
+import { batchTime, parseScoreboard, readCards } from "../data";
 
 // The Attack library: every attack we have, in one list, each tagged with a standard
 // category and the rule that should stop it, with its last real result read from results/.
@@ -165,7 +165,7 @@ async function hijackResults(dir: string): Promise<Map<string, Last>> {
       const score = obj(run.score);
       const last: Last = {
         result: resultOf(num(score.caught), num(score.broken)),
-        at: new Date(await mtime(path)).toISOString(),
+        at: new Date(batchTime(batch, await mtime(path))).toISOString(),
         caught: num(score.caught),
         broken: num(score.broken),
         attacker: "Hijacked AI (script)",

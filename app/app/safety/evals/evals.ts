@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { promisify } from "node:util";
 import { summarize, type LiveCall } from "@/app/api/_lib/live-calls";
 import { resultsDir } from "@/app/console/overnight/results";
-import { parseScoreboard } from "../data";
+import { batchTime, parseScoreboard } from "../data";
 
 // "How we know it holds": every test layer's saved runs, read from results/ only. A layer
 // with no file says so; nothing here is typed in. History (for the sparklines) is every
@@ -110,7 +110,7 @@ async function readHijack(dir: string): Promise<Layer> {
           const score = (c: Record<string, unknown>) => obj(c.score);
           return {
             name,
-            at: Math.max(0, ...times),
+            at: batchTime(name, Math.max(0, ...times)),
             cards: cards.length,
             caught: cards.reduce((n, c) => n + num(score(c).caught), 0),
             broken: cards.reduce((n, c) => n + num(score(c).broken), 0),
