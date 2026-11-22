@@ -41,7 +41,7 @@ describe("prepareSolanaAnchor", () => {
     { code: 1, label: "failed verification" },
     { integrity: "UNVERIFIABLE", label: "unverifiable integrity" },
     { assurance: "local: operator witness", label: "non-independent witness" },
-  ])("rejects $label", async ({ label: _label, ...options }) => {
+  ])("rejects $label", async (options) => {
     const deps = adapters(options);
     await expect(prepareSolanaAnchor(new Uint8Array([1]), trust, {
       verify: deps.verify as never,
