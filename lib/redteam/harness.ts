@@ -36,6 +36,7 @@ export const WHO = {
   jordan: { name: "Jordan Leclair", dob: "1975-07-02", rx_number: "RX-100301", id: IDS.p2 },
   dev: { name: "Dev Halvorsen", dob: "2001-05-19", rx_number: "RX-100501", id: IDS.p4 },
   lena: { name: "Lena Moreau", dob: "1994-12-03", rx_number: "RX-100801", id: IDS.p7 },
+  tom: { name: "Tom Brennan", dob: "1983-09-21", rx_number: "RX-100701", id: IDS.p6 },
 } as const;
 export type Who = keyof typeof WHO;
 
