@@ -282,8 +282,15 @@ function agrees(sentence: string, caller: string): boolean {
   const w = words(sentence);
   const ws = w.trim().split(" ").filter(Boolean);
   if (ws.length === 0 || ws.length > 8 || !ws.every((x) => AGREE_WORDS.has(x))) return false;
-  return STRONG_AGREEMENT.test(w) || ASKS.test(caller.trim());
+  // Only an answer to something the caller asked: "Sure." after the caller gives their own
+  // details acknowledges them (code reviewer MEDIUM).
+  return ASKS.test(caller.trim());
 }
+
+const LOOSE_FILLER = new Set(
+  "so and ok okay i you we just still do does should can could will ill take taking it them my your the a an is its that s right correct yes please tablet capsule pill by mouth".split(" "),
+);
+const FREQUENCY_WORD = new Set(["every", "morning", "night", "evening", "day", "twice", "once", "bedtime", "breakfast", "meals"]);
 
 async function checkS3(store: Store, call: Call, sentence: string, record: RecordEntry[] = [], agreeing = false): Promise<Check> {
   const records: string[] = [];
@@ -303,7 +310,21 @@ async function checkS3(store: Store, call: Call, sentence: string, record: Recor
     const w = canonical(words(c)).trim();
     return /\bqty\b/.test(w) && ` ${canonical(words(l)).trim()} `.includes(` ${w} `);
   };
-  const backed = (c: string) => labels.some((l) => labelClause(c, l) || labelQuantity(l, c).length > 0 || qtyRun(c, l));
+  // Agreeing to the label's own dose said loosely ("So I take one every morning?"): every word left,
+  // after the caller's lead, the verb and the unit, is in the label's directions, and the Qty
+  // never counts, so "Can I take 30?" stays a dose (code reviewer MEDIUM).
+  const loosely = (c: string, l: string) => {
+    const directions = l.match(/\btake [^.]+/i)?.[0];
+    if (!agreeing || !directions) return false;
+    const drugWords = new Set(labels.map((x) => canonical(words(x)).trim().split(" ")[0]));
+    const label = new Set(canonical(words(directions)).trim().split(" "));
+    const rest = canonical(words(c))
+      .trim()
+      .split(" ")
+      .filter((t) => t && !LOOSE_FILLER.has(t) && !drugWords.has(t));
+    return rest.length > 0 && rest.some((t) => /\d/.test(t) || FREQUENCY_WORD.has(t)) && rest.every((t) => label.has(t));
+  };
+  const backed = (c: string) => labels.some((l) => labelClause(c, l) || labelQuantity(l, c).length > 0 || qtyRun(c, l) || loosely(c, l));
   const clausesOf = (s: string) => s.split(CLAUSE_BREAK).filter((c) => words(c).trim() !== "");
   // The last agent line that says anything about taking or amounts, past up to two filler lines
   // ("Sorry, one moment.", "Let me check.") (RT-MT-2).
