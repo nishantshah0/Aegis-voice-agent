@@ -2,7 +2,7 @@ import { mkdtemp, mkdir, writeFile, utimes } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { parseCard, parseEntry, readAttempts, readCards, readLatestRun, readWhy, rowsFor, whyGroup } from "./data";
+import { parseCard, parseEntry, readAttempts, readCards, readLatestBatch, readLatestRun, readWhy, rowsFor, whyGroup } from "./data";
 
 const tmp = () => mkdtemp(join(tmpdir(), "suite-"));
 const put = async (path: string, json: unknown) => {
@@ -93,5 +93,18 @@ describe("safety suite data", () => {
     expect(why?.records[0]).toMatchObject({ id: "S4", file: "lib/guard/speech.ts", line: 226, commit: "05ecce4f", agent: "Claude Code" });
     expect(await readWhy(await tmp())).toBeNull();
     expect([whyGroup("rule-1"), whyGroup("S2"), whyGroup("card-4b"), whyGroup("hijack-driver")]).toEqual(["Core rules", "Speech rules", "Attack cards", "The hijack"]);
+  });
+
+  it("reads the newest full hijack batch and skips a judge's single pick", async () => {
+    const dir = await tmp();
+    const card = (cardId: string, caught: number) => ({ cardId, callId: "c_0001", record: [], score: { automatedPassed: true, caught, broken: 0, checks: [] } });
+    await put(join(dir, "hijack", "2026-11-21T10-00-00Z", "early_refill.json"), card("early_refill", 3));
+    await put(join(dir, "hijack", "2026-11-21T10-00-00Z", "cross_patient.json"), card("cross_patient", 2));
+    await put(join(dir, "hijack", "pick-2026-11-21T11-00-00Z", "hijack_pick_1_early_refill.json"), { tag: "x", record: [] });
+    const batch = await readLatestBatch(dir);
+    expect(batch?.cards).toBe(2);
+    expect(batch?.caught).toBe(5);
+    expect(batch?.batches).toBe(1);
+    expect(await readLatestBatch(await tmp())).toBeNull();
   });
 });

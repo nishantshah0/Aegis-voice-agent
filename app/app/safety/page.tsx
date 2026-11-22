@@ -3,7 +3,7 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { Badge, Card, Eyebrow, PageHeader, cn } from "@/components/ui";
 import { readOvernight, type Source } from "@/app/console/overnight/results";
-import { readLatestRun, stillRunning, when } from "./data";
+import { readLatestBatch, readLatestRun, stillRunning, when } from "./data";
 import { Progress } from "./Progress";
 import { AutoRefresh, RunButton } from "./RunButton";
 import { SuiteGate } from "./SignedIn";
@@ -120,13 +120,13 @@ const brokenOf = <T extends { broken: number }>(s: Source<T>) => (s.state === "o
 
 async function Overview() {
   await connection(); // Files change between runs: never prerender.
-  const [view, run] = await Promise.all([readOvernight(), readLatestRun()]);
+  const [view, run, batch] = await Promise.all([readOvernight(), readLatestRun(), readLatestBatch()]);
   const { hammer, suite, hijack, overnight, totals } = view;
   const running = stillRunning(run);
 
   const parts: Part[] = [
     { label: "Hammer", broken: brokenOf(hammer) },
-    { label: "Hijack batch", broken: brokenOf(hijack) },
+    { label: "Hijack", broken: brokenOf(hijack) },
     { label: "Scenarios", broken: brokenOf(suite) },
     { label: "Overnight", broken: brokenOf(overnight) },
   ];
@@ -161,9 +161,9 @@ async function Overview() {
       <section>
         <Eyebrow>Runs</Eyebrow>
         <div className="mt-2 grid gap-4 md:grid-cols-2">
-          <RunCard title="Hijack batch" href="/app/safety/attacks" ranAt={ranAtOf(hijack)} run={<RunButton url="/api/arena/hijack" label="Run batch" />}>
-            {hijack.state === "ok" ? (
-              <Mini items={[["Attack calls", hijack.data.cards], ["Caught", hijack.data.caught], ["Broken", hijack.data.broken]]} />
+          <RunCard title="Hijack batch" href="/app/safety/attacks" ranAt={batch?.ranAt ?? null} run={<RunButton url="/api/arena/hijack" label="Run batch" />}>
+            {batch ? (
+              <Mini items={[["Attack calls", batch.cards], ["Caught", batch.caught], ["Broken", batch.broken]]} />
             ) : (
               <p>A fully fooled AI tries four attacks through the real lock.</p>
             )}

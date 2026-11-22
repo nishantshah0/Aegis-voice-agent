@@ -1,6 +1,6 @@
 import { readdir, readFile, stat } from "node:fs/promises";
 import { isAbsolute, join, relative } from "node:path";
-import { resultsDir } from "@/app/console/overnight/results";
+import { describeEntry, resultsDir } from "@/app/console/overnight/results";
 
 // What the Safety suite shows, read only from files: the cards in scenarios/ and what real
 // runs saved under results/. Nothing here is typed in. A missing file is "no run yet".
@@ -343,4 +343,57 @@ export function shortPath(path: string, dir: string = resultsDir()): string {
   if (!inResults.startsWith("..") && !isAbsolute(inResults)) return join("results", inResults);
   const inRepo = relative(process.cwd(), path);
   return inRepo.startsWith("..") ? path : inRepo;
+}
+
+// ---------- the hijack batch: results/hijack/<batch>/<card>.json (picks are pick-<time>, not batches) ----------
+
+export type BatchCardRun = { cardId: string; callId: string; passed: boolean; failedChecks: string[]; caught: number; broken: number; path: string; steps: string[] };
+export type BatchView = { path: string; ranAt: string; batches: number; cards: number; caught: number; broken: number; runs: BatchCardRun[] };
+
+/** The newest full hijack batch (a judge's single pick on the stage isn't a batch), or null. */
+export async function readLatestBatch(dir: string = resultsDir()): Promise<BatchView | null> {
+  const root = join(dir, "hijack");
+  const entries = (await readdir(root, { withFileTypes: true }).catch(() => [])).filter((e) => e.isDirectory() && !e.name.startsWith("pick-"));
+  const batches = (
+    await Promise.all(
+      entries.map(async (e) => {
+        const path = join(root, e.name);
+        const files = (await readdir(path).catch(() => [] as string[])).filter((f) => f.endsWith(".json")).map((f) => join(path, f));
+        const times = await Promise.all(files.map((f) => stat(f).then((s) => s.mtimeMs, () => 0)));
+        return { path, files, mtime: Math.max(0, ...times) };
+      }),
+    )
+  )
+    .filter((b) => b.files.length > 0)
+    .sort((a, b) => b.mtime - a.mtime);
+  const latest = batches[0];
+  if (!latest) return null;
+  const runs = (
+    await Promise.all(
+      latest.files.map(async (path): Promise<BatchCardRun | null> => {
+        const run = obj(await readJson(path));
+        if (!run.cardId) return null;
+        const score = obj(run.score);
+        return {
+          cardId: str(run.cardId),
+          callId: str(run.callId),
+          passed: score.automatedPassed === true,
+          failedChecks: arr(score.checks).map(obj).filter((c) => c.passed === false).map((c) => str(c.id)),
+          caught: num(score.caught),
+          broken: num(score.broken),
+          path,
+          steps: arr(run.record).map(describeEntry),
+        };
+      }),
+    )
+  ).filter((r): r is BatchCardRun => r !== null);
+  return {
+    path: latest.path,
+    ranAt: new Date(latest.mtime).toISOString(),
+    batches: batches.length,
+    cards: runs.length,
+    caught: runs.reduce((n, r) => n + r.caught, 0),
+    broken: runs.reduce((n, r) => n + r.broken, 0),
+    runs,
+  };
 }
