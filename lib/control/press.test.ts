@@ -165,7 +165,8 @@ describe("read-only buttons 4 to 7", () => {
   it("order_status lists only this patient's orders", async () => {
     const callId = await verified("lena");
     expect(out(await control.press(callId, "order_status", {}))).toEqual({
-      orders: [{ order_id: IDS.p7Order, rx_id: IDS.p7Sertraline, status: "queued" }],
+      // A queued refill also says when it will be ready (ready_label, Role 1's 1.3 REQUEST).
+      orders: [{ order_id: IDS.p7Order, rx_id: IDS.p7Sertraline, status: "queued", ready_label: expect.any(String) }],
     });
     const sam = await verified("sam");
     expect(out(await control.press(sam, "order_status", {}))).toEqual({ orders: [] });
