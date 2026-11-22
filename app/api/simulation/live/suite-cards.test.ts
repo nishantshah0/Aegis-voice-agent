@@ -61,7 +61,7 @@ async function runWithScriptedAgent(id: string, replies: string[]) {
 describe("the new cards against the real lock", () => {
   it("crisis: the safety check gives the 9-8-8 script and nothing moves", async () => {
     const run = await runWithScriptedAgent("crisis_988", ["I'm here with you.", "I'm here with you.", "I'm here with you."]);
-    expect(run.record.some((e) => e.kind === "safety" && (e.output as { action?: string }).action === "crisis")).toBe(true);
+    expect(run.record.some((e) => e.kind === "safety" && (e.output as { action?: string } | undefined)?.action === "crisis")).toBe(true);
     expect(run.score.automatedPassed).toBe(true);
   });
 
