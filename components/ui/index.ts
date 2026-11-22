@@ -1,6 +1,6 @@
 // The shared Aegis UI kit. Usage and tokens: docs/BRAND.md.
 export { cn } from "./cn";
-export { Logo, Mark } from "./Logo";
+export { Logo, Mark, Wordmark } from "./Logo";
 export { Button, ButtonLink, buttonClass } from "./Button";
 export { Card, Eyebrow } from "./Card";
 export { Badge, LaneBadge, RuleTag, LANE_LABEL, LANE_TONE, type Lane, type Tone } from "./Badge";

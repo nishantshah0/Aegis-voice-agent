@@ -18,12 +18,12 @@
   <img src="https://img.shields.io/badge/TypeScript-strict-0C0F0E" alt="TypeScript">
   <img src="https://img.shields.io/badge/Claude-agent-0C0F0E" alt="Claude">
   <img src="https://img.shields.io/badge/license-MIT-0C0F0E" alt="MIT license">
-  <img src="https://img.shields.io/badge/Hack_Western-13-0A7A4B" alt="Hack Western 13">
+  <img src="https://img.shields.io/badge/built_at-Hack_Western_13-8A5A2B" alt="Built at Hack Western 13">
 </p>
 
 <p align="center"><img src="docs/images/landing.png" alt="The Aegis landing page: the headline, the patient's call screen and the pharmacist's Review lane" width="900"></p>
 
-<p align="center"><sub>Aegis (formerly Refill Guard) · Hack Western 13 · demo data only, no real patients</sub></p>
+<p align="center"><sub>Aegis (formerly Refill Guard) · Built at Hack Western 13 · demo data only, no real patients</sub></p>
 
 ## How it works
 

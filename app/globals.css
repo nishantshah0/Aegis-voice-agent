@@ -37,6 +37,8 @@
   --rg-stop: #b42318;
   --rg-stop-soft: #fbe9e7;
 
+  /* Leather tan: the Western accent, landing page and brand art only (never in the dashboard). */
+  --rg-tan: #8a5a2b;
   --rg-focus: #0a7a4b;
   --rg-shadow: 0 1px 2px rgb(12 15 14 / 0.04), 0 8px 24px -12px rgb(12 15 14 / 0.12);
 }
@@ -69,6 +71,7 @@
   --rg-stop: #ff6b5e;
   --rg-stop-soft: rgb(255 107 94 / 0.14);
 
+  --rg-tan: #d4a373;
   --rg-focus: #3ddc97;
   --rg-shadow: 0 1px 0 rgb(255 255 255 / 0.03) inset, 0 12px 32px -16px rgb(0 0 0 / 0.6);
   color-scheme: dark;
@@ -114,6 +117,7 @@
   --color-review-soft: var(--rg-review-soft);
   --color-stop: var(--rg-stop);
   --color-stop-soft: var(--rg-stop-soft);
+  --color-tan: var(--rg-tan);
 
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace;

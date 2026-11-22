@@ -4,6 +4,7 @@ import { ButtonLink, Card, Eyebrow, LaneBadge, Logo, Mark, RuleTag, SiteHeader, 
 import { ProductPreview } from "@/components/landing/ProductPreview";
 import { fmt, hammerTotals } from "@/components/landing/hammer";
 import { AuthButton, SignInLink } from "@/components/landing/AuthButton";
+import { BuiltAtHackWestern, HoofTrail, StitchDivider } from "@/components/landing/Western";
 
 const REPO = "https://github.com/nishantshah0/namereserve";
 
@@ -165,14 +166,18 @@ export default function Home() {
         </section>
 
         {/* How it works */}
-        <section id="how" className="scroll-mt-20 border-t border-line">
+        <StitchDivider />
+        <section id="how" className="scroll-mt-20">
           <div className="mx-auto max-w-6xl px-5 py-20 md:px-8 md:py-28">
             <Eyebrow>How it works</Eyebrow>
             <h2 className="mt-3 max-w-2xl text-4xl font-medium tracking-[-0.045em] md:text-6xl">Three steps, one wall the AI can&apos;t talk its way past.</h2>
             <ol className="mt-14 grid gap-10 md:grid-cols-3 md:gap-8">
-              {STEPS.map((s) => (
-                <li key={s.n} className="flex flex-col border-t border-line-strong pt-6">
-                  <span className="font-mono text-sm text-ink-3">{s.n}</span>
+              {STEPS.map((s, i) => (
+                <li key={s.n} className="flex flex-col border-t-2 border-dashed border-tan/40 pt-6">
+                  <span className="flex items-center justify-between">
+                    <span className="font-mono text-sm text-ink-3">{s.n}</span>
+                    {i < STEPS.length - 1 && <HoofTrail className="hidden md:flex" />}
+                  </span>
                   <h3 className="mt-4 text-xl font-semibold tracking-[-0.02em]">{s.title}</h3>
                   <p className="mt-3 text-[15px] leading-relaxed text-ink-2">{s.body}</p>
                   <div className="mt-6">{s.detail}</div>
@@ -183,7 +188,8 @@ export default function Home() {
         </section>
 
         {/* Safety */}
-        <section id="safety" className="scroll-mt-16 border-t border-line">
+        <StitchDivider />
+        <section id="safety" className="scroll-mt-16">
           <div className="mx-auto max-w-6xl px-5 py-20 md:px-8 md:py-28">
             <Eyebrow>Safety</Eyebrow>
             <h2 className="mt-3 max-w-3xl text-4xl font-medium tracking-[-0.045em] md:text-6xl">
@@ -238,7 +244,8 @@ export default function Home() {
         </section>
 
         {/* Numbers */}
-        <section id="numbers" className="scroll-mt-16 border-t border-line">
+        <StitchDivider />
+        <section id="numbers" className="scroll-mt-16">
           <div className="mx-auto max-w-6xl px-5 py-20 md:px-8 md:py-28">
             <div className="flex flex-wrap items-end justify-between gap-6">
               <div>
@@ -269,7 +276,8 @@ export default function Home() {
         </section>
 
         {/* Demo CTA */}
-        <section id="demo" className="scroll-mt-16 border-t border-line">
+        <StitchDivider />
+        <section id="demo" className="scroll-mt-16">
           <div className="mx-auto max-w-6xl px-5 py-20 md:px-8 md:py-28">
             <Eyebrow>The demo</Eyebrow>
             <h2 className="mt-3 text-4xl font-medium tracking-[-0.045em] md:text-6xl">See it take a call.</h2>
@@ -297,13 +305,15 @@ export default function Home() {
         </section>
       </main>
 
-      <footer className="border-t border-line">
+      <StitchDivider />
+      <footer>
         <div className="mx-auto flex max-w-6xl flex-col gap-8 px-5 py-12 md:flex-row md:items-start md:justify-between md:px-8">
           <div className="max-w-sm">
             <Logo />
             <p className="mt-4 text-sm leading-relaxed text-ink-3">
               A team project for Hack Western 13. Demo data only: no real patients, and not for clinical use.
             </p>
+            <BuiltAtHackWestern className="mt-5" />
           </div>
           <nav aria-label="Footer" className="flex gap-12 text-sm">
             <ul className="space-y-2.5">
