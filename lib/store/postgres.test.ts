@@ -4,7 +4,7 @@
 import { PGlite } from "@electric-sql/pglite";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { Approver, RecordEntry, StreamEvent, Store } from "@/lib/contract";
-import { createControl } from "@/lib/control";
+import { applyApprovedCard, createControl } from "@/lib/control";
 import { createSafetyCheck, createSpeechGuard } from "@/lib/guard";
 import { IDS, SEED } from "@/lib/seed";
 import { createMemoryStore, findBrokenLink } from "./memory";
@@ -30,6 +30,27 @@ describe.each(Object.entries(factories))("%s store", (_name, make) => {
   beforeEach(async () => {
     store = make();
     await store.reset(SEED);
+  });
+
+  it("approving a rule card is all or nothing: if the record write fails, no card goes live, and a retry works (Trail #78)", async () => {
+    let failRecord = true;
+    const flaky: Store = {
+      ...store,
+      appendRecord: async (entry) => {
+        if (failRecord) throw new Error("record write failed");
+        return store.appendRecord(entry);
+      },
+    };
+    const draft = { ...SEED.cards[0], id: "w1", wording: "Any antibiotic refill needs a pharmacist.", when: [{ field: "drug.class" as const, op: "=" as const, value: "antibiotic" }], then: "route" as const, approvedBy: "", approvedAt: "", live: false };
+    await expect(applyApprovedCard(flaky, draft, pharmacist)).rejects.toThrow("record write failed");
+    expect(await store.listCards()).toEqual(SEED.cards);
+    expect((await store.listRecord()).filter((e) => e.kind === "rule_change")).toEqual([]);
+
+    failRecord = false;
+    const retry = await applyApprovedCard(flaky, draft, pharmacist);
+    expect(retry).toMatchObject({ ok: true, card: { id: "w1", live: true } });
+    expect((await store.listCards()).filter((c) => c.id === "w1")).toHaveLength(1);
+    expect((await store.listRecord()).filter((e) => e.kind === "rule_change").map((e) => e.ruleIds)).toEqual([["w1"]]);
   });
 
   it("adds an approved rule card after the seed's, refuses a duplicate id, and reset drops it (AUDIT #9)", async () => {
