@@ -32,7 +32,7 @@ import {
 import { loadOutreach, type OutreachDay } from "./pharmacy/outreach/data";
 import { readLatestBatch, type BatchView } from "./safety/data";
 import { Live } from "./pharmacy/_parts/Live";
-import { HistoryNote, ScriptedTag } from "./pharmacy/_parts/HistoryNote";
+import { ScriptedTag } from "./pharmacy/_parts/HistoryNote";
 import { scriptedCallIds } from "./pharmacy/_parts/scripted";
 
 export const metadata = { title: "Home · Aegis" };
@@ -288,7 +288,6 @@ function RecentCalls({ calls, scripted }: { calls: CallSummary[]; scripted: Set<
         <SectionHeader
           className="mb-0"
           title="Recent calls"
-          description={<HistoryNote count={calls.filter((c) => scripted.has(c.callId)).length} className="mt-1.5" />}
           action={
             <Link href="/app/pharmacy/calls" className={linkClass}>
               All calls →

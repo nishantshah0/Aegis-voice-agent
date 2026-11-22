@@ -7,6 +7,21 @@ export const time = (iso?: string) =>
 export const dateTime = (iso?: string) =>
   iso ? new Date(iso).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: ZONE }) : "";
 
+/** Full audit timestamp, including the timezone used by the pharmacy. */
+export const auditTimestamp = (iso?: string) =>
+  iso
+    ? new Intl.DateTimeFormat("en-CA", {
+        year: "numeric",
+        month: "short",
+        day: "2-digit",
+        hour: "numeric",
+        minute: "2-digit",
+        second: "2-digit",
+        timeZone: ZONE,
+        timeZoneName: "short",
+      }).format(new Date(iso))
+    : "Time not recorded";
+
 export const label = (s: string) => s.replace(/_/g, " ");
 
 /** Seconds between two times, or undefined. */

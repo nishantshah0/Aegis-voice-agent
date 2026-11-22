@@ -2,10 +2,11 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Badge, Card, TableEmpty, cn, chipClass } from "@/components/ui";
-import { typing } from "../_parts/format";
+import { auditTimestamp, typing } from "../_parts/format";
+import { ScriptedTag } from "../_parts/HistoryNote";
 
 export type ReviewStatus = "unlabelled" | "labelled" | "test";
-export type ReviewListItem = { callId: string; patient: string; direction: string; endedAt?: string; status: ReviewStatus; blocked: number; lines: number };
+export type ReviewListItem = { callId: string; patient: string; direction: string; endedAt?: string; status: ReviewStatus; blocked: number; lines: number; scripted: boolean };
 
 const FILTERS: { key: ReviewStatus | "all"; label: string }[] = [
   { key: "all", label: "All" },
@@ -87,8 +88,9 @@ export function ReviewBoard({ calls, cards }: { calls: ReviewListItem[]; cards: 
                   {STATUS_BADGE[c.status]}
                 </span>
                 <span className="text-xs text-ink-3">
-                  {c.patient} · {c.direction} · {c.lines} lines{c.blocked > 0 && <span className="text-stop"> · {c.blocked} blocked</span>}
+                  {c.patient} · {c.direction}{c.endedAt ? ` · ${auditTimestamp(c.endedAt)}` : ""} · {c.lines} lines{c.blocked > 0 && <span className="text-stop"> · {c.blocked} blocked</span>}
                 </span>
+                <span className="text-left">{c.scripted ? <ScriptedTag /> : <span className="text-xs text-ink-3">Call record</span>}</span>
               </button>
             </li>
           ))}

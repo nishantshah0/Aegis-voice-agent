@@ -20,7 +20,7 @@ export const AREAS: Area[] = [
       { href: "/app/pharmacy/upcoming", label: "Upcoming", icon: "calendar", hint: "Refills due in the next 14 days" },
       { href: "/app/pharmacy/outreach", label: "Outreach", icon: "outreach", hint: "Who we'll call, and when" },
       { href: "/app/pharmacy/calls", label: "Calls", icon: "calls", hint: "Every call, press and line" },
-      { href: "/app/pharmacy/review", label: "Review calls", icon: "review", hint: "Label finished calls" },
+      { href: "/app/pharmacy/review", label: "Call quality", icon: "review", hint: "Label finished calls" },
     ],
   },
   {

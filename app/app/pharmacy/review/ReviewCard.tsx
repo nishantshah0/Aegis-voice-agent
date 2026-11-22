@@ -1,8 +1,10 @@
 import Link from "next/link";
-import { Badge, Eyebrow, RuleTag, cn, When } from "@/components/ui";
+import { Badge, Eyebrow, RuleTag, cn } from "@/components/ui";
 import type { ReviewCall } from "@/app/console/review/calls";
 import type { Label, YesNo } from "@/app/console/review/labels";
 import { LabelForm } from "@/app/console/review/LabelForm";
+import { auditTimestamp } from "../_parts/format";
+import { ScriptedTag } from "../_parts/HistoryNote";
 
 export const MARK: Record<YesNo, string> = { outcomeRight: "right outcome", wrongPromise: "promised something wrong", unsafeOrAdvice: "unsafe or advice-like" };
 
@@ -14,7 +16,7 @@ export function summarise(label: Label): string {
 }
 
 /** One finished call to label: what happened, and the five questions. */
-export function ReviewCard({ call, labels, mine }: { call: ReviewCall; labels: Label[]; mine?: Label }) {
+export function ReviewCard({ call, labels, mine, scripted = false }: { call: ReviewCall; labels: Label[]; mine?: Label; scripted?: boolean }) {
   return (
     <article className="flex flex-col gap-5">
       <header className="flex flex-wrap items-center gap-2">
@@ -22,9 +24,10 @@ export function ReviewCard({ call, labels, mine }: { call: ReviewCall; labels: L
           {call.callId}
         </Link>
         <Badge>{call.direction}</Badge>
+        {scripted ? <ScriptedTag /> : <span className="text-xs text-ink-3">Call record</span>}
         <span className="text-sm text-ink-2">{call.patient}</span>
         <span className="ml-auto text-xs text-ink-3">
-          ended <When iso={call.endedAt} />
+          ended <time dateTime={call.endedAt}>{auditTimestamp(call.endedAt)}</time>
         </span>
       </header>
       <div className="flex flex-wrap gap-1.5">
@@ -46,7 +49,7 @@ export function ReviewCard({ call, labels, mine }: { call: ReviewCall; labels: L
                   <li key={i} className={cn("max-w-[85%] rounded-xl px-3 py-2 text-sm", line.who === "caller" ? "self-end bg-accent-soft" : "self-start bg-sunken")}>
                     {line.blocked ? (
                       <>
-                        <s className="text-stop">{line.text}</s> <RuleTag>{line.blocked}</RuleTag> <span className="text-xs text-ink-3">blocked, never spoken</span>
+                        <s className="text-stop">{line.text}</s> <Link href={`/app/safety/rules#rule-${encodeURIComponent(line.blocked)}`} className="hover:underline"><RuleTag>{line.blocked}</RuleTag></Link> <span className="text-xs text-ink-3">blocked, never spoken</span>
                       </>
                     ) : (
                       line.text
@@ -67,7 +70,7 @@ export function ReviewCard({ call, labels, mine }: { call: ReviewCall; labels: L
                     <span className="font-mono text-xs">{b.button}</span>
                     {b.decision && <Badge tone={b.decision === "blocked" ? "stop" : b.decision === "routed" ? "review" : "accent"}>{b.decision}</Badge>}
                     {b.ruleIds.map((r) => (
-                      <RuleTag key={r}>{r}</RuleTag>
+                      <Link key={r} href={`/app/safety/rules#rule-${encodeURIComponent(r)}`} className="hover:underline"><RuleTag>{r}</RuleTag></Link>
                     ))}
                   </li>
                 ))}
@@ -80,7 +83,7 @@ export function ReviewCard({ call, labels, mine }: { call: ReviewCall; labels: L
               <ul className="mt-2 flex flex-col gap-1.5 text-sm">
                 {call.blocked.map((b, i) => (
                   <li key={i}>
-                    <RuleTag>{b.rule}</RuleTag> <s className="text-stop">{b.text}</s> <span className="text-ink-3">→ said instead:</span> {b.replacement}
+                    <Link href={`/app/safety/rules#rule-${encodeURIComponent(b.rule)}`} className="hover:underline"><RuleTag>{b.rule}</RuleTag></Link> <s className="text-stop">{b.text}</s> <span className="text-ink-3">→ said instead:</span> {b.replacement}
                   </li>
                 ))}
               </ul>
@@ -88,7 +91,8 @@ export function ReviewCard({ call, labels, mine }: { call: ReviewCall; labels: L
           )}
         </div>
         <section className="flex flex-col gap-4 rounded-card border border-line bg-canvas p-4">
-          <Eyebrow>Your label</Eyebrow>
+          <Eyebrow>Call quality label</Eyebrow>
+          <p className="text-xs text-ink-3">This records a quality review. It does not approve or decline a refill.</p>
           <LabelForm key={call.callId} callId={call.callId} {...(mine ? { initial: mine.marks } : {})} />
           {labels.length > 0 && (
             <div>
@@ -96,7 +100,7 @@ export function ReviewCard({ call, labels, mine }: { call: ReviewCall; labels: L
               <ul className="mt-2 flex flex-col gap-1.5 text-xs text-ink-2">
                 {labels.map((l) => (
                   <li key={l.by.id}>
-                    <span className="font-medium text-ink">{l.by.name}</span> ({l.by.role}): {summarise(l)}
+                    <span className="font-medium text-ink">{l.by.name}</span> ({l.by.role}) · <time dateTime={l.at}>{auditTimestamp(l.at)}</time> · {summarise(l)}
                     {l.note ? ` · "${l.note}"` : ""}
                   </li>
                 ))}

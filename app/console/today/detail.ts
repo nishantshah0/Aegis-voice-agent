@@ -4,7 +4,7 @@ import type { Lane, QueueItem, RecordEntry, RuleId, Signal, SpeechRule, Store } 
 // Everything comes from the store and the record; nothing here decides anything.
 
 /** Core rules live in code, not cards (SPEC Part 3, "Core rules"). */
-const CORE_RULES: Record<RuleId, string> = {
+export const CORE_RULES: Record<RuleId, string> = {
   "1": "The call is verified and the prescription belongs to the locked patient.",
   "5": "Delivery goes to pickup or an address already on file.",
 };
