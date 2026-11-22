@@ -2,10 +2,10 @@ import { Suspense } from "react";
 import { connection } from "next/server";
 import { Card, Eyebrow, PageHeader, SkeletonRows, SkeletonTiles, StatTile } from "@/components/ui";
 import { HistoryNote } from "../_parts/HistoryNote";
-import { scriptedCallIds } from "../_parts/scripted";
+import { historyCallIds } from "@/app/api/_lib/demo-history";
 import { getApprover } from "@/lib/auth/session";
 import { getStore } from "@/app/api/_lib/runtime";
-import { finishedCalls } from "@/app/console/review/calls";
+import { describeCall } from "@/app/console/review/calls";
 import {
   judgeAgreement,
   latestLabels,
@@ -14,7 +14,7 @@ import {
 import { Live } from "../_parts/Live";
 import { SignedOut } from "../_parts/SignedOut";
 import { ReviewBoard, type ReviewListItem } from "./ReviewBoard";
-import { MARK, ReviewCard } from "./ReviewCard";
+import { MARK } from "./ReviewCard";
 
 export const metadata = { title: "Review calls · Pharmacy · Aegis" };
 const n = (v: number) => v.toLocaleString("en-US");
@@ -24,48 +24,43 @@ async function Body() {
   // Session first: nothing from the record is read for a signed-out request.
   const approver = await getApprover();
   if (!approver) return <SignedOut what="and label finished calls" />;
-  const [calls, labels, scripted] = await Promise.all([
-    finishedCalls(getStore()),
-    readLabels(),
-    scriptedCallIds(getStore()),
+  const store = getStore();
+  const [record, queue, labels] = await Promise.all([store.listRecord(), store.queue(), readLabels()]);
+  const byCall = Map.groupBy(record, (entry) => entry.callId);
+  const ids = [...byCall.keys()].filter((id) => id !== undefined);
+  const [storedCalls, patients, agreement] = await Promise.all([
+    store.getCalls(ids), store.listPatients(), judgeAgreement(labels),
   ]);
+  const calls = storedCalls.filter((call) => call.state === "ended")
+    .sort((a, b) => byCall.get(b.id)![0].seq - byCall.get(a.id)![0].seq);
+  const byPatient = new Map(patients.map((patient) => [patient.id, patient]));
+  const scripted = historyCallIds(record);
   const latest = latestLabels(labels);
-  const agreement = await judgeAgreement(labels);
-  const list: ReviewListItem[] = calls.map((c) => {
-    const forCall = latest.get(c.callId) ?? [];
+  const list: ReviewListItem[] = calls.map((call) => {
+    const entries = byCall.get(call.id) ?? [];
+    const forCall = latest.get(call.id) ?? [];
+    const patientId = call.lockedPatientId ?? call.targetPatientId;
+    const patient = patientId ? byPatient.get(patientId) : undefined;
+    const blocked = entries.filter((entry) => entry.kind === "line_blocked").length;
     return {
-      callId: c.callId,
-      patient: c.patient,
-      direction: c.direction,
-      ...(c.endedAt ? { endedAt: c.endedAt } : {}),
-      status: forCall.some((l) => l.marks.saveAsTest)
-        ? "test"
-        : forCall.length
-          ? "labelled"
-          : "unlabelled",
-      blocked: c.blocked.length,
-      lines: c.transcript.length,
+      callId: call.id,
+      patient: patient ? `${patient.firstName[0]}.${patient.lastName[0]}.` : "Unknown caller",
+      direction: call.direction,
+      ...(call.endedAt ? { endedAt: call.endedAt } : {}),
+      status: forCall.some((label) => label.marks.saveAsTest) ? "test" : forCall.length ? "labelled" : "unlabelled",
+      blocked,
+      lines: blocked + entries.filter((entry) => entry.kind === "line_spoken" || entry.kind === "caller_line").length,
     };
   });
-  const cards = Object.fromEntries(
-    calls.map((c) => {
-      const forCall = latest.get(c.callId) ?? [];
-      const mine = forCall.find((l) => l.by.id === approver.id);
-      return [
-        c.callId,
-        <ReviewCard
-          key={c.callId}
-          call={c}
-          labels={forCall}
-          {...(mine ? { mine } : {})}
-        />,
-      ];
-    }),
-  );
+  const first = list.find((row) => row.status === "unlabelled") ?? list[0];
+  const call = first ? await describeCall(store, first.callId, byCall.get(first.callId) ?? [],
+    queue.filter((item) => item.callId === first.callId)) : null;
+  const initialLabels = call ? latest.get(call.callId) ?? [] : [];
+  const initial = call ? { call, labels: initialLabels, mine: initialLabels.find((label) => label.by.id === approver.id) } : null;
 
   return (
     <div className="mt-8 flex flex-col gap-6">
-      <HistoryNote count={calls.filter((c) => scripted.has(c.callId)).length} className="w-fit" />
+      <HistoryNote count={calls.filter((c) => scripted.has(c.id)).length} className="w-fit" />
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatTile label="Finished calls" value={n(calls.length)} />
         <StatTile
@@ -111,7 +106,7 @@ async function Body() {
           </p>
         )}
       </Card>
-      <ReviewBoard calls={list} cards={cards} />
+      <ReviewBoard calls={list} initial={initial} />
     </div>
   );
 }

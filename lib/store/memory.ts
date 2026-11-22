@@ -91,6 +91,9 @@ export function createMemoryStore(seed: Seed = SEED): Store {
     async listPatients() {
       return clone(s.data.patients);
     },
+    async listPrescriptions() {
+      return clone(s.data.prescriptions);
+    },
     async getPrescriptions(patientId) {
       return clone(s.data.prescriptions.filter((rx) => rx.patientId === patientId));
     },
@@ -136,6 +139,12 @@ export function createMemoryStore(seed: Seed = SEED): Store {
       return clone(s.data.policy);
     },
 
+    async getCalls(ids) {
+      return clone([...new Set(ids)].flatMap((id) => {
+        const call = s.calls.get(id);
+        return call ? [call] : [];
+      }));
+    },
     async getCall(id) {
       return clone(s.calls.get(id));
     },
