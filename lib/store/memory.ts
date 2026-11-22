@@ -51,6 +51,7 @@ function freshState(seed: Seed): State {
 
 export function createMemoryStore(seed: Seed = SEED): Store {
   let s = freshState(seed);
+  let txQueue: Promise<void> = Promise.resolve();
   const nextId = (prefix: string) => {
     s.counters[prefix] = (s.counters[prefix] ?? 0) + 1;
     return `${prefix}_${String(s.counters[prefix]).padStart(6, "0")}`;
@@ -164,15 +165,22 @@ export function createMemoryStore(seed: Seed = SEED): Store {
     },
 
     async transaction(fn) {
-      // All or nothing for one press and its record entry. Single process: a write another call
-      // makes while fn awaits is rolled back too, which only happens when fn fails.
-      const saved = clone(s);
-      try {
-        return await fn();
-      } catch (error) {
-        s = saved;
-        throw error;
-      }
+      // All or nothing for one press and its record entry. Transactions run one at a time, so a
+      // rollback never undoes another press's writes (Trail #83 review).
+      const run = txQueue.then(async () => {
+        const saved = clone(s);
+        try {
+          return await fn();
+        } catch (error) {
+          s = saved;
+          throw error;
+        }
+      });
+      txQueue = run.then(
+        () => undefined,
+        () => undefined,
+      );
+      return run;
     },
 
     async reset(next) {

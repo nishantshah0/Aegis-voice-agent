@@ -2,6 +2,7 @@
 // decided in code, written to the hash-chained record and emitted as a "press" event.
 // press() never throws to the agent.
 
+import { AsyncLocalStorage } from "node:async_hooks";
 import { createHash, randomInt } from "node:crypto";
 import {
   NEEDS_VERIFIED,
@@ -126,7 +127,7 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
     if (sentThisHour >= MAX_CODES_PER_HOUR) return { lookupId, matched: true, patientId, codeSent: false };
     const code = newCode();
     const codeHash = hashCode(lookupId, code);
-    sentCodes.set(call.id, { code, hash: codeHash });
+    afterRecord(() => sentCodes.set(call.id, { code, hash: codeHash }));
     const text = broadcastCodes ? `Your pharmacy verification code is ${code}.` : CODE_SENT_TEXT;
     send({ type: "phone", callId: call.id, kind: "code", text });
     return { lookupId, matched: true, patientId, codeSent: true, codeHash };
@@ -525,9 +526,16 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
     }
   }
 
-  // Events a press makes are held until its record entry is written (see press).
-  let holding: StreamEvent[] | null = null;
-  const send = (event: StreamEvent) => (holding ? holding.push(event) : emit(event));
+  // What a press announces or remembers outside the store (stream events, the live code) is held,
+  // per press, until its record entry is written (see press). AsyncLocalStorage keeps each press's
+  // list its own when presses on different calls overlap.
+  const held = new AsyncLocalStorage<(() => void)[]>();
+  const afterRecord = (action: () => void) => {
+    const list = held.getStore();
+    if (list) list.push(action);
+    else action();
+  };
+  const send = (event: StreamEvent) => afterRecord(() => emit(event));
 
   const toPressDecision = (d: RecordDecision): PressDecision => (d === "blocked" ? "refused" : d);
 
@@ -535,7 +543,7 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
     // The press and its record entry are all or nothing (AUDIT fix 4b): inside store.transaction a
     // failed record write undoes the order, queue item or code the button made. Events the button
     // would announce are held, and go out only once its record entry is written.
-    const pending: StreamEvent[] = [];
+    const pending: (() => void)[] = [];
     const attempt = async (): Promise<Handled> => {
       let handled: Handled;
       try {
@@ -561,16 +569,13 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
       return handled;
     };
     let handled: Handled;
-    holding = pending;
     try {
-      handled = store.transaction ? await store.transaction(attempt) : await attempt();
+      handled = await held.run(pending, () => (store.transaction ? store.transaction(attempt) : attempt()));
     } catch {
       // A press that can't be recorded must not succeed, and announces nothing.
       return err("refused") as never;
-    } finally {
-      if (holding === pending) holding = null;
     }
-    for (const event of pending) emit(event);
+    for (const action of pending) action();
     const { result, decision } = handled;
     const lane = result.ok ? result.lane : undefined;
     emit({ type: "press", callId, button, decision: toPressDecision(decision), ruleIds: result.ruleIds, ...(lane ? { lane } : {}) });
