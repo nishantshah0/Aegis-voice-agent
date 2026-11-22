@@ -182,6 +182,7 @@ export async function agentTurn(presenterId: string, agent: AgentState, text: st
     return { ...(await finish(events, agent.turns)), ended: true };
   }
   await takeTurn(presenterId, "turn");
+  const began = Date.now();
   const run = collect(driver.callerSays(agent.callId, text.slice(0, 500)));
   run.catch(() => {});
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -191,6 +192,8 @@ export async function agentTurn(presenterId: string, agent: AgentState, text: st
   try {
     const events = await Promise.race([run, late]);
     if (modelFailed()) throw new AgentUnavailable("The assistant's model failed");
+    // Timing only, never what was said: Vercel's logs show how long each agent turn takes.
+    console.log(`presenter agent: turn ${agent.turns + 1} took ${Date.now() - began} ms`);
     return await finish(events, agent.turns + 1);
   } finally {
     clearTimeout(timer);
