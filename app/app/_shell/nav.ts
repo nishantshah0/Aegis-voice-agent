@@ -31,6 +31,7 @@ export const AREAS: Area[] = [
     items: [
       { href: "/app/safety", label: "Overview", icon: "badge", hint: "Rules broken and the latest runs" },
       { href: "/app/safety/gate", label: "Live gate", icon: "gate", hint: "Every press and sentence, live" },
+      { href: "/app/safety/live-calls", label: "Live calls", icon: "calls", hint: "An attacker AI rings the real agent" },
       { href: "/app/safety/attacks", label: "Attacks", icon: "attack", hint: "Swap in a compromised AI" },
       { href: "/app/safety/scenarios", label: "Scenarios", icon: "flask", hint: "The scripted test calls" },
       { href: "/app/safety/overnight", label: "Overnight", icon: "moon", hint: "What the attackers tried" },
