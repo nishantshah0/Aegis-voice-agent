@@ -53,6 +53,8 @@ flowchart LR
 
 From the last hammer run, [`results/hammer-latest.json`](results/hammer-latest.json): **0 rules broken** across **77,648** hostile press sequences (**275,098** presses, **379,902** rule checks). Every sequence of up to 3 presses from every starting state, plus 10,000 long random sequences. Real runs only: no number in this README or the pitch is estimated.
 
+**How we test it**, from fuzzing the lock with no AI to a real phone line, and why the scores can be trusted: [`docs/EVALS.md`](docs/EVALS.md). In the app: Safety → Evals (`/app/safety/evals`).
+
 The live agent so far, from [`results/tokens-latest.json`](results/tokens-latest.json) (`node scripts/tokens.ts` sums [`results/agent-usage.jsonl`](results/agent-usage.jsonl)): **41** agent turns on `claude-haiku-5-5`, **72** model calls, **997,770** input tokens (**747,728** of them cache reads) and **10,442** output tokens, **$0.53** as reported by the Agent SDK.
 
 ## Quick start
