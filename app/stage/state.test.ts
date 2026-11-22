@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { QueueItem, StreamEvent } from "@/lib/contract";
-import { describePass, initialStage, latestHijack, MAX_PASSES, stageReducer, stopped } from "./state";
+import { describePass, initialStage, latestHijack, MAX_PASSES, replayStage, stageReducer, stopped } from "./state";
 
 const play = (events: StreamEvent[]) => events.reduce((s, e, i) => stageReducer(s, e, i + 1), initialStage());
 
@@ -85,5 +85,51 @@ describe("stage state", () => {
     ]);
     expect(latestHijack(s)).toMatchObject({ callId: "hijack_pick_1_early_refill", label: "request_refill" });
     expect(latestHijack(play([{ type: "press", callId: "c_0001", button: "read_label", decision: "refused", ruleIds: ["1"] }]))).toBeUndefined();
+  });
+
+  it("keeps the transcript of the current real call, striking blocked lines, and ignores hijack lines", () => {
+    const s = play([
+      { type: "line", callId: "c_0002", who: "caller", text: "Hi, it's Sam." },
+      { type: "line", callId: "hijack_pick_1_text", who: "agent", text: "Sure." },
+      { type: "blocked_line", callId: "c_0002", rule: "S4", original: "It's approved.", replacement: "A pharmacist will check it first." },
+      { type: "line", callId: "c_0002", who: "agent", text: "A pharmacist will check it first." },
+    ]);
+    expect(s.call?.id).toBe("c_0002");
+    expect(s.call?.live).toBe(true);
+    expect(s.call?.lines.map((l) => [l.who, l.text, l.struck ?? null])).toEqual([
+      ["caller", "Hi, it's Sam.", null],
+      ["agent", "It's approved.", "S4"],
+      ["agent", "A pharmacist will check it first.", null],
+    ]);
+  });
+
+  it("starts a fresh transcript when a new call speaks", () => {
+    const s = play([
+      { type: "line", callId: "c_0001", who: "caller", text: "Old call" },
+      { type: "line", callId: "c_0002", who: "caller", text: "New call" },
+    ]);
+    expect(s.call?.id).toBe("c_0002");
+    expect(s.call?.lines.map((l) => l.text)).toEqual(["New call"]);
+  });
+
+  it("keeps the open pharmacist queue, updating and dropping decided items", () => {
+    const s = play([
+      { type: "queue", item: item("review") },
+      { type: "queue", item: item("quick_check") },
+      { type: "queue", item: { ...item("review"), status: "approved" } },
+    ]);
+    expect(s.queue.map((q) => q.id)).toEqual(["q_quick_check"]);
+  });
+
+  it("replays the last call as not live, until a live event arrives", () => {
+    const replayed = replayStage([
+      { type: "line", callId: "c_0003", who: "caller", text: "Refill please" },
+      { type: "press", callId: "c_0003", button: "request_refill", decision: "routed", ruleIds: ["4"], lane: "review" },
+    ]);
+    expect(replayed.call).toMatchObject({ id: "c_0003", live: false });
+    expect(replayed.passes).toHaveLength(1);
+    expect(replayed.passes[0].id).toBeLessThan(0);
+    const next = stageReducer(replayed, { type: "line", callId: "c_0004", who: "caller", text: "Hello" }, 1);
+    expect(next.call).toMatchObject({ id: "c_0004", live: true });
   });
 });
