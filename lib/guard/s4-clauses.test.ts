@@ -65,6 +65,8 @@ const FALSE_APPROVALS = [
   "We're done with your order.",
   "Your order details are confirmed.",
   "Your refill details have been confirmed.",
+  // "its" isn't a person: "its details" is the order's.
+  "Its details are confirmed.",
   // A bare "that's confirmed" with nothing about the caller's identity (fifth review).
   "Yes, that's confirmed.",
   "That's confirmed.",
@@ -146,6 +148,8 @@ const HONEST = [
   // Identity subjects are verification, not the order (demo pass 14).
   "Your code and date of birth are confirmed.",
   "Your code and date of birth are both confirmed.",
+  // A live call (PR #88): the agent confirms the caller by the patient's name.
+  "Thank you, Sam's details are confirmed.",
   "Your name and date of birth are verified.",
   "Your date of birth is confirmed.",
   "Your details match.",
