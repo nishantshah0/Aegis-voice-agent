@@ -23,6 +23,7 @@ export function DemoMenuButton({ patients }: { patients: Patient[] }) {
   const [status, setStatus] = useState("");
   const [patientId, setPatientId] = useState(patients[0]?.id ?? "");
   const [link, setLink] = useState("");
+  const [copied, setCopied] = useState(false);
   const box = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -50,6 +51,7 @@ export function DemoMenuButton({ patients }: { patients: Patient[] }) {
 
   async function pair() {
     setLink("");
+    setCopied(false);
     setStatus("");
     const res = await fetch("/api/phone/pair", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ patientId }) }).catch(() => null);
     const body = (await res?.json().catch(() => ({}))) as { url?: string; error?: string } | undefined;
@@ -142,9 +144,33 @@ export function DemoMenuButton({ patients }: { patients: Patient[] }) {
               </button>
             </div>
             {link && (
-              <p className="mt-2 break-all rounded-md bg-sunken p-2 text-xs text-ink-2">
-                Open on the phone within 10 minutes (works once): <code className="text-ink">{link}</code>
-              </p>
+              <div className="mt-2 rounded-md border border-line bg-sunken p-2">
+                <p className="text-[11px] text-ink-3">Open on the patient&apos;s phone within 10 minutes. It works once.</p>
+                <input
+                  readOnly
+                  value={link}
+                  aria-label="Pairing link"
+                  onFocus={(e) => e.currentTarget.select()}
+                  className="mt-1.5 w-full truncate rounded border border-line-strong bg-canvas px-2 py-1 font-mono text-[11px] text-ink focus:border-accent focus:outline-none"
+                />
+                <div className="mt-1.5 flex gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      navigator.clipboard
+                        .writeText(link)
+                        .then(() => setCopied(true))
+                        .catch(() => setCopied(false))
+                    }
+                    className={buttonClass("secondary", "sm", "h-7 flex-1 rounded-md text-xs")}
+                  >
+                    {copied ? "Copied" : "Copy link"}
+                  </button>
+                  <a href={link} target="_blank" rel="noopener" className={buttonClass("secondary", "sm", "h-7 flex-1 rounded-md text-xs")}>
+                    Open <Icon name="external" className="size-3.5" />
+                  </a>
+                </div>
+              </div>
             )}
           </div>
 
