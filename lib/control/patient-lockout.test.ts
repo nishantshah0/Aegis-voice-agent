@@ -133,19 +133,25 @@ describe("the daily cap on failed codes (Trail #86 review low)", () => {
     expect((await guess(control, CODE)).result).toMatchObject({ output: { verified: true } });
   });
 
-  it("the sixth wrong code in 24 hours locks the patient for 24 hours from it, on any call", async () => {
+  it("the sixth wrong code in 24 hours locks the patient for 2 hours from it, on any call (the pharmacist can clear it sooner)", async () => {
     const { control, store } = lock();
     const t = await spread(control, store, 6);
     const failures = (await store.listRecord()).filter((e) => (e.output as { internal?: { codeFailed?: boolean } })?.internal?.codeFailed);
     expect(failures).toHaveLength(6);
     const sixth = Date.parse(failures[5].at);
-    const lockedTo = new Date(sixth + 24 * 3600 * 1000).toISOString();
+    const lockedTo = new Date(sixth + 2 * 3600 * 1000).toISOString();
     expect((failures[5].output as { result: { output: unknown } }).result.output).toMatchObject({ locked_until: lockedTo });
-    await store.setNow(new Date(t).toISOString());
+    await store.setNow(new Date(Math.min(t, sixth + 3600 * 1000)).toISOString());
     expect((await guess(control, CODE)).result).toMatchObject({ output: { locked_until: lockedTo } });
-    await store.setNow(new Date(sixth + 23 * 3600 * 1000).toISOString());
-    expect((await guess(control, CODE)).result).toMatchObject({ output: { locked_until: lockedTo } });
-    await store.setNow(new Date(sixth + 24 * 3600 * 1000 + 61 * 60 * 1000).toISOString());
+    await store.setNow(new Date(sixth + 2 * 3600 * 1000 + 61 * 60 * 1000).toISOString());
     expect((await guess(control, CODE)).result).toMatchObject({ output: { verified: true } });
+  });
+
+  it("after the 2 hours, one more wrong code that day locks again at once", async () => {
+    const { control, store } = lock();
+    await spread(control, store, 6);
+    const sixth = Date.parse((await store.listRecord()).filter((e) => (e.output as { internal?: { codeFailed?: boolean } })?.internal?.codeFailed).at(-1)!.at);
+    await store.setNow(new Date(sixth + 3 * 3600 * 1000).toISOString());
+    expect((await guess(control, "000099")).result).toMatchObject({ output: { locked_until: new Date(sixth + 5 * 3600 * 1000).toISOString() } });
   });
 });

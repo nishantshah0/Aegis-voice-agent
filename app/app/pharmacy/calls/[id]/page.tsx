@@ -4,11 +4,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { connection } from "next/server";
-import { Badge, Card, Eyebrow, LaneBadge, PageHeader, RuleTag, Skeleton, SkeletonRows, Table, Td, Th, THead, Tr } from "@/components/ui";
+import { Badge, Card, Eyebrow, LaneBadge, PageHeader, RuleTag, Skeleton, SkeletonRows, StatTile, Table, Td, Th, THead, Tr } from "@/components/ui";
 import { CallReplay } from "@/components/CallReplay";
 import { getApprover } from "@/lib/auth/session";
 import { USAGE_LOG } from "@/lib/agent/usage";
 import { getDriver, getStore } from "@/app/api/_lib/runtime";
+import { median } from "@/lib/voice/timing";
 import type { TimingSource } from "@/app/console/calls/calls";
 import { DecideBar } from "../../_parts/Decide";
 import { Live } from "../../_parts/Live";
@@ -20,6 +21,7 @@ import { SIGNAL_LABEL } from "../../today/ItemPanel";
 import { OUTCOME_LABEL, OUTCOME_TONE } from "../rows";
 import { callDetail, type CallDetail, type DecisionView } from "./detail";
 import { Timeline } from "./Timeline";
+import { ClearLock } from "../../_parts/ClearLock";
 
 export const metadata = { title: "Call · Pharmacy · Aegis" };
 
@@ -175,6 +177,8 @@ async function Body({ params, searchParams }: { params: PageProps<"/app/pharmacy
   const isScripted = scripted.has(call.callId);
   const ruleWording = new Map(cards.map((c) => [c.id, c.wording]));
   const length = seconds(call.startedAt, call.endedAt);
+  const count = (group: string) => call.timeline.filter((event) => event.group === group).length;
+  const firstGuarded = median(call.timing.flatMap((turn) => turn.firstGuardedMs === undefined ? [] : [turn.firstGuardedMs]));
 
   return (
     <>
@@ -218,7 +222,19 @@ async function Body({ params, searchParams }: { params: PageProps<"/app/pharmacy
           ) : <p className="mt-1 text-ink-2">No queue item was created for this call, so there is no pharmacist routing reason to show.</p>}
         </div>
       </Card>
-      <div className="mt-6 grid items-start gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(20rem,0.8fr)]">
+      {call.lockedUntil && call.patientId && (
+        <div className="mt-4">
+          <ClearLock patientId={call.patientId} who={call.patient ?? "this patient"} lockedUntil={call.lockedUntil} canClear={approver.role === "pharmacist"} />
+        </div>
+      )}
+      <section className="mt-8 grid grid-cols-2 gap-3 md:grid-cols-5">
+        <StatTile label="Lines said" value={count("speech")} />
+        <StatTile label="Buttons pressed" value={count("button")} />
+        <StatTile label="Lines blocked" value={count("blocked")} tone={count("blocked") ? "stop" : "neutral"} />
+        <StatTile label="Record entries" value={call.timeline.length} />
+        <StatTile label="First guarded line" value={ms(firstGuarded)} hint={call.timing.length ? `median of ${call.timing.length} turns` : "no timing"} />
+      </section>
+      <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
         <section>
           <Eyebrow>Chronological timeline and transcript</Eyebrow>
           <div className="mt-3 flex flex-col gap-4">

@@ -113,6 +113,7 @@ export function mentions(text: string, token: Token): boolean {
   if (w.length < 2) return false;
   const said = words(text);
   if (said.includes(` ${w} `)) return true;
+  if ((token.kind === "drug" || token.kind === "name") && spelledPrefix(said, w)) return true;
   if (token.kind === "drug") return nearMiss(said, w);
   if (token.kind === "address") return addressFragment(said, w);
   return false;
@@ -123,6 +124,15 @@ const AGES = new Map<string, RegExp>();
 const AGE_PHRASES = (n: string) => AGES.get(n) ?? AGES.set(n, ageRegExp(n)).get(n)!;
 const ageRegExp = (n: string) =>
   new RegExp(`\\b(?:turned|turning|youre|you re|you are|youll be|you will be|age|aged) ${n}\\b|\\b${n} (?:years? old|this year|years of age)\\b`);
+
+// A drug or a name by its first letters: "starts with C-O-N" (heard as "starts with con"), at
+// least three letters, so "starts with me checking" names nobody.
+const STARTS_WITH = /\b(?:starts?|starting|begins?|beginning|spelled|spelt) with (?:the letters? |an? )?([a-z]{3,})\b/g;
+
+function spelledPrefix(said: string, token: string): boolean {
+  for (const m of said.matchAll(STARTS_WITH)) if (token.startsWith(m[1])) return true;
+  return false;
+}
 
 // Ordinary words a letter or two from a seeded drug name.
 const NOT_A_DRUG = new Set(["concert", "concerts", "concerto", "concerted"]);

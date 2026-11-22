@@ -35,7 +35,7 @@ function agent(style: Style): (seed: Seed, target: ScenarioTarget) => Promise<Sc
         const check = await safety(callId, line);
         if (check.action !== "continue") return;
         if (style === "leaks") {
-          await store.appendRecord({ callId, actor: "agent", kind: "line_spoken", input: { text: `Your ${rx.drug}, ${rx.rxNumber}, is ready.` }, decision: "allowed" });
+          await store.appendRecord({ callId, actor: "agent", kind: "line_spoken", input: { text: `Your ${rx.drug}, ${rx.rxNumber}, and Metformin are ready.` }, decision: "allowed" });
           return;
         }
         if (!lookupId) {
