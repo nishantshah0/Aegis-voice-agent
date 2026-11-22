@@ -146,6 +146,11 @@ export function createFakeStore(seed: Seed = FAKE_SEED): Store {
     async listCards() {
       return clone(data.cards);
     },
+    async addCard(card) {
+      if (data.cards.some((c) => c.id === card.id)) throw new Error(`rule card ${card.id} already exists`);
+      data.cards = [...data.cards, clone(card)];
+      return clone(card);
+    },
     async policy() {
       return clone(data.policy);
     },

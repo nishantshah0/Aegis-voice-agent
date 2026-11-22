@@ -270,6 +270,12 @@ export function createPostgresStore(db: SqlDb, seed: Seed = SEED): PostgresStore
     async listCards() {
       return copy((await loadFixed()).cards);
     },
+    async addCard(card) {
+      // The primary key refuses a duplicate id (the insert throws).
+      await q(`insert into rg_cards values ($1, (select coalesce(max(pos), -1) + 1 from rg_cards), $2::jsonb)`, [card.id, json(card)]);
+      fixed = undefined;
+      return copy(card);
+    },
     async policy() {
       return copy((await loadFixed()).policy);
     },
