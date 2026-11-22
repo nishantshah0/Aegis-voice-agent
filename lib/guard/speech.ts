@@ -106,7 +106,17 @@ function callerText(call: Call, record: RecordEntry[]): string {
 
 /** The text, "Sam's" as "Sam", and number words as digits ("oh one oh one" is "0101"). */
 const withoutPlural = (text: string) => text.replace(/\b(\p{L}{3,})s\b/gu, "$1");
-const forms = (text: string) => [text, withoutPossessives(text), withoutPlural(withoutPossessives(text)), digitText(words(withoutPossessives(text)))];
+// Each text's forms are built once: every token is checked against the same few texts.
+const FORMS = new Map<string, string[]>();
+function forms(text: string): string[] {
+  let out = FORMS.get(text);
+  if (!out) {
+    out = [text, withoutPossessives(text), withoutPlural(withoutPossessives(text)), digitText(words(withoutPossessives(text)))];
+    if (FORMS.size > 500) FORMS.clear();
+    FORMS.set(text, out);
+  }
+  return out;
+}
 const mentionedIn = (text: string, t: Token) => forms(text).some((f) => mentions(f, t));
 
 /** Tokens in the sentence that the caller hasn't said themselves. */
