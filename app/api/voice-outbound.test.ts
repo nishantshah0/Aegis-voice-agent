@@ -8,7 +8,7 @@ import { resetBusForTests } from "@/lib/events/bus";
 import { createSafetyCheck, createSpeechGuard } from "@/lib/guard";
 import { IDS, PHARMACY_NAME } from "@/lib/seed";
 import * as runtime from "./_lib/runtime";
-import { resetVoiceLineForTests, voiceCall } from "./_lib/voice-line";
+import { CODE_ON_FILE, resetVoiceLineForTests, voiceCall } from "./_lib/voice-line";
 import { POST as outbound } from "./voice/outbound/route";
 import { POST as llm } from "./voice/llm/[[...path]]/route";
 
@@ -105,7 +105,8 @@ describe("POST /api/voice/outbound", () => {
     const body = JSON.parse(init.body as string);
     expect(body).toMatchObject({ agent_id: "agent_test", agent_phone_number_id: "phnum_test", to_number: TEST_PHONE });
     expect(body.conversation_initiation_client_data.custom_llm_extra_body).toEqual({ aegis_call_id: callId });
-    expect(body.conversation_initiation_client_data.conversation_config_override.agent.first_message).toBe(outboundOpener(PHARMACY_NAME, "Sam Rivera"));
+    // No Twilio texting here, so the code went to the paired /phone page, and the agent says so.
+    expect(body.conversation_initiation_client_data.conversation_config_override.agent.first_message).toBe(`${outboundOpener(PHARMACY_NAME, "Sam Rivera")} ${CODE_ON_FILE}`);
 
     const record = await runtime.getStore().listRecord(callId);
     expect(record.some((e) => (e.input as { check?: string })?.check === "call_start")).toBe(true);
