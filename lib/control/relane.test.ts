@@ -75,3 +75,51 @@ describe("re-laning after a later signal", () => {
     expect(signalOf(e({ kind: "button", button: "check_code", actor: "agent", decision: "allowed" }))).toBeUndefined();
   });
 });
+
+describe("safety words re-lane the verified patient's requests on other calls (Trail #86 review medium)", () => {
+  async function laterCall(s: Awaited<ReturnType<typeof tomQueued>>, verify: boolean) {
+    await s.control.endCall(s.callId);
+    const callId = await s.control.startInboundCall();
+    if (verify) {
+      const lookup = await s.control.press(callId, "lookup_patient", { name: "Tom Brennan", dob: "1983-09-21", rx_number: "RX-100701" });
+      await s.control.press(callId, "check_code", { lookup_id: lookup.ok ? lookup.output.lookup_id : "", code: CODE });
+    }
+    return callId;
+  }
+
+  it("a crisis line on a later verified call holds the Automatic refill from the first call, in one record entry", async () => {
+    const s = await tomQueued();
+    const b = await laterCall(s, true);
+    await s.safety(b, "I just want to end it all.");
+    const item = await refillItem(s);
+    expect(item).toMatchObject({ lane: "review", signals: ["safety_words"] });
+    expect((await s.store.listOrders(IDS.p6)).find((o) => o.id === item.orderId)?.state).toBe("waiting_for_pharmacist");
+    const relanes = (await s.store.listRecord()).filter(isRelaneEntry);
+    expect(relanes).toHaveLength(1);
+    expect(relanes[0]).toMatchObject({ callId: b, input: { signal: "safety_words", patient_id: IDS.p6, items: [{ id: item.id, from: "automatic" }] } });
+  });
+
+  it("an unverified call's safety words move nobody's other requests", async () => {
+    const s = await tomQueued();
+    const b = await laterCall(s, false);
+    await s.safety(b, "I just want to end it all.");
+    expect((await refillItem(s)).lane).toBe("automatic");
+  });
+
+  it("another patient's crisis on another call moves nothing of Tom's", async () => {
+    const s = await tomQueued();
+    await s.control.endCall(s.callId);
+    const other = await s.control.startInboundCall();
+    const lookup = await s.control.press(other, "lookup_patient", { name: "Sam Rivera", dob: "1990-03-14", rx_number: "RX-100201" });
+    await s.control.press(other, "check_code", { lookup_id: lookup.ok ? lookup.output.lookup_id : "", code: CODE });
+    await s.safety(other, "I just want to end it all.");
+    expect((await refillItem(s)).lane).toBe("automatic");
+  });
+
+  it("a replaced line on a later call stays a per-call signal", async () => {
+    const s = await tomQueued();
+    const b = await laterCall(s, true);
+    await s.guard(b, "Your refill is approved.");
+    expect((await refillItem(s)).lane).toBe("automatic");
+  });
+});
