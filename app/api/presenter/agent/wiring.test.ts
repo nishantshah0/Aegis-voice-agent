@@ -134,7 +134,7 @@ describe("the presenter's real phone call", () => {
     expect((await history(getStore())).rows.some((r) => r.callId === agentCallId)).toBe(true);
     const detail = await callDetail(getStore(), agentCallId);
     expect(detail?.verified).toBe(true);
-    expect(detail?.patient).toMatch(/Sam/);
+    expect(detail?.patient).toBe("S.R."); // the dashboard shows initials
     const timeline = JSON.stringify(detail?.timeline);
     expect(timeline).toContain("born March 14 1990");
     expect(timeline).toContain("Thanks, Sam. You're verified.");
