@@ -158,7 +158,10 @@ export function makeChecker(seed: Seed, knownCode: string) {
       const later = record.find(
         (e) =>
           e.seq > made.seq &&
-          ((e.callId === q.callId && isSignal(e)) || (e.kind === "safety" && e.actor === "caller" && e.callId !== q.callId && verifiedAs(e.callId, e.seq) === q.patientId)),
+          ((e.callId === q.callId && isSignal(e)) ||
+            (e.kind === "safety" && e.actor === "caller" && e.callId !== q.callId && verifiedAs(e.callId, e.seq) === q.patientId) ||
+            // A wrong code against this patient on any call (RT-C4).
+            (e.button === "check_code" && e.decision === "blocked" && internalOf(e)?.codeFailed === true && internalOf(e)?.patientId === q.patientId)),
       );
       if (later) broken.push({ rule: "open request left out of Review after a later signal", detail: `${q.id} (${q.lane}) after seq ${later.seq} ${later.kind}` });
     }
