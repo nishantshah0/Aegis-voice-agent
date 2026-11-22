@@ -90,6 +90,9 @@ describe("honest read-backs of the label and the coverage", () => {
     ["Concerta 36 milligram tablets every morning, 30 tablets.", "S3"],
     ["Concerta take by mouth every morning, 30 tablets.", "S3"],
     ["Concerta tablet every morning; 30 tablets.", "S3"],
+    // A label run ending on a bare "take" is a dose too (sixth re-review).
+    ["Concerta 36 milligram tablet take, 30 tablets.", "S3"],
+    ["Concerta 36 milligram tablet take 1, 30 tablets.", "S3"],
   ])("still blocks: %s", async (s, rule) => {
     expect(await guard(callId, s)).toMatchObject({ blocked: true, rule });
   });
