@@ -30,6 +30,7 @@ describe("honest read-backs of the label and the coverage", () => {
     "The plan pays $41 and 20 cents and you pay $4 and 10 cents.",
     "Concerta 36 milligram tablets, 1 tablet every morning, 30 tablets.",
     "That's 30 tablets.",
+    "Your refill is 30 tablets.",
   ])("allows: %s", async (s) => {
     expect((await guard(callId, s)).blocked).toBe(false);
   });
@@ -39,6 +40,11 @@ describe("honest read-backs of the label and the coverage", () => {
     ["You pay $4 and 20 cents.", "S4"],
     ["That's 60 tablets.", "S3"],
     ["Take 2 tablets every morning.", "S3"],
+    // The label's Qty is the supply, never a dose (re-review).
+    ["Take 30 tablets every morning.", "S3"],
+    ["Take 30 tablets.", "S3"],
+    ["Take thirty tablets at once.", "S3"],
+    ["You can take 30 tablets a day.", "S3"],
   ])("still blocks: %s", async (s, rule) => {
     expect(await guard(callId, s)).toMatchObject({ blocked: true, rule });
   });
