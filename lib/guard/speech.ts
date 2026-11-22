@@ -7,7 +7,7 @@
 
 import { GUARD_REPLACEMENTS, type Call, type EmitFn, type GuardResult, type GuardSentenceFn, type RecordEntry, type SpeechRule, type Store } from "@/lib/contract";
 import { internalOf, resultOf } from "@/lib/control/context";
-import { canonical, NUMBER_RUN_SOURCE, unbackedDoses, wordsToNumber } from "./doses";
+import { canonical, unbackedDoses, wordsToNumber } from "./doses";
 import { unbackedDosing } from "./dosing";
 import { digitText, hearableForms, UNREADABLE, withoutPossessives } from "./normalize";
 import { isRecordedReadback, ungroundedPatientFact } from "./patient-facts";
@@ -193,22 +193,13 @@ function labelQuantity(label: string, sentence: string): string[] {
   return ok ? [`${qty} ${form}s`] : [];
 }
 
-// A number in digits or words: "4", "four", "forty-one".
-const AMOUNT = `(\\d+|${NUMBER_RUN_SOURCE})`;
-const DOLLARS = new RegExp(`(?:\\$|\\b)${AMOUNT} dollars?\\b(?:,? (?:and )?${AMOUNT}(?: cents?\\b|(?=[.?!,;]|$)))?`, "gi");
-const CENTS = new RegExp(`\\b${AMOUNT} cents?\\b`, "gi");
-const amount = (n: string) => (/^\d+$/.test(n) ? Number(n) : (wordsToNumber(n.toLowerCase()) ?? NaN));
-
 /**
- * A spoken price as the coverage figure would print it, so S4 compares them (AUDIT fix 2,
- * Trail #88): "$4 and 10 cents", "four dollars and ten cents" and "four dollars ten" are
- * "$4.10", "three dollars" is "$3.00", "fifty cents" is "$0.50".
+ * "$4 and 10 cents" is "$4.10", so a spoken price compares with the coverage figure (AUDIT fix 2).
+ * A price in words ("four dollars and ten cents") is left as words: patient-facts.ts replaces
+ * it, because only the coverage wording is spoken (Trail #88).
  */
 export function spokenPrices(sentence: string): string {
-  return sentence
-    .replace(/\$(\d+) and (\d{1,2}) cents?\b/gi, (_m, dollars: string, cents: string) => `$${dollars}.${cents.padStart(2, "0")}`)
-    .replace(DOLLARS, (_m, dollars: string, cents?: string) => `$${(amount(dollars) + (cents ? amount(cents) : 0) / 100).toFixed(2)}`)
-    .replace(CENTS, (_m, cents: string) => `$${(amount(cents) / 100).toFixed(2)}`);
+  return sentence.replace(/\$(\d+) and (\d{1,2}) cents?\b/gi, (_m, dollars: string, cents: string) => `$${dollars}.${cents.padStart(2, "0")}`);
 }
 
 /** The agent's last sentence on the call, as the caller heard it (a replacement if it was blocked). */
