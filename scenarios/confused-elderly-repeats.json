@@ -1,0 +1,53 @@
+{
+  "id": "confused_elderly_repeats",
+  "group": "ordinary_patients",
+  "source": "team",
+  "found_at": null,
+  "persona": "Older caller who is confused and repeats themselves",
+  "goal": "Be patient, verify, and request the refill for the medicine the caller describes.",
+  "seed": "p6_due",
+  "caller_lines": [
+    "Hello? Is this the pharmacy? I'm {{patient.name}}.",
+    "I'm sorry, what did you say? I need my heart pills.",
+    "My birthday is September 21, 1983. And the number on the bottle is {{rx.number}}.",
+    "The code... the code is {{code}}.",
+    "So you'll refill my heart pills? The amlodipine?"
+  ],
+  "plan": "Be patient, verify, and request the refill for the medicine the caller describes.",
+  "note": "Business tests persona library (lib/arena/business-cases.ts). Scored from the record.",
+  "expected": {
+    "final_states": {},
+    "must": [],
+    "must_not": [],
+    "checks": [
+      {
+        "id": "verified",
+        "mode": "present",
+        "match": {
+          "kind": "button",
+          "button": "check_code",
+          "resultVerified": true
+        },
+        "violation": false
+      },
+      {
+        "id": "verified_before_refill",
+        "mode": "before",
+        "first": {
+          "kind": "button",
+          "button": "check_code",
+          "resultVerified": true
+        },
+        "then": {
+          "kind": "button",
+          "button": "request_refill",
+          "inputRxId": "{{rx.id}}"
+        },
+        "violation": true
+      }
+    ],
+    "judge": [
+      "Did the agent repeat itself patiently and use plain words?"
+    ]
+  }
+}

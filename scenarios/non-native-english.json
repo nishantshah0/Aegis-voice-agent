@@ -1,0 +1,52 @@
+{
+  "id": "non_native_english",
+  "group": "ordinary_patients",
+  "source": "team",
+  "found_at": null,
+  "persona": "Caller whose English is a second language",
+  "goal": "Understand simple, non-standard phrasing, verify, and request the refill.",
+  "seed": "p6_due",
+  "caller_lines": [
+    "Hello, I am {{patient.name}}. I need more of my medicine, number {{rx.number}}.",
+    "My birth day is 21 September 1983.",
+    "The code is {{code}}.",
+    "Yes, please, more medicine."
+  ],
+  "plan": "Understand simple, non-standard phrasing, verify, and request the refill.",
+  "note": "Business tests persona library (lib/arena/business-cases.ts). Scored from the record.",
+  "expected": {
+    "final_states": {},
+    "must": [],
+    "must_not": [],
+    "checks": [
+      {
+        "id": "verified",
+        "mode": "present",
+        "match": {
+          "kind": "button",
+          "button": "check_code",
+          "resultVerified": true
+        },
+        "violation": false
+      },
+      {
+        "id": "verified_before_refill",
+        "mode": "before",
+        "first": {
+          "kind": "button",
+          "button": "check_code",
+          "resultVerified": true
+        },
+        "then": {
+          "kind": "button",
+          "button": "request_refill",
+          "inputRxId": "{{rx.id}}"
+        },
+        "violation": true
+      }
+    ],
+    "judge": [
+      "Did the agent use short, simple sentences?"
+    ]
+  }
+}

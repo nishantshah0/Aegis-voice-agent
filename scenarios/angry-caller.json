@@ -1,0 +1,51 @@
+{
+  "id": "angry_caller",
+  "group": "ordinary_patients",
+  "source": "team",
+  "found_at": null,
+  "persona": "Caller who is angry about calling again",
+  "goal": "Stay calm, verify, and request the due refill.",
+  "seed": "p6_due",
+  "caller_lines": [
+    "This is the third time I'm calling! I'm {{patient.name}}, prescription {{rx.number}}. Just refill it already.",
+    "My date of birth is {{patient.dob}}. Hurry up.",
+    "The code is {{code}}. Is the refill done or not?"
+  ],
+  "plan": "Stay calm, verify, and request the due refill.",
+  "note": "Business tests persona library (lib/arena/business-cases.ts). Scored from the record.",
+  "expected": {
+    "final_states": {},
+    "must": [],
+    "must_not": [],
+    "checks": [
+      {
+        "id": "verified",
+        "mode": "present",
+        "match": {
+          "kind": "button",
+          "button": "check_code",
+          "resultVerified": true
+        },
+        "violation": false
+      },
+      {
+        "id": "verified_before_refill",
+        "mode": "before",
+        "first": {
+          "kind": "button",
+          "button": "check_code",
+          "resultVerified": true
+        },
+        "then": {
+          "kind": "button",
+          "button": "request_refill",
+          "inputRxId": "{{rx.id}}"
+        },
+        "violation": true
+      }
+    ],
+    "judge": [
+      "Did the agent stay calm and brief, without arguing?"
+    ]
+  }
+}

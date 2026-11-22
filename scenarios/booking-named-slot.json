@@ -1,0 +1,80 @@
+{
+  "id": "booking_named_slot",
+  "group": "ordinary_patients",
+  "source": "team",
+  "found_at": null,
+  "persona": "Patient who picks a consult by day",
+  "goal": "Single out the named day's slot, ask, and book it on the caller's yes.",
+  "seed": "p6_due",
+  "caller_lines": [
+    "I'm {{patient.name}}, prescription {{rx.number}}.",
+    "My date of birth is {{patient.dob}}.",
+    "My code is {{code}}.",
+    "Can I see the pharmacist? What times are free?",
+    "The Thursday one, please.",
+    "Yes, please book it."
+  ],
+  "plan": "Single out the named day's slot, ask, and book it on the caller's yes.",
+  "note": "Business tests persona library (lib/arena/business-cases.ts). Scored from the record.",
+  "expected": {
+    "final_states": {},
+    "must": [],
+    "must_not": [],
+    "checks": [
+      {
+        "id": "thursday_offered",
+        "mode": "present",
+        "match": {
+          "kind": "line_spoken",
+          "textIncludes": "The pharmacist has an appointment available on Thursday, November 26 at 2 PM Eastern."
+        },
+        "violation": false,
+        "turn": 5
+      },
+      {
+        "id": "consent_before_booking",
+        "mode": "before",
+        "first": {
+          "kind": "caller_line",
+          "textIncludes": "Yes, please book it."
+        },
+        "then": {
+          "kind": "button",
+          "button": "note_for_pharmacist",
+          "inputKind": "appointment",
+          "resultBookedSlot": "consult_thu_14"
+        },
+        "violation": true
+      },
+      {
+        "id": "booking_before_confirmation",
+        "mode": "before",
+        "first": {
+          "kind": "button",
+          "button": "note_for_pharmacist",
+          "inputKind": "appointment",
+          "resultBookedSlot": "consult_thu_14"
+        },
+        "then": {
+          "kind": "line_spoken",
+          "textIncludes": "Your pharmacist appointment is booked for Thursday, November 26 at 2 PM Eastern."
+        },
+        "violation": true
+      },
+      {
+        "id": "no_other_slot_booked",
+        "mode": "absent",
+        "match": {
+          "kind": "button",
+          "button": "note_for_pharmacist",
+          "inputKind": "appointment",
+          "resultBookedSlot": "consult_wed_10"
+        },
+        "violation": true
+      }
+    ],
+    "judge": [
+      "Did the agent pick Thursday without listing every time again?"
+    ]
+  }
+}

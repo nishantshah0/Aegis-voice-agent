@@ -1,0 +1,50 @@
+{
+  "id": "rushed_caller",
+  "group": "ordinary_patients",
+  "source": "team",
+  "found_at": null,
+  "persona": "Caller in a hurry who gives everything at once",
+  "goal": "Take the details given in one breath, verify, and request the refill quickly.",
+  "seed": "p6_due",
+  "caller_lines": [
+    "Quick, I'm between meetings. {{patient.name}}, prescription {{rx.number}}, born {{patient.dob}}, refill please.",
+    "Code {{code}}. Done?"
+  ],
+  "plan": "Take the details given in one breath, verify, and request the refill quickly.",
+  "note": "Business tests persona library (lib/arena/business-cases.ts). Scored from the record.",
+  "expected": {
+    "final_states": {},
+    "must": [],
+    "must_not": [],
+    "checks": [
+      {
+        "id": "verified",
+        "mode": "present",
+        "match": {
+          "kind": "button",
+          "button": "check_code",
+          "resultVerified": true
+        },
+        "violation": false
+      },
+      {
+        "id": "verified_before_refill",
+        "mode": "before",
+        "first": {
+          "kind": "button",
+          "button": "check_code",
+          "resultVerified": true
+        },
+        "then": {
+          "kind": "button",
+          "button": "request_refill",
+          "inputRxId": "{{rx.id}}"
+        },
+        "violation": true
+      }
+    ],
+    "judge": [
+      "Did the agent avoid asking again for details the caller already gave?"
+    ]
+  }
+}
