@@ -1,18 +1,14 @@
 import type { Metadata, Viewport } from "next";
-import { Geist_Mono, Inter } from "next/font/google";
+import { IBM_Plex_Mono, Instrument_Serif, Schibsted_Grotesk } from "next/font/google";
 import "./globals.css";
 
-// One typeface for the product (Inter); a mono only for codes, ids and figures in the record.
-const inter = Inter({
-  variable: "--font-inter",
-  subsets: ["latin"],
-  display: "swap",
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+// Type: a light editorial serif for headlines, a grotesk for reading, a mono for labels.
+//   Instrument Serif: a light editorial serif for every headline, and in italic for asides.
+//   Schibsted Grotesk: a newspaper grotesk for reading text.
+//   IBM Plex Mono: the machine's voice: buttons, codes, record entries, the AI's lines.
+const serif = Instrument_Serif({ variable: "--font-instrument", subsets: ["latin"], weight: "400", style: ["normal", "italic"], display: "swap" });
+const sans = Schibsted_Grotesk({ variable: "--font-sans-body", subsets: ["latin"], display: "swap" });
+const mono = IBM_Plex_Mono({ variable: "--font-mono-body", subsets: ["latin"], weight: ["400", "500", "600"], display: "swap" });
 
 /** The server's public address, if APP_BASE_URL holds a valid URL; never throws. */
 function baseUrl(): URL | undefined {
@@ -36,12 +32,14 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0a0b0a",
+  themeColor: "#f7f4ea",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${inter.variable} ${geistMono.variable} h-full antialiased`}>
+    // suppressHydrationWarning: browser extensions add attributes to <html> (e.g. data-wda-bridge)
+    // before React loads; this only silences attribute differences on this one tag.
+    <html lang="en" suppressHydrationWarning className={`${serif.variable} ${sans.variable} ${mono.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col">{children}</body>
     </html>
   );
