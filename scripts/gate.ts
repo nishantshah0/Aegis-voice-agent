@@ -125,6 +125,8 @@ const tail = (output: string) => output.trim().split("\n").slice(-3).join(" ").s
 export async function runGate(root = process.cwd()): Promise<{ path: string; run: GateRun }> {
   const started = Date.now();
   const ranAt = new Date(started).toISOString();
+  // Checked before running anything: the hammer step itself rewrites results/hammer-latest.json.
+  const dirty = git("status", "--porcelain", "--untracked-files=no").length > 0;
   const checks: GateCheck[] = [];
 
   const typecheck = await run("npm", ["run", "typecheck"]);
@@ -173,7 +175,7 @@ export async function runGate(root = process.cwd()): Promise<{ path: string; run
     ranAt,
     commit: git("rev-parse", "HEAD"),
     branch: git("rev-parse", "--abbrev-ref", "HEAD"),
-    dirty: git("status", "--porcelain", "--untracked-files=no").length > 0,
+    dirty,
     checks,
     ms: Date.now() - started,
   });
