@@ -11,6 +11,8 @@
   Aegis is a pharmacy phone agent prototype. It calls patients about refills, handles routine steps, and sends exceptions to a pharmacist. Code checks every action and spoken line.
 </p>
 
+<p align="center">🏆 <strong>Winner, Best Use of Auth0</strong> · Hack Western 13</p>
+
 <p align="center"><strong>Synthetic demo data only · Not for clinical use</strong></p>
 
 <p align="center"><a href="public/brand/hero-flowers-dithered-4x4.mp4"><img src="docs/images/flowers-loop.gif" alt="Looping preview of the Aegis landing-page flowers" width="900"></a></p>
@@ -72,6 +74,25 @@ node scripts/gate.ts
 
 The hammer exercises hostile button sequences against the control layer. `node scripts/gate.ts` runs the full local release gate and records its results with the commit and run time.
 
+## Known limits
+
+- **The buttons are the hard boundary. Speech is best effort.** The control layer decides every action in code. The speech guard's dose and promise checks (S3 and S4) match patterns, so a phrasing it hasn't seen can still be spoken. The first red-team run broke the guard on 586 of 624 attacks (`results/redteam/2026-11-22-speech/report.json`). The patterns were then fixed against that same set, so later scores on it are not a held-out measure.
+- **Safe is not the same as helpful.** On the 28-scenario suite the live agent broke 0 rules, but reached the expected outcome on 16 of 28 scenarios with Haiku 5.5 and 15 of 28 with Sonnet 5.5 (`results/arena/scenarios-models/comparison.json`).
+- **Demo only.** Every patient is made up, and nothing here has been reviewed for clinical or privacy compliance.
+
+## Team
+
+Four people built Aegis in one weekend. Each person ran a coding agent on one role, and the agents coordinated through a shared rulebook, a message channel and the release gate ([how the agents worked](docs/AUTONOMY.md), [the rules](docs/RULES.md)).
+
+| Who | Built |
+|---|---|
+| [Nishant Shah](https://github.com/nishantshah0) | Platform and pharmacist side: the API routes, Auth0 sign-in and roles, the event stream, the Twilio and ElevenLabs phone line, and the Pharmacy and Safety pages. Took over the voice agent (driver, prompt, tools) after its first task. Set up and ran the multi-agent build: roles, rules, the channel and the build board. |
+| Priyansh Sharma | The lock: the shared contract, the 12-button control layer, the speech guard and safety check, the hammer, the stage view and phone latency. |
+| [Andrew Wu](https://github.com/andrewwu13) | Red team and evals: the scenario runner and its scoring, the hijack attacks and the Safety suite redesign. Also the landing page and brand. |
+| Michael (MikeyDigit) | The voice agent's start: the system prompt and fixed lines, the live Agent SDK tests and ElevenLabs voice out. |
+
+Commits authored by "Aegis agents (on Nishant's machine)" come from agent sessions Nishant ran.
+
 ## Project docs
 
 - [Safety rules](docs/RULES.md)
@@ -81,4 +102,4 @@ The hammer exercises hostile button sequences against the control layer. `node s
 - [Deployment and phone integration](hosting/README.md)
 - [Contributor instructions](AGENTS.md)
 
-Built at Hack Western 13. Licensed under the [MIT License](LICENSE).
+Built at Hack Western 13 (November 2026), where it won Best Use of Auth0. Licensed under the [MIT License](LICENSE).
