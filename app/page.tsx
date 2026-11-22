@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { AuthButton, SignInLink } from "@/components/landing/AuthButton";
+import { HeroBackground } from "@/components/landing/HeroBackground";
+import { LandingHeader } from "@/components/landing/LandingHeader";
 import { RefillStory } from "@/components/landing/RefillStory";
 import { fmt, hammerTotals } from "@/components/landing/hammer";
 import { Logo } from "@/components/ui";
@@ -21,14 +23,14 @@ export default function Home() {
 
   return (
     <div className="landing-page">
-      <header className="landing-header">
-        <div className="landing-container landing-header-inner">
+      <LandingHeader>
+        <div className="landing-header-inner">
           <Link href="/" className="landing-home-link" aria-label="Aegis home">
             <Logo />
           </Link>
           <nav aria-label="Main" className="landing-nav">
-            <a href="#acts">How it works</a>
-            <a href="#attacks">Safety</a>
+            <a href="#acts">SOLUTION</a>
+            <a href="#attacks">SAFETY</a>
           </nav>
           <div className="landing-auth">
             <Suspense fallback={<SignInLink />}>
@@ -36,10 +38,10 @@ export default function Home() {
             </Suspense>
           </div>
         </div>
-      </header>
+      </LandingHeader>
 
       <main>
-        <section className="landing-hero" aria-labelledby="hero-title">
+        <section id="landing-hero" className="landing-hero" aria-labelledby="hero-title">
           <div className="landing-container">
             <h1 id="hero-title">
               <span>The AI can be fooled.</span>{" "}
@@ -58,6 +60,7 @@ export default function Home() {
               </a>
             </div>
           </div>
+          <HeroBackground />
         </section>
 
         <RefillStory safetyHref={SAFETY} />
