@@ -7,15 +7,17 @@
 
 import { GUARD_REPLACEMENTS, type Call, type EmitFn, type GuardResult, type GuardSentenceFn, type RecordEntry, type SpeechRule, type Store } from "@/lib/contract";
 import { internalOf, resultOf } from "@/lib/control/context";
-import { canonical, unbackedDoses, wordsToNumber } from "./doses";
+import { canonical, NUMBER_RUN_SOURCE, unbackedDoses, wordsToNumber } from "./doses";
+import { unbackedDosing } from "./dosing";
+import { digitText, hearableForms, withoutPossessives } from "./normalize";
 import { isRecordedReadback, ungroundedPatientFact } from "./patient-facts";
-import { mentions, tokensFor, words, type Token } from "./tokens";
+import { digitsOf, mentions, tokensFor, words, type Token } from "./tokens";
 
 export const S4_REPLACEMENT = "A pharmacist will check it first, and I'll confirm once it's approved.";
 const REPLACEMENT: Record<SpeechRule, string> = { ...GUARD_REPLACEMENTS, S4: S4_REPLACEMENT };
 
 const COMPLETION =
-  /\b(approved|ready|sorted|on its way|on the way|delivered|filled|signed off|confirmed|complete|completed|done|all set|good to go|processed|shipped|sent out|went out|dispatched|picked up|cleared|okayed|okd)\b/;
+  /\b(approved|ready|sorted|on its way|on the way|delivered|filled|signed off|confirmed|complete|completed|done|all set|good to go|processed|shipped|sent out|went out|dispatched|picked up|cleared|okayed|okd|taken care of|went through|gone through|green ?light(?:ed)?|green ?lit|finali[sz]ed|authori[sz]ed|locked in)\b/;
 // The only completion words that aren't promises: they're about the caller, the past, an identity
 // check or the agent itself ("whenever you're ready", "last filled 27 days ago", "your identity
 // is confirmed", "are you done?"), and are dropped before the check. "You're all set." and
@@ -24,6 +26,8 @@ const NOT_A_PROMISE = new RegExp(
   [
     "\\b(?:you|youre|you are|are you|were|we are|im|i am|whenever youre|when youre) ready\\b",
     "\\blast filled\\b",
+    // The agent's own reading, not the order: "I went through your record."
+    "\\b(?:i|we|ive|weve|i have|we have|i ve|we ve) (?:went|gone) through\\b",
     // Identity checks, not the order: "Your identity is confirmed.", "that's confirmed: your date of birth matches".
     "\\b(?:your identity|your date of birth|your dob|your details|your code|that code|the code) (?:is |are |s |has been |have been |was )?confirmed\\b",
     // Questions to the caller, and the agent's own state: "Are you done?", "I'm all set to help."
@@ -71,14 +75,30 @@ function callerText(call: Call, record: RecordEntry[]): string {
   return [...lines, ...call.callerSaid].join(" \n ");
 }
 
+/** The text, "Sam's" as "Sam", and number words as digits ("oh one oh one" is "0101"). */
+const forms = (text: string) => [text, withoutPossessives(text), digitText(words(withoutPossessives(text)))];
+const mentionedIn = (text: string, t: Token) => forms(text).some((f) => mentions(f, t));
+
 /** Tokens in the sentence that the caller hasn't said themselves. */
 function leaked(sentence: string, tokens: Token[], said: string): Token[] {
-  return tokens.filter((t) => mentions(sentence, t) && !mentions(said, t));
+  return tokens.filter((t) => mentionedIn(sentence, t) && !mentionedIn(said, t));
+}
+
+// Before verification, part of a record number is a leak too: "does it end in 0101?",
+// "was that nineteen ninety?". Four digits or more, so tier 0 answers ("open 9 to 6",
+// "call 911") still pass.
+const DIGIT_TOKENS: Token["kind"][] = ["phone", "rx_number", "dob"];
+const digitRuns = (text: string) => (digitText(words(text)).match(/\d+/g) ?? []).filter((r) => r.length >= 4);
+
+function partialDigits(sentence: string, tokens: Token[], said: string): Token[] {
+  const heard = digitRuns(said);
+  const runs = digitRuns(sentence).filter((r) => !heard.some((h) => h.includes(r)));
+  return tokens.filter((t) => DIGIT_TOKENS.includes(t.kind) && runs.some((r) => digitsOf(t.text).includes(r)));
 }
 
 function checkS1(call: Call, sentence: string, tokens: Token[], said: string, record: RecordEntry[]): Check {
   if (call.state === "verified") return null;
-  let found = leaked(sentence, tokens, said);
+  let found = [...leaked(sentence, tokens, said), ...partialDigits(sentence, tokens, said)];
   // The fixed outbound opener may say the patient's name (and the pharmacy's), and nothing else.
   const firstLine = !record.some((e) => e.kind === "line_spoken" || e.kind === "line_blocked");
   if (call.direction === "outbound" && firstLine && call.targetPatientId) {
@@ -147,20 +167,50 @@ function labelQuantity(label: string, sentence: string): string[] {
   return ok ? [`${qty} ${form}s`] : [];
 }
 
-/** "$4 and 10 cents" is "$4.10", so a spoken price compares with the coverage figure (AUDIT fix 2). */
+// A number in digits or words: "4", "four", "forty-one".
+const AMOUNT = `(\\d+|${NUMBER_RUN_SOURCE})`;
+const DOLLARS = new RegExp(`(?:\\$|\\b)${AMOUNT} dollars?\\b(?:,? (?:and )?${AMOUNT}(?: cents?\\b|(?=[.?!,;]|$)))?`, "gi");
+const CENTS = new RegExp(`\\b${AMOUNT} cents?\\b`, "gi");
+const amount = (n: string) => (/^\d+$/.test(n) ? Number(n) : (wordsToNumber(n.toLowerCase()) ?? NaN));
+
+/**
+ * A spoken price as the coverage figure would print it, so S4 compares them (AUDIT fix 2,
+ * Trail #88): "$4 and 10 cents", "four dollars and ten cents" and "four dollars ten" are
+ * "$4.10", "three dollars" is "$3.00", "fifty cents" is "$0.50".
+ */
 export function spokenPrices(sentence: string): string {
-  return sentence.replace(/\$(\d+) and (\d{1,2}) cents?\b/gi, (_m, dollars: string, cents: string) => `$${dollars}.${cents.padStart(2, "0")}`);
+  return sentence
+    .replace(/\$(\d+) and (\d{1,2}) cents?\b/gi, (_m, dollars: string, cents: string) => `$${dollars}.${cents.padStart(2, "0")}`)
+    .replace(DOLLARS, (_m, dollars: string, cents?: string) => `$${(amount(dollars) + (cents ? amount(cents) : 0) / 100).toFixed(2)}`)
+    .replace(CENTS, (_m, cents: string) => `$${(amount(cents) / 100).toFixed(2)}`);
 }
 
-async function checkS3(store: Store, call: Call, sentence: string): Promise<Check> {
+/** The agent's last sentence on the call, as the caller heard it (a replacement if it was blocked). */
+function previousLine(record: RecordEntry[]): string {
+  const last = record.findLast((e) => e.kind === "line_spoken" || e.kind === "line_blocked");
+  if (!last) return "";
+  if (last.kind === "line_blocked") return String((last.output as { replacement?: string })?.replacement ?? "");
+  return String((last.input as { text?: string })?.text ?? "");
+}
+
+async function checkS3(store: Store, call: Call, sentence: string, record: RecordEntry[] = []): Promise<Check> {
   const records: string[] = [];
+  const labels: string[] = [];
   if (call.state === "verified" && call.lockedPatientId) {
     for (const rx of await store.getPrescriptions(call.lockedPatientId)) {
+      labels.push(rx.labelText);
       records.push(rx.labelText, `${rx.strength} ${rx.drug}`, ...labelQuantity(rx.labelText, sentence));
     }
   }
   const missing = unbackedDoses(sentence, records);
-  return missing.length > 0 ? { rule: "S3", why: missing.join(";") } : null;
+  if (missing.length > 0) return { rule: "S3", why: missing.join(";") };
+  // A dosing instruction is spoken only off the label, also when split across clauses or
+  // across the previous sentence (Trail #88).
+  const backed = (c: string) => labels.some((l) => labelClause(c, l) || labelQuantity(l, c).length > 0);
+  const clausesOf = (s: string) => s.split(CLAUSE_BREAK).filter((c) => words(c).trim() !== "");
+  const previous = hearableForms(previousLine(record))[0];
+  const why = unbackedDosing(clausesOf(sentence), clausesOf(previous), backed);
+  return why ? { rule: "S3", why } : null;
 }
 
 /**
@@ -355,36 +405,43 @@ export function createSpeechGuard({ store, emit = () => {} }: { store: Store; em
         found = { rule: "S1", why: "no such call" };
       } else {
         const [record, tokens] = await Promise.all([store.listRecord(callId), allTokens(store)]);
-        const said = callerText(call, record);
+        const said = hearableForms(callerText(call, record))[0];
         const slots = await store.listSlots();
         const orders = call.lockedPatientId ? await store.listOrders(call.lockedPatientId) : [];
-        const bookedLabels = orders.flatMap((o) => slots.filter((s) => s.id === o.slotId).map((s) => s.label));
-        // A day is also backed when it's when one of the locked patient's prescriptions runs out
-        // (last fill + days supplied), e.g. SPEC's "Your Concerta runs out Friday."
-        // Only for sentences about running out that say nothing about delivery, pickup or arrival,
-        // so it never backs a delivery promise ("it runs out Friday, so we'll bring it Friday").
-        const w = words(sentence);
-        if (call.state === "verified" && call.lockedPatientId && RUN_OUT.test(w) && !HANDOVER.test(w)) {
-          for (const rx of await store.getPrescriptions(call.lockedPatientId)) bookedLabels.push(runOutDay(rx.lastFill, rx.daysSupplied));
-        }
+        const slotLabels = orders.flatMap((o) => slots.filter((s) => s.id === o.slotId).map((s) => s.label));
+        const approvable = new Set((await store.queue()).filter((q) => q.kind === "refill" || q.kind === "renewal").map((q) => q.id));
+        const drugs = [...new Set(tokens.filter((t) => t.kind === "drug").map((t) => t.text))];
+        // An exact read-back the lock built (patient-facts.ts) is spoken as one unit: S3 and S4
+        // skip it. Matched on the sentence as written, so a look-alike copy is checked as usual.
         const recorded = isRecordedReadback(sentence, call, record);
         // A verified patient's exact fill date can share a month and day with another patient's DOB.
         // Keep all other identity checks on the fixed record readback.
-        const identityTokens = recorded ? tokens.filter(token => token.kind !== "dob") : tokens;
-        found =
-          checkS1(call, sentence, tokens, said, record) ??
-          checkS2(call, sentence, identityTokens, said);
-        if (!found && !recorded) {
-          const line = spokenPrices(sentence);
-          const drugs = [...new Set(tokens.filter(t => t.kind === "drug").map(t => t.text))];
-          const why = ungroundedPatientFact(line, call, record, drugs);
-          found = (why ? { rule: "S4", why, replacement: "I can't confirm that from your record." } : null) ?? (await checkS3(store, call, sentence)) ?? checkS4(
-            line,
-            record,
-            bookedLabels,
-            drugs,
-            new Set((await store.queue()).filter((q) => q.kind === "refill" || q.kind === "renewal").map((q) => q.id)),
-          );
+        const identityTokens = recorded ? tokens.filter((token) => token.kind !== "dob") : tokens;
+        // Every rule reads the sentence as a listener hears it (Trail #88): lookalike letters as
+        // Latin, accents and invisible characters dropped. An invisible character can be heard
+        // as nothing or as a break, so both forms are checked. The sentence is spoken as written.
+        for (const heard of hearableForms(sentence)) {
+          const bookedLabels = [...slotLabels];
+          // A day is also backed when it's when one of the locked patient's prescriptions runs out
+          // (last fill + days supplied), e.g. SPEC's "Your Concerta runs out Friday."
+          // Only for sentences about running out that say nothing about delivery, pickup or arrival,
+          // so it never backs a delivery promise ("it runs out Friday, so we'll bring it Friday").
+          const w = words(heard);
+          if (call.state === "verified" && call.lockedPatientId && RUN_OUT.test(w) && !HANDOVER.test(w)) {
+            for (const rx of await store.getPrescriptions(call.lockedPatientId)) bookedLabels.push(runOutDay(rx.lastFill, rx.daysSupplied));
+          }
+          found =
+            checkS1(call, heard, tokens, said, record) ??
+            checkS2(call, heard, identityTokens, said);
+          if (!found && !recorded) {
+            const line = spokenPrices(heard);
+            const why = ungroundedPatientFact(line, call, record, drugs);
+            found =
+              (why ? { rule: "S4", why, replacement: "I can't confirm that from your record." } : null) ??
+              (await checkS3(store, call, heard, record)) ??
+              checkS4(line, record, bookedLabels, drugs, approvable);
+          }
+          if (found) break;
         }
 
         if (found?.rule === "S3" && call.lockedPatientId) {

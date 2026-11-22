@@ -7,6 +7,8 @@ const UNITS: Record<string, number> = {
 };
 const TENS: Record<string, number> = { twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90 };
 const NUMBER_WORD = `(?:${[...Object.keys(UNITS), ...Object.keys(TENS), "hundred"].join("|")})`;
+/** A run of number words ("forty-one", "two hundred and fifty"), for prices said in words. */
+export const NUMBER_RUN_SOURCE = `${NUMBER_WORD}(?:(?:[ -]| and )${NUMBER_WORD})*`;
 const NUMBER_RUN = new RegExp(`\\b${NUMBER_WORD}(?:[ -]${NUMBER_WORD})*\\b`, "g");
 
 /** "thirty six" → "36", "two hundred and fifty" → "250", "seven" → "7". */

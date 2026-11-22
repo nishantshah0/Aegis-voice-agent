@@ -27,7 +27,7 @@ function dobForms(dob: string): string[] {
   const [y, m, d] = dob.split("-");
   const month = MONTHS[Number(m) - 1];
   const day = String(Number(d));
-  return [`${y} ${m} ${d}`, `${d} ${m} ${y}`, `${m} ${d} ${y}`, `${month} ${day} ${y}`, `${day} ${month} ${y}`, `${month} ${day}`];
+  return [`${y} ${m} ${d}`, `${d} ${m} ${y}`, `${m} ${d} ${y}`, `${month} ${day} ${y}`, `${day} ${month} ${y}`, `${month} ${day}`, `${day} ${month}`];
 }
 
 export function tokensFor(patient: Patient, prescriptions: Prescription[]): Token[] {
