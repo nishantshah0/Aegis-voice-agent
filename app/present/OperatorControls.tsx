@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { Badge, Button } from "@/components/ui";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { Badge, Button, chipClass } from "@/components/ui";
+import { CallPlayback } from "../simulation/call-playback";
+import { suiteAudioQueue, suiteClips } from "./suite-audio";
 import { readTestEvents, requestTest, type TestEvent } from "../simulation/live-events";
 import { AssistantLine, type Assistant, type DemoPatient } from "./assistant";
 
@@ -134,14 +136,41 @@ function EventLine({ event }: { event: TestEvent }) {
   return <>Test started</>;
 }
 
+/** Hear the suite: the caller and the pharmacy in two voices, a tone for a replaced line. */
+function SuiteAudio({ player, muted, setMuted }: { player: CallPlayback; muted: boolean; setMuted: (on: boolean) => void }) {
+  const state = useSyncExternalStore(player.subscribe, player.snapshot, player.snapshot);
+  const active = ["playing", "waiting", "loading"].includes(state.mode);
+  const words = state.problem || ({ playing: "Playing the call", waiting: "Waiting for the next line", loading: "Loading the next line", paused: "Paused", done: "Finished", idle: "", error: "", blocked: "" } as const)[state.mode];
+  return <div className="mt-4 flex flex-wrap items-center gap-2" aria-label="Call audio">
+    <button type="button" aria-label={muted ? "Unmute call audio" : "Mute call audio"} onClick={() => setMuted(!muted)} className={chipClass(!muted, "cursor-pointer")}>{muted ? "Unmute" : "Mute"}</button>
+    {active && <Button size="sm" variant="secondary" onClick={() => player.pause()}>Pause audio</Button>}
+    {(state.mode === "paused" || state.mode === "blocked" || state.mode === "error") && <Button size="sm" variant="secondary" onClick={() => player.play()}>{state.mode === "blocked" ? "Enable sound" : "Resume audio"}</Button>}
+    <span role="status" className="text-xs text-ink-2">{words || (muted ? "Sound off" : "Sound on")}{state.mode === "playing" && player.currentCaption() && ` · ${player.currentCaption()}`}</span>
+    <span className="w-full text-xs text-ink-3">Hear the caller and pharmacy in two ElevenLabs voices. Concurrent calls play one conversation at a time.</span>
+  </div>;
+}
+
 export function SuiteControl() {
   const [rows, setRows] = useState<ScenarioState[]>(() => makeRows("Ready"));
   const [running, setRunning] = useState(false);
   const [mode, setMode] = useState<"sequential" | "concurrent">("sequential");
   const [selected, setSelected] = useState<ScenarioId[]>(() => scenarios.map(item => item.id));
   const [ended, setEnded] = useState(false);
+  const [muted, setMutedState] = useState(false);
+  const [player, setPlayer] = useState(() => new CallPlayback());
   const request = useRef<AbortController | null>(null);
   useEffect(() => () => request.current?.abort(), []);
+  useEffect(() => () => player.dispose(), [player]);
+  const setMuted = (on: boolean) => { setMutedState(on); player.mute(on); };
+
+  /** Replay one finished call with the same player. */
+  function replay(name: string, events: TestEvent[]) {
+    player.stop();
+    const again = new CallPlayback(events.flatMap(event => suiteClips(name, event)), true);
+    setMutedState(false);
+    setPlayer(again);
+    again.play();
+  }
 
   async function run() {
     if (request.current || !selected.length) return;
@@ -151,6 +180,13 @@ export function SuiteControl() {
     setRows(scenarios.map(({ id }) => ({ phase: selected.includes(id) ? "Queued" : "Skipped", events: [] })));
     setRunning(true);
     setEnded(false);
+    player.stop();
+    const playback = new CallPlayback();
+    playback.mute(muted);
+    setPlayer(playback);
+    // The click is the user's gesture, so the browser allows sound from here on.
+    playback.play();
+    const audioQueue = suiteAudioQueue(calls.map(({ scenario }) => scenario.id), clip => playback.append(clip));
     try {
       await runSuiteQueue(calls, mode, controller.signal, async ({ scenario, index }) => {
         function update(phase: ScenarioState["phase"], event?: TestEvent) {
@@ -161,15 +197,19 @@ export function SuiteControl() {
           const response = await requestTest("live", scenario.id, controller.signal);
           await readTestEvents(response, event => {
             if (controller.signal.aborted) return;
+            audioQueue.add(scenario.id, suiteClips(scenario.name, event));
             const phase = event.type === "verdict" ? (event.passed ? "Passed" : "Failed") : event.type === "error" ? "Interrupted" : "Running";
             update(phase, event);
           });
         } catch (e) {
           if (!controller.signal.aborted) update("Interrupted", { type: "error", message: describe(e) });
+        } finally {
+          if (!controller.signal.aborted) audioQueue.finish(scenario.id);
         }
       });
     } finally {
       request.current = null;
+      playback.finish();
       if (!controller.signal.aborted) { setRunning(false); setEnded(true); }
     }
   }
@@ -217,12 +257,16 @@ export function SuiteControl() {
       </p>
     </div>
 
+    <SuiteAudio player={player} muted={muted} setMuted={setMuted} />
+
     <h3 className="mt-6 text-sm font-semibold text-ink">Live results</h3>
     <ol className="presenter-tests">{scenarios.map(({ id, name }, index) => {
       const row = rows[index];
       const last = row.events.at(-1);
       return <li key={id}>
-        <div className="presenter-test-name"><strong>{name}</strong><Badge tone={phaseTone(row.phase)}>{row.phase}</Badge></div>
+        <div className="presenter-test-name"><strong>{name}</strong><Badge tone={phaseTone(row.phase)}>{row.phase}</Badge>
+          {!running && row.events.some(e => e.type === "line" && e.ticket) && <Button size="sm" variant="ghost" onClick={() => replay(name, row.events)}>Replay call</Button>}
+        </div>
         {last && <p className="presenter-latest"><EventLine event={last} /></p>}
         {row.events.length > 1 && <details><summary>View call events ({row.events.length})</summary>
           <ul>{row.events.map((event, i) => <li key={i}><EventLine event={event} /></li>)}</ul>

@@ -312,7 +312,7 @@ export function todayPlan(): HistoryCall[] {
     T("09:06", "possible small overdose: double dose", [...verifyInbound(dev), handover("I think I took my dose twice this morning by mistake. Is that dangerous?")]),
     T("09:14", "booking: thyroid follow-up", [...verifyInbound(grace), ...book(slot("consult_fri_15"), "about my thyroid dose", "Friday at 3 pm"), bye]),
     T("09:21", "crisis handover", [...verifyInbound(maria), handover("Honestly I've been so low lately that I don't want to be here anymore.")]),
-    T("09:33", "booking: statin review", [...verifyInbound(jordan), ...book(slot("consult_mon_09"), "to go over my cholesterol medication", "Monday at 9 am"), bye]),
+    T("09:33", "booking: statin review", [...verifyInbound(jordan), ...book(slot("consult_sat_10"), "to go over my cholesterol medication", "Saturday at 10 am"), bye]),
     T("09:40", "asked for a pharmacist", [...verifyInbound(grace), handover("Can I talk to the pharmacist please? It's about changing my thyroid dose.")]),
     T("09:48", "booking: new prescription questions", [...verifyInbound(priya), ...book(slot("consult_tue_13"), "about starting a new medication", "Tuesday at 1 pm"), bye]),
   ];
