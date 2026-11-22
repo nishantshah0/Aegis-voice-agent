@@ -14,6 +14,10 @@ Hands-on audit of the whole product, Saturday 21 November 2026, evening (Eastern
 
 Legend: **works** · **partial** · **broken** · **missing**. Owner names follow the session map in the task (ROLE-0 owners are the ui-overhaul, suite-area and phone-line sessions).
 
+## Top finding, urgent and already being fixed: tests reset the shared demo database
+
+`resetRuntimeForTests()` in `app/api/_lib/runtime.ts` calls `getStore().reset(SEED)`, and `getStore()` is the shared Tiger Data Postgres whenever `DATABASE_URL` is set. About ten API test files call it in `beforeEach`, so `npm test` with `DATABASE_URL` set wipes the live demo data back to the seed. Until suite-area's fix is on main (vitest clears `DATABASE_URL`, plus a guard that throws on Postgres), run the gate as `DATABASE_URL= npm test`. If anything looked reset or empty during a demo or an audit, this is the likely cause. In this audit the gate ran with `DATABASE_URL=` empty, the audit server used the memory store (its `.env` had no `DATABASE_URL`), and the shared store was only read through :3001, so nothing here touched it.
+
 ## Top 15 fixes, in the order a judge would notice them
 
 | # | Fix | Why a judge sees it | Owner |
