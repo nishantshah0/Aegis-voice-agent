@@ -1,6 +1,6 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { createAgentDriver } from "@/lib/agent";
-import type { AgentModel, ModelEvent, ModelRequest } from "@/lib/agent";
+import type { AgentModel, ModelEvent } from "@/lib/agent";
 import type { Approver, ButtonName, CallId, Lane, RecordEntry, Store } from "@/lib/contract";
 import { createControl, type Control } from "@/lib/control";
 import { createSafetyCheck, createSpeechGuard } from "@/lib/guard";
@@ -50,7 +50,7 @@ async function lastResult(ctx: Ctx, button: ButtonName): Promise<Result | undefi
 function scriptedModel(ctx: () => Ctx, steps: StepFn[]): AgentModel {
   let ids = 0;
   return {
-    async *turn(_request: ModelRequest): AsyncIterable<ModelEvent> {
+    async *turn(): AsyncIterable<ModelEvent> {
       const next = steps.shift();
       const step = next ? await next(ctx()) : { text: "Is there anything else I can help with?" };
       if (step.text) yield { type: "text", text: step.text };
