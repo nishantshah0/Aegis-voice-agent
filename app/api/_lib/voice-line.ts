@@ -52,6 +52,10 @@ export type VoiceCall = {
   lastSeen: number;
   /** The last verification code hash we texted, so each code is texted once. */
   textedCode?: string;
+  /** Outbound: the guarded opener, said when they pick up. */
+  firstMessage?: string;
+  /** Twilio route: the TwiML ElevenLabs gave for this call, so a Twilio retry gets the same. */
+  twiml?: string;
 };
 
 type State = { calls: Map<CallId, VoiceCall>; byConversation: Map<string, CallId>; starting: Map<string, Promise<VoiceCall>> };

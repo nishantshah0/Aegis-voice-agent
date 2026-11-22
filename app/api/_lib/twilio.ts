@@ -1,0 +1,85 @@
+import { createHmac, timingSafeEqual } from "node:crypto";
+
+// Twilio's REST API and webhooks, for the real phone line on a trial account's shared number
+// (Trail #70). The account, the numbers and the token come only from .env and are never logged
+// or returned; a refusal comes back as Twilio's error code only, because its message quotes numbers.
+
+export const TWILIO_CALL_ENV = ["ELEVENLABS_API_KEY", "ELEVENLABS_AGENT_ID", "TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_PHONE_NUMBER", "TEST_PATIENT_PHONE", "VOICE_LLM_URL"] as const;
+
+/** The .env names the Twilio route still needs (names only). */
+export function missingTwilioCallEnv(env: NodeJS.ProcessEnv = process.env): string[] {
+  return TWILIO_CALL_ENV.filter((name) => !env[name]);
+}
+
+/** Our public https origin, the one Twilio calls back on: VOICE_PUBLIC_URL, else VOICE_LLM_URL's. */
+export function publicOrigin(env: NodeJS.ProcessEnv = process.env): string | undefined {
+  const raw = env.VOICE_PUBLIC_URL || env.VOICE_LLM_URL;
+  try {
+    return raw ? new URL(raw).origin : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Twilio's request signature: HMAC-SHA1 of the URL followed by each field name and value, sorted by name. */
+export function twilioSignature(authToken: string, url: string, fields: Record<string, string>): string {
+  const data = url + Object.keys(fields).sort().map((name) => name + fields[name]).join("");
+  return createHmac("sha1", authToken).update(data, "utf8").digest("base64");
+}
+
+/**
+ * The form fields of a request Twilio signed for this exact public URL (path and query
+ * included), or null. Behind the tunnel our own request.url is localhost, so the URL is rebuilt
+ * from the public origin.
+ */
+export async function signedTwilioFields(request: Request, env: NodeJS.ProcessEnv = process.env): Promise<Record<string, string> | null> {
+  const token = env.TWILIO_AUTH_TOKEN;
+  const origin = publicOrigin(env);
+  const given = request.headers.get("x-twilio-signature");
+  if (!token || !origin || !given) return null;
+  let fields: Record<string, string>;
+  try {
+    fields = Object.fromEntries(new URLSearchParams(await request.text()));
+  } catch {
+    return null;
+  }
+  const local = new URL(request.url);
+  const expected = Buffer.from(twilioSignature(token, `${origin}${local.pathname}${local.search}`, fields));
+  const actual = Buffer.from(given);
+  return expected.length === actual.length && timingSafeEqual(expected, actual) ? fields : null;
+}
+
+export type TwilioCall = { ok: true; sid?: string } | { ok: false; status: number; code?: number };
+
+/** Ring TEST_PATIENT_PHONE from TWILIO_PHONE_NUMBER; Twilio then fetches `url` for what to do. */
+export async function placeTwilioCall(url: string, statusCallback: string, env: NodeJS.ProcessEnv = process.env): Promise<TwilioCall> {
+  const sid = env.TWILIO_ACCOUNT_SID!;
+  const auth = Buffer.from(`${sid}:${env.TWILIO_AUTH_TOKEN}`).toString("base64");
+  try {
+    const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(sid)}/Calls.json`, {
+      method: "POST",
+      headers: { Authorization: `Basic ${auth}`, "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        To: env.TEST_PATIENT_PHONE!,
+        From: env.TWILIO_PHONE_NUMBER!,
+        Url: url,
+        Method: "POST",
+        StatusCallback: statusCallback,
+        StatusCallbackMethod: "POST",
+        StatusCallbackEvent: "completed",
+      }),
+    });
+    const body = (await res.json().catch(() => ({}))) as { sid?: unknown; code?: unknown };
+    if (!res.ok) return { ok: false, status: res.status, code: typeof body.code === "number" ? body.code : undefined };
+    return { ok: true, sid: typeof body.sid === "string" ? body.sid : undefined };
+  } catch {
+    return { ok: false, status: 502 };
+  }
+}
+
+/** TwiML that hangs up. The phone line never uses <Say>: every word it speaks comes from guardSentence. */
+export const HANG_UP_TWIML = `<?xml version="1.0" encoding="UTF-8"?><Response><Hangup/></Response>`;
+
+export function twimlResponse(xml: string): Response {
+  return new Response(xml, { status: 200, headers: { "Content-Type": "application/xml; charset=utf-8" } });
+}
