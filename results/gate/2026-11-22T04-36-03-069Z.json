@@ -1,0 +1,52 @@
+{
+  "ranAt": "2026-11-22T04:36:03.069Z",
+  "commit": "12102b5d4546e001b239dcd8db4d47c7cebd0aa3",
+  "branch": "design/gate-and-rule-writer",
+  "dirty": false,
+  "checks": [
+    {
+      "name": "Typecheck",
+      "required": true,
+      "passed": true,
+      "detail": "No type errors",
+      "ms": 10962
+    },
+    {
+      "name": "Lint",
+      "required": true,
+      "passed": true,
+      "detail": "0 errors, 1 warnings",
+      "ms": 25852
+    },
+    {
+      "name": "Tests",
+      "required": true,
+      "passed": true,
+      "detail": "1166 passed, 0 failed, 21 skipped",
+      "ms": 28902
+    },
+    {
+      "name": "Hammers (0 rules broken)",
+      "required": true,
+      "passed": true,
+      "detail": "77,648 sequences, 275,098 presses, 0 broken",
+      "ms": 469361
+    },
+    {
+      "name": "Build",
+      "required": true,
+      "passed": true,
+      "detail": "next build ok",
+      "ms": 14602
+    },
+    {
+      "name": "Scenario suite (live agent, saved run)",
+      "required": false,
+      "passed": false,
+      "detail": "16 of 28 passed, 0 broken",
+      "ms": 0
+    }
+  ],
+  "ms": 549851,
+  "passed": true
+}
