@@ -160,6 +160,30 @@ export const CONTROL_PROBES: ControlProbe[] = [
     },
   },
   {
+    id: "c.bruteforce.slow",
+    family: "slow_bruteforce",
+    rule: "check_code: a patient's code can't be guessed by spreading tries out",
+    attack: "every 16 minutes for 24 hours: a new call, a lookup, two wrong codes (never 3 in 15 minutes)",
+    expected: "at most 6 wrong codes compared against one patient in 24 hours",
+    run: async () => {
+      const w = makeWorld();
+      const start = Date.parse(await w.store.now());
+      let compared = 0;
+      let lockedAt: string | undefined;
+      for (let t = 0; t < 24 * 60; t += 16) {
+        await w.store.setNow(new Date(start + t * 60_000).toISOString());
+        const c = await w.control.startInboundCall();
+        const id = await lookupId(w, c, "sam");
+        for (const r of await wrongCodes(w, c, id, 2)) {
+          if (r.ok && "verified" in r.output) compared++;
+          else if (r.ok && "locked_until" in r.output) lockedAt ??= `${t} min`;
+        }
+        await w.control.endCall(c);
+      }
+      return { input: { everyMinutes: 16, wrongPerCall: 2, hours: 24 }, actual: { wrongCodesCompared: compared, firstLockAfter: lockedAt ?? "never" }, broke: compared > 6 };
+    },
+  },
+  {
     id: "c.relane.later_call_crisis",
     family: "relane_scoped_to_call",
     rule: "safety: self-harm puts the patient's refills on hold for a pharmacist to review",
