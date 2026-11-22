@@ -77,6 +77,8 @@ beforeEach(async () => {
   session.approver = null;
   usage.log = "";
   vi.unstubAllEnvs();
+  // Never the shared database: these tests must run on memory stores whatever .env says.
+  vi.stubEnv("DATABASE_URL", "");
   resetArenaRunsForTests();
   runners.suite.mockReset();
   runners.night.mockReset();

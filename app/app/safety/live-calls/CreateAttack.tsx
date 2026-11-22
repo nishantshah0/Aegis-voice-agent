@@ -2,10 +2,10 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui";
+import { Button, inputClass } from "@/components/ui";
 import { callHref, startLiveCall } from "./RunLiveCallButton";
 
-const field = "h-10 w-full rounded-xl border border-line-strong bg-canvas px-3 text-sm text-ink focus:border-accent focus:outline-none";
+const field = inputClass("h-10 w-full");
 
 /** Write an attack: a goal, a persona, a seed patient and how many turns. Run it now, and save it if you like. */
 export function CreateAttack({ patients, tactics }: { patients: { seed: string; label: string }[]; tactics: { key: string; label: string }[] }) {

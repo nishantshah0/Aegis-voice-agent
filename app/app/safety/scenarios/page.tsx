@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
-import { Card, PageHeader, StatTile } from "@/components/ui";
-import { groupWords, readCards, readLatestRun, rowsFor, RUN_COMMANDS, shortPath, stillRunning, when } from "../data";
+import { Card, PageHeader, SkeletonRows, SkeletonTiles, StatTile, When } from "@/components/ui";
+import { groupWords, readCards, readLatestRun, rowsFor, RUN_COMMANDS, shortPath, stillRunning } from "../data";
 import { Progress } from "../Progress";
 import { ArenaRunControl } from "../ArenaRunControl";
 import { AutoRefresh } from "../RunButton";
@@ -18,7 +18,14 @@ export default function ScenariosPage() {
         description="Scripted callers, each run three times through the real driver, buttons and speech guard, and scored only from the record."
         actions={<ArenaRunControl kind="suite" label="Run suite" compact />}
       />
-      <Suspense fallback={<p className="mt-8 text-sm text-ink-3">Reading the cards and the latest run…</p>}>
+      <Suspense
+        fallback={
+          <div className="mt-8 flex flex-col gap-6">
+            <SkeletonTiles />
+            <SkeletonRows rows={8} />
+          </div>
+        }
+      >
         <Scenarios />
       </Suspense>
     </SuiteGate>
@@ -59,7 +66,7 @@ async function Scenarios() {
           <Card className="flex flex-col gap-2">
             <Progress done={run.outcomes.length} total={run.totalScenarios} live={running} />
             <p className="text-xs text-ink-3">
-              Run <span className="font-mono">{run.runId.slice(0, 8)}</span> · scoreboard written {when(run.ranAt)} · {run.runs} saved run{run.runs === 1 ? "" : "s"} ·{" "}
+              Run <span className="font-mono">{run.runId.slice(0, 8)}</span> · scoreboard written <When iso={run.ranAt} /> · {run.runs} saved run{run.runs === 1 ? "" : "s"} ·{" "}
               <code className="font-mono" title={run.dir}>
                 {shortPath(run.dir)}
               </code>

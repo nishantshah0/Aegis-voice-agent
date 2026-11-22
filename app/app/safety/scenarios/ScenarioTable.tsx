@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Badge, cn } from "@/components/ui";
+import { Badge, RowNav, chipClass, cn, inputClass } from "@/components/ui";
 import type { Status } from "../data";
 import { RunLiveCallButton } from "../live-calls/RunLiveCallButton";
 
@@ -59,17 +59,14 @@ export function ScenarioTable({ rows, groups }: { rows: TableRow[]; groups: { ke
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-2">
-        <div role="group" aria-label="Result" className="flex rounded-full border border-line bg-surface p-0.5">
+        <div role="group" aria-label="Result" className="flex flex-wrap gap-1">
           {STATUS_FILTERS.map((f) => (
             <button
               key={f.key}
               type="button"
               aria-pressed={status === f.key}
               onClick={() => setStatus(f.key)}
-              className={cn(
-                "cursor-pointer rounded-full px-3 py-1 text-[13px] transition-colors",
-                status === f.key ? "bg-accent text-ink-inverse" : "text-ink-2 hover:text-ink",
-              )}
+              className={chipClass(status === f.key, "cursor-pointer")}
             >
               {f.label} <span className="tabular-nums opacity-70">{counts[f.key] ?? 0}</span>
             </button>
@@ -79,7 +76,7 @@ export function ScenarioTable({ rows, groups }: { rows: TableRow[]; groups: { ke
           aria-label="Category"
           value={group}
           onChange={(e) => setGroup(e.target.value)}
-          className="h-8 cursor-pointer rounded-full border border-line bg-surface px-3 text-[13px] text-ink"
+          className={inputClass("cursor-pointer")}
         >
           <option value="all">Every category</option>
           {groups.map((g) => (
@@ -94,13 +91,14 @@ export function ScenarioTable({ rows, groups }: { rows: TableRow[]; groups: { ke
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search scenarios"
           aria-label="Search scenarios"
-          className="h-8 min-w-48 flex-1 rounded-full border border-line bg-surface px-3.5 text-[13px] placeholder:text-ink-3 focus:border-accent focus:outline-none sm:max-w-64"
+          className={inputClass("min-w-48 flex-1 sm:max-w-64")}
         />
         <span className="ml-auto text-xs text-ink-3">
           {shown.length} of {rows.length}
         </span>
       </div>
 
+      <RowNav>
       <div className="overflow-hidden rounded-card border border-line bg-surface shadow-card">
         {shown.length === 0 ? (
           <p className="px-5 py-10 text-center text-sm text-ink-3">No scenario matches these filters.</p>
@@ -108,7 +106,7 @@ export function ScenarioTable({ rows, groups }: { rows: TableRow[]; groups: { ke
           <ul>
             {shown.map((r) => (
               <li key={r.id} className="flex items-center border-t border-line first:border-t-0">
-                <Link href={`/app/safety/scenarios/${encodeURIComponent(r.id)}`} className="group flex min-w-0 flex-1 flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3.5 transition-colors hover:bg-accent-soft/50">
+                <Link data-row="" href={`/app/safety/scenarios/${encodeURIComponent(r.id)}`} className="group flex min-w-0 flex-1 flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3.5 transition-colors hover:bg-accent-soft/50">
                   <div className="min-w-0 flex-1 basis-72">
                     <p className="flex items-center gap-2 text-[15px] font-medium">
                       {words(r.id)}
@@ -150,6 +148,7 @@ export function ScenarioTable({ rows, groups }: { rows: TableRow[]; groups: { ke
           </ul>
         )}
       </div>
+      </RowNav>
     </div>
   );
 }

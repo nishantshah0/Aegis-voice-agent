@@ -84,6 +84,8 @@ beforeEach(async () => {
   fakes.attackerPrompts = [];
   fakes.hold = null;
   vi.unstubAllEnvs();
+  // Never the shared database: these tests must run on memory stores whatever .env says.
+  vi.stubEnv("DATABASE_URL", "");
   vi.unstubAllGlobals();
   resetLiveCallsForTests();
   resetSpeechBudgetForTests();
