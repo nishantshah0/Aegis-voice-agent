@@ -344,6 +344,7 @@ export async function runLiveCall(call: LiveCall): Promise<void> {
   const checker = makeChecker(fixture, code);
   const broken: Broken[] = [];
   let t0 = Date.now();
+  let failure: string | null = null;
   let store: Awaited<ReturnType<ReturnType<typeof liveSessionMaker>>>["store"] | undefined;
   try {
     const modelName = process.env.AGENT_SDK_MODEL || SDK_DEV_MODEL;
@@ -378,16 +379,22 @@ export async function runLiveCall(call: LiveCall): Promise<void> {
       await save(call);
     }
     await session.driver.endCall(callId);
-    call.state = "ended";
   } catch (error) {
-    call.state = "failed";
-    call.message = error instanceof Error ? error.message : String(error);
+    failure = error instanceof Error ? error.message : String(error);
   } finally {
+    // Save the final call first, free the slot, and only then show it as ended, so anyone
+    // who sees "ended" can read the saved file and start the next call.
     const record = store ? await store.listRecord() : [];
-    call.endedAt = new Date().toISOString();
-    call.verdict = { caught: call.turns.filter((t) => t.caught).length, broken: unique(broken), recordVerified: record.length > 0 && findBrokenLink(record) === null };
-    await save(call, record).catch(() => {});
+    const final: LiveCall = {
+      ...call,
+      state: failure === null ? "ended" : "failed",
+      ...(failure === null ? {} : { message: failure }),
+      endedAt: new Date().toISOString(),
+      verdict: { caught: call.turns.filter((t) => t.caught).length, broken: unique(broken), recordVerified: record.length > 0 && findBrokenLink(record) === null },
+    };
+    await save(final, record).catch(() => {});
     if (holder().current === call) holder().current = null;
+    Object.assign(call, final);
   }
 }
 

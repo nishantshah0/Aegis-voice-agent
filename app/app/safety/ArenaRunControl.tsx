@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button, cn } from "@/components/ui";
+import { Button, When, cn, inputClass } from "@/components/ui";
 
 // Starts the scenario suite or the overnight attacker through POST /api/arena/run or
 // /api/arena/overnight, then follows it with GET /api/arena/run every two seconds. Every
@@ -18,7 +18,6 @@ const UNIT: Record<Kind, string> = { suite: "calls saved", overnight: "attack ca
 const CALL_CHOICES = [5, 10, 20, 60];
 const POLL_MS = 2_000;
 
-const time = (iso?: string) => (iso ? new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "");
 
 export function ArenaRunControl({ kind, label, compact = false }: { kind: Kind; label: string; compact?: boolean }) {
   // useRouter() can be a new object each render; keep it in a ref so polling doesn't restart.
@@ -91,7 +90,7 @@ export function ArenaRunControl({ kind, label, compact = false }: { kind: Kind; 
             aria-label="Attack calls"
             value={calls}
             onChange={(e) => setCalls(Number(e.target.value))}
-            className="h-8 cursor-pointer rounded-full border border-line-strong bg-surface px-2.5 text-[13px] text-ink"
+            className={inputClass("cursor-pointer")}
           >
             {CALL_CHOICES.map((n) => (
               <option key={n} value={n}>
@@ -109,7 +108,9 @@ export function ArenaRunControl({ kind, label, compact = false }: { kind: Kind; 
       {mine && (
         <div className="w-64 max-w-full" aria-live="polite">
           <div className="flex justify-between text-xs text-ink-3">
-            <span>Started {time(mine.startedAt)}</span>
+            <span>
+              Started <When iso={mine.startedAt} />
+            </span>
             <span className="tabular-nums">
               {mine.done} of {mine.total} {UNIT[kind]}
             </span>
@@ -131,7 +132,15 @@ export function ArenaRunControl({ kind, label, compact = false }: { kind: Kind; 
       {!mine && !error && other && <p className="max-w-72 text-xs text-ink-3">The {NAME[other.kind]} run is going. One run at a time.</p>}
       {!mine && !error && last && (
         <p className="max-w-72 text-xs text-ink-3">
-          {last.state === "failed" ? `Last run failed at ${time(last.finishedAt)}: ${last.message ?? "no reason given"}` : `Last run finished ${time(last.finishedAt)}: ${last.done} ${UNIT[kind]}, ${last.caught} caught, ${last.broken} broken`}
+          {last.state === "failed" ? (
+            <>
+              Last run failed <When iso={last.finishedAt} />: {last.message ?? "no reason given"}
+            </>
+          ) : (
+            <>
+              Last run finished <When iso={last.finishedAt} />: {last.done} {UNIT[kind]}, {last.caught} caught, {last.broken} broken
+            </>
+          )}
         </p>
       )}
       {status && (

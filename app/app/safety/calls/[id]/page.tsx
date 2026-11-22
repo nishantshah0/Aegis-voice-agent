@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { listLiveCalls } from "@/app/api/_lib/live-calls";
+import { SkeletonRows } from "@/components/ui";
 import { SignInCard, signedIn } from "../../SignedIn";
 import { LiveCallView } from "./LiveCallView";
 
@@ -21,7 +22,7 @@ export default function LiveCallPage({ params }: { params: Promise<{ id: string 
       <Link href="/app/safety/live-calls" className="text-sm text-ink-2 hover:text-ink">
         ← Live calls
       </Link>
-      <Suspense fallback={<p className="mt-6 text-sm text-ink-3">Dialling…</p>}>
+      <Suspense fallback={<SkeletonRows rows={6} className="mt-6" />}>
         <Call params={params} />
       </Suspense>
     </>

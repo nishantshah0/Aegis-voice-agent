@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
-import { Card, Eyebrow, PageHeader } from "@/components/ui";
+import { Card, Eyebrow, PageHeader, SkeletonRows } from "@/components/ui";
 import { cardAttack, listCustomAttacks, listLiveCalls, patientChoices, TACTICS } from "@/app/api/_lib/live-calls";
 import { STAGE_ATTACKS } from "@/app/stage/attacks";
 import { loadScenarioSuite } from "@/lib/arena/suite-files";
@@ -20,7 +20,7 @@ export default function LiveCallsPage() {
         description="An attacker AI rings the real pharmacy agent. Watch it turn by turn, hear both sides, and see the moment the lock catches it."
         actions={<ArenaUsage />}
       />
-      <Suspense fallback={<p className="mt-8 text-sm text-ink-3">Getting the attacks ready…</p>}>
+      <Suspense fallback={<SkeletonRows rows={6} className="mt-8" />}>
         <LiveCalls />
       </Suspense>
     </>
@@ -96,7 +96,7 @@ async function LiveCalls() {
       <section>
         <Eyebrow>Recent live calls</Eyebrow>
         <div className="mt-2">
-          <RecentLiveCalls calls={recent} empty="No live call yet. Pick an attack above." />
+          <RecentLiveCalls calls={recent} empty="No live call yet. Pick an attack above, or create one." />
         </div>
       </section>
 

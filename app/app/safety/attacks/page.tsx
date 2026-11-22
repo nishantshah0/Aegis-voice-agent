@@ -1,8 +1,8 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
-import { Badge, Card, Eyebrow, PageHeader } from "@/components/ui";
+import { Badge, Card, Eyebrow, PageHeader, SkeletonRows, When } from "@/components/ui";
 import { STAGE_ATTACKS } from "@/app/stage/attacks";
-import { readLatestBatch, shortPath, when } from "../data";
+import { readLatestBatch, shortPath } from "../data";
 import { BATCH_ORDER } from "./progress";
 import { AttackDesk } from "./AttackDesk";
 import { RunLiveCallButton } from "../live-calls/RunLiveCallButton";
@@ -38,7 +38,7 @@ export default function AttacksPage() {
           ))}
         </div>
       </section>
-      <Suspense fallback={<p className="mt-8 text-sm text-ink-3">Reading the saved batch…</p>}>
+      <Suspense fallback={<SkeletonRows rows={4} className="mt-10" />}>
         <SavedBatch />
       </Suspense>
     </SuiteGate>
@@ -58,7 +58,7 @@ async function SavedBatch() {
         <Eyebrow>Latest saved batch</Eyebrow>
         {batch && (
           <span className="text-xs text-ink-3">
-            {when(batch.ranAt)} · {batch.batches} saved in all ·{" "}
+            <When iso={batch.ranAt} /> · {batch.batches} saved in all ·{" "}
             <code className="font-mono" title={batch.path}>
               {shortPath(batch.path)}
             </code>

@@ -1,8 +1,8 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 import type { LiveSummary } from "@/app/api/_lib/live-calls";
-import { Badge, cn } from "@/components/ui";
+import { Badge, RowNav, TableEmpty, When, cn } from "@/components/ui";
 
-const when = (iso: string) => `${iso.slice(0, 16).replace("T", " ")} UTC`;
 const length = (c: LiveSummary) => {
   if (!c.endedAt) return "";
   const s = Math.max(0, Math.round((Date.parse(c.endedAt) - Date.parse(c.startedAt)) / 1000));
@@ -10,18 +10,19 @@ const length = (c: LiveSummary) => {
 };
 
 /** Finished live calls, newest first, each with its verdict and a link to watch it again. */
-export function RecentLiveCalls({ calls, empty }: { calls: LiveSummary[]; empty: string }) {
-  if (!calls.length) return <p className="rounded-card border border-dashed border-line-strong p-6 text-center text-sm text-ink-3">{empty}</p>;
+export function RecentLiveCalls({ calls, empty, action }: { calls: LiveSummary[]; empty: string; action?: ReactNode }) {
+  if (!calls.length) return <TableEmpty action={action}>{empty}</TableEmpty>;
   return (
+    <RowNav>
     <ul className="overflow-hidden rounded-card border border-line bg-surface shadow-card">
       {calls.map((c) => (
         <li key={c.id} className="border-t border-line first:border-t-0">
-          <Link href={`/app/safety/calls/${c.id}`} className="group flex flex-wrap items-center gap-x-4 gap-y-1 px-5 py-3 hover:bg-sunken/60">
+          <Link data-row="" href={`/app/safety/calls/${c.id}`} className="group flex flex-wrap items-center gap-x-4 gap-y-1 px-5 py-3 hover:bg-sunken/60">
             <span aria-hidden className="text-ink-3">☎</span>
             <span className="min-w-0 flex-1">
               <span className="block truncate text-[15px] font-medium">{c.title}</span>
               <span className="text-xs text-ink-3">
-                {when(c.startedAt)} · {c.turns} caller turns {length(c) && `· ${length(c)}`}
+                <When iso={c.startedAt} /> · {c.turns} caller turns {length(c) && `· ${length(c)}`}
               </span>
             </span>
             {c.state === "failed" ? (
@@ -40,5 +41,6 @@ export function RecentLiveCalls({ calls, empty }: { calls: LiveSummary[]; empty:
         </li>
       ))}
     </ul>
+    </RowNav>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Badge, RuleTag, cn } from "@/components/ui";
+import { Badge, RuleTag, chipClass, cn } from "@/components/ui";
 import type { AttemptScore, Entry } from "../../data";
 
 export type AttemptData = { n: number; callId: string; file: string; record: Entry[]; score: AttemptScore | null; chainIntact: boolean };
@@ -37,17 +37,14 @@ export function AttemptView({ attempts }: { attempts: AttemptData[] }) {
               type="button"
               aria-selected={x.n === a.n}
               onClick={() => setPick(x.n)}
-              className={cn(
-                "flex cursor-pointer items-center gap-2 rounded-full border px-3.5 py-1.5 text-[13px] transition-colors",
-                x.n === a.n ? "border-accent bg-accent-soft font-medium text-accent-ink" : "border-line bg-surface text-ink-2 hover:border-line-strong",
-              )}
+              className={chipClass(x.n === a.n, "cursor-pointer")}
             >
               <span aria-hidden className={cn("size-2 rounded-full", x.score?.passed ? "bg-accent" : "bg-stop")} />
               Call {x.n}
             </button>
           ))}
         </div>
-        <div role="tablist" aria-label="View" className="ml-auto flex rounded-full border border-line bg-surface p-0.5">
+        <div role="tablist" aria-label="View" className="ml-auto flex gap-1">
           {VIEWS.map((v) => (
             <button
               key={v}
@@ -55,7 +52,7 @@ export function AttemptView({ attempts }: { attempts: AttemptData[] }) {
               type="button"
               aria-selected={view === v}
               onClick={() => setView(v)}
-              className={cn("cursor-pointer rounded-full px-3 py-1 text-[13px]", view === v ? "bg-accent text-ink-inverse" : "text-ink-2 hover:text-ink")}
+              className={chipClass(view === v, "cursor-pointer")}
             >
               {v}
             </button>
