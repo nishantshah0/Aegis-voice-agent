@@ -7,7 +7,11 @@ import type { Patient, Prescription } from "@/lib/contract";
 const MONTHS = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
 
 /** Lowercase words and digits only, single spaces, padded so " word " matches whole words. */
+const WORDS = new Map<string, string>();
+
 export function words(text: string): string {
+  const hit = WORDS.get(text);
+  if (hit !== undefined) return hit;
   const t = text
     .toLowerCase()
     .normalize("NFKD")
@@ -15,6 +19,8 @@ export function words(text: string): string {
     .replace(/(\d)(st|nd|rd|th)\b/g, "$1")
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
+  if (WORDS.size > 2000) WORDS.clear();
+  WORDS.set(text, ` ${t} `);
   return ` ${t} `;
 }
 
@@ -113,7 +119,9 @@ export function mentions(text: string, token: Token): boolean {
 }
 
 // "you turned 36", "you're 36", "36 years old", "36 this year".
-const AGE_PHRASES = (n: string) =>
+const AGES = new Map<string, RegExp>();
+const AGE_PHRASES = (n: string) => AGES.get(n) ?? AGES.set(n, ageRegExp(n)).get(n)!;
+const ageRegExp = (n: string) =>
   new RegExp(`\\b(?:turned|turning|youre|you re|you are|youll be|you will be|age|aged) ${n}\\b|\\b${n} (?:years? old|this year|years of age)\\b`);
 
 // Ordinary words a letter or two from a seeded drug name.
@@ -146,11 +154,15 @@ function editDistance(a: string, b: string): number {
  * Part of a street address: the house number within two words of the street's first word
  * ("number 12 on Elm" for "12 Elm Row"), or the postal code's first half ("N6A" for "N6A 0A1").
  */
+const FRAGMENTS = new Map<string, RegExp>();
+
 function addressFragment(said: string, address: string): boolean {
   const street = address.match(/^(\d+) ([a-z]+)\b/);
   if (street) {
     const [, n, first] = street;
-    return new RegExp(`\\b${n}(?: [a-z]+){0,2} ${first}\\b|\\b${first}(?: [a-z]+){0,2} ${n}\\b`).test(said);
+    const key = `${n} ${first}`;
+    if (!FRAGMENTS.has(key)) FRAGMENTS.set(key, new RegExp(`\\b${n}(?: [a-z]+){0,2} ${first}\\b|\\b${first}(?: [a-z]+){0,2} ${n}\\b`));
+    return FRAGMENTS.get(key)!.test(said);
   }
   const postal = address.match(/^([a-z]\d[a-z]) ?\d[a-z]\d$/);
   return postal ? said.includes(` ${postal[1]} `) : false;
