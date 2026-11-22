@@ -19,6 +19,7 @@ import { SIGNAL_LABEL } from "../../today/ItemPanel";
 import { OUTCOME_LABEL, OUTCOME_TONE } from "../rows";
 import { callDetail, type CallDetail, type DecisionView } from "./detail";
 import { Timeline } from "./Timeline";
+import { ClearLock } from "../../_parts/ClearLock";
 
 export const metadata = { title: "Call · Pharmacy · Aegis" };
 
@@ -224,6 +225,11 @@ async function Body({ params }: { params: PageProps<"/app/pharmacy/calls/[id]">[
         }
         actions={<Live callId={call.callId} />}
       />
+      {call.lockedUntil && call.patientId && (
+        <div className="mt-4">
+          <ClearLock patientId={call.patientId} who={call.patient ?? "this patient"} lockedUntil={call.lockedUntil} canClear={approver.role === "pharmacist"} />
+        </div>
+      )}
       <section className="mt-8 grid grid-cols-2 gap-3 md:grid-cols-5">
         <StatTile label="Lines said" value={count("speech")} />
         <StatTile label="Buttons pressed" value={count("button")} />

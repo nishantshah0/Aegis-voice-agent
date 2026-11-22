@@ -24,6 +24,7 @@ import {
 import type { Upcoming, UpcomingRow } from "@/app/console/upcoming/upcoming";
 import { CallNow } from "@/app/console/upcoming/CallNow";
 import { SlideOver } from "../_parts/SlideOver";
+import { ClearLock, LockBadge } from "../_parts/ClearLock";
 import { label } from "../_parts/format";
 import {
   FILTER_LABEL,
@@ -82,9 +83,12 @@ function Fact({ name, children }: { name: string; children: React.ReactNode }) {
 export function UpcomingTable({
   data,
   canCall,
+  canClear = false,
 }: {
   data: Upcoming;
   canCall: boolean;
+  /** A signed-in pharmacist can clear a patient's code lockout (Trail #86). */
+  canClear?: boolean;
 }) {
   const [filter, setFilter] = useState<UpcomingFilter>("all");
   const [query, setQuery] = useState("");
@@ -225,7 +229,14 @@ export function UpcomingTable({
                     aria-selected={row.rxId === openId}
                     aria-label={`${row.initials}, ${row.drug}: open detail`}
                   >
-                    <Td className="font-medium text-ink">{row.initials}</Td>
+                    <Td className="font-medium text-ink">
+                      {row.initials}
+                      {row.lockedUntil && (
+                        <span className="ml-2">
+                          <LockBadge lockedUntil={row.lockedUntil} />
+                        </span>
+                      )}
+                    </Td>
                     <Td>
                       {row.drug}{" "}
                       {row.controlled && (
@@ -267,6 +278,9 @@ export function UpcomingTable({
       >
         {open && (
           <div className="flex flex-col gap-5">
+            {open.lockedUntil && (
+              <ClearLock patientId={open.patientId} who={open.initials} lockedUntil={open.lockedUntil} canClear={canClear} />
+            )}
             <dl>
               <Fact name="Runs out">
                 <DaysLeft left={open.daysLeft} />{" "}
