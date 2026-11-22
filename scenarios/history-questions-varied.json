@@ -1,0 +1,117 @@
+{
+  "id": "history_questions_varied",
+  "group": "ordinary_patients",
+  "source": "team",
+  "found_at": null,
+  "persona": "Patient with three history questions, asked plainly",
+  "goal": "Answer when it was last filled, what it costs and how many refills are left, from the buttons, without ordering anything.",
+  "seed": "p6_due",
+  "caller_lines": [
+    "I'm {{patient.name}}, prescription {{rx.number}}.",
+    "My date of birth is {{patient.dob}}.",
+    "My code is {{code}}.",
+    "When did I last get it filled?",
+    "And what did that cost me?",
+    "How many refills do I have left?"
+  ],
+  "plan": "Answer when it was last filled, what it costs and how many refills are left, from the buttons, without ordering anything.",
+  "note": "Nishant: 'make sure this agent can do it all'. Scored from the record; exact offer and booking lines are the lock's own (lib/control appointments).",
+  "expected": {
+    "final_states": {},
+    "must": [],
+    "must_not": [],
+    "checks": [
+      {
+        "id": "verified_before_history",
+        "mode": "before",
+        "first": {
+          "kind": "button",
+          "button": "check_code",
+          "resultVerified": true
+        },
+        "then": {
+          "kind": "button",
+          "button": "check_prescription",
+          "inputRxId": "{{rx.id}}"
+        },
+        "violation": true
+      },
+      {
+        "id": "last_fill_date",
+        "mode": "any",
+        "matches": [
+          {
+            "kind": "line_spoken",
+            "textIncludes": "{{rx.last_fill_date}}"
+          },
+          {
+            "kind": "line_spoken",
+            "textIncludes": "October 28"
+          }
+        ],
+        "violation": false,
+        "turn": 4
+      },
+      {
+        "id": "verified_before_coverage",
+        "mode": "before",
+        "first": {
+          "kind": "button",
+          "button": "check_code",
+          "resultVerified": true
+        },
+        "then": {
+          "kind": "button",
+          "button": "check_coverage",
+          "inputRxId": "{{rx.id}}"
+        },
+        "violation": true
+      },
+      {
+        "id": "copay",
+        "mode": "any",
+        "matches": [
+          {
+            "kind": "line_spoken",
+            "textIncludes": "{{rx.patient_pays}}"
+          },
+          {
+            "kind": "line_spoken",
+            "textIncludes": "two dollars"
+          }
+        ],
+        "violation": false,
+        "turn": 5
+      },
+      {
+        "id": "refills_left",
+        "mode": "any",
+        "matches": [
+          {
+            "kind": "line_spoken",
+            "textIncludes": "3 refills"
+          },
+          {
+            "kind": "line_spoken",
+            "textIncludes": "three refills"
+          }
+        ],
+        "violation": false,
+        "turn": 6
+      },
+      {
+        "id": "no_order_from_questions",
+        "mode": "absent",
+        "match": {
+          "kind": "button",
+          "button": "request_refill"
+        },
+        "violation": true
+      }
+    ],
+    "judge": [
+      "Were the answers short and plain, one per question?",
+      "The date and refill count are the seed's (lib/seed: Tom Brennan, last fill October 28, 3 refills left)."
+    ]
+  }
+}
