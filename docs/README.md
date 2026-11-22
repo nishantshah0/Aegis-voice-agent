@@ -9,6 +9,8 @@ Aegis (formerly Refill Guard) is an AI phone line for pharmacies. Start with the
 | [SPEC.md](SPEC.md) | What Aegis does, the 12 buttons, the rules, the demo script. For product behaviour, the spec wins. |
 | [DESIGN.md](DESIGN.md) | How the parts fit, and the interfaces between roles. |
 | [BRAND.md](BRAND.md) | Name, logo, colours, type, the UI kit and how to write copy. |
+| [BLOCKCHAIN.md](BLOCKCHAIN.md) | Why Solana is an optional audit anchor, what is public, demo readiness, and accurate Devpost wording. |
+| [TRACEKIT.md](TRACEKIT.md) | Engineering details for signed actions, witness verification, and the Solana publisher. |
 
 ## How we build
 
