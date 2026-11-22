@@ -17,7 +17,7 @@ export const S4_REPLACEMENT = "A pharmacist will check it first, and I'll confir
 const REPLACEMENT: Record<SpeechRule, string> = { ...GUARD_REPLACEMENTS, S4: S4_REPLACEMENT };
 
 const COMPLETION =
-  /\b(approved|ready|sorted|on its way|on the way|delivered|filled|signed off|confirmed|complete|completed|done|all set|good to go|processed|shipped|sent out|went out|dispatched|picked up|cleared|okayed|okd|taken care of|went through|gone through|green ?light(?:ed)?|green ?lit|finali[sz]ed|authori[sz]ed|locked in|squared away|granted|validated|a ?ok|oked|ok ed|in the bag|bagged|on the shelf|(?:is|s) a go|said yes|(?:is|s|are) waiting for you\b(?! to)|passed (?:the )?(?:pharmacists? )?(?:check|review)|pharmacists? (?:sign off|signoff|approval|ok|okay|blessing|go ahead|green light)|given (?:it )?the (?:ok|okay|go ahead|nod|thumbs up)|(?:is|s|been) (?:handled|accepted)|(?:refill|order|prescription|medication|meds|it) (?:is|s|has been) all good|approuve\w*|aprobad\w*|genehmigt|listo|lista|pret|fertig|pronto|taiyar|came through|come through|comes through|(?:has|have|s) signed|signed (?:it|them)|pushed (?:it |them )?through|fast ?tracked|finished|nothing left to do|thumbs up|your \w+ (?:is|s) all good|come (?:and )?(?:grab|collect|pick (?:it|them) up)|come pick (?:it|them) up|(?:can|could|may) (?:come )?(?:grab|collect|pick (?:it|them) up)|(?:stop|swing|drop|come) by (?:and|to) (?:grab|collect|pick|get)|feel free to (?:stop|swing|drop|come) by|^ (?:collect|grab) (?:it|them))\b/;
+  /\b(approved|ready|sorted|on its way|on the way|delivered|filled|signed off|confirmed|complete|completed|done|all set|good to go|processed|shipped|sent out|went out|dispatched|picked up|cleared|okayed|okd|taken care of|went through|gone through|green ?light(?:ed)?|green ?lit|finali[sz]ed|authori[sz]ed|locked in|squared away|granted|validated|a ?ok|oked|ok ed|in the bag|bagged|on the shelf|(?:is|s) a go|said yes|(?:is|s|are) waiting for you\b(?! to)|passed (?:the )?(?:pharmacists? )?(?:check|review)|pharmacists? (?:sign off|signoff|approval|ok|okay|blessing|go ahead|green light)|given (?:it )?the (?:ok|okay|go ahead|nod|thumbs up)|(?:is|s|been) (?:handled|accepted)|(?:refill|order|prescription|medication|meds|it) (?:is|s|has been) all good|approuve\w*|aprobad\w*|genehmigt|listo|lista|pret|prete|pretes|prets|fertig|pronto|taiyar|came through|come through|comes through|(?:has|have|s) signed|signed (?:it|them)|pushed (?:it |them )?through|fast ?tracked|finished|nothing left to do|thumbs up|your \w+ (?:is|s) all good|come (?:and )?(?:grab|collect|pick (?:it|them) up)|come pick (?:it|them) up|(?:can|could|may) (?:come )?(?:grab|collect|pick (?:it|them) up)|(?:stop|swing|drop|come) by (?:and|to) (?:grab|collect|pick|get)|feel free to (?:stop|swing|drop|come) by|^ (?:collect|grab) (?:it|them))\b/;
 // The only completion words that aren't promises: they're about the caller, the past, an identity
 // check or the agent itself ("whenever you're ready", "last filled 27 days ago", "your identity
 // is confirmed", "are you done?"), and are dropped before the check. "You're all set." and
@@ -59,7 +59,8 @@ const SENT =
   /\b(sent|requested|submitted|passed|forwarded|faxed|contacted|notified|placed|lodged|filed|put (?:it|the \w+|your \w+) in|let (?:the |your )?\w+ know|in the queue|with (?:your|the) (?:doctor|prescriber))\b/;
 // When a delivery or pickup happens needs set_delivery: "deliver it tomorrow", "drop it off
 // tonight", "arrive in two days", "your driver comes by 3 PM", "pick it up this afternoon".
-const HANDOVER_WIDE = /\b(?:driver|courier|at your door|to your door)\b/;
+// Also in Spanish, French and German: "lo entregamos", "nous le livrons", "wir liefern".
+const HANDOVER_WIDE = /\b(?:driver|courier|at your door|to your door|entreg\w*|recog\w*|livr\w*|ramass\w*|liefer\w*)\b/;
 const NUMBER = "(?:\\d+|a|an|one|two|three|four|five|six|seven|eight|nine|ten|few|couple of)";
 const WHEN = new RegExp(
   [
@@ -69,6 +70,7 @@ const WHEN = new RegExp(
     "(?:jan|feb|mar|apr|jun|jul|aug|sep|sept|oct|nov|dec)\\w* \\d+",
     "mon|tue|tues|wed|thu|thur|thurs|fri|sat|sun",
     "lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche|lunes|martes|miercoles|jueves|viernes|sabado|domingo",
+    "manana|pasado manana|hoy|esta noche|demain|apres demain|aujourd hui|ce soir|morgen|heute",
   ]
     .map((p) => `\\b(?:${p})\\b`)
     .join("|"),
