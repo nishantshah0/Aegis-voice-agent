@@ -5,6 +5,7 @@ import { ProductPreview } from "@/components/landing/ProductPreview";
 import { fmt, hammerTotals } from "@/components/landing/hammer";
 import { AuthButton, SignInLink } from "@/components/landing/AuthButton";
 import { BuiltAtHackWestern, HoofTrail, StitchDivider } from "@/components/landing/Western";
+import { EvalsAppLink, HowWeTest } from "@/components/landing/HowWeTest";
 
 const REPO = "https://github.com/nishantshah0/namereserve";
 
@@ -276,6 +277,17 @@ export default function Home() {
         </section>
 
         {/* Demo CTA */}
+        <StitchDivider />
+        <Suspense fallback={null}>
+          <HowWeTest
+            appLink={
+              <Suspense fallback={null}>
+                <EvalsAppLink />
+              </Suspense>
+            }
+          />
+        </Suspense>
+
         <StitchDivider />
         <section id="demo" className="scroll-mt-16">
           <div className="mx-auto max-w-6xl px-5 py-20 md:px-8 md:py-28">
