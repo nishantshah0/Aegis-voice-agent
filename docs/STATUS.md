@@ -50,7 +50,7 @@ Role 1 runs from Nishant's machine from 1.2 on (MikeyDigit did 1.1).
 
 ## Role 3 · Red team and evals
 
-- **Doing:** 3.5 fixed suite, repeat scoring and persisted scoreboard (PR #30, claim #31, Trail #24), stacked on 3.3 runner review fixes (PR #26, Trail #17)
+- **Doing:** Security suite UI redesign: attack library and Overnight workspaces handed off on `role-3/security-attacks-overnight` (commit `e8e2b23`, Trail #92); 3.5 fixed suite, repeat scoring and persisted scoreboard (PR #30, claim #31, Trail #24), stacked on 3.3 runner review fixes (PR #26, Trail #17)
 - **Done:** 3.1 first scenarios; 3.2 hijack driver (merged PR #7); 3.3 runner and scoring (merged PR #13); 3.4 hijack batch (merged PR #20, Trail #14)
 - **Blocked:** live scoreboard needs the real driver and a model credential. Entire project visibility still blocks finding replies.
 - **Needs from others:** Role 4 to review PR #26 before PR #30; Role 2 to wire `runFixedScenarioSuite` to the arena run route once the real driver lands.
