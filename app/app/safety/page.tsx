@@ -1,8 +1,10 @@
+import { cacheResult } from "./result-cache";
+import { resultsDir } from "@/app/console/overnight/results";
 import { Suspense, type ReactNode } from "react";
 import Link from "next/link";
 import { connection } from "next/server";
 import { Badge, Card, Eyebrow, PageHeader, SkeletonRows, SkeletonTiles, When, cn, linkClass } from "@/components/ui";
-import { readOvernight, type Source } from "@/app/console/overnight/results";
+import { readHammerAndOvernight, type Source } from "@/app/console/overnight/results";
 import { readLatestBatch, readLatestRun, stillRunning } from "./data";
 import { listLiveCalls } from "@/app/api/_lib/live-calls";
 import { RecentLiveCalls } from "./live-calls/RecentLiveCalls";
@@ -134,9 +136,13 @@ const ranAtOf = <T,>(s: Source<T>) => (s.state === "ok" ? s.ranAt : null);
 const brokenOf = <T extends { broken: number }>(s: Source<T>) => (s.state === "ok" ? s.data.broken : null);
 
 
+const readOverviewResults = cacheResult((dir) =>
+  Promise.all([readHammerAndOvernight(dir), readLatestBatch(dir, { includeSteps: false })]),
+);
+
 async function Overview() {
   await connection(); // Files change between runs: never prerender.
-  const [view, run, batch, live] = await Promise.all([readOvernight(), readLatestRun(), readLatestBatch(), listLiveCalls(5)]);
+  const [[view, batch], run, live] = await Promise.all([readOverviewResults(resultsDir()), readLatestRun(), listLiveCalls(5)]);
   const { hammer, overnight } = view;
   const running = stillRunning(run);
 
@@ -234,7 +240,7 @@ async function Overview() {
             ranAt={run?.ranAt ?? null}
             live={running}
             run={process.env.AEGIS_PUBLIC_ORIGIN ? (
-              <a className="underline" href="/app/safety/business-tests">Open live suite</a>
+              <Link className="underline" href="/app/safety/business-tests">Open live suite</Link>
             ) : <ArenaRunControl kind="suite" label="Run suite" compact />}
           >
             {run ? (

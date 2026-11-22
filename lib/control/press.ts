@@ -30,6 +30,7 @@ import {
   type Store,
 } from "@/lib/contract";
 import { APPOINTMENT_CONFIRMATION_QUESTION, confirmsBooking } from "@/lib/contract/appointment-consent";
+import { codeFailuresSinceClear, lockedUntilFrom, PATIENT_CODE_LOCKS } from "./clear-lock";
 import { internalOf, loadContext, resultOf, type PressRecordOutput } from "./context";
 import { evaluate, type Verdict } from "./engine";
 import { chooseLane, signalsFromCards } from "./lanes";
@@ -40,6 +41,9 @@ export const MAX_CODE_TRIES = 3;
 export const LOCKOUT_MS = 15 * MINUTE_MS;
 export const CODE_VALID_MS = 10 * MINUTE_MS;
 export const MAX_CODES_PER_HOUR = 3;
+export { PATIENT_CODE_LOCKS } from "./clear-lock";
+/** How long failed codes against a patient send that patient's requests to Review, on any call (Trail #86). */
+export const FAILED_CODE_SIGNAL_MS = 60 * MINUTE_MS;
 
 /** The lookup id an outbound call uses for send_code and check_code. */
 export const outboundLookupId = (callId: CallId): string => `out_${callId}`;
@@ -119,6 +123,14 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
     const record = await store.listRecord(call.id);
     const signals = new Set<Signal>();
     if (call.failedCodeTries > 0 || record.some((e) => e.button === "check_code" && e.decision === "blocked")) signals.add("failed_code_attempts");
+    // Failed codes against this patient on any call in the last hour: a redial doesn't clear them (Trail #86, RT-C2).
+    if (call.lockedPatientId) {
+      const now = await store.now();
+      const failed = (await store.listRecord()).some(
+        (e) => e.button === "check_code" && internalOf(e)?.codeFailed && internalOf(e)?.patientId === call.lockedPatientId && within(e.at, now, FAILED_CODE_SIGNAL_MS),
+      );
+      if (failed) signals.add("failed_code_attempts");
+    }
     if (record.some((e) => e.kind === "line_blocked")) signals.add("speech_guard_replacement");
     if (record.some((e) => e.kind === "safety" && e.actor !== "system")) signals.add("safety_words");
     if (record.some((e) => e.button === "note_for_pharmacist" && (e.input as { kind?: string })?.kind === "side_effect")) signals.add("side_effect");
@@ -189,6 +201,14 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
     return { result: ok<"send_code">({ message: "code sent if matched" }), decision: "allowed", internal };
   }
 
+  /** Wrong codes against this patient since their latest pharmacist clear, on any call (Trail #86). */
+  async function failedCodesFor(patientId: string): Promise<string[]> {
+    return codeFailuresSinceClear(await store.listRecord(), patientId);
+  }
+
+  /** The patient's lockout from those wrong codes (lib/control/clear-lock.ts). */
+  const patientLockedUntil = lockedUntilFrom;
+
   async function checkCode(call: Call, input: ButtonInputs["check_code"]): Promise<Handled> {
     const now = await store.now();
     let current = call;
@@ -200,6 +220,12 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
       await store.saveCall(current);
     }
     const lookup = await findLookup(current, input.lookup_id);
+    // The patient's own lockout comes first, whichever call the wrong codes were on.
+    const patientFailures = lookup?.patientId ? await failedCodesFor(lookup.patientId) : [];
+    const patientLock = lookup?.patientId ? patientLockedUntil(patientFailures, now) : undefined;
+    if (patientLock) {
+      return { result: ok<"check_code">({ locked_until: patientLock }), decision: "blocked", internal: { lookupId: input.lookup_id, patientId: lookup?.patientId ?? undefined } };
+    }
     const sent = (await store.listRecord(current.id))
       .filter((e) => internalOf(e)?.lookupId === input.lookup_id && internalOf(e)?.codeHash)
       .at(-1);
@@ -229,14 +255,20 @@ export function createControl({ store, emit = () => {}, makeCode, broadcastCodes
     }
 
     const tries = current.failedCodeTries + 1;
-    const internal = { lookupId: input.lookup_id, patientId: lookup?.patientId ?? undefined };
-    if (tries >= MAX_CODE_TRIES) {
-      const until = addMs(now, LOCKOUT_MS);
+    const internal = { lookupId: input.lookup_id, patientId: lookup?.patientId ?? undefined, ...(lookup?.patientId ? { codeFailed: true } : {}) };
+    // This wrong code counts against the patient too: it may be their third in 15 minutes.
+    const lockNow = lookup?.patientId ? patientLockedUntil([...patientFailures, now], now) : undefined;
+    if (tries >= MAX_CODE_TRIES || lockNow) {
+      const callUntil = tries >= MAX_CODE_TRIES ? addMs(now, LOCKOUT_MS) : undefined;
+      const until = [lockNow, callUntil].filter((t): t is string => t !== undefined).sort((a, b) => Date.parse(b) - Date.parse(a))[0];
       await store.saveCall({ ...current, state: current.state === "verified" ? "verified" : "locked_out", failedCodeTries: tries, lockedUntil: until });
       return { result: ok<"check_code">({ locked_until: until }), decision: "blocked", internal };
     }
     await store.saveCall({ ...current, failedCodeTries: tries });
-    return { result: ok<"check_code">({ verified: false, tries_left: MAX_CODE_TRIES - tries }), decision: "blocked", internal };
+    const patientLeft = lookup?.patientId
+      ? Math.min(...PATIENT_CODE_LOCKS.map((rule) => rule.wrong - [...patientFailures, now].filter((at) => within(at, now, rule.withinMs)).length))
+      : MAX_CODE_TRIES;
+    return { result: ok<"check_code">({ verified: false, tries_left: Math.min(MAX_CODE_TRIES - tries, patientLeft) }), decision: "blocked", internal };
   }
 
   async function refillVerdict(call: Call, patient: Patient, rx: Prescription, reason?: string) {

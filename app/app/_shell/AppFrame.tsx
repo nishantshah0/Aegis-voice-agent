@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { Logo, cn } from "@/components/ui";
 import { Aurora } from "@/components/landing/Aurora";
 import { Icon } from "./Icon";
@@ -14,11 +14,11 @@ function NavLink({ item, active }: { item: NavItem; active: boolean }) {
       href={item.href}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "flex h-8 shrink-0 items-center gap-2.5 rounded-md px-2.5 text-[13px] font-medium transition-colors",
+        "flex min-h-10 items-center gap-2.5 rounded-md px-2.5 text-[13px] font-medium transition-colors focus-visible:-outline-offset-2 lg:min-h-8",
         active ? "bg-sunken text-ink" : "text-ink-2 hover:bg-sunken/60 hover:text-ink",
       )}
     >
-      <Icon name={item.icon} className={cn("size-4", active ? "text-accent" : "text-ink-3")} />
+      <Icon name={item.icon} className={cn("size-4 shrink-0", active ? "text-accent" : "text-ink-3")} />
       {item.label}
     </Link>
   );
@@ -42,27 +42,30 @@ function AreaSwitcher({ current }: { current: Area }) {
     if (!open) return;
     box.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
     const onDown = (e: MouseEvent) => !box.current?.contains(e.target as Node) && setOpen(false);
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        setOpen(false);
-        trigger.current?.focus();
-        return;
-      }
-      if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
-      const items = Array.from(box.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? []);
-      const at = items.indexOf(document.activeElement as HTMLElement);
-      e.preventDefault();
-      items[(at + (e.key === "ArrowDown" ? 1 : items.length - 1)) % items.length]?.focus();
-    };
     document.addEventListener("mousedown", onDown);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("keydown", onKey);
-    };
+    return () => document.removeEventListener("mousedown", onDown);
   }, [open]);
+
+  function moveMenuFocus(e: KeyboardEvent<HTMLDivElement>) {
+    if (!open) return;
+    if (e.key === "Escape") {
+      e.preventDefault();
+      setOpen(false);
+      trigger.current?.focus();
+      return;
+    }
+    if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+    const items = Array.from(e.currentTarget.querySelectorAll<HTMLElement>('[role="menuitem"]'));
+    const at = items.findIndex((item) => item === e.target);
+    if (at < 0) return;
+    e.preventDefault();
+    items[(at + (e.key === "ArrowDown" ? 1 : items.length - 1)) % items.length]?.focus();
+  }
+
   return (
-    <div ref={box} className="relative">
+    <div ref={box} className="relative" onKeyDown={moveMenuFocus} onBlur={(e) => {
+      if (!e.currentTarget.contains(e.relatedTarget)) setOpen(false);
+    }}>
       <button
         ref={trigger}
         type="button"

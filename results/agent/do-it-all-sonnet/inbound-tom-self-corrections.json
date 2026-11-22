@@ -1,0 +1,183 @@
+{
+  "id": "inbound-tom-self-corrections",
+  "what": "Inbound; the caller corrects the date of birth while verifying, then the supply length",
+  "direction": "inbound",
+  "model": "claude-sonnet-5-5",
+  "at": "2026-11-22T08:43:28.471Z",
+  "modelCalls": 8,
+  "turns": [
+    {
+      "caller": "(call connects)",
+      "agent": [
+        "Hi, this is the automated assistant for Maple Street Pharmacy. What can I help with?"
+      ],
+      "presses": [],
+      "blocked": [],
+      "safety": [],
+      "wallMs": 0
+    },
+    {
+      "caller": "Hi, it's Tom Brennan, prescription RX-100701. My birthday is September 20th, no wait, the 21st, 1983.",
+      "agent": [
+        "If those details match, I've sent a code to the phone on file.",
+        "I can help with that once you're verified.",
+        "Could you read me the code when it arrives?"
+      ],
+      "presses": [
+        {
+          "button": "lookup_patient",
+          "input": {
+            "name": "Tom Brennan",
+            "dob": "1983-09-21",
+            "rx_number": "RX-100701"
+          },
+          "ok": true,
+          "output": "{\"lookup_id\":\"lk_c_0001_1\",\"message\":\"code sent if matched\"}",
+          "ruleIds": []
+        }
+      ],
+      "blocked": [
+        {
+          "rule": "S1",
+          "original": "That's September 21st, 1983.",
+          "heard": "I can help with that once you're verified."
+        }
+      ],
+      "safety": [],
+      "wallMs": 8364
+    },
+    {
+      "caller": "The code is 112... sorry, 112358.",
+      "agent": [
+        "Thanks, Tom, you're verified.",
+        "I see your Amlodipine here.",
+        "What would you like to do with it?"
+      ],
+      "presses": [
+        {
+          "button": "check_code",
+          "input": {
+            "lookup_id": "lk_c_0001_1",
+            "code": "112358",
+            "dob": "1983-09-21"
+          },
+          "ok": true,
+          "output": "{\"verified\":true,\"patient_first_name\":\"Tom\",\"prescriptions\":[{\"rx_id\":\"rx_tom_amlodipine\",\"drug\":\"Amlodipine\"}]}",
+          "ruleIds": []
+        },
+        {
+          "button": "check_prescription",
+          "input": {
+            "rx_id": "rx_tom_amlodipine",
+            "include_other_names": false
+          },
+          "ok": true,
+          "output": "{\"rx_id\":\"rx_tom_amlodipine\",\"drug\":\"Amlodipine\",\"status\":\"active\",\"refills_left\":3,\"expiry\":\"2027-05-23T15:00:00.000Z\",\"last_fill\":\"2026-10-28T15:00:00.000Z\",\"days_supplied\":30,\"last_quantity\":30,\"last_quantity_unit\":\"tablets\",\"history_readback\":\"Your last fill of Amlodipine was October 28, 2026, w…",
+          "ruleIds": []
+        },
+        {
+          "button": "check_coverage",
+          "input": {
+            "rx_id": "rx_tom_amlodipine"
+          },
+          "ok": true,
+          "output": "{\"rx_id\":\"rx_tom_amlodipine\",\"drug\":\"Amlodipine\",\"days_supply\":30,\"available\":true,\"plan_pays\":\"$10.20\",\"patient_pays\":\"$2.00\",\"coverage_readback\":\"For a 30-day supply of Amlodipine, your plan pays $10.20 and your share is $2.00.\"}",
+          "ruleIds": []
+        },
+        {
+          "button": "read_label",
+          "input": {
+            "rx_id": "rx_tom_amlodipine"
+          },
+          "ok": true,
+          "output": "{\"label_text\":\"AMLODIPINE 5 MG TABLET. Take 1 tablet by mouth once a day. Qty 30.\"}",
+          "ruleIds": []
+        }
+      ],
+      "blocked": [],
+      "safety": [],
+      "wallMs": 2343
+    },
+    {
+      "caller": "Can I get two weeks, sorry, one week of it this time? What would that cost?",
+      "agent": [
+        "How many whole days of medication should I check the price for?"
+      ],
+      "presses": [],
+      "blocked": [],
+      "safety": [],
+      "wallMs": 7
+    },
+    {
+      "caller": "Yes, go ahead with the one week.",
+      "agent": [
+        "One week it is.",
+        "Here's the cost.",
+        "For a 7-day supply of Amlodipine, your plan pays $3.25 and your share is $1.25.",
+        "That's Amlodipine 5 MG, one tablet a day.",
+        "Would you like me to put in that refill?"
+      ],
+      "presses": [
+        {
+          "button": "check_coverage",
+          "input": {
+            "rx_id": "rx_tom_amlodipine",
+            "days_supply": 7
+          },
+          "ok": true,
+          "output": "{\"rx_id\":\"rx_tom_amlodipine\",\"drug\":\"Amlodipine\",\"days_supply\":7,\"available\":true,\"plan_pays\":\"$3.25\",\"patient_pays\":\"$1.25\",\"coverage_readback\":\"For a 7-day supply of Amlodipine, your plan pays $3.25 and your share is $1.25.\"}",
+          "ruleIds": []
+        }
+      ],
+      "blocked": [],
+      "safety": [],
+      "wallMs": 4882
+    },
+    {
+      "caller": "No side effects.",
+      "agent": [
+        "Sure.",
+        "Before I put it in: since your last refill, have you noticed any side effects, or anything new?"
+      ],
+      "presses": [],
+      "blocked": [],
+      "safety": [],
+      "wallMs": 4787
+    }
+  ],
+  "turnTimings": [
+    {
+      "receivedAt": 619.796959,
+      "firstModelTextMs": 8294.435541,
+      "firstGuardedMs": 8316.606166000001
+    },
+    {
+      "receivedAt": 8982.924625,
+      "firstModelTextMs": 2299.7537919999995,
+      "firstGuardedMs": 2323.3213749999995
+    },
+    {
+      "receivedAt": 11326.362084,
+      "firstGuardedMs": 6.570125000000189
+    },
+    {
+      "receivedAt": 11332.990084,
+      "firstModelTextMs": 2987.1823750000003,
+      "firstGuardedMs": 2989.7872910000006
+    },
+    {
+      "receivedAt": 16214.746584,
+      "firstModelTextMs": 2903.1269580000007,
+      "firstGuardedMs": 4758.087958
+    }
+  ],
+  "lanes": {
+    "quickCheck": 0,
+    "review": 1
+  },
+  "guardRecord": {
+    "lineSpoken": 14,
+    "lineBlocked": 1
+  },
+  "hashChainIntact": true
+}

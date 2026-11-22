@@ -8,10 +8,7 @@ import { DecideBar } from "../_parts/Decide";
 import { SlideOver } from "../_parts/SlideOver";
 import { typing } from "../_parts/format";
 import { ItemPanel, ItemSummary } from "./ItemPanel";
-import { HistoryNote } from "../_parts/HistoryNote";
 
-/** The approver the scripted demo week decides as (app/api/_lib/demo-history.ts HISTORY_APPROVER). */
-const HISTORY_APPROVER_NAME = "Scripted demo pharmacist";
 import type { Today, TodayItem } from "./today";
 
 type Filter = Lane | "all";
@@ -99,7 +96,7 @@ export function TodayBoard({ data, canDecide, initial }: { data: Today; canDecid
     <div data-decide-panel>
       <ItemPanel d={selected} />
       {canDecide && selected.status === "open" && selected.lane !== "automatic" && (
-        <DecideBar key={selected.id} id={selected.id} hint className="mt-5 border-t border-line pt-4" />
+        <DecideBar key={selected.id} id={selected.id} className="mt-5 border-t border-line pt-4" />
       )}
       {selected.lane === "automatic" && <p className="mt-5 border-t border-line pt-4 text-sm text-ink-3">Went through on its own: no rule card matched and nothing unusual was seen.</p>}
     </div>
@@ -192,9 +189,6 @@ export function TodayBoard({ data, canDecide, initial }: { data: Today; canDecid
           description={
             <>
               Approvals and declines, newest first, with the note that went to the record.
-              <span className="mt-1.5 block">
-                <HistoryNote count={data.decided.filter((d) => d.decidedBy === HISTORY_APPROVER_NAME).length} />
-              </span>
             </>
           }
         />

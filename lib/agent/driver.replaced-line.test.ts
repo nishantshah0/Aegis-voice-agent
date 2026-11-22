@@ -52,6 +52,16 @@ async function callWithAReplacedLine() {
 }
 
 describe("after the guard replaces a line", () => {
+  it("says the same replacement only once a call: a second one stays quiet instead of repeating", async () => {
+    const { driver, callId, events } = await callWithAReplacedLine();
+    const first = events.filter((e) => e.type === "line");
+    expect(first).toHaveLength(1);
+    const again = [];
+    for await (const e of driver.speakLine(callId, "Your Concerta is approved now.")) again.push(e);
+    expect(again.some((e) => e.type === "blocked_line")).toBe(true);
+    expect(again.filter((e) => e.type === "line")).toHaveLength(0);
+  });
+
   it("replaces a false promise, so there is something to tell the model about", async () => {
     const { events } = await callWithAReplacedLine();
     expect(events.some((e) => e.type === "blocked_line" && e.rule === "S4")).toBe(true);

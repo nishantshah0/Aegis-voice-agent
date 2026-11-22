@@ -168,6 +168,10 @@ export async function turn(id: string, sid: string, step: number, advance: (stat
     ).rows[0];
   });
 }
+/** Trail #70: the call's first flow (the agent's opener), set once before Twilio dials. */
+export async function setFirstFlow(id: string, flow: Flow) {
+  return atomic(async (c) => (await c.query<PhoneRow>("UPDATE aegis_presenter_calls SET flow=$2,updated_at=now() WHERE id=$1 AND step=0 RETURNING *", [id, flow])).rows[0]);
+}
 export async function getAudio(key: string): Promise<Buffer | undefined> {
   await ready();
   return (await db().query("SELECT audio FROM aegis_presenter_audio WHERE key=$1", [key])).rows[0]?.audio;

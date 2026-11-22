@@ -78,6 +78,20 @@ export function toRow(call: CallSummary, items: QueueItem[]): HistoryRow {
 
 export type HistoryFilter = { query: string; lane: Lane | "all" | "none"; outcome: CallOutcome | "all" };
 
+const LANES = ["all", "none", "automatic", "quick_check", "review"] as const;
+const OUTCOMES = ["all", "waiting", "approved", "denied", "automatic", "refused", "nothing"] as const;
+
+export function parseHistoryFilter(params: { q?: string | string[]; lane?: string | string[]; outcome?: string | string[] }): HistoryFilter {
+  const first = (value?: string | string[]) => Array.isArray(value) ? value[0] : value;
+  const lane = first(params.lane);
+  const outcome = first(params.outcome);
+  return {
+    query: first(params.q) ?? "",
+    lane: LANES.includes(lane as (typeof LANES)[number]) ? (lane as HistoryFilter["lane"]) : "all",
+    outcome: OUTCOMES.includes(outcome as (typeof OUTCOMES)[number]) ? (outcome as CallOutcome | "all") : "all",
+  };
+}
+
 /** The search box and the two filters, applied in the browser. */
 export function filterRows(rows: HistoryRow[], { query, lane, outcome }: HistoryFilter): HistoryRow[] {
   const q = query.trim().toLowerCase();

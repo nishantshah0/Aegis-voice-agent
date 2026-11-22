@@ -1,3 +1,4 @@
+import { PHARMACY_NAV } from "../../_shell/nav";
 import { Suspense } from "react";
 import { connection } from "next/server";
 import { redirect } from "next/navigation";
@@ -7,7 +8,7 @@ import { loadOutreachSignedIn } from "./data";
 import { OutreachView } from "./OutreachView";
 import { RunControls } from "./RunControls";
 
-export const metadata = { title: "Outreach · Pharmacy · Aegis" };
+export const metadata = { title: `${PHARMACY_NAV.forecast.label} · Pharmacy · Aegis` };
 
 async function Outreach({ searchParams }: { searchParams: Promise<{ run?: string | string[] }> }) {
   await connection();
@@ -22,23 +23,23 @@ async function Outreach({ searchParams }: { searchParams: Promise<{ run?: string
       <PageHeader
         title={
           <span className="inline-flex flex-wrap items-center gap-3">
-            Outreach
-            <Badge tone="quick" dot className="align-middle">
-              Simulated population
+            {PHARMACY_NAV.forecast.label}
+            <Badge tone="neutral" dot className="align-middle">
+              Saved simulation
             </Badge>
           </span>
         }
-        description="Who the line would call over the next 30 days, why, and where each refill would land. Made-up patients; predicted outcomes."
+        description="Synthetic patients · Predicted outcomes"
         actions={<RunControls runs={runs} current={current} />}
       />
       {load.state === "none" && (
         <Card className="mt-8 text-sm text-ink-2">
-          No simulation run saved yet. Make one with <code className="font-mono text-xs text-ink">{load.command}</code>, or press Run simulation.
+          No saved simulation yet. Use Run simulation above to create the first forecast.
         </Card>
       )}
       {load.state === "missing" && (
         <Card className="mt-8 text-sm text-ink-2">
-          Can&apos;t read simulation run <code className="font-mono text-xs text-ink">results/sim/{load.runId}/</code>. Pick another saved run.
+          Can&apos;t load saved run <code className="font-mono text-xs text-ink">results/sim/{load.runId}/</code>. {runs.length > 0 ? "Select another saved run or run a new simulation above." : "No other saved runs are available. Run a new simulation above."}
         </Card>
       )}
       {load.state === "ok" && <OutreachView key={load.data.summary.runId} data={load.data} />}

@@ -182,6 +182,64 @@ describe("the checker catches real breakage", () => {
     expect(ALL_ACTIONS.map((a) => a.label)).toEqual(expect.arrayContaining(["say pharmacist approved", "say run out and bring", "check right code wrong dob"]));
   });
 
+  // Trail #86: planted breaks of the per-patient lockout and the re-lane.
+  it("a code checked for a patient inside their lockout, on another call", async () => {
+    const store = createMemoryStore(SEED);
+    const fail = (callId: string, output: unknown, codeFailed = true) =>
+      store.appendRecord({ callId, actor: "agent", kind: "button", button: "check_code", input: { lookup_id: "lk", code: "000000" }, output: { result: { ok: true, output, ruleIds: [] }, internal: { patientId: IDS.sam, codeFailed } }, decision: "blocked" });
+    await fail("c_1", { verified: false, tries_left: 2 });
+    await fail("c_1", { verified: false, tries_left: 1 });
+    await fail("c_1", { locked_until: "2026-11-24T15:15:00.000Z" });
+    const redial = await store.appendRecord({ callId: "c_2", actor: "agent", kind: "button", button: "check_code", input: { lookup_id: "lk2", code: HAMMER_CODE }, output: { result: { ok: true, output: { verified: true }, ruleIds: [] }, internal: { patientId: IDS.sam } } });
+    expect((await checker.check(store, redial)).map((b) => b.rule)).toContain("code checked during a patient's lockout");
+    await store.setNow("2026-11-24T10:16:00-05:00");
+    const later = await store.appendRecord({ callId: "c_3", actor: "agent", kind: "button", button: "check_code", input: { lookup_id: "lk3", code: HAMMER_CODE }, output: { result: { ok: true, output: { verified: true }, ruleIds: [] }, internal: { patientId: IDS.sam } } });
+    expect((await checker.check(store, later)).map((b) => b.rule)).not.toContain("code checked during a patient's lockout");
+  });
+
+  it("a code checked inside the 2-hour lock after six wrong codes spread over a day", async () => {
+    const store = createMemoryStore(SEED);
+    for (let h = 0; h < 6; h++) {
+      await store.setNow(new Date(Date.parse(SEED.now) + h * 3600 * 1000).toISOString());
+      await store.appendRecord({ callId: `c_d${h}`, actor: "agent", kind: "button", button: "check_code", input: { lookup_id: "lk", code: "000000" }, output: { result: { ok: true, output: h === 5 ? { locked_until: "x" } : { verified: false }, ruleIds: [] }, internal: { patientId: IDS.sam, codeFailed: true } }, decision: "blocked" });
+    }
+    await store.setNow(new Date(Date.parse(SEED.now) + 6 * 3600 * 1000).toISOString());
+    const next = await store.appendRecord({ callId: "c_d9", actor: "agent", kind: "button", button: "check_code", input: { lookup_id: "lk", code: HAMMER_CODE }, output: { result: { ok: true, output: { verified: true }, ruleIds: [] }, internal: { patientId: IDS.sam } } });
+    expect((await checker.check(store, next)).map((b) => b.rule)).toContain("code checked during a patient's lockout");
+  });
+
+  it("an open request left out of Review after its patient's crisis words on a later verified call", async () => {
+    const base = createMemoryStore(SEED);
+    const item = await base.addQueueItem({ callId: "c_a", patientId: IDS.sam, rxId: IDS.samConcerta, kind: "refill", lane: "quick_check", ruleIds: ["4"], signals: [], notes: [] });
+    await base.appendRecord({ callId: "c_a", actor: "agent", kind: "button", button: "request_refill", input: { rx_id: IDS.samConcerta }, output: { result: { ok: true, output: { state: "waiting_for_pharmacist" }, ruleIds: ["4"] }, internal: { queueItemId: item.id } }, decision: "routed" });
+    await base.appendRecord({ callId: "c_b", actor: "agent", kind: "button", button: "check_code", input: { lookup_id: "lk", code: HAMMER_CODE }, output: { result: { ok: true, output: { verified: true }, ruleIds: [] }, internal: { patientId: IDS.sam } }, decision: "allowed" });
+    await base.appendRecord({ callId: "c_b", actor: "caller", kind: "safety", input: { text: "I want to end it all" }, decision: "flagged" });
+    await base.updateQueueItem(item.id, { lane: "quick_check" });
+    expect((await checker.check(base, undefined)).map((b) => b.rule)).toContain("open request left out of Review after a later signal");
+  });
+
+  it("an open request left out of Review after wrong codes for its patient on another call", async () => {
+    const base = createMemoryStore(SEED);
+    const item = await base.addQueueItem({ callId: "c_a", patientId: IDS.p6, rxId: IDS.p6Amlodipine, kind: "refill", lane: "automatic", ruleIds: [], signals: [], notes: [] });
+    await base.appendRecord({ callId: "c_a", actor: "agent", kind: "button", button: "request_refill", input: { rx_id: IDS.p6Amlodipine }, output: { result: { ok: true, output: { state: "queued" }, ruleIds: [] }, internal: { queueItemId: item.id } }, decision: "allowed" });
+    await base.appendRecord({ callId: "c_b", actor: "agent", kind: "button", button: "check_code", input: { lookup_id: "lk", code: "000000" }, output: { result: { ok: true, output: { verified: false, tries_left: 2 }, ruleIds: [] }, internal: { patientId: IDS.p6, codeFailed: true } }, decision: "blocked" });
+    await base.updateQueueItem(item.id, { lane: "automatic" });
+    expect((await checker.check(base, undefined)).map((b) => b.rule)).toContain("open request left out of Review after a later signal");
+  });
+
+  it("an open request left in Quick check after a later signal on its call", async () => {
+    // A raw store, without lib/control's re-lane hook, plays the old behaviour.
+    const base = createMemoryStore(SEED);
+    const item = await base.addQueueItem({ callId: "c_q", patientId: IDS.sam, rxId: IDS.samConcerta, kind: "refill", lane: "quick_check", ruleIds: ["4"], signals: [], notes: [] });
+    await base.appendRecord({ callId: "c_q", actor: "agent", kind: "button", button: "request_refill", input: { rx_id: IDS.samConcerta }, output: { result: { ok: true, output: { state: "waiting_for_pharmacist" }, ruleIds: ["4"] }, internal: { queueItemId: item.id } }, decision: "routed" });
+    expect((await checker.check(base, undefined)).map((b) => b.rule)).not.toContain("open request left out of Review after a later signal");
+    // The hook moves it; then plant the old behaviour by putting the lane back.
+    await base.appendRecord({ callId: "c_q", actor: "caller", kind: "safety", input: { text: "I took too many" }, decision: "flagged" });
+    expect((await base.queue()).find((q) => q.id === item.id)?.lane).toBe("review");
+    await base.updateQueueItem(item.id, { lane: "quick_check" });
+    expect((await checker.check(base, undefined)).map((b) => b.rule)).toContain("open request left out of Review after a later signal");
+  });
+
   it("a recorded rule context that doesn't match the prescription", async () => {
     const store = createMemoryStore(SEED);
     await store.saveCall({ id: "c_c", direction: "inbound", state: "verified", lockedPatientId: IDS.p4, startedAt: SEED.now, failedCodeTries: 0, callerSaid: [] });

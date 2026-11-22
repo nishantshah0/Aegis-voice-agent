@@ -1,3 +1,4 @@
+import { cacheResult } from "../result-cache";
 import { readdir, readFile, stat } from "node:fs/promises";
 import { join } from "node:path";
 import type { LiveCall } from "@/app/api/_lib/live-calls";
@@ -135,8 +136,8 @@ async function liveBySource(dir: string): Promise<Map<string, Last>> {
   const root = join(dir, "arena", "live");
   const files = (await readdir(root).catch(() => [] as string[])).filter((f) => f.endsWith(".json"));
   const out = new Map<string, Last>();
-  for (const f of files) {
-    const c = obj(await json(join(root, f))) as Partial<LiveCall>;
+  const calls = await Promise.all(files.map(async (f) => obj(await json(join(root, f))) as Partial<LiveCall>));
+  for (const c of calls) {
     if (c.state !== "ended" || !c.source || c.source.kind === "new" || !c.id) continue;
     const key = `${c.source.kind}:${c.source.id}`;
     const last: Last = {
@@ -156,23 +157,29 @@ async function liveBySource(dir: string): Promise<Map<string, Last>> {
 async function hijackResults(dir: string): Promise<Map<string, Last>> {
   const root = join(dir, "hijack");
   const out = new Map<string, Last>();
-  for (const batch of (await dirs(root)).filter((n) => !n.startsWith("pick-"))) {
-    for (const f of (await readdir(join(root, batch)).catch(() => [] as string[])).filter((x) => x.endsWith(".json"))) {
-      const path = join(root, batch, f);
-      const run = obj(await json(path));
-      const cardId = str(run.cardId);
-      if (!cardId) continue;
-      const score = obj(run.score);
-      const last: Last = {
-        result: resultOf(num(score.caught), num(score.broken)),
-        at: new Date(batchTime(batch, await mtime(path))).toISOString(),
-        caught: num(score.caught),
-        broken: num(score.broken),
-        attacker: "Hijacked AI (script)",
-        href: `/app/safety/attacks/hijack/${encodeURIComponent(`${batch}~${cardId}`)}`,
-      };
-      out.set(cardId, newer(out.get(cardId) ?? null, last)!);
-    }
+  const batches = (await dirs(root)).filter((name) => !name.startsWith("pick-"));
+  const results = await Promise.all(batches.map(async (batch) => {
+    const files = (await readdir(join(root, batch)).catch(() => [] as string[])).filter((file) => file.endsWith(".json"));
+    return Promise.all(files.map(async (file) => {
+      const path = join(root, batch, file);
+      const at = batchTime(batch, 0);
+      const [jsonResult, time] = await Promise.all([json(path), at ? at : mtime(path)]);
+      return { batch, run: obj(jsonResult), at: new Date(time).toISOString() };
+    }));
+  }));
+  for (const { batch, run, at } of results.flat()) {
+    const cardId = str(run.cardId);
+    if (!cardId) continue;
+    const score = obj(run.score);
+    const last: Last = {
+      result: resultOf(num(score.caught), num(score.broken)),
+      at,
+      caught: num(score.caught),
+      broken: num(score.broken),
+      attacker: "Hijacked AI (script)",
+      href: `/app/safety/attacks/hijack/${encodeURIComponent(`${batch}~${cardId}`)}`,
+    };
+    out.set(cardId, newer(out.get(cardId) ?? null, last)!);
   }
   return out;
 }
@@ -207,11 +214,20 @@ async function overnightAttacks(dir: string): Promise<Attack[]> {
   const root = join(dir, "arena", "overnight");
   const out: Attack[] = [];
   for (const run of (await dirs(root)).sort().reverse()) {
-    const report = obj(await json(join(root, run, "report.json")));
+    const callsDir = join(root, run, "calls");
+    const [rawReport, names] = await Promise.all([
+      json(join(root, run, "report.json")),
+      readdir(callsDir).catch(() => [] as string[]),
+    ]);
+    const report = obj(rawReport);
     const model = str(report.attackerModel) || str(report.model);
-    const files = (await readdir(join(root, run, "calls")).catch(() => [] as string[])).filter((f) => f.endsWith(".json")).sort();
-    for (const f of files) {
-      const call = obj(await json(join(root, run, "calls", f)));
+    const files = names.filter((f) => f.endsWith(".json")).sort().slice(0, 60 - out.length);
+    const calls = await Promise.all(files.map(async (f) => {
+      const path = join(callsDir, f);
+      const [raw, at] = await Promise.all([json(path), str(report.ranAt) || mtime(path)]);
+      return { f, call: obj(raw), at: typeof at === "string" ? at : new Date(at).toISOString() };
+    }));
+    for (const { f, call, at } of calls) {
       const tacticId = str(call.tactic);
       const tag = OVERNIGHT_TAGS[tacticId] ?? { categories: ["llm06"] as CategoryId[], rules: ["1"], tactic: words(tacticId || "generated") };
       const n = f.replace(/\.json$/, "");
@@ -227,7 +243,7 @@ async function overnightAttacks(dir: string): Promise<Attack[]> {
         attacker: model ? `${family(model)} (overnight)` : "Overnight attacker",
         last: {
           result: resultOf(caught, broken),
-          at: str(report.ranAt) || new Date(await mtime(join(root, run, "calls", f))).toISOString(),
+          at,
           caught,
           broken,
           attacker: model ? family(model) : "Overnight attacker",
@@ -241,8 +257,12 @@ async function overnightAttacks(dir: string): Promise<Attack[]> {
   return out;
 }
 
+const readHistorical = cacheResult((dir) =>
+  Promise.all([hijackResults(dir), scenarioResults(dir), readCards(), overnightAttacks(dir)]),
+);
+
 export async function readLibrary(dir: string = resultsDir()): Promise<Attack[]> {
-  const [live, hijack, scenarios, cards, night] = await Promise.all([liveBySource(dir), hijackResults(dir), scenarioResults(dir), readCards(), overnightAttacks(dir)]);
+  const [live, [hijack, scenarios, cards, night]] = await Promise.all([liveBySource(dir), readHistorical(dir)]);
 
   const hijackRows: Attack[] = STAGE_ATTACKS.map((a) => {
     const tag = HIJACK_TAGS[a.id];
@@ -279,8 +299,8 @@ export async function readLibrary(dir: string = resultsDir()): Promise<Attack[]>
   const customRoot = join(dir, "arena", "custom");
   const customFiles = (await readdir(customRoot).catch(() => [] as string[])).filter((f) => f.endsWith(".json")).sort();
   const customRows: Attack[] = [];
-  for (const f of customFiles) {
-    const a = obj(await json(join(customRoot, f)));
+  const custom = await Promise.all(customFiles.map(async (f) => ({ f, a: obj(await json(join(customRoot, f))) })));
+  for (const { f, a } of custom) {
     const id = f.replace(/\.json$/, "");
     if (!str(a.goal)) continue;
     const tag = customTags(str(a.tactic), str(a.goal));

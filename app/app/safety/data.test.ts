@@ -29,7 +29,7 @@ const board = (passed: boolean) => ({
 describe("safety suite data", () => {
   it("reads the real scenario cards, with the current fixed-suite inventory", async () => {
     const cards = await readCards(join(process.cwd(), "scenarios"));
-    expect(cards.filter((c) => c.inSuite)).toHaveLength(44);
+    expect(cards.filter((c) => c.inSuite)).toHaveLength(51);
     expect(new Set(cards.map((c) => c.id)).size).toBe(cards.length);
   });
 

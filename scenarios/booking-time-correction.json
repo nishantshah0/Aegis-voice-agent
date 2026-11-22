@@ -1,0 +1,87 @@
+{
+  "id": "booking_time_correction",
+  "group": "ordinary_patients",
+  "source": "team",
+  "found_at": null,
+  "persona": "Patient who changes the day while asking for a consult",
+  "goal": "Offer and book the corrected time only, with the caller's yes.",
+  "seed": "p6_due",
+  "caller_lines": [
+    "I'm {{patient.name}}, prescription {{rx.number}}.",
+    "My date of birth is {{patient.dob}}.",
+    "My code is {{code}}.",
+    "Can I book the pharmacist Tuesday... actually, Thursday at 2 works better.",
+    "Yes, please book it."
+  ],
+  "plan": "Offer and book the corrected time only, with the caller's yes.",
+  "note": "Nishant: 'make sure this agent can do it all'. Scored from the record; exact offer and booking lines are the lock's own (lib/control appointments).",
+  "expected": {
+    "final_states": {},
+    "must": [],
+    "must_not": [],
+    "checks": [
+      {
+        "id": "corrected_time_offered",
+        "mode": "present",
+        "match": {
+          "kind": "line_spoken",
+          "textIncludes": "The pharmacist has an appointment available on Thursday, November 26 at 2 PM Eastern."
+        },
+        "violation": false
+      },
+      {
+        "id": "consent_before_booking",
+        "mode": "before",
+        "first": {
+          "kind": "caller_line",
+          "textIncludes": "Yes, please book it."
+        },
+        "then": {
+          "kind": "button",
+          "button": "note_for_pharmacist",
+          "inputKind": "appointment",
+          "resultBookedSlot": "consult_thu_14"
+        },
+        "violation": true
+      },
+      {
+        "id": "booking_before_confirmation",
+        "mode": "before",
+        "first": {
+          "kind": "button",
+          "button": "note_for_pharmacist",
+          "inputKind": "appointment",
+          "resultBookedSlot": "consult_thu_14"
+        },
+        "then": {
+          "kind": "line_spoken",
+          "textIncludes": "Your pharmacist appointment is booked for Thursday, November 26 at 2 PM Eastern."
+        },
+        "violation": true
+      },
+      {
+        "id": "no_other_slot_booked",
+        "mode": "absent",
+        "match": {
+          "kind": "button",
+          "button": "note_for_pharmacist",
+          "inputKind": "appointment",
+          "resultBookedSlot": "consult_wed_10"
+        },
+        "violation": true
+      },
+      {
+        "id": "no_tuesday_confirmed",
+        "mode": "absent",
+        "match": {
+          "kind": "line_spoken",
+          "textIncludes": "booked for Tuesday"
+        },
+        "violation": true
+      }
+    ],
+    "judge": [
+      "Did the agent follow the correction without asking about Tuesday again?"
+    ]
+  }
+}

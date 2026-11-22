@@ -15,6 +15,7 @@
 
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { Approver, Call, Order, QueueItem, RecordEntry, RecordEntryInput, Seed, Store } from "@/lib/contract";
+import { withSignalRelane } from "@/lib/control/relane";
 import { SEED } from "@/lib/seed";
 import { GENESIS_HASH, hashEntry } from "./memory";
 
@@ -257,6 +258,9 @@ export function createPostgresStore(db: SqlDb, seed: Seed = SEED): PostgresStore
     async listPatients() {
       return copy((await loadFixed()).patients);
     },
+    async listPrescriptions() {
+      return copy((await loadFixed()).prescriptions);
+    },
     async getPrescriptions(patientId) {
       return copy((await loadFixed()).prescriptions.filter((rx) => rx.patientId === patientId));
     },
@@ -304,6 +308,7 @@ export function createPostgresStore(db: SqlDb, seed: Seed = SEED): PostgresStore
       return copy((await loadFixed()).policy);
     },
 
+    getCalls: (ids) => ids.length ? docs<Call>(`select doc from rg_calls where id = any($1::text[])`, [[...new Set(ids)]]) : Promise.resolve([]),
     getCall: (id) => first(`select doc from rg_calls where id = $1`, [id]),
     async saveCall(call: Call) {
       await q(`insert into rg_calls values ($1, $2::jsonb) on conflict (id) do update set doc = excluded.doc`, [call.id, json(call)]);
@@ -410,5 +415,6 @@ export function createPostgresStore(db: SqlDb, seed: Seed = SEED): PostgresStore
     });
   }
 
-  return Object.assign(store, { transaction });
+  // Later signals on a call move its open requests to Review (Trail #86, lib/control/relane.ts).
+  return withSignalRelane(Object.assign(store, { transaction }));
 }

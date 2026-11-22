@@ -3,7 +3,7 @@ import { ConsoleNav, PageHeader, PageShell } from "@/components/ui";
 import { ReviewCalls } from "./ReviewCalls";
 import { SignIn } from "./SignIn";
 
-export const metadata = { title: "Review calls · Aegis" };
+export const metadata = { title: "Call quality · Aegis" };
 
 export default function ReviewPage() {
   return (
@@ -18,7 +18,7 @@ export default function ReviewPage() {
       <ConsoleNav current="review" />
       <div className="mt-8" />
       <PageHeader
-        title="Review calls"
+        title="Call quality"
         description="Finished calls from the record. Label each one: right outcome, anything promised wrongly, unsafe or advice-like, tone, and whether to keep it as a test."
       />
       <Suspense fallback={<p className="mt-8 text-sm text-ink-3">Loading finished calls…</p>}>

@@ -26,6 +26,19 @@ export function calendarIntent(text: string, choosing: boolean): CalendarIntent 
   if (named || /\bbook\b/i.test(text) || choosing && (timeWords.test(text) || text.match(weekdays) || /\b(?:slot|one|works|yes)\b/i.test(text))) return "list";
 }
 
+const ordinalWords = /\b(first|earlier|earliest|sooner|soonest|second|third|fourth|later|latest|last)\b/g;
+const monthNames = /\b(?:january|february|march|april|may|june|july|august|september|october|november|december)\b/;
+const monthDay = /\b(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{1,2})(?:st|nd|rd|th)?\b/;
+const dayOrdinal = /\b(\d{1,2})(?:st|nd|rd|th)\b/g;
+
+/** Which offered slot an ordinal names, in the order offered; undefined if there's no such slot. */
+function positionOf(word: string, count: number): number | undefined {
+  const index = ["first", "earlier", "earliest", "sooner", "soonest"].includes(word) ? 0
+    : ["later", "latest", "last"].includes(word) ? count - 1
+    : { second: 1, third: 2, fourth: 3 }[word];
+  return index !== undefined && index >= 0 && index < count ? index : undefined;
+}
+
 function clock(text: string) {
   return text.match(/\b(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\b/i);
 }
@@ -38,18 +51,45 @@ export function chooseCalendarOffer(text: string, slots: AppointmentOffer[]): Ap
   if (/\b(?:not|dont|cannot|cant|except|before|after|maybe|if|or|next|tomorrow|today|month|week|probably|rather than)\b/.test(rest)) return;
   const days = [...rest.matchAll(weekdays)].map(m => m[1].slice(0, 3));
   if (days.length > 1) return;
-  rest = rest.replace(weekdays, " ").replace(/\b(?:the|that) one\b|\bone (?=works|appointment|please|instead)|\bone\s*[.!?]?$/g, " ");
+  rest = rest.replace(weekdays, " ");
+  // 1.x: "the first one", "the later one": a position in the offered list, in the order offered.
+  const ordinals = [...rest.matchAll(ordinalWords)].map(m => m[1]);
+  if (ordinals.length > 1) return;
+  const position = ordinals.length ? positionOf(ordinals[0], slots.length) : undefined;
+  if (ordinals.length && position === undefined) return;
+  rest = rest.replace(ordinalWords, " ");
+  // 1.x: a date: "November 26", "the 26th". A month with no day, or two dates, means ask again.
+  let month: string | undefined;
+  let dayOfMonth: number | undefined;
+  const dated = monthDay.exec(rest);
+  if (dated) {
+    month = dated[1];
+    dayOfMonth = Number(dated[2]);
+    rest = rest.replace(dated[0], " ");
+  }
+  if (monthNames.test(rest)) return;
+  const ordinalDays = [...rest.matchAll(dayOrdinal)];
+  if (ordinalDays.length > 1 || (ordinalDays.length && dayOfMonth !== undefined)) return;
+  if (ordinalDays.length) {
+    dayOfMonth = Number(ordinalDays[0][1]);
+    rest = rest.replace(ordinalDays[0][0], " ");
+  }
+  // "one" is 1 o'clock only as a time ("at one", "one pm"); otherwise it's "the Wednesday one".
+  rest = rest.replace(/(\bat\s+)?\bone\b(?!\s*(?:oclock|am|pm))/g, (m, at) => (at ? m : " "));
   const period = /\b(morning|afternoon|evening)\b/.exec(rest)?.[1];
   rest = rest.replace(/\b(?:morning|afternoon|evening)\b/g, " ");
   rest = rest.replace(nameNumber, w => clockWords[w]);
   const time = clock(rest);
   if (time) rest = rest.replace(time[0], " ");
   // An unsupported constraint, including a second time, time zone or date, means ask again.
-  const filler = /\b(?:a|actually|an|and|appointment|appointments|are|at|be|book|can|consultation|could|does|eastern|for|have|i|id|ill|instead|is|it|like|make|me|meet|meeting|my|of|on|one|please|pharmacist|reserve|schedule|slot|that|the|this|time|to|want|will|with|work|works|would|yes|you)\b/g;
+  const filler = /\b(?:a|actually|an|and|appointment|appointments|are|at|be|book|can|choose|consultation|could|do|does|eastern|for|go|have|i|id|ill|instead|is|it|lets|like|make|me|meet|meeting|my|oclock|of|on|one|pick|please|pharmacist|reserve|schedule|slot|take|that|the|this|time|to|want|will|with|work|works|would|yes|you)\b/g;
   if (rest.replace(filler, " ").replace(/[.,?!\s-]/g, "")) return;
-  if (!days.length && !time && !period) return;
-  const matches = slots.filter(slot => {
+  if (!days.length && !time && !period && position === undefined && dayOfMonth === undefined) return;
+  const matches = slots.filter((slot, index) => {
     const label = slot.slot_label.toLowerCase();
+    if (position !== undefined && index !== position) return false;
+    if (month && !label.includes(month)) return false;
+    if (dayOfMonth !== undefined && !new RegExp(`\\b[a-z]+ ${dayOfMonth}\\b`).test(label.split(" at ")[0] ?? "")) return false;
     if (days.length && !label.startsWith(days[0])) return false;
     if (!time && !period) return true;
     const actual = clock(label.split(" at ")[1] ?? "");

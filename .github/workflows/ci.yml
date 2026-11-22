@@ -1,5 +1,10 @@
 name: Release gate
 
+# Keep one release gate per PR or branch. A newer commit supersedes older queued/running work.
+concurrency:
+  group: release-gate-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 on:
   push:
     branches: [main]

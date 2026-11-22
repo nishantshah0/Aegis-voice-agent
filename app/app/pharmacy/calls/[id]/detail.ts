@@ -1,5 +1,6 @@
 import type { Call, CallId, Lane, Order, RecordDecision, RecordEntry, RuleId, SpeechRule, Store } from "@/lib/contract";
 import { recordedConversation } from "@/app/api/_lib/call-recording";
+import { patientCodeLock } from "@/lib/control";
 import { findBrokenLink } from "@/lib/store/memory";
 import type { ServerTurnTiming } from "@/lib/voice/timing";
 import type { TimingSource } from "@/app/console/calls/calls";
@@ -33,11 +34,19 @@ export type TimelineEvent = {
   /** Pretty JSON of input and output, without the control layer's `internal` (as /api/calls/:id/record). */
   input?: string;
   output?: string;
+  /** Saved rule context, when the record entry includes it. */
+  context?: string;
   hash: string;
   prevHash: string;
 };
 
-export type DecisionView = ItemDetail & { decidedAt?: string; createdAt: string; order?: Pick<Order, "id" | "state"> };
+export type DecisionView = ItemDetail & {
+  decidedAt?: string;
+  createdAt: string;
+  order?: Pick<Order, "id" | "state">;
+  /** Button events whose saved rule ids and lane match this queue item's routing record. */
+  routeEvents: { seq: number; at: string; ruleIds: RuleId[]; hasContext: boolean }[];
+};
 
 export type UsageRow = { at: string; model: string; modelCalls: number; inputTokens: number; outputTokens: number; costUsd: number };
 
@@ -48,6 +57,10 @@ export type CallDetail = {
   startedAt: string;
   endedAt?: string;
   patient?: string;
+  /** The call's patient (the one rung, or the one it was locked to), for the lockout control. */
+  patientId?: string;
+  /** Set while that patient's code lockout holds (Trail #86). */
+  lockedUntil?: string;
   verified: boolean;
   outcome: CallOutcome;
   hasRecording?: boolean;
@@ -85,7 +98,7 @@ function pressSummary(output: unknown): string | undefined {
 export function toEvent(e: RecordEntry): TimelineEvent {
   const base = { seq: e.seq, at: e.at, kind: e.kind, actor: e.actor, ruleIds: e.ruleIds ?? [], hash: e.hash, prevHash: e.prevHash };
   const extra = { ...(e.decision ? { decision: e.decision } : {}), ...(e.lane ? { lane: e.lane } : {}) };
-  const raw = { input: json(e.input), output: json(withoutInternal(e.output)) };
+  const raw = { input: json(e.input), output: json(withoutInternal(e.output)), context: json(e.context) };
   switch (e.kind) {
     case "caller_line":
       return { ...base, ...extra, group: "speech", who: "caller", text: textOf(e) };
@@ -144,19 +157,25 @@ export function usageFor(log: string, callId: string): UsageRow[] {
 export async function callDetail(store: Store, callId: CallId, { driver, usageLog = "" }: { driver?: TimingSource; usageLog?: string } = {}): Promise<CallDetail | null> {
   const call = await store.getCall(callId);
   if (!call) return null;
-  const [all, queue, orders] = await Promise.all([store.listRecord(), store.queue(), store.listOrders()]);
+  const patientId = call.lockedPatientId ?? call.targetPatientId;
+  const [all, queue, orders, cards, patient] = await Promise.all([
+    store.listRecord(), store.queue(), store.listOrders(), store.listCards(),
+    patientId ? store.getPatient(patientId) : undefined,
+  ]);
   const entries = all.filter((e) => e.callId === callId).sort((a, b) => a.seq - b.seq);
   const mine = queue.filter((q) => q.callId === callId);
-  const patientId = call.lockedPatientId ?? call.targetPatientId;
-  const patient = patientId ? await store.getPatient(patientId) : undefined;
   const items = await Promise.all(
     mine.map(async (item): Promise<DecisionView> => {
       const order = item.orderId ? orders.find((o) => o.id === item.orderId) : undefined;
+      const routeEvents = entries
+        .filter((e) => e.kind === "button" && (!e.lane || e.lane === item.lane) && (e.ruleIds ?? []).some((id) => item.ruleIds.includes(id)))
+        .map((e) => ({ seq: e.seq, at: e.at, ruleIds: e.ruleIds ?? [], hasContext: Boolean(e.context) }));
       return {
-        ...(await itemDetail(store, item)),
+        ...(await itemDetail(store, item, { cards, record: entries, queue })),
         createdAt: item.createdAt,
         ...(item.decidedAt ? { decidedAt: item.decidedAt } : {}),
         ...(order ? { order: { id: order.id, state: order.state } } : {}),
+        routeEvents,
       };
     }),
   );
@@ -169,7 +188,8 @@ export async function callDetail(store: Store, callId: CallId, { driver, usageLo
     state: call.state,
     startedAt: call.startedAt,
     ...(call.endedAt ? { endedAt: call.endedAt } : {}),
-    ...(patient ? { patient: `${patient.firstName[0]}.${patient.lastName[0]}.` } : {}),
+    ...(patient ? { patient: `${patient.firstName[0]}.${patient.lastName[0]}.`, patientId: patient.id } : {}),
+    ...(patient ? await patientCodeLock(store, patient.id).then(({ lockedUntil }) => (lockedUntil ? { lockedUntil } : {})) : {}),
     verified: Boolean(call.lockedPatientId),
     outcome: outcomeOf(presses, mine),
     hasRecording: call.state === "ended" && Boolean(recordedConversation(entries)),

@@ -11,6 +11,9 @@ import type { AgentModel, ModelEvent, ModelRequest } from "./model";
 /** The call's model (CLAUDE.md, "Using the Claude API in the product"). */
 export const CALL_MODEL = "claude-sonnet-5-5";
 
+/** Models with the API's server-side refusal fallback (not the Haiku line). */
+const hasServerFallback = (model: string) => !model.includes("haiku");
+
 export type ClaudeModelOptions = {
   client?: Anthropic;
   model?: string;
@@ -36,9 +39,10 @@ export function createClaudeModel({
         tools,
         tool_choice: { type: "auto" },
         output_config: { effort },
-        // If a safety classifier declines, the API reruns the turn on a fallback model.
-        betas: ["server-side-fallback-2026-07-01"],
-        fallbacks: "default",
+        // If a safety classifier declines, the API reruns the turn on a fallback model. Haiku 5.5
+        // has no server-side fallback, so it gets neither field; a refusal there is handed to a
+        // pharmacist by the driver (stop_reason "refusal").
+        ...(hasServerFallback(model) ? { betas: ["server-side-fallback-2026-07-01"], fallbacks: "default" as const } : {}),
       });
       for await (const event of stream) {
         if (event.type === "content_block_delta" && event.delta.type === "text_delta") {

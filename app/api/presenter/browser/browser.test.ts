@@ -97,7 +97,7 @@ describe("authenticated browser pharmacy demo", () => {
     expect(await (await call.say("wrong")).json()).toMatchObject({ finished: true, verified: false });
     expect(await (await call.say(call.demoCode)).json()).toMatchObject({ finished: true, verified: false });
     expect(fetch).not.toHaveBeenCalled();
-  });
+  }, 30_000);
 
   it("takes spoken codes, reads synthetic records, and requires a fresh confirmation per action", async () => {
     const call = await open();

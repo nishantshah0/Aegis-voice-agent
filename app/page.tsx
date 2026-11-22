@@ -4,7 +4,8 @@ import { AuthButton, SignInLink } from "@/components/landing/AuthButton";
 import { HeroBackground } from "@/components/landing/HeroBackground";
 import { LandingHeader } from "@/components/landing/LandingHeader";
 import { RefillStory } from "@/components/landing/RefillStory";
-import { fmt, hammerTotals } from "@/components/landing/hammer";
+import attackRun from "@/results/arena/cross-model/2026-11-22T03-48-16-723Z.json";
+import outreach from "@/results/sim/baseline/summary.json";
 import { Logo } from "@/components/ui";
 import "@/components/landing/landing.css";
 
@@ -15,13 +16,8 @@ const SAFETY = hosted ? "/app/safety/business-tests" : "/app/safety/gate";
 const PHONE = hosted ? "/app/pharmacy/phone" : "/phone";
 
 export default function Home() {
-  const run = hammerTotals();
-  const runDate = new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    timeZone: "UTC",
-  }).format(new Date(run.ranAt));
+  const { automatic, review } = outreach.totals.refillsByLane;
+  const refillRatio = (automatic / review).toFixed(1);
 
   return (
     <div className="landing-page">
@@ -46,8 +42,11 @@ export default function Home() {
         <section id="landing-hero" className="landing-hero" aria-labelledby="hero-title">
           <div className="landing-container">
             <h1 id="hero-title">
-              <span>The AI can be fooled.</span>{" "}
-              <span>The pharmacy can’t.</span>
+              <span>
+                We help pharmacy<br className="landing-hero-break" />{" "}
+                teams keep patients<br className="landing-hero-break" />{" "}
+                on track.
+              </span>
             </h1>
             <p>
               Aegis calls patients before they run out of medication, helps with refills,
@@ -72,15 +71,18 @@ export default function Home() {
             <h2 id="stats-title">Put to the test.</h2>
             <dl className="landing-figures">
               <div>
-                <dt>Rules broken</dt>
-                <dd>{fmt(run.broken)}</dd>
+                <dt>Policy violations in attack calls</dt>
+                <dd>{attackRun.broken}</dd>
               </div>
               <div>
-                <dt>Hostile action sequences tested</dt>
-                <dd>{fmt(run.sequences)}</dd>
+                <dt>Simulated attack calls</dt>
+                <dd>{attackRun.calls}</dd>
+              </div>
+              <div>
+                <dt>Automatic refills per full review in simulation</dt>
+                <dd>{refillRatio}×</dd>
               </div>
             </dl>
-            <p>Saved control-layer stress test · <time dateTime={run.ranAt}>{runDate} UTC</time></p>
           </div>
         </section>
 
@@ -125,7 +127,7 @@ export default function Home() {
           </div>
           <div className="landing-footer-note">
             <span>Built at Hack Western 13</span>
-            <span>Demo data only · not for clinical use</span>
+            <span>Demo · not for clinical use</span>
           </div>
         </div>
       </footer>

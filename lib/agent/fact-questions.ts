@@ -13,16 +13,18 @@ type FactContext = {
 export const newFactContext = (): FactContext => ({ prescriptions: [] });
 
 const historyTerms = /\b(?:last (?:time|refill|fill|filled|got|get|receive|received|picked)|(?:refill|fill|prescription) history|previous (?:fill|refill)|dispensed|how many (?:pills|tablets|capsules|refills)|refills (?:are )?(?:remaining|left)|how long was (?:the|my) supply)\b/;
-const costTerms = /\b(?:costs?|price|co[- ]?pay|insurance|quote|my share|pay|owe|how much for|how much is|how much would|covered|coverage)\b/;
+const costTerms = /\b(?:costs?|price|co[- ]?pay|insurance|quote|my share|pay|paid|owe|how much for|how much is|how much would|covered|coverage)\b/;
 const otherPerson = /\b(?:wife|husband|spouse|partner|friend|brother|sister|mother|father|mom|dad|someone else|somebody else|roommate|son|daughter|his|their|her)\b/;
-const billing = /\b(?:balance|bill(?:ing)?|invoice|deductible|paid|payment history|did i pay|spent|charged last)\b/;
+// "How much did I pay" is a copay question (1.x, Trail #75): coverage_readback states the plan's split, never a past charge.
+const billing = /\b(?:balance|bill(?:ing)?|invoice|deductible|payment history|spent|charged)\b/;
 const otherTask = /\b(?:refill (?:my|the|this|it)|(?:order|send|renew|book|schedule|switch|deliver|take|call|change|approve|prescribe|cancel)|appointment|side effects?|dose|pickup|delivery)\b/;
 
 // Accept conversational filler while ensuring a reference to a different medication,
 // a new action, or an unfamiliar topic cannot silently resolve to the sole prescription.
 const factVocabulary = new Set(`a about actually ago all am amount an and any are as at back be bottle by can capsules case check
 code co copay cost costs could cover coverage covered covers date days day did dispense dispensed do
-does drug earlier exactly fill filled first for from get gets getting got had has have hey hi
+does drug earlier exactly fill filled first for from get gets getting got had has have hey hi paid
+mean meant month months wait
 history how i id if in insurance insurer into is it its just know last left long many make me
 medication medicine much my named no of on one only or other out pay paying pays per picked pickup
 pills plan please prescription previous price prior pill tablet capsule quantity quote read receive
@@ -30,7 +32,24 @@ received record refill refills remaining remind right said same share so sorry s
 than that the then there this time to total two up was week weeks weekly what whats when which will
 with would yeah yes you your`.split(/\s+/));
 
+// A correction cue: what follows the last one replaces what came before ("two weeks, sorry, one week").
+const correction = /\b(?:sorry|no|i mean|i meant|actually|wait|make (?:it|that))\b/g;
+
 function duration(text: string): number | "unclear" | undefined {
+  if (!/\b(?:days?|weeks?|weekly|months?)\b/.test(text)) return;
+  const cues = [...text.matchAll(correction)];
+  if (cues.length) {
+    const last = cues.at(-1)!;
+    const after = text.slice(last.index + last[0].length);
+    // Only when the corrected part carries a length of its own; otherwise read the whole line.
+    if (/\b(?:days?|weeks?|weekly)\b/.test(after)) return lengthOf(after);
+  }
+  return lengthOf(text);
+}
+
+function lengthOf(text: string): number | "unclear" | undefined {
+  // "A month" isn't a whole number of days we can quote: ask.
+  if (/\bmonths?\b/.test(text)) return "unclear";
   if (!/\b(?:days?|weeks?|weekly)\b/.test(text)) return;
   if (/\d\.\d|(?:^|\s)-\s*\d|\b(?:minus|negative|half|every|ago|last week|per day|twice)\b/.test(text)) return "unclear";
   const numbers = canonical(text);

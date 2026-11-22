@@ -51,15 +51,26 @@ function timingOf(source: TimingSource | undefined, callId: CallId): CallTiming 
 
 export async function callsOverview(store: Store, { driver }: { driver?: TimingSource } = {}): Promise<CallsOverview> {
   const all = await store.listRecord();
+  return summarizeCalls(store, all, await laneTotals(store), driver);
+}
+
+export async function summarizeCalls(store: Store, all: RecordEntry[], lanes: LaneTotals, driver?: TimingSource): Promise<CallsOverview> {
   const starts = all.filter((e) => e.kind === "safety" && (e.input as { check?: string })?.check === "call_start" && e.callId).reverse();
+  const entriesByCall = Map.groupBy(all, (entry) => entry.callId);
+  const [patientList, storedCalls] = await Promise.all([
+    store.listPatients(),
+    store.getCalls(starts.map((start) => start.callId as CallId)),
+  ]);
+  const patients = new Map(patientList.map((patient) => [patient.id, patient]));
+  const callsById = new Map(storedCalls.map((call) => [call.id, call]));
   const calls: CallSummary[] = [];
 
   for (const start of starts) {
-    const call = await store.getCall(start.callId as CallId);
+    const call = callsById.get(start.callId as CallId);
     if (!call) continue;
-    const entries = all.filter((e) => e.callId === call.id);
+    const entries = entriesByCall.get(call.id) ?? [];
     const patientId = call.lockedPatientId ?? call.targetPatientId;
-    const patient = patientId ? await store.getPatient(patientId) : undefined;
+    const patient = patientId ? patients.get(patientId) : undefined;
     calls.push({
       callId: call.id,
       direction: call.direction,
@@ -90,7 +101,7 @@ export async function callsOverview(store: Store, { driver }: { driver?: TimingS
   const brokenAt = findBrokenLink(all);
   return {
     calls,
-    lanes: await laneTotals(store),
+    lanes,
     chain: { entries: all.length, verified: brokenAt === null, brokenAt, headHash: all.at(-1)?.hash ?? "" },
   };
 }
