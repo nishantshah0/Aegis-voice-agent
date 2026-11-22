@@ -34,6 +34,9 @@ describe("honest read-backs of the label and the coverage", () => {
     "Your bottle holds 30 tablets.",
     "You'll get 30 tablets.",
     "Concerta 36 mg, take 1 tablet by mouth every morning, 30 tablets.",
+    "Concerta, 30 tablets.",
+    "1 tablet, 30 tablets.",
+    "Take 1 tablet, 30 tablets.",
   ])("allows: %s", async (s) => {
     expect((await guard(callId, s)).blocked).toBe(false);
   });
@@ -82,6 +85,11 @@ describe("honest read-backs of the label and the coverage", () => {
     ["Your refill is 30 tablets; one now and the rest tonight.", "S3"],
     ["Your refill is 30 tablets, double the dose.", "S3"],
     ["Take by mouth, 30 tablets.", "S3"],
+    // A label clause can't drop the dose and keep the frequency (fifth re-review).
+    ["Concerta every morning, 30 tablets.", "S3"],
+    ["Concerta 36 milligram tablets every morning, 30 tablets.", "S3"],
+    ["Concerta take by mouth every morning, 30 tablets.", "S3"],
+    ["Concerta tablet every morning; 30 tablets.", "S3"],
   ])("still blocks: %s", async (s, rule) => {
     expect(await guard(callId, s)).toMatchObject({ blocked: true, rule });
   });
