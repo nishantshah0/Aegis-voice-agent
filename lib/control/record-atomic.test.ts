@@ -5,7 +5,8 @@ import { describe, expect, it } from "vitest";
 import type { StreamEvent, Store } from "@/lib/contract";
 import { createControl } from "@/lib/control";
 import { IDS, SEED } from "@/lib/seed";
-import { createMemoryStore } from "@/lib/store/memory";
+import { createSpeechGuard } from "@/lib/guard";
+import { createMemoryStore, findBrokenLink } from "@/lib/store/memory";
 
 describe("request_refill is all or nothing", () => {
   it("leaves no order and no open queue item when its record write fails", async () => {
@@ -74,5 +75,36 @@ describe("concurrent presses keep their own events and writes (Trail #83 review)
     // its failed send_code.
     expect(["333333", "444444"]).toContain(await control.codeFor(a));
     expect(await control.codeFor(b)).toBe("222222");
+  });
+});
+
+describe("a rollback undoes only the failing press (Trail #83 review)", () => {
+  it("keeps writes made outside the transaction while it waits: another call's spoken line and a new call", async () => {
+    const store: Store = createMemoryStore(SEED);
+    const control = createControl({ store, makeCode: () => "112358" });
+    const guard = createSpeechGuard({ store });
+    const a = await control.startInboundCall();
+    const b = await control.startInboundCall();
+    const lookB = await control.press(b, "lookup_patient", { name: "Jordan Leclair", dob: "1975-07-02", rx_number: "RX-100301" });
+    const idB = lookB.ok ? (lookB.output as { lookup_id: string }).lookup_id : "";
+
+    const append = store.appendRecord.bind(store);
+    store.appendRecord = async (entry) => {
+      if (entry.callId === b && entry.button === "send_code") {
+        await new Promise((r) => setTimeout(r, 30));
+        throw new Error("disk full");
+      }
+      return append(entry);
+    };
+    const failing = control.press(b, "send_code", { lookup_id: idB });
+    await new Promise((r) => setTimeout(r, 5));
+    const outside = Promise.all([guard(a, "Hello, this is Maple Street Pharmacy."), control.startInboundCall()]);
+    const [rb, [, c]] = await Promise.all([failing, outside]);
+
+    expect(rb).toMatchObject({ ok: false, error: "refused" });
+    expect((await store.listRecord(a)).filter((e) => e.kind === "line_spoken")).toHaveLength(1);
+    expect(await store.getCall(c)).toBeDefined();
+    expect(await control.press(c, "order_status", {})).not.toMatchObject({ ok: false, error: "not_found" });
+    expect(findBrokenLink(await store.listRecord())).toBeNull();
   });
 });
