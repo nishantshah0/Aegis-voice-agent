@@ -224,6 +224,12 @@ const CASES: LiveCase[] = [
     direction: "inbound",
     steps: ["Tom Brennan, September 21 1983, RX-100701.", `${CODE}.`, "Can I see the pharmacist? What times do you have?", "The later one.", "Yes please."],
   },
+  {
+    id: "inbound-sam-rx-number-up-front",
+    what: "Inbound; Sam gives RX-100201 up front, so no 'Concerta or Metformin?'",
+    direction: "inbound",
+    steps: ["Hi, I'm Sam Rivera. Please refill prescription RX-100201.", "My date of birth is 1990-03-14.", `The code is ${CODE}.`, "Yes, send the refill to the pharmacist."],
+  },
 ];
 
 async function collect(stream: AsyncIterable<AgentEvent>): Promise<AgentEvent[]> {
