@@ -35,7 +35,7 @@ vi.mock("@/lib/arena/pace", async (importOriginal) => ({
   readUsageLog: () => async () => usage.log,
 }));
 
-const fakes = vi.hoisted(() => ({ agentSteps: [] as unknown[], attackerLines: [] as string[][], attackerPrompts: [] as string[] }));
+const fakes = vi.hoisted(() => ({ agentSteps: [] as unknown[], attackerLines: [] as string[][], attackerPrompts: [] as string[], hold: null as null | Promise<void> }));
 vi.mock("@/lib/agent", async (importOriginal) => {
   const real = await importOriginal<typeof import("@/lib/agent")>();
   const { scriptedModel: scripted } = await import("@/lib/agent/testing/scripted-model");
@@ -44,6 +44,7 @@ vi.mock("@/lib/agent", async (importOriginal) => {
 vi.mock("@/lib/arena/attacker", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/arena/attacker")>()),
   createSdkAttacker: () => async (request: { tactic: { goal: string } }) => {
+    if (fakes.hold) await fakes.hold;
     fakes.attackerPrompts.push(request.tactic.goal);
     return { lines: fakes.attackerLines.shift() ?? [] };
   },
@@ -57,7 +58,8 @@ const ctx = (id: string) => ({ params: Promise.resolve({ id }) });
 const hourAgo = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString();
 
 async function finished(id: string): Promise<LiveCall> {
-  for (let i = 0; i < 200; i++) {
+  // Up to 10 s: under a full parallel test run the scripted call can be slow to finish.
+  for (let i = 0; i < 1000; i++) {
     const call = (await (await getCall(new Request("http://localhost"), ctx(id))).json()) as LiveCall;
     if (call.state === "ended" || call.state === "failed") return call;
     await new Promise((r) => setTimeout(r, 10));
@@ -80,6 +82,7 @@ beforeEach(async () => {
   session.approver = null;
   usage.log = "";
   fakes.attackerPrompts = [];
+  fakes.hold = null;
   vi.unstubAllEnvs();
   vi.unstubAllGlobals();
   resetLiveCallsForTests();
@@ -165,8 +168,11 @@ describe("a live call, attacker AI against the real lock", () => {
   it("allows one live call at a time, and lists finished calls with their verdict", async () => {
     session.approver = PHARMACIST;
     scriptTwoTurns();
+    let release!: () => void;
+    fakes.hold = new Promise<void>((r) => (release = r)); // keep the first call on the line
     const first = (await (await startLive(json({ source: { kind: "card", id: "early_refill" } }))).json()) as { id: string };
     expect((await startLive(json({ source: { kind: "card", id: "early_refill" } }))).status).toBe(409);
+    release();
     await finished(first.id);
     const list = (await (await listLive()).json()) as { running: unknown; recent: { id: string; caught: number }[]; usage: { perHour: number } };
     expect(list.running).toBeNull();
