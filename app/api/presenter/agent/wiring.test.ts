@@ -3,14 +3,16 @@ import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vites
 import { PGlite } from "@electric-sql/pglite";
 import { outboundLookupId } from "@/lib/control";
 import { outboundOpener } from "@/lib/agent/lines";
-import type { AgentModel } from "@/lib/agent";
 import { scriptedModel, type ScriptStep } from "@/lib/agent/testing/scripted-model";
 import { twilioSignature } from "../../_lib/twilio";
 import { demoCode } from "../phone/config";
 import { start as phoneStart, status, twiml } from "../phone/handlers";
 import { start as browserStart, turn as browserTurn } from "../browser/handlers";
 import { SEED } from "@/lib/seed";
-import { CODE_ON_SCREEN, agentStoreForTests, setAgentModelForTests } from "./agent";
+import { getStore } from "@/lib/store/memory";
+import { callDetail } from "@/app/app/pharmacy/calls/[id]/detail";
+import { history } from "@/app/app/pharmacy/calls/history";
+import { CODE_ON_SCREEN, setAgentModelForTests } from "./agent";
 import { FALLBACK_LINE } from "./turn";
 
 // Trail #70: the presenter's real phone call (Twilio Gather/Play) and the browser call send the
@@ -58,17 +60,17 @@ beforeEach(async () => {
     ELEVENLABS_VOICE_ID: "mock",
   }))
     vi.stubEnv(key, val);
-  // Empty every table between tests. Never drop them: the storage modules create them once per process.
+  // Empty the presenter's tables between tests (never drop them: their setup runs once per
+  // process), and give the dashboard's store a fresh seed.
   local.database ??= new PGlite();
   const db = local.database;
-  await db.exec("CREATE SCHEMA IF NOT EXISTS aegis_presenter_agent; SET search_path TO aegis_presenter_agent, public");
-  const { rows } = await db.query<{ t: string }>("SELECT table_name AS t FROM information_schema.tables WHERE table_schema = 'aegis_presenter_agent' AND table_name LIKE 'aegis_%'");
-  for (const { t } of rows) await db.exec(`TRUNCATE aegis_presenter_agent.${t} CASCADE`);
-  await (await agentStoreForTests()).reset(SEED);
+  const { rows } = await db.query<{ t: string }>("SELECT table_name AS t FROM information_schema.tables WHERE table_schema = 'public' AND table_name LIKE 'aegis_%'");
+  for (const { t } of rows) await db.exec(`TRUNCATE ${t} CASCADE`);
+  await getStore().reset(SEED);
   script.steps = [];
   script.fail = false;
   voiced = [];
-  setAgentModelForTests((): AgentModel => {
+  setAgentModelForTests(() => {
     const model = scriptedModel(script.steps);
     return {
       async *turn(request) {
@@ -126,6 +128,17 @@ describe("the presenter's real phone call", () => {
     expect(view.assistant).toBe("agent");
     expect(view).not.toHaveProperty("demoCode");
     expect(view).not.toHaveProperty("demoPatient");
+
+    // "It updates to the dashboard": the call is in /app/pharmacy/calls, verified, with its
+    // caller line, guarded lines, presses, and an unbroken record.
+    expect((await history(getStore())).rows.some((r) => r.callId === agentCallId)).toBe(true);
+    const detail = await callDetail(getStore(), agentCallId);
+    expect(detail?.verified).toBe(true);
+    expect(detail?.patient).toMatch(/Sam/);
+    const timeline = JSON.stringify(detail?.timeline);
+    expect(timeline).toContain("born March 14 1990");
+    expect(timeline).toContain("Thanks, Sam. You're verified.");
+    expect(timeline).toContain("check_code");
   });
 
   it("falls back to the scripted menu, and says so, when the model fails", async () => {
