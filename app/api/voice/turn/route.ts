@@ -3,8 +3,11 @@ import { HANG_UP_TWIML, twilioFields, twimlResponse } from "../../_lib/twilio";
 import { fillerTwiml, turnTwiml } from "../../_lib/voice-gather";
 import { VOICE_MAX_LINE, doneWithin, endVoiceCall, finishTurn, takeTurn, voiceCall } from "../../_lib/voice-line";
 
-/** How long the agent may think before the caller hears the filler line. */
-const fillerAfterMs = () => Number(process.env.VOICE_FILLER_MS ?? 1200);
+/** How long the agent may think before the caller hears the filler line; no filler unless it's set. */
+const fillerAfterMs = (): number | undefined => {
+  const ms = Number(process.env.VOICE_FILLER_MS);
+  return process.env.VOICE_FILLER_MS && Number.isFinite(ms) && ms > 0 ? ms : undefined;
+};
 
 // POST /api/voice/turn?call=<id>&t=<token>[&quiet=1|&cont=1]  (Twilio, after each <Gather>; Trail #70)
 // What Twilio heard (SpeechResult) goes to the same takeTurn as every other call: the safety
@@ -35,7 +38,8 @@ export async function POST(request: Request) {
   // A silence asks again with nothing new, which takeTurn answers with the driver's check-in.
   // A resumed request asks again with nothing new while the turn runs, which returns that turn.
   const current = takeTurn(call, call.heard);
-  if (!resumed && !(await doneWithin(current, fillerAfterMs()))) {
+  const fillerMs = fillerAfterMs();
+  if (!resumed && fillerMs !== undefined && !(await doneWithin(current, fillerMs))) {
     const filler = await fillerTwiml(call);
     if (filler) return twimlResponse(filler);
   }
