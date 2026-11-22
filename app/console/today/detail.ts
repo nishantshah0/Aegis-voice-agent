@@ -51,13 +51,13 @@ function agentLine(e: RecordEntry): Told | null {
   return null;
 }
 
-export async function itemDetail(store: Store, item: QueueItem): Promise<ItemDetail> {
+export async function itemDetail(store: Store, item: QueueItem, shared?: { cards: Awaited<ReturnType<Store["listCards"]>>; record: RecordEntry[] | Promise<RecordEntry[]>; queue: QueueItem[] }): Promise<ItemDetail> {
   const [patient, rx, cards, record, queue] = await Promise.all([
     store.getPatient(item.patientId),
     item.rxId ? store.getPrescription(item.rxId) : Promise.resolve(undefined),
-    store.listCards(),
-    store.listRecord(item.callId),
-    store.queue(),
+    shared?.cards ?? store.listCards(),
+    shared?.record ?? store.listRecord(item.callId),
+    shared?.queue ?? store.queue(),
   ]);
   const wording = (id: RuleId) => CORE_RULES[id] ?? cards.find((c) => c.id === id)?.wording ?? `Rule ${id}`;
   // Notes from the whole call: a side effect is often its own Review item next to the refill.

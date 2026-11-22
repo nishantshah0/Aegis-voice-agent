@@ -102,6 +102,8 @@ phone ──▶ Twilio number ──▶ ElevenLabs Agents (speech in/out) ──
    | `VOICE_LLM_SECRET` | any long random string: `openssl rand -hex 24` |
    | `ELEVENLABS_VOICE_ID` | optional, the same voice as `/phone` |
    | `DEMO_CONTROLS` | `on` on the demo laptop, so the button works without signing in |
+| `TWILIO_VERIFY_SERVICE_SID` | optional, a trial account's way to text the code: create a Verify service (Console → Verify → Services, code length 6) and paste its `VA…` id |
+| `AGENT_THINKING` | optional, `off` to skip the agent's hidden reasoning on each reply: the biggest part of a phone turn's delay. The 12 buttons and `guardSentence` hold either way |
 
 3. Start the app, then a public https URL for it (a Cloudflare quick tunnel is enough tonight; on the Vultr server use its own domain instead):
 
@@ -129,6 +131,12 @@ A new Twilio trial may give the account a shared "From" number that it doesn't o
 A trial also won't run `<Connect><Stream>`, so by default no ElevenLabs agent sits on the call. Each turn is plain TwiML instead: `/api/voice/twiml` plays the guarded opener and starts a `<Gather input="speech">`; `/api/voice/turn` sends what Twilio heard through the same driver turn (safety check, the 12 buttons, `guardSentence`) and `<Play>`s only the guarded lines in the ElevenLabs voice (`/api/voice/clip`), or `<Say>`s the same words if the voice fails. A first silence gets "Are you still there?", a second one hangs up. Twilio's URLs carry a per-call token (a trial's fetch isn't signed with our auth token); the status callback (`/api/voice/twilio-status`) must carry Twilio's signature, and it ends our side when the call ends. With a paid account, `VOICE_TWILIO_STREAM=1` uses ElevenLabs' stream instead (register-call, u-law 8000 audio). A trial only calls verified numbers: a refusal comes back with Twilio's code and message, numbers hidden.
 
 The verification code goes by text when the number can send texts. Otherwise it shows on the patient's paired `/phone` page (served by the same server), and the agent says "I've sent a code to the phone we have on file."
+
+### Faster turns on a trial
+
+Each turn plays its reply inside the `<Gather>`, so the caller can talk over it, and ends their turn after a 1-second pause (`speechModel="phone_call"`). Every guarded line is voiced the moment the driver says it, and a line said before plays from a cache. With `VOICE_FILLER_MS` set (off by default), a turn still thinking after that many milliseconds says the guarded filler line "One moment." and redirects to `/api/voice/turn?cont=1`, which plays the same turn's answer. Running the phone demo on another laptop: [`docs/PHONE-DEMO.md`](../docs/PHONE-DEMO.md).
+
+With `TWILIO_VERIFY_SERVICE_SID` set, the code goes by Twilio Verify (a trial can't send other texts). When the caller reads it back, Verify checks it, and only an approved code is swapped for the lock's own code before the agent hears the line; a wrong one reaches the lock as said and fails there.
 
 ### Calls
 

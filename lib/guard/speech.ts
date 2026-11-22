@@ -35,7 +35,7 @@ const NOT_A_PROMISE = new RegExp(
     // The agent's own reading, not the order: "I went through your record."
     "\\b(?:i|we|ive|weve|i have|we have|i ve|we ve) (?:went|gone) through\\b",
     // Identity checks, not the order: "Your identity is confirmed.", "that's confirmed: your date of birth matches".
-    "\\b(?:your identity|your date of birth|your dob|your details|your code|that code|the code) (?:is |are |s |has been |have been |was )?confirmed\\b",
+    "\\b(?:your identity|your date of birth|your dob|your details|(?!its\\b)\\w+s details|your code|that code|the code) (?:is |are |s |has been |have been |was )?confirmed\\b",
     // Questions to the caller, and the agent's own state: "Are you done?", "I'm all set to help."
     "\\bare you (?:all )?(?:done|all set|set)\\b",
     "\\b(?:im|i am) (?:all set|done)\\b",

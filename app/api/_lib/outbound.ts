@@ -23,7 +23,9 @@ export type Preview =
   | { kind: "refused"; ruleIds: RuleId[] };
 
 /** The lane a refill request would land in today, from the rule cards. Never presses, never writes. */
-export async function refillPreview(store: Store, patient: Patient, rx: Prescription): Promise<Preview> {
+type PreviewStore = Pick<Store, "listCards" | "now" | "listRecord" | "policy">;
+
+export async function refillPreview(store: PreviewStore, patient: Patient, rx: Prescription): Promise<Preview> {
   const verdict = evaluate(await store.listCards(), "request_refill", await loadContext(store, patient, rx));
   if (verdict.outcome === "refuse") return { kind: "refused", ruleIds: verdict.deciding };
   const signals = signalsFromCards(verdict);
@@ -31,7 +33,7 @@ export async function refillPreview(store: Store, patient: Patient, rx: Prescrip
 }
 
 /** Rule 7's verdict on ringing this patient now (opt-in, hours, one call per 3 days), from the rule cards. Never writes. */
-export async function outboundPreview(store: Store, patient: Patient, rx: Prescription): Promise<{ allowed: boolean; ruleIds: RuleId[] }> {
+export async function outboundPreview(store: PreviewStore, patient: Patient, rx: Prescription): Promise<{ allowed: boolean; ruleIds: RuleId[] }> {
   const verdict = evaluate(await store.listCards(), "outbound_check", await loadContext(store, patient, rx));
   return { allowed: verdict.outcome === "allowed" || verdict.outcome === "flag", ruleIds: verdict.deciding };
 }
@@ -51,7 +53,7 @@ export async function notDueReason(store: Store, patient: Patient, rx: Prescript
 const ON_ITS_WAY: readonly Order["state"][] = ["queued", "waiting_for_pharmacist", "approved"];
 
 /** This prescription's refill that is already on its way, if any: no ring, no reminder. */
-export async function refillOnItsWay(store: Store, patientId: string, rxId: string): Promise<Order | undefined> {
+export async function refillOnItsWay(store: Pick<Store, "listOrders">, patientId: string, rxId: string): Promise<Order | undefined> {
   return (await store.listOrders(patientId)).find((o) => o.rxId === rxId && ON_ITS_WAY.includes(o.state));
 }
 

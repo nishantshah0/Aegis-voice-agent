@@ -24,7 +24,7 @@ const STATUS: Record<QueueItem["status"], string> = { open: "waiting", approved:
 const textOf = (e: RecordEntry) => (e.input as { text?: string } | undefined)?.text ?? "";
 const capital = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
-async function describeCall(store: Store, callId: CallId, record: RecordEntry[], queue: QueueItem[]): Promise<ReviewCall | null> {
+export async function describeCall(store: Store, callId: CallId, record: RecordEntry[], queue: QueueItem[]): Promise<ReviewCall | null> {
   const call = await store.getCall(callId);
   if (!call || call.state !== "ended") return null;
   const patientId = call.lockedPatientId ?? call.targetPatientId;
@@ -42,7 +42,7 @@ async function describeCall(store: Store, callId: CallId, record: RecordEntry[],
     }
   }
 
-  const items = queue.filter((q) => q.callId === callId);
+  const items = queue;
   const outcome = [call.lockedPatientId ? "Verified" : "Never verified"];
   for (const item of items) {
     const rx = item.rxId ? await store.getPrescription(item.rxId) : undefined;
@@ -69,6 +69,10 @@ async function describeCall(store: Store, callId: CallId, record: RecordEntry[],
 /** Every call that has ended, newest first. */
 export async function finishedCalls(store: Store): Promise<ReviewCall[]> {
   const [record, queue] = await Promise.all([store.listRecord(), store.queue()]);
+  return describeFinishedCalls(store, record, queue);
+}
+
+export async function describeFinishedCalls(store: Store, record: RecordEntry[], queue: QueueItem[]): Promise<ReviewCall[]> {
   const byCall = new Map<CallId, RecordEntry[]>();
   for (const e of record) {
     if (!e.callId) continue;
@@ -77,6 +81,7 @@ export async function finishedCalls(store: Store): Promise<ReviewCall[]> {
     byCall.set(e.callId, list);
   }
   const newestFirst = [...byCall.entries()].sort((a, b) => b[1][0]!.seq - a[1][0]!.seq);
-  const calls = await Promise.all(newestFirst.map(([id, entries]) => describeCall(store, id, entries, queue)));
+  const queueByCall = Map.groupBy(queue, (item) => item.callId);
+  const calls = await Promise.all(newestFirst.map(([id, entries]) => describeCall(store, id, entries, queueByCall.get(id) ?? [])));
   return calls.filter((c): c is ReviewCall => c !== null);
 }

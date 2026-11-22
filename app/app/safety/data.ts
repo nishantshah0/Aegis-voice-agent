@@ -82,6 +82,16 @@ export async function readCards(dir: string = scenariosDir()): Promise<Card[]> {
   return cards.filter((c): c is Card => c !== null);
 }
 
+/** Most cards use their id as the filename. Older cards can use another name. */
+export async function readCard(id: string, dir = scenariosDir()): Promise<Card | undefined> {
+  const file = `${id}.json`;
+  if (/^[\w-]+$/.test(id)) {
+    const card = parseCard(await readJson(join(dir, file)), file);
+    if (card?.id === id) return card;
+  }
+  return (await readCards(dir)).find((card) => card.id === id);
+}
+
 // ---------- a scenario run: results/arena/scenarios/<run>/scoreboard.json ----------
 
 export type Check = { id: string; passed: boolean; violation: boolean };
@@ -207,12 +217,16 @@ export function parseEntry(v: unknown): Entry {
 
 /** Saved attempt numbers for one scenario in a run, with their file paths. */
 async function attemptPaths(runDir: string, id: string): Promise<{ n: number; path: string }[]> {
-  const flat = (await readdir(join(runDir, "runs")).catch(() => [] as string[]))
+  const nestedDir = join(runDir, "attempts", encodeURIComponent(id));
+  const [flatFiles, nestedFiles] = await Promise.all([
+    readdir(join(runDir, "runs")).catch(() => [] as string[]),
+    readdir(nestedDir).catch(() => [] as string[]),
+  ]);
+  const flat = flatFiles
     .map((f) => ({ f, m: f.match(/^(.+)-(\d+)\.json$/) }))
     .filter((x) => x.m?.[1] === id)
     .map((x) => ({ n: Number(x.m![2]), path: join(runDir, "runs", x.f) }));
-  const nestedDir = join(runDir, "attempts", encodeURIComponent(id));
-  const nested = (await readdir(nestedDir).catch(() => [] as string[]))
+  const nested = nestedFiles
     .map((f) => ({ f, m: f.match(/^(\d+)\.json$/) }))
     .filter((x) => x.m)
     .map((x) => ({ n: Number(x.m![1]), path: join(nestedDir, x.f) }));
@@ -222,7 +236,10 @@ async function attemptPaths(runDir: string, id: string): Promise<{ n: number; pa
 }
 
 export async function readAttempts(run: ScenarioRun, id: string, cardFile?: string): Promise<AttemptFile[]> {
-  const card = cardFile ? await readJson(join(scenariosDir(), cardFile)) as Scenario | null : null;
+  const [card, paths] = await Promise.all([
+    cardFile ? readJson(join(scenariosDir(), cardFile)) as Promise<Scenario | null> : null,
+    attemptPaths(run.dir, id),
+  ]);
   let tokens: Record<string, string> = {};
   if (card) {
     // Older/custom definitions may no longer have a matching seed. Unresolved
@@ -230,7 +247,6 @@ export async function readAttempts(run: ScenarioRun, id: string, cardFile?: stri
     try { tokens = scenarioTokens(card, scenarioSeed(card, SEED), "{{code}}"); } catch { /* optional historical fixture */ }
   }
   const resolve = (v: string) => v.replace(/\{\{([^}]+)\}\}/g, (token, name) => ["code", "wrong_code"].includes(name) ? token : tokens[name] ?? token);
-  const paths = await attemptPaths(run.dir, id);
   const files = await Promise.all(
     paths.map(async ({ n, path }) => {
       const file = obj(await readJson(path));
@@ -356,7 +372,7 @@ export type BatchCardRun = { cardId: string; callId: string; passed: boolean; fa
 export type BatchView = { path: string; ranAt: string; batches: number; cards: number; caught: number; broken: number; runs: BatchCardRun[] };
 
 /** The newest full hijack batch (a judge's single pick on the stage isn't a batch), or null. */
-export async function readLatestBatch(dir: string = resultsDir()): Promise<BatchView | null> {
+export async function readLatestBatch(dir: string = resultsDir(), { includeSteps = true }: { includeSteps?: boolean } = {}): Promise<BatchView | null> {
   const root = join(dir, "hijack");
   const entries = (await readdir(root, { withFileTypes: true }).catch(() => [])).filter((e) => e.isDirectory() && !e.name.startsWith("pick-"));
   const batches = (
@@ -364,6 +380,8 @@ export async function readLatestBatch(dir: string = resultsDir()): Promise<Batch
       entries.map(async (e) => {
         const path = join(root, e.name);
         const files = (await readdir(path).catch(() => [] as string[])).filter((f) => f.endsWith(".json")).map((f) => join(path, f));
+        const namedTime = batchTime(e.name, 0);
+        if (namedTime) return { path, files, mtime: namedTime };
         const times = await Promise.all(files.map((f) => stat(f).then((s) => s.mtimeMs, () => 0)));
         return { path, files, mtime: batchTime(e.name, Math.max(0, ...times)) };
       }),
@@ -387,7 +405,7 @@ export async function readLatestBatch(dir: string = resultsDir()): Promise<Batch
           caught: num(score.caught),
           broken: num(score.broken),
           path,
-          steps: arr(run.record).map(describeEntry),
+          steps: includeSteps ? arr(run.record).map(describeEntry) : [],
         };
       }),
     )
