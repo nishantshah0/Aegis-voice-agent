@@ -113,9 +113,11 @@ export function createMemoryStore(seed: Seed = SEED): Store {
       return clone(s.data.cards);
     },
     async addCard(card) {
-      if (s.data.cards.some((c) => c.id === card.id)) throw new Error(`rule card ${card.id} already exists`);
-      s.data.cards.push(clone(card));
-      return clone(card);
+      return serial(async () => {
+        if (s.data.cards.some((c) => c.id === card.id)) throw new Error(`rule card ${card.id} already exists`);
+        s.data.cards.push(clone(card));
+        return clone(card);
+      });
     },
     async policy() {
       return clone(s.data.policy);
