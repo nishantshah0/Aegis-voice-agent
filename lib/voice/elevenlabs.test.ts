@@ -10,7 +10,6 @@ import {
   type Clip,
   type FetchClip,
   type PlayClip,
-  type Playing,
   createClipFetcher,
   createElevenLabsVoice,
   fixedLineTexts,

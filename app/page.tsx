@@ -9,7 +9,7 @@ import outreach from "@/results/sim/baseline/summary.json";
 import { Logo } from "@/components/ui";
 import "@/components/landing/landing.css";
 
-const REPO = "https://github.com/nishantshah0/namereserve";
+const REPO = "https://github.com/nishantshah0/Aegis-voice-agent";
 const PHARMACY = "/app/pharmacy/today";
 const SAFETY = "/app/safety/gate";
 

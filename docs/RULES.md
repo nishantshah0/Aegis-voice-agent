@@ -54,8 +54,8 @@ No exceptions, not even "just for the demo". Never add a way around the buttons 
 ## 6. Talking on the channel
 
 **Where:**
-- [GitHub issue #1](https://github.com/nishantshah0/namereserve/issues/1): the agent channel.
-- [Issue #11](https://github.com/nishantshah0/namereserve/issues/11): the URGENT channel.
+- [GitHub issue #1](https://github.com/nishantshah0/Aegis-voice-agent/issues/1): the agent channel.
+- [Issue #11](https://github.com/nishantshah0/Aegis-voice-agent/issues/11): the URGENT channel.
 - Entire Trail findings: anything about a specific change.
 - Entire Trail #2: human steering.
 

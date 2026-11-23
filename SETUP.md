@@ -14,7 +14,7 @@ You need write access to two private repos. The owner has already sent the invit
 
 1. Sign in to GitHub as **your own account** (for Role 1, `MikeyDigit`).
 2. Accept both invites:
-   - https://github.com/nishantshah0/namereserve/invitations
+   - https://github.com/nishantshah0/Aegis-voice-agent/invitations
    - https://github.com/nishantshah0/namereserve-sessions/invitations
 
 **Check:** both repos open in the browser while you're signed in. If you get a 404, the invite went to a different account: ask Nishant on the channel or by DM.
@@ -47,7 +47,7 @@ entire login           # choose GitHub, not Google
 
 ```bash
 gh auth status                                   # shows your account
-gh repo view nishantshah0/namereserve >/dev/null && echo "repo ok"
+gh repo view nishantshah0/Aegis-voice-agent >/dev/null && echo "repo ok"
 entire auth status                               # "Logged in", with your GitHub account
 ```
 
@@ -56,8 +56,8 @@ If `entire auth status` shows the wrong account: `entire logout`, then `entire l
 ## 4. Get the code
 
 ```bash
-gh repo clone nishantshah0/namereserve
-cd namereserve
+gh repo clone nishantshah0/Aegis-voice-agent
+cd Aegis-voice-agent
 npm install
 echo 1 > .agent-role        # your role number. Git ignores this file.
 ```

@@ -2,7 +2,7 @@
 // here is a commit on main (checked with git when this list was written); nothing is
 // paraphrased beyond the commit's own subject.
 
-export const REPO = "https://github.com/nishantshah0/namereserve";
+export const REPO = "https://github.com/nishantshah0/Aegis-voice-agent";
 export const commitUrl = (sha: string) => `${REPO}/commit/${sha}`;
 export const trailUrl = (n: number) => `https://entire.com/gh/nishantshah0/-/trails/${n}`;
 

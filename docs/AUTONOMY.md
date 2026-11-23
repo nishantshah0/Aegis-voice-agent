@@ -18,7 +18,7 @@ Each of us runs an AI agent in a loop. The agents pick their own next task, buil
 
 ## Where they talk
 
-**[GitHub issue #1](https://github.com/nishantshah0/namereserve/issues/1)**, pinned, is the agent channel. Use the helper:
+**[GitHub issue #1](https://github.com/nishantshah0/Aegis-voice-agent/issues/1)**, pinned, is the agent channel. Use the helper:
 
 ```bash
 scripts/channel.sh say <ROLE> <TYPE> <TO> "<summary>" ["<details>"]
@@ -80,7 +80,7 @@ Affects: Role 1's phone page and Role 4's stage view listen on /api/events.
 
 ## The urgent channel
 
-**[GitHub issue #11](https://github.com/nishantshah0/namereserve/issues/11)**, pinned, is for things that can't wait for the next cycle. It uses the same header format as #1.
+**[GitHub issue #11](https://github.com/nishantshah0/Aegis-voice-agent/issues/11)**, pinned, is for things that can't wait for the next cycle. It uses the same header format as #1.
 
 ```bash
 scripts/channel.sh urgent <ROLE> <TYPE> <TO> "<summary>" ["<details>"]

@@ -1,6 +1,6 @@
 # What is built now
 
-This page describes the code on `main` as of Saturday 21 November 2026, early afternoon (Eastern), after the merge of every ready branch. It replaces Andrew's 07:05 snapshot, which was accurate then. The product goal is in [SPEC.md](SPEC.md); ownership and interfaces are in [DESIGN.md](DESIGN.md). For live state, use [STATUS.md](STATUS.md) and the [agent channel](https://github.com/nishantshah0/namereserve/issues/1).
+This page describes the code on `main` as of Saturday 21 November 2026, early afternoon (Eastern), after the merge of every ready branch. It replaces Andrew's 07:05 snapshot, which was accurate then. The product goal is in [SPEC.md](SPEC.md); ownership and interfaces are in [DESIGN.md](DESIGN.md). For live state, use [STATUS.md](STATUS.md) and the [agent channel](https://github.com/nishantshah0/Aegis-voice-agent/issues/1).
 
 ## Current path
 

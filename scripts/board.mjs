@@ -14,7 +14,7 @@ import { fileURLToPath } from "node:url";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, "..");
-const REPO = process.env.AGENT_CHANNEL_REPO || "nishantshah0/namereserve";
+const REPO = process.env.AGENT_CHANNEL_REPO || "nishantshah0/Aegis-voice-agent";
 const ISSUE = process.env.AGENT_CHANNEL_ISSUE || "1";
 const URGENT_ISSUE = process.env.AGENT_URGENT_ISSUE || "11";
 const PROJECT = process.env.ENTIRE_PROJECT || "gh/" + REPO.split("/")[0];
