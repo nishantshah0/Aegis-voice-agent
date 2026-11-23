@@ -37,6 +37,14 @@ flowchart LR
   Attacks[Scenarios and attacks] --> Agent
 ```
 
+## Screenshots
+
+![The pharmacist's Today queue: calls that need review, with the reason, what the patient said, and Approve or Decline](docs/images/console.png)
+<sub><b>Pharmacy · Today.</b> Only the calls that need a pharmacist, with the reason, what the patient said and the transcript. Seeded demo history; every patient is made up.</sub>
+
+![The stage view: a compromised AI tries to say "It's approved and on its way." and speech rule S4 replaces the line](docs/images/stage.png)
+<sub><b>The lock, live.</b> A compromised AI tries to refill a controlled drug early. Rule 4b stops the refill at the gate, and speech rule S4 replaces "It's approved and on its way."</sub>
+
 ## Stack
 
 | Part | Built with |
