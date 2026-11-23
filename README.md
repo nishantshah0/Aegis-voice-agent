@@ -15,11 +15,6 @@
 
 <p align="center"><strong>Synthetic demo data only · Not for clinical use</strong></p>
 
-<p align="center">
-  <a href="https://github.com/nishantshah0/Aegis-voice-agent/actions/workflows/ci.yml"><img src="https://github.com/nishantshah0/Aegis-voice-agent/actions/workflows/ci.yml/badge.svg?branch=main" alt="Release gate status"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-4a7a3a" alt="MIT License"></a>
-</p>
-
 <p align="center"><a href="public/brand/hero-flowers-dithered-4x4.mp4"><img src="docs/images/flowers-loop.gif" alt="Looping preview of the Aegis landing-page flowers" width="900"></a></p>
 <p align="center"><sub><a href="public/brand/hero-flowers-dithered-4x4.mp4">Watch the full flower video</a></sub></p>
 
