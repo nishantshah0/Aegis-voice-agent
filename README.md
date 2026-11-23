@@ -13,6 +13,8 @@
 
 <p align="center">🏆 <strong>Winner, Best Use of Auth0</strong> · Hack Western 13</p>
 
+<p align="center"><a href="https://aegis-pharmacy-live-hw13.vercel.app/"><strong>Live site ↗</strong></a><br><sub>The landing page is public. The phone, pharmacy and safety pages need presenter access.</sub></p>
+
 <p align="center"><strong>Synthetic demo data only · Not for clinical use</strong></p>
 
 <p align="center"><a href="public/brand/hero-flowers-dithered-4x4.mp4"><img src="docs/images/flowers-loop.gif" alt="Looping preview of the Aegis landing-page flowers" width="900"></a></p>
