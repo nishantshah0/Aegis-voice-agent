@@ -18,18 +18,6 @@
 <p align="center"><a href="public/brand/hero-flowers-dithered-4x4.mp4"><img src="docs/images/flowers-loop.gif" alt="Looping preview of the Aegis landing-page flowers" width="900"></a></p>
 <p align="center"><sub><a href="public/brand/hero-flowers-dithered-4x4.mp4">Watch the full flower video</a></sub></p>
 
-## A look
-
-| Landing page | Pharmacist's Today queue |
-|---|---|
-| ![Aegis landing page with a live call transcript](docs/images/landing.png) | ![The pharmacist's Today queue with one call's checked lines](docs/images/console.png) |
-
-| Stage view | Patient phone |
-|---|---|
-| ![Stage view counting rules broken, attacks caught and presses stopped](docs/images/stage.png) | ![The patient's phone page waiting for the pharmacy to call](docs/images/phone.png) |
-
-Screenshots are from the hackathon build, on made-up patients.
-
 ## How it works
 
 1. Aegis calls patients before their medication runs out and gathers the information needed for a refill.
